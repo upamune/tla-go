@@ -76,7 +76,7 @@ func instanceVariableUsed(expr *parser.Expression, variable string, defs map[str
 	if expr == nil {
 		return false
 	}
-	if expr.Kind == "Identifier" && expr.Text == variable {
+	if (expr.Kind == "Identifier" || expr.Kind == "Apply" || expr.Kind == "OperatorReference") && expr.Text == variable {
 		return true
 	}
 	local, primed := instanceVariableLocalDefinitions(expr.Definitions, variable, defs)

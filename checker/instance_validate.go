@@ -93,6 +93,9 @@ func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, ins
 		declarations := constantsWithLevelLimit(module.Constants, limits, 0)
 		targets = instanceTargetsForDeclarations(module, declarations, instance, replacements, 0, limits == nil)
 	}
+	if err := addOperatorConstantRestrictions(module, instance, replacements, &model, required, &targets); err != nil {
+		return err
+	}
 	if err := r.validateConstantInstanceArguments(instance, required, targets, &model); err != nil {
 		return err
 	}

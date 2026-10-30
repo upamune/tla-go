@@ -196,6 +196,15 @@ func (r *instanceResolver) isConstantArgument(expr *parser.Expression, scope map
 }
 
 func (r *instanceResolver) knownConstantNames(expr *parser.Expression, scope map[string]bool, model *model) bool {
+	if expr.Kind == "Lambda" {
+		scope = maps.Clone(scope)
+		if scope == nil {
+			scope = map[string]bool{}
+		}
+		for _, name := range expr.Names {
+			scope[name] = true
+		}
+	}
 	if expr.Kind == "Identifier" && !r.constantName(expr.Text, scope, model) {
 		return false
 	}

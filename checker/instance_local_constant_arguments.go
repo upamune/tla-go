@@ -16,14 +16,19 @@ func (r *instanceResolver) checkLocalConstantChildren(expr *parser.Expression, s
 	defer func() {
 		r.constantRequirements, r.constantLocalNames = previousRequirements, previousNames
 	}()
+	localModel := *model
+	localModel.defs = maps.Clone(model.defs)
+	localScope := maps.Clone(scope)
 	for _, definition := range expr.Definitions {
 		r.constantRequirements[definition.Name] = make([]bool, len(definition.Params))
 		r.constantLocalNames[definition.Name] = true
+		localModel.defs[definition.Name] = definition
+		localScope[definition.Name] = true
 	}
-	if err := r.inferLocalConstantRequirements(expr.Definitions, scope, instance, required, model); err != nil {
+	if err := r.inferLocalConstantRequirements(expr.Definitions, localScope, instance, required, &localModel); err != nil {
 		return err
 	}
-	return r.checkConstantChildren(expr, scope, instance, required, model)
+	return r.checkConstantChildren(expr, localScope, instance, required, &localModel)
 }
 
 func (r *instanceResolver) inferLocalConstantRequirements(definitions []parser.Definition, scope map[string]bool, instance parser.Instance, required map[string]bool, model *model) error {

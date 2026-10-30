@@ -53,3 +53,19 @@ func TestActionCacheRejectsDifferentFormalParameters(t *testing.T) {
 		t.Fatal("different parameter bindings must not share a cached body")
 	}
 }
+
+func TestFunctionActionCacheRespectsBounds(t *testing.T) {
+	body := &parser.Expression{Kind: "Identifier", Text: "v"}
+	domain := &parser.Expression{Kind: "Identifier", Text: "D"}
+	root := parser.Definition{Kind: "Function", Name: "F", Body: body, Bounds: []parser.Bound{{Names: []string{"i"}, Set: domain}}}
+	local := root
+	local.Bounds = []parser.Bound{{Names: []string{"j"}, Set: domain}}
+	g := generator{model: &model{defs: map[string]parser.Definition{"F": root}}, lexical: &evaluator.LexicalScope{}}
+	call := &parser.Expression{Kind: "Apply", Text: "F"}
+	if g.cacheableFunctionAction(call, local) {
+		t.Fatal("functions with different bounds must not share a cached body")
+	}
+	if !g.cacheableFunctionAction(call, root) {
+		t.Fatal("unchanged module functions should use the cache")
+	}
+}

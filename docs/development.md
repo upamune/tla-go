@@ -43,6 +43,14 @@ without running every benchmark, use:
 mise exec -- go test ./checker -run '^$' -bench '^BenchmarkUpstreamFastMutex$' -benchmem -benchtime=1x -count=3
 ```
 
+`BenchmarkParameterizedOperatorFunctionAction` explores 5,000 states through
+a parameterized instance whose function action receives an operator argument.
+It measures repeated action expansion and state exploration together:
+
+```sh
+mise exec -- go test ./checker -run '^$' -bench '^BenchmarkParameterizedOperatorFunctionAction$' -benchmem -benchtime=1x -count=3
+```
+
 ## Compare with Java TLC
 
 CI downloads the official Java TLC 1.7.4 JAR, verifies its SHA-256, and runs selected comparisons. To run them locally, install Java, point `TLC_JAR` to an absolute path to the JAR, and run:

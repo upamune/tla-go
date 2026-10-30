@@ -111,6 +111,7 @@ type model struct {
 	names             []string
 	ctx               context.Context
 	actionCache       map[*parser.Expression]*parser.Expression
+	funcActionCache   map[*parser.Expression]parser.Definition
 	letCache          map[*parser.Expression]*parser.Expression
 	tlcFingerprint    bool
 	fromSpecification bool

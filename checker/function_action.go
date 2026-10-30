@@ -27,8 +27,13 @@ func (g *generator) functionAction(item work, rest []work, partial evaluator.Sta
 }
 
 func (g *generator) checkedFunctionAction(item work, definition parser.Definition, rest []work, partial evaluator.State, action string) (bool, error) {
-	if len(definition.Params) != len(item.expr.Args[0].Args) || hasOperatorParameters(definition.Params) {
+	if len(definition.Params) != len(item.expr.Args[0].Args) {
 		return false, fmt.Errorf("unsupported function action arguments for %s", definition.Name)
+	}
+	var err error
+	definition, err = g.functionActionDefinition(definition, item.expr.Args[0])
+	if err != nil {
+		return false, err
 	}
 	return g.expandFunctionAction(item, definition, rest, partial, action)
 }
@@ -125,6 +130,9 @@ func (g *generator) functionParameterBindings(item work, definition parser.Defin
 		bindings = map[string]value.Value{}
 	}
 	for i, parameter := range definition.Params {
+		if parameter.Arity > 0 {
+			continue
+		}
 		v, err := g.evalWithLocals(item.expr.Args[0].Args[i], current, next, item.locals)
 		if err != nil {
 			return nil, err
