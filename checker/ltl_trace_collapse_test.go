@@ -37,3 +37,21 @@ func TestCollapseGeneralTracePreservesNonconsecutiveStatesAndLoop(t *testing.T) 
 		t.Fatalf("got states %v, actions %v, loop %d via %s", states, actions, *violation.LoopStart, violation.LoopAction)
 	}
 }
+
+func TestCollapseGeneralTraceMarksStutteringAfterRepeatedState(t *testing.T) {
+	m := &model{names: []string{"x"}, livenessOrder: []temporalProperty{{name: "P", mode: generalTemporal}}}
+	s := search{model: m}
+	loop := 0
+	x, err := value.Integer(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := evaluator.State{"x": x}
+	violation := Violation{Name: "P", LoopStart: &loop, LoopAction: "Next", Trace: []TraceStep{{State: state}, {State: state}, {State: state}}}
+	if err := s.collapseGeneralTrace(&violation); err != nil {
+		t.Fatal(err)
+	}
+	if len(violation.Trace) != 1 || *violation.LoopStart != 0 || violation.LoopAction != "Stuttering" {
+		t.Fatalf("unexpected collapsed trace: %+v", violation)
+	}
+}

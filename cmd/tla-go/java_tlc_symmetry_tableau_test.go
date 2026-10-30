@@ -149,3 +149,27 @@ func TestJavaTLCPartialFairness(t *testing.T) {
 		})
 	}
 }
+
+func TestJavaTLCSymmetryFairRecurrenceToolTrace(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("set TLC_JAR to compare Java TLC tool output")
+	}
+	for _, tc := range []struct{ name, fairness string }{
+		{"two weak", "WF_x(Next) /\\ WF_bit(Next)"},
+		{"strong x", "SF_x(Next) /\\ WF_bit(Next)"},
+		{"strong bit", "WF_x(Next) /\\ SF_bit(Next)"},
+		{"weak tuple", "WF_vars(Next)"},
+		{"strong tuple", "SF_vars(Next)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "CONSTANTS P,a,b\nVARIABLES x,bit\nvars == <<x,bit>>\n" +
+				"Init == x \\in P /\\ bit = 0\nNext == x' \\in P /\\ UNCHANGED bit\n" +
+				"Spec == Init /\\ [][Next]_vars /\\ " + tc.fairness + "\nSym == Permutations(P)\nProp == <>[](x=a) => []<>(bit=1)"
+			cfg := "CONSTANTS P={a,b} a=a b=b SPECIFICATION Spec SYMMETRY Sym PROPERTY Prop CHECK_DEADLOCK FALSE"
+			writeDOTFixture(t, dir, body, cfg)
+			compareFullSymmetryToolTrace(t, jar, dir, "M.tla")
+		})
+	}
+}
