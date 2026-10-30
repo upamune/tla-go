@@ -16,6 +16,9 @@ func Equal(a, b Value) (bool, error) {
 }
 
 func equalRegular(a, b Value) (bool, error) {
+	if err := incompatibleSetEquality(a, b); err != nil {
+		return false, err
+	}
 	if err := incompatibleEquality(a, b); err != nil {
 		return false, err
 	}
@@ -27,6 +30,17 @@ func equalRegular(a, b Value) (bool, error) {
 	}
 	c, err := Compare(a, b)
 	return c == 0, err
+}
+
+func incompatibleSetEquality(a, b Value) error {
+	if (a.kind == SetKind || a.kind == IntervalKind) && !isSet(b) && b.kind != ModelKind {
+		set, err := setForComparison(a)
+		if err != nil {
+			return err
+		}
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of the set %s with the value:\n%s", set, b)}
+	}
+	return nil
 }
 
 func incompatibleEquality(a, b Value) error {
