@@ -54,13 +54,13 @@ func TestInstanceConstantParameters(t *testing.T) {
 	}
 }
 
-func TestInstanceConstantParameterCheckedInFunctionDomain(t *testing.T) {
+func TestInstanceConstantAliasInFunctionDomain(t *testing.T) {
 	module := "---- MODULE A ----\nCONSTANT C\nVARIABLE y\nPublic == C\n===="
 	loader := func(context.Context, string) (string, error) { return module, nil }
 	source := "---- MODULE M ----\nVARIABLE x\nP(p) == INSTANCE A WITH C <- p, y <- x\nf[i \\in {P(x)!Public}] == i\nInit == x = 0\nNext == x' = x\n===="
 	_, err := CheckWithLoader(context.Background(), source, "INIT Init NEXT Next", loader)
-	if err == nil || !strings.Contains(err.Error(), "constant argument") {
-		t.Fatalf("got %v", err)
+	if err != nil {
+		t.Fatalf("got %v; Java TLC accepts this alias", err)
 	}
 }
 

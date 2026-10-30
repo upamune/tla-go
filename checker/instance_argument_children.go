@@ -12,7 +12,7 @@ func (r *instanceResolver) checkConstantChildren(expr *parser.Expression, scope 
 	walkUnscopedChildren(expr, visit)
 	for _, definition := range expr.Definitions {
 		if failure == nil {
-			failure = r.checkConstantDefinition(definition, scope, instance, required, model)
+			failure = r.checkConstantDefinitionWithProbe(definition, scope, instance, required, model, "")
 		}
 	}
 	return failure

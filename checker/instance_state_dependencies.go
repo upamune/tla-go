@@ -9,17 +9,21 @@ import (
 // A parameterized instance imposes state-level limits only on exports that
 // depend on the variable substituted with that parameter.
 func stateInstanceTargets(module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression) map[string][]bool {
+	return instanceTargetsForDeclarations(module, module.Variables, instance, replacements, 1, true)
+}
+
+func instanceTargetsForDeclarations(module *parser.Module, declarations []parser.Declaration, instance parser.Instance, replacements map[string]*parser.Expression, level int, stateVariable bool) map[string][]bool {
 	defs := make(map[string]parser.Definition, len(module.Definitions))
 	for _, def := range module.Definitions {
 		defs[def.Name] = def
 	}
-	variables := instanceVariableParameters(module.Variables, instance.Params, replacements)
+	variables := instanceVariableParameters(declarations, instance.Params, replacements)
 	targets := make(map[string][]bool)
 	for _, def := range module.Definitions {
 		if def.Local {
 			continue
 		}
-		targets[instance.Name+"!"+def.Name] = stateDefinitionTargets(def, variables, defs, len(instance.Params))
+		targets[instance.Name+"!"+def.Name] = stateDefinitionTargets(module, def, variables, defs, len(instance.Params), level, stateVariable)
 	}
 	return targets
 }
@@ -40,10 +44,10 @@ func instanceVariableParameters(variables, params []parser.Declaration, replacem
 	return result
 }
 
-func stateDefinitionTargets(def parser.Definition, variables map[string][]bool, defs map[string]parser.Definition, paramCount int) []bool {
+func stateDefinitionTargets(module *parser.Module, def parser.Definition, variables map[string][]bool, defs map[string]parser.Definition, paramCount, level int, stateVariable bool) []bool {
 	limits := make([]bool, paramCount)
 	for name, variableLimits := range variables {
-		if instanceDefinitionDependsOnVariable(def, name, defs) {
+		if instanceDefinitionLevelBounded(module, def, name, level, stateVariable, defs) {
 			for i, required := range variableLimits {
 				limits[i] = limits[i] || required
 			}

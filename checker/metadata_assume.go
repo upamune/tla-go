@@ -18,6 +18,9 @@ func (s *metadataScope) assumeProveLevel(expr *parser.Expression, visiting map[*
 		if err != nil {
 			return 0, err
 		}
+		if err := s.checkInstanceLevel(value, 2); err != nil {
+			return 0, err
+		}
 		level = max(level, value)
 	}
 	return level, nil

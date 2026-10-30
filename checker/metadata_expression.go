@@ -16,12 +16,19 @@ func (s *metadataScope) expression(expr *parser.Expression, visiting map[*metada
 	if expr.Kind == "OperatorReference" || expr.Kind == "Subexpression" || expr.Kind == "ModuleFact" {
 		return 0, fmt.Errorf("unsupported level expression %s", expr.Kind)
 	}
+	return s.scopedExpression(expr, visiting)
+}
+
+func (s *metadataScope) scopedExpression(expr *parser.Expression, visiting map[*metadataDefinition]bool) (int, error) {
 	local, level, err := s.expressionScope(expr, visiting)
 	if err != nil {
 		return 0, err
 	}
 	childLevel, err := local.childrenLevel(expr, visiting)
 	if err != nil {
+		return 0, err
+	}
+	if err := s.checkInstanceLevel(childLevel, instanceExpressionLimit(expr)); err != nil {
 		return 0, err
 	}
 	return metadataHeadLevel(expr, max(level, childLevel))
@@ -105,6 +112,9 @@ func (s *metadataScope) expressionScope(expr *parser.Expression, visiting map[*m
 	local := s.clone()
 	if expr.Kind == "Let" {
 		local.addDefinitions(expr.Definitions)
+		if err := local.checkInstanceLocalDefinitions(expr.Definitions, visiting); err != nil {
+			return nil, 0, err
+		}
 	}
 	level, err := local.bounds(expr.Bounds, visiting)
 	if err != nil {
@@ -112,6 +122,18 @@ func (s *metadataScope) expressionScope(expr *parser.Expression, visiting map[*m
 	}
 	local.bindExpressionNames(expr)
 	return local, level, nil
+}
+
+func (s *metadataScope) checkInstanceLocalDefinitions(definitions []parser.Definition, visiting map[*metadataDefinition]bool) error {
+	if !s.instanceProbe {
+		return nil
+	}
+	for _, definition := range definitions {
+		if _, err := s.definition(s.defs[definition.Name], nil, visiting); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func metadataNeedsScope(expr *parser.Expression) bool {
@@ -148,6 +170,9 @@ func (s *metadataScope) call(d *metadataDefinition, expr *parser.Expression, vis
 		if err != nil {
 			return 0, err
 		}
+		if err := s.checkInstanceLevel(level, 3); err != nil {
+			return 0, err
+		}
 		args[i] = level
 	}
 	return s.definition(d, args, visiting)
@@ -163,12 +188,26 @@ func metadataHeadLevel(expr *parser.Expression, children int) (int, error) {
 		return max(2, children), nil
 	case "Always", "Eventually", "WeakFairness", "StrongFairness":
 		return 3, nil
+	case "UnboundedQuantifier":
+		return metadataQuantifierLevel(expr, children), nil
 	case "Apply":
-		if expr.Text == "~>" || expr.Text == "-+->" {
-			return 3, nil
-		}
+		return metadataApplyLevel(expr, children), nil
 	}
 	return children, nil
+}
+
+func metadataQuantifierLevel(expr *parser.Expression, children int) int {
+	if expr.Temporal {
+		return 3
+	}
+	return children
+}
+
+func metadataApplyLevel(expr *parser.Expression, children int) int {
+	if expr.Text == "~>" || expr.Text == "-+->" {
+		return 3
+	}
+	return children
 }
 
 func metadataEnabledLevel(children int) (int, error) {

@@ -23,3 +23,21 @@ func BenchmarkParameterizedInstanceState(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkParameterizedInstanceConstant(b *testing.B) {
+	const source = "---- MODULE M ----\nI(p) == INSTANCE A WITH C <- p\nASSUME I(1)!Valid\n====\n"
+	const dependency = "---- MODULE A ----\nCONSTANT C\nValid == C = 1\n====\n"
+	loader := func(_ context.Context, name string) (string, error) {
+		if name != "A" {
+			return "", fmt.Errorf("unexpected module %s", name)
+		}
+		return dependency, nil
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		result, err := CheckWithLoader(context.Background(), source, "", loader)
+		if err != nil || result.Status != Success {
+			b.Fatalf("got %+v, %v", result, err)
+		}
+	}
+}

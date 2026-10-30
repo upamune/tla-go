@@ -81,6 +81,8 @@ type instanceResolver struct {
 	usedModules          map[string]bool
 	proofModules         []string
 	constantRequirements map[string][]bool
+	constantTargets      map[string][]bool
+	constantLocalNames   map[string]bool
 }
 
 func (r *instanceResolver) registerNested() error {

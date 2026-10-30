@@ -43,12 +43,12 @@ func TestJavaTLCInstanceSubstitutionLevels(t *testing.T) {
 		name, module, definitions, invariant string
 		goCode, javaCode                     int
 	}{
-		{"state substitution", scalar, "I == INSTANCE A WITH C <- x, y <- x", "I!Public", 255, 150},
-		{"direct state", scalar, "P(p) == INSTANCE A WITH C <- p, y <- x", "P(x)!Public", 255, 150},
-		{"nonrecursive state", scalar, "P(p) == INSTANCE A WITH C <- p, y <- x\nF(n) == P(n)!Public", "F(x)", 255, 150},
+		{"state substitution", scalar, "I == INSTANCE A WITH C <- x, y <- x", "I!Public", 150, 150},
+		{"direct state", scalar, "P(p) == INSTANCE A WITH C <- p, y <- x", "P(x)!Public", 150, 150},
+		{"nonrecursive state", scalar, "P(p) == INSTANCE A WITH C <- p, y <- x\nF(n) == P(n)!Public", "F(x)", 150, 150},
 		{"nonrecursive constant", scalar, "P(p) == INSTANCE A WITH C <- p, y <- x\nF(n) == P(n)!Public", "F(0)", 0, 0},
 		{"state bounded variable", scalar, "P(p) == INSTANCE A WITH C <- p, y <- x", "\\A i \\in {x} : P(i)!Public", 0, 0},
-		{"recursive state dependency", scalar, "RECURSIVE g(_)\nP(p) == INSTANCE A WITH C <- p, y <- x\ng(n) == IF n = 0 THEN P(n)!Public ELSE g(n-1)\nWrapped(n) == g(n)", "Wrapped(x)", 255, 150},
+		{"recursive state dependency", scalar, "RECURSIVE g(_)\nP(p) == INSTANCE A WITH C <- p, y <- x\ng(n) == IF n = 0 THEN P(n)!Public ELSE g(n-1)\nWrapped(n) == g(n)", "Wrapped(x)", 150, 150},
 		{"recursive constant", scalarConstant, "RECURSIVE g(_)\nP(p) == INSTANCE A WITH C <- p\ng(n) == IF n = 0 THEN P(n)!H ELSE g(n-1)\nWrapped(n) == g(n)", "Wrapped(x) = 0", 0, 0},
 		{"stateful operator", operator, "G(n) == n + x\nI == INSTANCE A WITH F <- G", "I!H = x", 0, 0},
 		{"stateful lambda", operator, "P(p) == INSTANCE A WITH F <- LAMBDA n : n + p", "P(x)!H = x", 0, 0},

@@ -8,13 +8,18 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-func (r *instanceResolver) validateConstantInstanceArguments(instance parser.Instance, required map[string]bool, model *model) error {
+func (r *instanceResolver) validateConstantInstanceArguments(instance parser.Instance, required map[string]bool, targets map[string][]bool, model *model) error {
 	if len(required) == 0 {
 		return nil
 	}
 	previous := r.constantRequirements
+	previousTargets := r.constantTargets
 	r.constantRequirements = map[string][]bool{}
-	defer func() { r.constantRequirements = previous }()
+	r.constantTargets = targets
+	defer func() {
+		r.constantRequirements = previous
+		r.constantTargets = previousTargets
+	}()
 	if err := r.inferConstantRequirements(instance, required, model); err != nil {
 		return err
 	}
@@ -41,7 +46,7 @@ func (r *instanceResolver) inferConstantRequirements(instance parser.Instance, r
 func (r *instanceResolver) inferConstantPass(instance parser.Instance, required map[string]bool, model *model) (bool, error) {
 	changed := false
 	for _, definition := range r.root.Definitions {
-		updated, err := r.inferDefinitionRequirements(definition, instance, required, model)
+		updated, err := r.inferDefinitionRequirements(definition, nil, instance, required, model)
 		if err != nil {
 			return false, err
 		}
@@ -50,17 +55,17 @@ func (r *instanceResolver) inferConstantPass(instance parser.Instance, required 
 	return changed, nil
 }
 
-func (r *instanceResolver) inferDefinitionRequirements(definition parser.Definition, instance parser.Instance, required map[string]bool, model *model) (bool, error) {
+func (r *instanceResolver) inferDefinitionRequirements(definition parser.Definition, outer map[string]bool, instance parser.Instance, required map[string]bool, model *model) (bool, error) {
 	if !r.hasConstantConstraint(definition, instance) {
 		return false, nil
 	}
-	if err := r.checkConstantDefinitionWithProbe(definition, nil, instance, required, model, ""); err != nil {
+	if err := r.checkConstantDefinitionWithProbe(definition, outer, instance, required, model, ""); err != nil {
 		return false, err
 	}
 	if constantRecursiveDefinition(definition, model) {
 		return false, nil
 	}
-	return r.probeConstantParameters(definition, instance, required, model), nil
+	return r.probeConstantParameters(definition, outer, instance, required, model), nil
 }
 
 func constantRecursiveDefinition(definition parser.Definition, model *model) bool {
@@ -69,10 +74,10 @@ func constantRecursiveDefinition(definition parser.Definition, model *model) boo
 	return definition.Recursive && !model.readsState(definition.Body, map[string]bool{}) && !model.hasAction(definition.Body, map[string]bool{})
 }
 
-func (r *instanceResolver) probeConstantParameters(definition parser.Definition, instance parser.Instance, required map[string]bool, model *model) bool {
+func (r *instanceResolver) probeConstantParameters(definition parser.Definition, outer map[string]bool, instance parser.Instance, required map[string]bool, model *model) bool {
 	changed := false
 	for i, param := range definition.Params {
-		if !r.constantRequirements[definition.Name][i] && r.checkConstantDefinitionWithProbe(definition, nil, instance, required, model, param.Name) != nil {
+		if !r.constantRequirements[definition.Name][i] && r.checkConstantDefinitionWithProbe(definition, outer, instance, required, model, param.Name) != nil {
 			r.constantRequirements[definition.Name][i] = true
 			changed = true
 		}
@@ -80,21 +85,13 @@ func (r *instanceResolver) probeConstantParameters(definition parser.Definition,
 	return changed
 }
 
-func (r *instanceResolver) checkConstantDefinition(definition parser.Definition, outer map[string]bool, instance parser.Instance, required map[string]bool, model *model) error {
-	return r.checkConstantDefinitionScope(definition, outer, instance, required, model, false, "")
-}
-
 func (r *instanceResolver) checkConstantDefinitionWithProbe(definition parser.Definition, outer map[string]bool, instance parser.Instance, required map[string]bool, model *model, probe string) error {
-	return r.checkConstantDefinitionScope(definition, outer, instance, required, model, true, probe)
-}
-
-func (r *instanceResolver) checkConstantDefinitionScope(definition parser.Definition, outer map[string]bool, instance parser.Instance, required map[string]bool, model *model, assumeConstant bool, probe string) error {
 	scope := maps.Clone(outer)
 	if scope == nil {
 		scope = map[string]bool{}
 	}
 	for _, param := range definition.Params {
-		scope[param.Name] = assumeConstant && param.Name != probe
+		scope[param.Name] = param.Name != probe
 	}
 	for _, bound := range definition.Bounds {
 		if err := r.checkConstantBound(bound, scope, instance, required, model); err != nil {
@@ -108,13 +105,24 @@ func (r *instanceResolver) checkConstantCalls(expr *parser.Expression, outer map
 	if err := r.checkInstanceCall(expr, outer, instance, required, model); err != nil {
 		return err
 	}
+	scope, err := r.constantExpressionScope(expr, outer, instance, required, model)
+	if err != nil {
+		return err
+	}
+	if len(expr.Definitions) != 0 {
+		return r.checkLocalConstantChildren(expr, scope, instance, required, model)
+	}
+	return r.checkConstantChildren(expr, scope, instance, required, model)
+}
+
+func (r *instanceResolver) constantExpressionScope(expr *parser.Expression, outer map[string]bool, instance parser.Instance, required map[string]bool, model *model) (map[string]bool, error) {
 	scope := maps.Clone(outer)
 	if scope == nil {
 		scope = map[string]bool{}
 	}
 	for _, bound := range expr.Bounds {
 		if err := r.checkConstantBound(bound, scope, instance, required, model); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if expr.Kind == "Lambda" {
@@ -125,7 +133,7 @@ func (r *instanceResolver) checkConstantCalls(expr *parser.Expression, outer map
 	for _, definition := range expr.Definitions {
 		scope[definition.Name] = false
 	}
-	return r.checkConstantChildren(expr, scope, instance, required, model)
+	return scope, nil
 }
 
 func (r *instanceResolver) checkConstantBound(bound parser.Bound, scope map[string]bool, instance parser.Instance, required map[string]bool, model *model) error {
@@ -152,15 +160,24 @@ func (r *instanceResolver) checkInstanceCall(expr *parser.Expression, scope map[
 		return fmt.Errorf("invalid arguments for instance %s", instance.Name)
 	}
 	for i, param := range instance.Params {
-		if required[param.Name] && !r.isConstantArgument(expr.Args[i], scope, model) {
+		if r.invalidConstantInstanceArgument(expr, i, required[param.Name], scope, model) {
 			return fmt.Errorf("instance parameter %s requires a constant argument", param.Name)
 		}
 	}
 	return nil
 }
 
+func (r *instanceResolver) invalidConstantInstanceArgument(expr *parser.Expression, index int, required bool, scope map[string]bool, model *model) bool {
+	return required && r.constantTargetArgument(expr.Text, index) && !r.isConstantArgument(expr.Args[index], scope, model)
+}
+
+func (r *instanceResolver) constantTargetArgument(name string, index int) bool {
+	target := r.constantTargets[name]
+	return target == nil || index < len(target) && target[index]
+}
+
 func (r *instanceResolver) checkRequiredOperatorArguments(expr *parser.Expression, scope map[string]bool, model *model) error {
-	if _, shadowed := scope[expr.Text]; shadowed {
+	if _, shadowed := scope[expr.Text]; shadowed && !r.constantLocalNames[expr.Text] {
 		return nil
 	}
 	for i, required := range r.constantRequirements[expr.Text] {

@@ -63,7 +63,7 @@ func (r *instanceResolver) prepareInstance(module *parser.Module, instance parse
 		return nil, err
 	}
 	if err := r.validateSubstitutionLevels(module, instance, replacements, index); err != nil {
-		return nil, err
+		return nil, &SemanticError{Err: err}
 	}
 	return replacements, nil
 }

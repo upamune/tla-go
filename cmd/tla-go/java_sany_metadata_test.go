@@ -86,7 +86,7 @@ func TestJavaSANYMetadataLevels(t *testing.T) {
 	source := "---- MODULE M ----\nEXTENDS Naturals\nCONSTANT C(_)\nVARIABLES x,y\n" +
 		"F(a) == TRUE\nG == F(x)\nI(a) == a\nJ == I(x)\nE == ENABLED (x' = x)\n" +
 		"T == LET unused == x' IN TRUE\nQ == \\A v \\in {x}: v = x\nU == UNCHANGED x\n" +
-		"P == [] (x = x)\nA == C(x)\n====\n"
+		"P == [] (x = x)\nA == C(x)\nR == \\EE v : TRUE\nS == \\AA v : TRUE\n====\n"
 	path := filepath.Join(dir, "M.tla")
 	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
 		t.Fatal(err)

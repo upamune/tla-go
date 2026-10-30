@@ -11,23 +11,29 @@ type stateInstanceCheck struct {
 	model        *model
 	targets      map[string][]bool
 	requirements map[string][]bool
+	localNames   map[string]bool
+	maxLevel     int
 }
 
 func (r *instanceResolver) validateStateInstanceArguments(module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, model *model) error {
 	if instance.Name == "" || len(instance.Params) == 0 || len(module.Variables) == 0 {
 		return nil
 	}
-	check := stateInstanceCheck{model: model, targets: stateInstanceTargets(module, instance, replacements), requirements: map[string][]bool{}}
-	if !check.hasTargets() {
+	check := stateInstanceCheck{model: model, targets: stateInstanceTargets(module, instance, replacements), requirements: map[string][]bool{}, maxLevel: 1}
+	return check.validate(r.root)
+}
+
+func (c *stateInstanceCheck) validate(root *parser.Module) error {
+	if !c.hasTargets() {
 		return nil
 	}
-	for _, def := range r.root.Definitions {
-		check.requirements[def.Name] = make([]bool, len(def.Params))
+	for _, def := range root.Definitions {
+		c.requirements[def.Name] = make([]bool, len(def.Params))
 	}
-	if err := check.infer(r.root.Definitions); err != nil {
+	if err := c.infer(root.Definitions); err != nil {
 		return err
 	}
-	return check.statements(r.root)
+	return c.statements(root)
 }
 
 func (c *stateInstanceCheck) statements(module *parser.Module) error {
@@ -56,35 +62,39 @@ func (c *stateInstanceCheck) hasTargets() bool {
 }
 
 func (c *stateInstanceCheck) infer(defs []parser.Definition) error {
+	return c.inferScoped(defs, nil)
+}
+
+func (c *stateInstanceCheck) inferScoped(defs []parser.Definition, outer map[string]bool) error {
 	for {
-		changed, err := c.inferPass(defs)
+		changed, err := c.inferPass(defs, outer)
 		if err != nil || !changed {
 			return err
 		}
 	}
 }
 
-func (c *stateInstanceCheck) inferPass(defs []parser.Definition) (bool, error) {
+func (c *stateInstanceCheck) inferPass(defs []parser.Definition, outer map[string]bool) (bool, error) {
 	changed := false
 	for _, def := range defs {
 		if !c.hasConstraint(def.Body) && !c.boundsHaveConstraint(def.Bounds) {
 			continue
 		}
-		if err := c.definition(def, nil, ""); err != nil {
+		if err := c.definition(def, outer, ""); err != nil {
 			return false, err
 		}
-		changed = c.probeParameters(def) || changed
+		changed = c.probeParameters(def, outer) || changed
 	}
 	return changed, nil
 }
 
-func (c *stateInstanceCheck) probeParameters(def parser.Definition) bool {
+func (c *stateInstanceCheck) probeParameters(def parser.Definition, outer map[string]bool) bool {
 	changed := false
 	for i, param := range def.Params {
 		if i >= len(c.requirements[def.Name]) {
 			break
 		}
-		if !c.requirements[def.Name][i] && c.definition(def, nil, param.Name) != nil {
+		if !c.requirements[def.Name][i] && c.definition(def, outer, param.Name) != nil {
 			c.requirements[def.Name][i] = true
 			changed = true
 		}
@@ -197,7 +207,7 @@ func (c *stateInstanceCheck) call(expr *parser.Expression, scope map[string]bool
 	if expr.Kind != "Apply" {
 		return nil
 	}
-	if _, shadowed := scope[expr.Text]; shadowed {
+	if c.localNameShadowsTarget(expr.Text, scope) {
 		return nil
 	}
 	limits := c.targets[expr.Text]
@@ -212,7 +222,19 @@ func (c *stateInstanceCheck) call(expr *parser.Expression, scope map[string]bool
 	return nil
 }
 
+func (c *stateInstanceCheck) localNameShadowsTarget(name string, scope map[string]bool) bool {
+	_, shadowed := scope[name]
+	return shadowed && !c.localNames[name]
+}
+
 func (c *stateInstanceCheck) children(expr *parser.Expression, scope map[string]bool) error {
+	if len(expr.Definitions) != 0 {
+		return c.localChildren(expr, scope)
+	}
+	return c.expressionChildren(expr, scope)
+}
+
+func (c *stateInstanceCheck) expressionChildren(expr *parser.Expression, scope map[string]bool) error {
 	for _, def := range expr.Definitions {
 		if err := c.definition(def, scope, ""); err != nil {
 			return err
@@ -238,7 +260,7 @@ func (c *stateInstanceCheck) stateArgument(expr *parser.Expression, scope map[st
 			delete(local.defs, name)
 		}
 	}
-	return !local.hasAction(expr, map[string]bool{}) && !stateArgumentTemporal(expr, local.defs, map[string]bool{}) && !stateProbeUsed(expr, scope, local.defs, map[string]bool{})
+	return (c.maxLevel >= 2 || !local.hasAction(expr, map[string]bool{})) && !stateArgumentTemporal(expr, local.defs, map[string]bool{}) && !stateProbeUsed(expr, scope, local.defs, map[string]bool{})
 }
 
 func stateArgumentShadows(expr *parser.Expression, scope map[string]bool, defs map[string]parser.Definition) map[string]bool {

@@ -80,11 +80,20 @@ func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, ins
 	if err := r.validateStateInstanceArguments(module, instance, replacements, &model); err != nil {
 		return err
 	}
-	required, err := constantSubstitutionParameters(module.Constants, instance.Params, replacements, &model)
+	limits, _ := instanceConstantLimits(module)
+	if err := r.validateBoundedConstantArguments(module, instance, replacements, limits, &model); err != nil {
+		return err
+	}
+	required, err := constantSubstitutionParameters(module.Constants, instance.Params, replacements, limits, &model)
 	if err != nil {
 		return err
 	}
-	if err := r.validateConstantInstanceArguments(instance, required, &model); err != nil {
+	var targets map[string][]bool
+	if len(required) != 0 {
+		declarations := constantsWithLevelLimit(module.Constants, limits, 0)
+		targets = instanceTargetsForDeclarations(module, declarations, instance, replacements, 0, limits == nil)
+	}
+	if err := r.validateConstantInstanceArguments(instance, required, targets, &model); err != nil {
 		return err
 	}
 	return validateVariableSubstitutions(module.Variables, replacements, &model)
@@ -129,7 +138,7 @@ func (r *instanceResolver) substitutionModel() model {
 	return model
 }
 
-func constantSubstitutionParameters(constants, instanceParams []parser.Declaration, replacements map[string]*parser.Expression, model *model) (map[string]bool, error) {
+func constantSubstitutionParameters(constants, instanceParams []parser.Declaration, replacements map[string]*parser.Expression, limits map[string]int, model *model) (map[string]bool, error) {
 	params := declarationNames(instanceParams)
 	required := map[string]bool{}
 	for _, declaration := range constants {
@@ -137,18 +146,42 @@ func constantSubstitutionParameters(constants, instanceParams []parser.Declarati
 		if declaration.Arity > 0 {
 			continue
 		}
-		names := map[string]bool{}
-		collectArgumentNames(replacements[declaration.Name], names)
-		for name := range params {
-			if names[name] {
-				required[name] = true
-			}
+		limit := limits[declaration.Name]
+		if limit == 0 {
+			addConstantParameters(required, params, replacements[declaration.Name])
 		}
-		if unsafeConstantSubstitution(model, replacements[declaration.Name]) {
-			return nil, fmt.Errorf("instance constant %s requires a constant-level substitution", declaration.Name)
+		if invalidInstanceConstant(model, replacements[declaration.Name], limit) {
+			return nil, instanceConstantLevelError(declaration.Name, limit)
 		}
 	}
 	return required, nil
+}
+
+func instanceConstantLevelError(name string, limit int) error {
+	if limit == 0 {
+		return fmt.Errorf("instance constant %s requires a constant-level substitution", name)
+	}
+	return fmt.Errorf("instance constant %s requires a substitution at level %d or below", name, limit)
+}
+
+func addConstantParameters(required, params map[string]bool, expr *parser.Expression) {
+	names := map[string]bool{}
+	collectArgumentNames(expr, names)
+	for name := range params {
+		if names[name] {
+			required[name] = true
+		}
+	}
+}
+
+func invalidInstanceConstant(m *model, expr *parser.Expression, limit int) bool {
+	if limit == 0 {
+		return unsafeConstantSubstitution(m, expr)
+	}
+	if m.hasTemporal(expr, map[string]bool{}) {
+		return limit < 3
+	}
+	return limit < 2 && m.hasAction(expr, map[string]bool{})
 }
 
 func validateVariableSubstitutions(variables []parser.Declaration, replacements map[string]*parser.Expression, model *model) error {
