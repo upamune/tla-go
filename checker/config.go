@@ -13,8 +13,8 @@ func validate(module *parser.Module, cfg config.Config) error {
 	if err := validateModules(module); err != nil {
 		return err
 	}
-	if cfg.Init == "" || cfg.Next == "" {
-		return fmt.Errorf("INIT and NEXT are required")
+	if cfg.Init == "" {
+		return &ConfigurationError{Code: 2231, Message: "The configuration file did not specify the initial state predicate.\nCan also be caused by trying to run TLC on a specification from\na module imported with a parameterized INSTANCE statement."}
 	}
 	if unsupportedConfig(cfg) {
 		return fmt.Errorf("configuration uses unsupported features")

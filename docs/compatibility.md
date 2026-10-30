@@ -12,6 +12,10 @@ Temporal formulas used in an initial predicate, next-state action, or constraint
 
 Java TLC 1.7.4 and 1.8.0 differ on some temporal formulas. For example, `~(\E i \in {} : <>[](x = i))` produces a tautology error in 1.7.4 and a temporal-action error in 1.8.0; tla-go currently follows the 1.7.4 result for this case.
 
+Configuration syntax errors also differ: Java TLC 1.7.4 wraps them in an unexpected exception and exits 255; Java TLC 1.8.0 emits the configuration error directly and exits 151. tla-go currently follows the 1.7.4 behavior.
+
+Java TLC 1.7.4's configuration lexer treats some invalid tokens as end of input. tla-go follows this behavior, so an invalid character or unfinished comment after valid directives may leave those directives in effect. Configuration syntax and diagnostics are still not fully compatible.
+
 ## Language and modules
 
 The parser and evaluator support selected TLA+ expressions, operators, functions, recursive functions, and operator arguments. Module loading includes transitive `EXTENDS`, `LOCAL` definitions, and many named, parameterized, and nested `INSTANCE` forms. Substitutions into constant modules support selected state, action, and temporal expressions, with level constraints checked through operator calls; the upstream `test213` now matches Java TLC's exit code. Some instance combinations, subexpression references, capture-avoiding substitutions, and function actions with operator parameters remain unsupported or can be rejected more strictly than Java TLC. Full TLC level checking and proof obligations are not implemented.

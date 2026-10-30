@@ -52,10 +52,16 @@ func TestAssignmentsAndErrors(t *testing.T) {
 	if c.CheckDeadlock || len(c.Constants) != 1 || c.Constants[0].Module != "M" || len(c.Constants[0].Args) != 2 || len(c.Substitutions) != 1 || c.Substitutions[0].Module != "M" {
 		t.Fatalf("got %#v", c)
 	}
-	for _, s := range []string{"SPECIFICATION Spec INIT Init", "INIT A INIT B", "(* bad", "CHECK_DEADLOCK X", "CONSTANT X = {1,"} {
+	for _, s := range []string{"INIT A INIT B", "CHECK_DEADLOCK X", "CONSTANT X = {1,"} {
 		if _, err := Parse(s); err == nil {
 			t.Errorf("accepted %q", s)
 		}
+	}
+	if _, err := Parse("(* bad"); err != nil {
+		t.Fatalf("TLC treats an unfinished comment as end of input: %v", err)
+	}
+	if mixed, err := Parse("SPECIFICATION Spec INIT Init"); err != nil || mixed.Specification != "Spec" || mixed.Init != "Init" {
+		t.Fatalf("mixed config: %#v, %v", mixed, err)
 	}
 }
 
@@ -78,13 +84,9 @@ func TestConfigOperatorAndNumberLexing(t *testing.T) {
 	}
 }
 
-// tla-ts follows the config lexer's regex backtracking for digit-prefixed words.
-func TestNumberPrefixBacktracking(t *testing.T) {
-	if _, err := Parse("INVARIANT 12Inv"); err == nil {
-		t.Fatal("expected the numeric prefix to be rejected")
-	}
-	c, err := Parse("INVARIANT 1Inv")
-	if err != nil || len(c.Invariants) != 1 || c.Invariants[0] != "1Inv" {
+func TestDigitPrefixedIdentifiers(t *testing.T) {
+	c, err := Parse("INVARIANTS 1Inv 12Inv 123Inv")
+	if err != nil || !reflect.DeepEqual(c.Invariants, []string{"1Inv", "12Inv", "123Inv"}) {
 		t.Fatalf("got %#v, %v", c, err)
 	}
 }

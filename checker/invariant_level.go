@@ -10,7 +10,7 @@ func (m *model) validateInvariantLevels() error {
 	for _, name := range m.cfg.Invariants {
 		expr, err := m.definition(name)
 		if err != nil {
-			return &ConfigurationError{Message: fmt.Sprintf("The invariant %s specified in the configuration file\nis not defined in the specification.", name), Code: 2229, Err: err}
+			return m.configuredOperatorError("invariant", name, err)
 		}
 		if m.hasAction(expr, map[string]bool{}) {
 			return m.invalidInvariantLevel(name, expr)

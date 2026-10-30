@@ -35,6 +35,7 @@ func validateConstantAssignments(module *parser.Module, cfg config.Config) error
 		if !assigned[declaration.Name] {
 			return &ConfigurationError{
 				Message: fmt.Sprintf("The constant parameter %s is not assigned a value by the configuration file.", declaration.Name),
+				Code:    2222,
 				Err:     fmt.Errorf("constant %s is not assigned", declaration.Name),
 			}
 		}

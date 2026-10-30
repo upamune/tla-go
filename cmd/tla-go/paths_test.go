@@ -56,6 +56,9 @@ func TestCLIModuleNameMatchesFilename(t *testing.T) {
 	if err := os.WriteFile(path, []byte("---- MODULE Other ----\n===="), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(dir, "Renamed.cfg"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	var out, errs bytes.Buffer
 	code := run(context.Background(), []string{path}, &out, &errs)
 	want := "TlaSyntaxError: File name 'Renamed' does not match the name 'Other' of the top level module it contains.\n"

@@ -77,6 +77,11 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 		t.message(1000, 1, err.Error())
 		return 255
 	}
+	parsed, err := readConfig(configPath)
+	if err != nil {
+		printToolConfigError(t, configPath, err)
+		return 255
+	}
 	t.message(2220, 0, "Starting SANY-compatible analysis...")
 	var diagnostic bytes.Buffer
 	module, code := loadModule(specPath, opts.libraryPaths, &diagnostic)
@@ -84,11 +89,6 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 		return toolLoadFailure(t, &diagnostic, code)
 	}
 	t.message(2219, 0, "Analysis finished.")
-	parsed, code := loadConfig(configPath, &diagnostic)
-	if code != 0 {
-		t.message(1000, 1, strings.TrimSpace(diagnostic.String()))
-		return code
-	}
 	if opts.deadlockOff {
 		parsed.CheckDeadlock = false
 	}

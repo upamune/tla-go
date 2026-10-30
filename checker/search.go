@@ -66,6 +66,9 @@ func (m *model) check() (Result, error) {
 		return s.result, nil
 	}
 	m.emitSearchEvent(SearchEvent{Kind: InitialComplete, GeneratedStates: s.result.GeneratedStates, DistinctStates: s.result.DistinctStates})
+	if s.missingNextAction() {
+		return s.result, nil
+	}
 	return s.explore()
 }
 
@@ -131,6 +134,15 @@ func (s *search) explore() (Result, error) {
 		s.finishSuccessfulResult(&result)
 	}
 	return result, err
+}
+
+func (s *search) missingNextAction() bool {
+	if s.model.cfg.Next != "" || len(s.nodes) == 0 {
+		return false
+	}
+	s.result.Status = EvaluationFailure
+	s.result.Failure = &Failure{Message: "No next state actions defined to generate successor states from.", ToolCode: 2115, ExitCode: 75, SuppressStatistics: true}
+	return true
 }
 
 func (s *search) finishSuccessfulResult(result *Result) {

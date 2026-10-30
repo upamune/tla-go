@@ -79,3 +79,7 @@ level constraints for arguments to parameterized module instances.
 `StandardModules` is an unchanged model from the upstream `test-model`
 directory. Its initial predicate yields no states, so TLC does not evaluate the
 temporal next-state expression.
+
+`Github432` is a model and configuration from the same directory, with trailing
+blank lines normalized. Its configuration has a malformed set value and
+exercises TLC's config error.

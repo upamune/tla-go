@@ -93,11 +93,12 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 		fmt.Fprintln(errout, err)
 		return 255
 	}
-	module, code := loadModule(specPath, opts.libraryPaths, errout)
-	if code != 0 {
-		return code
+	parsed, err := readConfig(configPath)
+	if err != nil {
+		printConfigError(out, configPath, err)
+		return 255
 	}
-	parsed, code := loadConfig(configPath, errout)
+	module, code := loadModule(specPath, opts.libraryPaths, errout)
 	if code != 0 {
 		return code
 	}
@@ -192,18 +193,12 @@ func loadModule(specPath string, libraries []string, errout io.Writer) (*parser.
 	return module, 0
 }
 
-func loadConfig(configPath string, errout io.Writer) (config.Config, int) {
+func readConfig(configPath string) (config.Config, error) {
 	cfg, err := os.ReadFile(configPath)
 	if err != nil {
-		fmt.Fprintf(errout, "Cannot find the configuration file %s\n", configPath)
-		return config.Config{}, 151
+		return config.Config{}, err
 	}
-	parsed, err := config.Parse(string(cfg))
-	if err != nil {
-		fmt.Fprintln(errout, err)
-		return config.Config{}, 151
-	}
-	return parsed, 0
+	return config.Parse(string(cfg))
 }
 
 func directoryLoader(dir string, libraries []string) checker.ModuleLoader {

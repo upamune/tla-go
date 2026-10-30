@@ -4,6 +4,7 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -341,11 +342,11 @@ func prepareWithSources(module *parser.Module, cfg config.Config, options Option
 	descriptionConfig := cfg
 	cfg, fairness, err = lowerSpecification(module, cfg)
 	if err != nil {
-		return nil, err
+		return nil, semanticBeforeConfigError(module, err)
 	}
 	cfg = defaultEmptyModel(module, cfg)
 	if err = validate(module, cfg); err != nil {
-		return nil, err
+		return nil, semanticBeforeConfigError(module, err)
 	}
 	if err = validateResolved(module); err != nil {
 		return nil, err
@@ -362,6 +363,16 @@ func prepareWithSources(module *parser.Module, cfg config.Config, options Option
 	}
 	m.tlcRuntime.needsLevelGraph = m.temporalUsesTLC()
 	return m, nil
+}
+
+// SANY resolves the module before TLC reports configuration model errors.
+func semanticBeforeConfigError(module *parser.Module, err error) error {
+	if _, ok := errors.AsType[*ConfigurationError](err); ok {
+		if semantic := validateResolved(module); semantic != nil {
+			return semantic
+		}
+	}
+	return err
 }
 
 func (m *model) bindAndValidate() error {
@@ -482,16 +493,31 @@ func (m *model) validateDefinitions() error {
 	if err := m.validateConfiguredConstants(); err != nil {
 		return err
 	}
-	names := append([]string{m.cfg.Init, m.cfg.Next}, m.cfg.Invariants...)
-	names = append(names, m.cfg.Constraints...)
-	names = append(names, m.cfg.ActionConstraints...)
-	names = append(names, m.cfg.Properties...)
-	names = append(names, m.cfg.Postconditions...)
-	if m.cfg.View != "" {
-		names = append(names, m.cfg.View)
+	if err := m.validateConfiguredStateOperators(); err != nil {
+		return err
 	}
-	for _, name := range names {
+	if err := m.validateConfiguredChecks(); err != nil {
+		return err
+	}
+	for _, name := range m.cfg.Postconditions {
 		if _, err := m.definition(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *model) validateConfiguredChecks() error {
+	for _, item := range []struct {
+		kind  string
+		names []string
+	}{{"property", m.cfg.Properties}, {"constraint", m.cfg.Constraints}, {"action constraint", m.cfg.ActionConstraints}} {
+		if err := m.validateConfiguredOperators(item.kind, item.names); err != nil {
+			return err
+		}
+	}
+	if m.cfg.View != "" {
+		if err := m.validateConfiguredOperators("view function", []string{m.cfg.View}); err != nil {
 			return err
 		}
 	}

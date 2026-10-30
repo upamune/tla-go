@@ -17,8 +17,11 @@ func lowerSpecification(module *parser.Module, cfg config.Config) (config.Config
 		return cfg, nil, err
 	}
 	spec := findSpecification(module, cfg.Specification)
+	if spec == nil {
+		return cfg, nil, missingSpecification(module, cfg.Specification)
+	}
 	parts := specificationParts{module: module}
-	if spec == nil || !parts.collect(spec, map[string]bool{}) {
+	if !parts.collect(spec, map[string]bool{}) {
 		return cfg, nil, fmt.Errorf("unsupported SPECIFICATION form")
 	}
 	parts.defaultEmptyInit()
@@ -31,6 +34,15 @@ func lowerSpecification(module *parser.Module, cfg config.Config) (config.Config
 	return cfg, parts.fairness, nil
 }
 
+func missingSpecification(module *parser.Module, name string) error {
+	for _, definition := range module.Definitions {
+		if definition.Name == name && len(definition.Params) > 0 {
+			return &ConfigurationError{Message: fmt.Sprintf("TLC requires %s not to take any argument.", name), Code: 2228}
+		}
+	}
+	return &ConfigurationError{Message: fmt.Sprintf("The name %s specified in the configuration file\nis not defined in the specification.", name), Code: 2229}
+}
+
 func (p *specificationParts) defaultEmptyInit() {
 	if p.init == "" && len(p.module.Variables) == 0 {
 		p.init = p.addWrapper("init", &parser.Expression{Kind: "Identifier", Text: "TRUE"})
@@ -39,7 +51,7 @@ func (p *specificationParts) defaultEmptyInit() {
 
 func validateSpecConfig(cfg config.Config) error {
 	if cfg.Init != "" || cfg.Next != "" {
-		return fmt.Errorf("SPECIFICATION cannot be combined with INIT or NEXT")
+		return &ConfigurationError{Message: "The configuration file cannot specify both INIT/NEXT and SPECIFICATION fields.", Code: 2227}
 	}
 	return nil
 }

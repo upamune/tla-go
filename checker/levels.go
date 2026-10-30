@@ -79,6 +79,9 @@ func (m *model) validateStateDependence() error {
 		return nil
 	}
 	for _, name := range []string{m.cfg.Init, m.cfg.Next} {
+		if name == "" {
+			continue
+		}
 		expr, _ := m.definition(name)
 		if !m.readsState(expr, map[string]bool{}) && !m.hasTemporal(expr, map[string]bool{}) && !m.constantFalseNext(name, expr) {
 			return fmt.Errorf("%s cannot be a constant", name)

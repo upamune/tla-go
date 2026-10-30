@@ -14,6 +14,37 @@ func (m *model) validateConfiguredConstants() error {
 	return m.validateConstantChecks("property", m.cfg.Properties)
 }
 
+func (m *model) validateConfiguredStateOperators() error {
+	for _, item := range []struct{ kind, name string }{{"initial predicate", m.cfg.Init}, {"next state action", m.cfg.Next}} {
+		if item.name == "" {
+			continue
+		}
+		if _, err := m.definition(item.name); err != nil {
+			return m.configuredOperatorError(item.kind, item.name, err)
+		}
+	}
+	return nil
+}
+
+func (m *model) configuredOperatorError(kind, name string, cause error) error {
+	if definition, ok := m.defs[name]; ok && len(definition.Params) > 0 {
+		if kind == "property" {
+			return &ConfigurationError{Message: fmt.Sprintf("TLC requires %s not to take any argument.", name), Code: 2228, Err: cause}
+		}
+		return &ConfigurationError{Message: fmt.Sprintf("TLC requires %s not to take any argument, but one was given: %s", kind, name), Code: 2228, Err: cause}
+	}
+	return &ConfigurationError{Message: fmt.Sprintf("The %s %s specified in the configuration file\nis not defined in the specification.", kind, name), Code: 2229, Err: cause}
+}
+
+func (m *model) validateConfiguredOperators(kind string, names []string) error {
+	for _, name := range names {
+		if _, err := m.definition(name); err != nil {
+			return m.configuredOperatorError(kind, name, err)
+		}
+	}
+	return nil
+}
+
 func (m *model) validateConstantChecks(kind string, names []string) error {
 	for _, name := range names {
 		v, exists := m.constants[name]
