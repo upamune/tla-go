@@ -35,6 +35,14 @@ For performance changes, compare benchmarks before and after:
 mise exec -- go test -bench=. -benchmem ./checker ./evaluator ./value
 ```
 
+`BenchmarkUpstreamFastMutex` exercises the Java TLC `FastMutexWithGoto2`
+model, including fairness and 15,900 distinct states. To compare this model
+without running every benchmark, use:
+
+```sh
+mise exec -- go test ./checker -run '^$' -bench '^BenchmarkUpstreamFastMutex$' -benchmem -benchtime=1x -count=3
+```
+
 ## Compare with Java TLC
 
 CI downloads the official Java TLC 1.7.4 JAR, verifies its SHA-256, and runs selected comparisons. To run them locally, install Java, point `TLC_JAR` to an absolute path to the JAR, and run:

@@ -2,6 +2,7 @@ package checker
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -20,9 +21,6 @@ func (g *generator) expandCall(item work, rest []work, partial evaluator.State, 
 }
 
 func (g *generator) actionBody(call *parser.Expression) (*parser.Expression, error) {
-	if body, ok := g.model.actionCache[call]; ok && g.lexical == nil {
-		return body, nil
-	}
 	d, ok := g.definition(call.Text)
 	if !ok {
 		return nil, fmt.Errorf("undefined action %s", call.Text)
@@ -30,14 +28,41 @@ func (g *generator) actionBody(call *parser.Expression) (*parser.Expression, err
 	if d.Kind != "Operator" || len(d.Params) != len(call.Args) {
 		return nil, fmt.Errorf("invalid action call %s", call.Text)
 	}
+	cacheable := g.cacheableActionBody(call, d)
+	if body, ok := g.cachedActionBody(call, cacheable); ok {
+		return body, nil
+	}
 	body, err := substituteActionCall(d, call)
 	if err != nil {
 		return nil, err
 	}
-	if g.lexical == nil {
+	g.rememberActionBody(call, body, cacheable)
+	return body, nil
+}
+
+func (g *generator) cachedActionBody(call *parser.Expression, cacheable bool) (*parser.Expression, bool) {
+	if !cacheable {
+		return nil, false
+	}
+	body, ok := g.model.actionCache[call]
+	return body, ok
+}
+
+func (g *generator) rememberActionBody(call, body *parser.Expression, cacheable bool) {
+	if cacheable && (g.lexical == nil || len(g.model.actionCache) < 4096) {
 		g.model.actionCache[call] = body
 	}
-	return body, nil
+}
+
+// ENABLED can retain a lexical scope even when an action resolves to the
+// unchanged module definition. Substitution depends on the definition and
+// call syntax, not on the values captured in that scope.
+func (g *generator) cacheableActionBody(call *parser.Expression, d parser.Definition) bool {
+	if g.lexical == nil {
+		return true
+	}
+	root, ok := g.model.defs[call.Text]
+	return ok && root.Body == d.Body && slices.Equal(root.Params, d.Params)
 }
 
 func substituteActionCall(d parser.Definition, call *parser.Expression) (*parser.Expression, error) {
