@@ -84,7 +84,7 @@ and the output has not yet been validated across the full TLC suite.
 To run the corpus test locally, check out the pinned `cursor/plugins` revision
 and set `STATECHART_DIR` to its `pstack/skills/statechart` directory and
 `TLC_JAR` to the Java TLC 1.7.4 jar. Run
-`mise exec bun@1.3.11 -- go test ./cmd/tla-go -run '^(TestJavaTLCStatechart(Corpus|Marks|Hybrid|Standalone)|TestJavaSANY(MetadataLevels|RealTimeMetadata|InheritedNaturalsMetadata|StatechartMetadata|TLCLevels|TLCInstanceLevels|TheoremNewLevels))$' -count=1`.
+`mise exec bun@1.3.11 -- go test ./cmd/tla-go -run '^(TestJavaTLCStatechart(Corpus|Marks|Hybrid|Standalone)|TestJavaSANY(MetadataLevels|RealTimeMetadata|InheritedNaturalsMetadata|StatechartMetadata|TLCLevels|TLCInstanceLevels|TheoremNewLevels|HigherOrderMetadata|HigherOrderInstances|HigherOrderLevelMatrix|HigherOrderLevelConstraints))$' -count=1 -timeout=15m`.
 
 ## 4. DOT state graph
 
@@ -114,9 +114,9 @@ and state identity and fingerprint collision behavior can still differ from Java
   1.7.4, and the no-Java bridge runs the complete chart and report tests.
 - Derive levels from semantic analysis, including imports, substitutions,
   parameters, bound names and standard modules; do not guess unsupported levels.
-  The current analysis handles many of these cases but rejects recursive
-  definitions and higher-order operator calls; other SANY constructs and standard-module
-  definitions are incomplete. Continue checking semantics and reject unsupported
+  The current analysis handles selected higher-order operator calls but rejects
+  recursive definitions; other SANY constructs and standard-module definitions
+  are incomplete. Continue checking semantics and reject unsupported
   cases rather than emit misleading metadata.
 - Compare parsed output against Java SANY for the statechart specs and targeted
   fixtures covering ordering, nested instances, scopes, and semantic errors.

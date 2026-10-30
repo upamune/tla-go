@@ -15,6 +15,7 @@ type metadataDefinition struct {
 type metadataScope struct {
 	values        map[string]int
 	defs          map[string]*metadataDefinition
+	operators     map[string]metadataOperator
 	tlc           bool
 	instanceProbe bool
 }
@@ -32,21 +33,27 @@ func newMetadataScope(module *parser.Module) *metadataScope {
 }
 
 func (s *metadataScope) clone() *metadataScope {
-	return &metadataScope{values: maps.Clone(s.values), defs: maps.Clone(s.defs), tlc: s.tlc, instanceProbe: s.instanceProbe}
+	return &metadataScope{values: maps.Clone(s.values), defs: maps.Clone(s.defs), operators: maps.Clone(s.operators), tlc: s.tlc, instanceProbe: s.instanceProbe}
 }
 
 func (s *metadataScope) addDefinitions(defs []parser.Definition) {
 	for _, d := range defs {
 		s.defs[d.Name] = &metadataDefinition{value: d, scope: s}
+		delete(s.operators, d.Name)
 	}
 }
 
 func (s *metadataScope) bind(name string, level int) {
 	s.values[name] = level
 	delete(s.defs, name)
+	delete(s.operators, name)
 }
 
 func (s *metadataScope) definition(d *metadataDefinition, args []int, visiting map[*metadataDefinition]bool) (int, error) {
+	return s.definitionWithOperators(d, args, nil, visiting)
+}
+
+func (s *metadataScope) definitionWithOperators(d *metadataDefinition, args []int, operators map[string]metadataOperator, visiting map[*metadataDefinition]bool) (int, error) {
 	if d == nil {
 		return 0, fmt.Errorf("unknown definition")
 	}
@@ -56,9 +63,9 @@ func (s *metadataScope) definition(d *metadataDefinition, args []int, visiting m
 	visiting[d] = true
 	defer delete(visiting, d)
 	local := d.scope.clone()
-	if err := local.bindDefinitionParams(d.value.Params, args); err != nil {
-		return 0, err
-	}
+	local.instanceProbe = local.instanceProbe || s.instanceProbe
+	local.bindDefinitionParams(d.value.Params, args)
+	local.addOperatorBindings(operators)
 	level, err := local.bounds(d.value.Bounds, visiting)
 	if err != nil {
 		return 0, err
@@ -70,18 +77,14 @@ func (s *metadataScope) definition(d *metadataDefinition, args []int, visiting m
 	return max(level, body), err
 }
 
-func (s *metadataScope) bindDefinitionParams(params []parser.Declaration, args []int) error {
+func (s *metadataScope) bindDefinitionParams(params []parser.Declaration, args []int) {
 	for i, param := range params {
-		if param.Arity != 0 && args != nil {
-			return fmt.Errorf("higher-order operator calls are not supported")
-		}
 		level := 0
 		if i < len(args) {
 			level = args[i]
 		}
 		s.bind(param.Name, level)
 	}
-	return nil
 }
 
 func (s *metadataScope) bounds(bounds []parser.Bound, visiting map[*metadataDefinition]bool) (int, error) {

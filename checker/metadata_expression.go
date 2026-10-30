@@ -13,7 +13,7 @@ func (s *metadataScope) expression(expr *parser.Expression, visiting map[*metada
 	if level, handled, err := s.reference(expr, visiting); handled {
 		return level, err
 	}
-	if expr.Kind == "OperatorReference" || expr.Kind == "Subexpression" || expr.Kind == "ModuleFact" {
+	if expr.Kind == "Subexpression" || expr.Kind == "ModuleFact" {
 		return 0, fmt.Errorf("unsupported level expression %s", expr.Kind)
 	}
 	return s.scopedExpression(expr, visiting)
@@ -39,15 +39,14 @@ func (s *metadataScope) reference(expr *parser.Expression, visiting map[*metadat
 		level, err := s.assumeProveLevel(expr, visiting)
 		return level, true, err
 	}
-	if expr.Kind != "Identifier" && expr.Kind != "Apply" {
+	if !metadataReferenceKind(expr.Kind) {
 		return 0, false, nil
 	}
 	if expr.BuiltinStandard != "" {
 		level, err := s.childrenLevel(expr, visiting)
 		return level, true, err
 	}
-	if d, ok := s.defs[expr.Text]; ok {
-		level, err := s.call(d, expr, visiting)
+	if level, handled, err := s.operatorReference(expr, visiting); handled {
 		return level, true, err
 	}
 	if level, handled, err := s.builtinTLCLevel(expr, visiting); handled {
@@ -55,6 +54,27 @@ func (s *metadataScope) reference(expr *parser.Expression, visiting map[*metadat
 	}
 	if level, ok := s.values[expr.Text]; ok {
 		return s.declaredValueLevel(expr, level, visiting)
+	}
+	return 0, false, nil
+}
+
+func metadataReferenceKind(kind string) bool {
+	return kind == "Identifier" || kind == "Apply" || kind == "OperatorReference"
+}
+
+func (s *metadataScope) operatorReference(expr *parser.Expression, visiting map[*metadataDefinition]bool) (int, bool, error) {
+	if op, ok := s.operators[expr.Text]; ok && expr.Kind == "Apply" {
+		level, err := s.boundOperatorCall(op, expr, visiting)
+		return level, true, err
+	}
+	if d, ok := s.defs[expr.Text]; ok {
+		level, err := s.call(d, expr, visiting)
+		return level, true, err
+	}
+	if expr.Kind == "OperatorReference" {
+		if level, ok := specialOperatorReferenceLevel(expr.Text); ok {
+			return level, true, nil
+		}
 	}
 	return 0, false, nil
 }
@@ -179,7 +199,8 @@ func (s *metadataScope) call(d *metadataDefinition, expr *parser.Expression, vis
 		}
 		args[i] = level
 	}
-	return s.definition(d, args, visiting)
+	operators := s.operatorArguments(d.value.Params, expr.Args)
+	return s.definitionWithOperators(d, args, operators, visiting)
 }
 
 func metadataHeadLevel(expr *parser.Expression, children int) (int, error) {

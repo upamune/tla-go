@@ -76,7 +76,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 
 The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and DOT output are compared with Java TLC for representative models, but full compatibility is not yet established. Only the values shown for `-workers` and `-fp` are accepted; state identity and fingerprint collision behavior can still differ from Java TLC.
 
-`-sany-metadata` emits only the metadata consumed by statechart, not the complete SANY XML semantic graph. It rejects some constructs that Java SANY supports, including recursive definitions and higher-order operator calls. Its level analysis and semantic validation are experimental; use Java SANY when complete XML or authoritative analysis is needed.
+`-sany-metadata` emits only the metadata consumed by statechart, not the complete SANY XML semantic graph. It supports selected higher-order operator calls but rejects some constructs that Java SANY supports, including recursive definitions. Its level analysis and semantic validation are experimental; use Java SANY when complete XML or authoritative analysis is needed.
 
 ## Documentation
 

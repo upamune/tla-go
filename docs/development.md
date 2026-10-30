@@ -56,7 +56,7 @@ mise exec -- go test ./checker -run '^$' -bench '^BenchmarkParameterizedOperator
 CI downloads the official Java TLC 1.7.4 JAR, verifies its SHA-256, and runs selected comparisons. To run them locally, install Java, point `TLC_JAR` to an absolute path to the JAR, and run:
 
 ```sh
-TLC_JAR=/absolute/path/to/tla2tools.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1
+TLC_JAR=/absolute/path/to/tla2tools.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
 ```
 
 Without `TLC_JAR`, the tests still run tla-go assertions but do not execute the direct Java comparisons. These selected tests cover only part of TLC. Java TLC versions can also differ; selected newer random-subset tests use `TLC_MODERN_JAR` when supplied.
