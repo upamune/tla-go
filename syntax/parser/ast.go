@@ -35,6 +35,8 @@ type Expression struct {
 	Instances      []Instance
 	Location       Location
 	Args           []*Expression
+	// EnabledVariable preserves an instantiated variable's name inside ENABLED.
+	EnabledVariable string `json:"-"`
 }
 
 // Selector is a component of a qualified operator or subexpression reference.

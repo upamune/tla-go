@@ -156,6 +156,12 @@ func (e *evaluator) prime(expr *parser.Expression) (value.Value, error) {
 	if e.context.Next == nil {
 		return value.Value{}, fmt.Errorf("prime without a next state")
 	}
+	if e.context.UncachedArguments && expr.EnabledVariable != "" {
+		if v, ok := e.context.Next[expr.EnabledVariable]; ok {
+			return v, nil
+		}
+		return value.Value{}, fmt.Errorf("unbound primed variable %s", expr.EnabledVariable)
+	}
 	child := *e
 	child.context.Current = e.context.Next
 	child.context.Next = nil

@@ -50,7 +50,7 @@ func (g *generator) solveInScope(items []work, partial evaluator.State, action s
 	if len(items) == 0 {
 		return g.complete(partial, action)
 	}
-	if (g.initial || len(partial) > 0) && g.isComplete(partial) {
+	if !g.enabled && (g.initial || len(partial) > 0) && g.isComplete(partial) {
 		return g.finishAssigned(items, partial, action)
 	}
 	item, rest := items[0], items[1:]
@@ -294,6 +294,9 @@ func (g *generator) assignment(expr *parser.Expression) (string, string, bool) {
 	if !g.initial {
 		if target.Kind != "Prime" || len(target.Args) != 1 {
 			return "", "", false
+		}
+		if g.enabled && target.EnabledVariable != "" {
+			return target.EnabledVariable, expr.Text, true
 		}
 		target = target.Args[0]
 	}

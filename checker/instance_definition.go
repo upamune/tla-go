@@ -10,7 +10,7 @@ func declarationNames(params []parser.Declaration) map[string]bool {
 	return names
 }
 
-func instanceDefinition(definition parser.Definition, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet map[string]bool) parser.Definition {
+func instanceDefinition(definition parser.Definition, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet, variables map[string]bool) parser.Definition {
 	definition.Origins = instanceOrigins(definition, instance)
 	definition.InstanceRange = instance.Location.Range
 	definition.InstanceParamCount = len(instance.Params)
@@ -21,10 +21,33 @@ func instanceDefinition(definition parser.Definition, instance parser.Instance, 
 	if definition.Kind == "Function" {
 		self = definition.Name
 	}
-	definition.Body = instanceExpression(definition.Body, replacements, generatedSet, instance.Params, self)
+	body := substitute(definition.Body, nil)
+	markEnabledInstanceVariables(body, variables, false)
+	definition.Body = instanceExpression(body, replacements, generatedSet, instance.Params, self)
 	definition.Bounds = instanceBounds(definition.Bounds, replacements, generatedSet, instance.Params)
 	definition.Location.Position = instance.Location.Position
 	return definition
+}
+
+func markEnabledInstanceVariables(expr *parser.Expression, variables map[string]bool, inside bool) {
+	if expr == nil {
+		return
+	}
+	inside = inside || expr.Kind == "Enabled"
+	if inside {
+		markEnabledPrime(expr, variables)
+	}
+	walkChildren(expr, func(child *parser.Expression) { markEnabledInstanceVariables(child, variables, inside) })
+}
+
+func markEnabledPrime(expr *parser.Expression, variables map[string]bool) {
+	if expr.Kind != "Prime" || expr.EnabledVariable != "" || len(expr.Args) != 1 {
+		return
+	}
+	arg := expr.Args[0]
+	if arg.Kind == "Identifier" && variables[arg.Text] {
+		expr.EnabledVariable = arg.Text
+	}
 }
 
 func instanceOrigins(definition parser.Definition, instance parser.Instance) []parser.DefinitionOrigin {

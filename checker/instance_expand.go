@@ -21,8 +21,12 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	for _, name := range generated {
 		generatedSet[name] = true
 	}
+	variables := make(map[string]bool, len(module.Variables))
+	for _, variable := range module.Variables {
+		variables[variable.Name] = true
+	}
 	for _, definition := range module.Definitions {
-		result.Definitions = append(result.Definitions, instanceDefinition(definition, instance, replacements, generated, generatedSet))
+		result.Definitions = append(result.Definitions, instanceDefinition(definition, instance, replacements, generated, generatedSet, variables))
 	}
 	result.Definitions = append(result.Definitions, instanceValidationDefinitions(module, instance, replacements, index)...)
 	return nil

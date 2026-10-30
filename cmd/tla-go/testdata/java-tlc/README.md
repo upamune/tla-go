@@ -7,3 +7,6 @@ license; see `LICENSE` in this directory.
 `test17`, `test20`, and `test21` are unchanged models from the same release's
 `test-model/suite` directory. They exercise priming and ENABLED with operator
 arguments.
+
+`test55` and `test55a` are unchanged models from the same suite. They exercise
+`ENABLED` with substituted module variables.
