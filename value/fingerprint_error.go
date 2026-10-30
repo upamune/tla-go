@@ -13,6 +13,7 @@ import (
 type UnexpectedError struct {
 	Message   string
 	TLCAssert bool
+	ToolCode  int
 	Sources   []*parser.Expression
 }
 

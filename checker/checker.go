@@ -84,6 +84,9 @@ type Failure struct {
 	SuppressStatistics bool
 	// FingerprintDetail records TLC's source stack and underlying cause, if any.
 	FingerprintDetail string
+	// FingerprintCause and FingerprintCauseCode describe a nested TLC message.
+	FingerprintCause     string
+	FingerprintCauseCode int
 	// EvaluationDetail records the expression stack for an unexpected failure.
 	EvaluationDetail string
 	// SuppressDepth matches TLC failures that report counts without search depth.

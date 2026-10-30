@@ -103,7 +103,7 @@ func (v Value) subsetOverflow() error {
 	if err != nil {
 		return err
 	}
-	return &UnexpectedError{Message: "Overflow when computing the number of elements in:\nSUBSET " + base, TLCAssert: true}
+	return &UnexpectedError{Message: "Overflow when computing the number of elements in:\nSUBSET " + base, TLCAssert: true, ToolCode: 2178}
 }
 
 func (v Value) eachSubset(visit func(Value) (bool, error)) error {

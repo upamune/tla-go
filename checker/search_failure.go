@@ -16,6 +16,7 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 	}
 	s.result.Status = EvaluationFailure
 	s.result.Failure = &Failure{Message: failure.Message, Trace: trace, ExitCode: code, NestedToolCode: failure.NestedToolCode, NestedMessage: failure.NestedMessage, FingerprintDetail: fingerprintDetail(failure), EvaluationDetail: evaluationDetail(failure), SuppressDepth: failure.Unexpected != nil || len(failure.Sources) > 0}
+	setFingerprintCause(s.result.Failure, failure)
 	if failure.ToolCode == 2261 && failure.NestedToolCode == 0 {
 		s.result.Failure.NestedMessage = failure.Message
 		s.result.Failure.NestedToolCode = failure.ToolCode
@@ -29,6 +30,13 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 		s.result.Failure.InitialState = candidate.state
 	}
 	return s.result, nil
+}
+
+func setFingerprintCause(result *Failure, failure *evaluator.RuntimeError) {
+	if failure.Fingerprint != nil && failure.Unexpected != nil {
+		result.FingerprintCause = failure.Unexpected.Message
+		result.FingerprintCauseCode = failure.Unexpected.ToolCode
+	}
 }
 
 func setInitialAssertFailure(result *Failure, failure *evaluator.RuntimeError) {
@@ -93,6 +101,9 @@ func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeEr
 	if failure.ToolCode == 2261 {
 		result.NestedMessage = cause
 		result.NestedToolCode, result.ToolCode = failure.ToolCode, 1000
+	} else if failure.Fingerprint != nil && failure.Unexpected.ToolCode != 0 {
+		result.NestedMessage = failure.Unexpected.Message
+		result.NestedToolCode = failure.Unexpected.ToolCode
 	}
 	return &result
 }

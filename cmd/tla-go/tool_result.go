@@ -10,6 +10,28 @@ import (
 )
 
 func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Module) {
+	if printToolInitialFingerprintFailure(t, failure) {
+		return
+	}
+	printToolFailureHeader(t, failure)
+	if failure.InitialState != nil && failure.FingerprintDetail == "" {
+		var body bytes.Buffer
+		printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
+		t.message(2102, 1, "The initial state is:\n"+body.String())
+	}
+	if len(failure.Trace) > 0 {
+		t.message(2121, 1, "The behavior up to this point is:")
+		printToolTrace(t, failure.Trace, module)
+	}
+	if failure.FingerprintDetail != "" {
+		printToolFingerprintDetail(t, failure)
+	}
+	if failure.EvaluationDetail != "" {
+		t.message(2103, 1, failure.EvaluationDetail)
+	}
+}
+
+func printToolFailureHeader(t toolOutput, failure *checker.Failure) {
 	code := failure.ToolCode
 	if code == 0 {
 		code = 1000
@@ -26,21 +48,28 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 	} else {
 		t.message(code, 1, failure.Message)
 	}
-	if failure.InitialState != nil {
-		var body bytes.Buffer
-		printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
-		t.message(2102, 1, "The initial state is:\n"+body.String())
+}
+
+func printToolInitialFingerprintFailure(t toolOutput, failure *checker.Failure) bool {
+	if failure.InitialState == nil || failure.FingerprintDetail == "" || failure.FingerprintCauseCode == 0 {
+		return false
 	}
-	if len(failure.Trace) > 0 {
-		t.message(2121, 1, "The behavior up to this point is:")
-		printToolTrace(t, failure.Trace, module)
+	fmt.Fprintln(t.out, "@!@!@STARTMSG 2102:1 @!@!@")
+	t.message(failure.FingerprintCauseCode, 0, failure.FingerprintCause)
+	fmt.Fprintln(t.out, "While working on the initial state:")
+	printStateOrdered(t.out, failure.InitialState, failure.InitialStateOrder)
+	fmt.Fprintln(t.out, "@!@!@ENDMSG 2102 @!@!@")
+	printToolFingerprintDetail(t, failure)
+	return true
+}
+
+func printToolFingerprintDetail(t toolOutput, failure *checker.Failure) {
+	if failure.FingerprintCauseCode == 0 {
+		t.message(2147, 1, failure.FingerprintDetail)
+		return
 	}
-	if failure.FingerprintDetail != "" {
-		t.message(1000, 1, failure.FingerprintDetail)
-	}
-	if failure.EvaluationDetail != "" {
-		t.message(2103, 1, failure.EvaluationDetail)
-	}
+	heading := strings.TrimSuffix(failure.FingerprintDetail, failure.FingerprintCause)
+	t.nestedError(2147, strings.TrimSuffix(heading, "\n"), failure.FingerprintCauseCode, failure.FingerprintCause)
 }
 
 func printToolViolation(t toolOutput, result checker.Result, module *parser.Module) {
