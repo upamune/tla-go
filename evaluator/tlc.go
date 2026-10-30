@@ -14,7 +14,7 @@ func isTLCOperator(name string) bool { _, ok := tlcArities[name]; return ok }
 
 func (e *evaluator) tlcOperator(expr *parser.Expression) (value.Value, error) {
 	if len(expr.Args) != tlcArities[expr.Text] {
-		return value.Value{}, fmt.Errorf("%s expects %d arguments", expr.Text, tlcArities[expr.Text])
+		return e.tlcArgumentMismatch(expr)
 	}
 	if expr.Text == "SortSeq" {
 		return e.sortSequence(expr.Args)
@@ -27,6 +27,23 @@ func (e *evaluator) tlcOperator(expr *parser.Expression) (value.Value, error) {
 		return value.Value{}, err
 	}
 	return e.callTLCValue(expr.Text, args)
+}
+
+func (e *evaluator) tlcArgumentMismatch(expr *parser.Expression) (value.Value, error) {
+	for i, arg := range expr.Args {
+		if expr.Text == "SortSeq" && i == len(expr.Args)-1 {
+			if _, err := e.operatorArgument(arg, 2); err != nil {
+				return value.Value{}, err
+			}
+		} else if _, err := e.eval(arg); err != nil {
+			return value.Value{}, err
+		}
+	}
+	message := fmt.Sprintf("array is not of length %d", tlcArities[expr.Text])
+	if expr.Text == "Any" || expr.Text == "JavaTime" {
+		message = "cannot convert MethodHandle()Value to (Value[])Value"
+	}
+	return value.Value{}, &RuntimeError{Message: message, Standard: true}
 }
 
 func (e *evaluator) callTLCValue(name string, args []value.Value) (value.Value, error) {

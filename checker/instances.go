@@ -55,6 +55,7 @@ type instanceSession struct {
 	inherited       map[*parser.Module][]nestedModuleBinding
 	declaredImports map[*parser.Module][]string
 	sourceUnits     map[string]*parser.Module
+	builtinTLC      bool
 }
 
 func newInstanceSession(root string) *instanceSession {
@@ -121,12 +122,9 @@ func (r *instanceResolver) loadInstanceModule(name string) (*parser.Module, erro
 	if r.session.active[name] {
 		return nil, instanceCycleError(name)
 	}
-	if r.loader == nil {
-		return nil, fmt.Errorf("instance module %s requires a module loader", name)
-	}
-	source, err := r.loader(r.ctx, name)
-	if err != nil {
-		return nil, moduleLoadError("instance module", name, err)
+	source, builtin, err := r.instanceSource(name)
+	if err != nil || builtin != nil {
+		return builtin, err
 	}
 	module, err := parser.ParseModule(source)
 	if err != nil {

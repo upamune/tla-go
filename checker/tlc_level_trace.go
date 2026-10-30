@@ -92,5 +92,9 @@ func (m *model) definitionHasEffects(expr *parser.Expression, seen map[string]bo
 }
 
 func isEffectfulBuiltin(expr *parser.Expression) bool {
-	return expr.Kind == "Apply" && (expr.Text == "Print" || expr.Text == "PrintT" || expr.Text == "TLCSet" || expr.Text == "AssertEq" || expr.Text == "TLCGetAndSet")
+	name := tlcOperatorName(expr)
+	if expr.Kind == "Identifier" && name == "JavaTime" {
+		return true
+	}
+	return expr.Kind == "Apply" && (name == "Print" || name == "PrintT" || name == "TLCSet" || name == "AssertEq" || name == "TLCGetAndSet")
 }

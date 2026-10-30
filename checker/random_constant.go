@@ -67,7 +67,7 @@ func (m *model) readsRandom(expr *parser.Expression, seen map[string]bool) bool 
 	if expr == nil {
 		return false
 	}
-	if expr.Kind == "Apply" && isRandomName(expr.Text) {
+	if expr.Kind == "Apply" && isRandomName(tlcOperatorName(expr)) {
 		return true
 	}
 	if m.randomDefinition(expr, seen) {

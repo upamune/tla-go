@@ -7,8 +7,7 @@ backend; matching state counts alone is not sufficient.
 At tla-go commit `25cc6e0`, the statechart report supplied by the user says 32
 of 33 specifications matched Java TLC's exit code and state counts. That report
 has not yet been reproduced in this repository. The remaining specification and
-its failure need to be recorded alongside the integration tests. The current
-CLI still rejects `X == INSTANCE TLC` in simple models that Java TLC accepts.
+its failure need to be recorded alongside the integration tests.
 
 ## 1. Establish the integration baseline
 
@@ -29,12 +28,18 @@ defined operators and declaration order. Targeted tests also cover facts and
 TLC 1.7.4. Structured proofs and all possible proof directives are not yet
 supported; the statechart specifications have not yet been verified.
 
+Named and unnamed `INSTANCE TLC` support the TLC operators implemented by
+tla-go, including runtime state and side effects. Targeted tests compare their
+results, failures, random behavior and DOT output with Java TLC 1.7.4; local
+`TLC.tla` files retain precedence. Other standard-module instances and full
+statechart coverage remain outstanding.
+
 - Support the module search paths used by statechart, with Java-compatible
   lookup order, relative paths, transitive imports, and diagnostics. Test paths
   containing spaces and missing or conflicting modules.
-- Support named standard-module instances such as `X == INSTANCE TLC`, including
-  qualified operator calls and relevant substitutions. Retain support for named
-  instances of user-defined modules.
+- Complete named standard-module instances, including qualified operator calls
+  and relevant substitutions. Retain support for user-defined modules and verify
+  `X == INSTANCE TLC` with the actual statechart models.
 - Verify the `USE DEF` forms used by the actual statechart models without
   changing model-checking semantics. Invalid proof directives must be rejected.
 - Complete the Java-compatible behavior of the accepted `-workers 1` and

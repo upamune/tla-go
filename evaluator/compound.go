@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
@@ -20,6 +21,11 @@ func (e *evaluator) evalArgs(args []*parser.Expression) ([]value.Value, error) {
 }
 
 func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
+	if expr.BuiltinTLC {
+		builtin := *expr
+		builtin.Text = strings.TrimPrefix(expr.Text, "!tlc!")
+		return e.tlcOperator(&builtin)
+	}
 	if e.hasOperators {
 		if op, ok := e.findOperator(expr.Text); ok {
 			return e.applyOperator(op, expr.Args)

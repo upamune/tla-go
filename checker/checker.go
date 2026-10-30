@@ -116,6 +116,7 @@ type model struct {
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
+// Return an error matching fs.ErrNotExist to allow standard-module fallback.
 type ModuleLoader func(context.Context, string) (string, error)
 
 // Options configures external module loading and TLC output.
@@ -240,6 +241,11 @@ func checkParsedWithOptions(ctx context.Context, module *parser.Module, cfg conf
 	if err != nil {
 		return Result{}, err
 	}
+	if session.builtinTLC {
+		copy := *module
+		copy.HasTLCInstance = true
+		module = &copy
+	}
 	return checkParsedWithOutput(ctx, module, cfg, options, session.sourceUnits)
 }
 
@@ -361,10 +367,14 @@ func newEvaluatorProgram(module *parser.Module, onPrint func(string), runtime *t
 			}
 		}
 	}
-	if slices.Contains(module.Extends, "TLC") || slices.Contains(module.Extends, "TLCExt") || slices.Contains(module.Extends, "Randomization") {
+	if usesTLCRuntime(module) {
 		return evaluator.NewWithRuntime(module, onPrint, runtime)
 	}
 	return evaluator.NewWithPrint(module, onPrint)
+}
+
+func usesTLCRuntime(module *parser.Module) bool {
+	return module.HasTLCInstance || slices.Contains(module.Extends, "TLC") || slices.Contains(module.Extends, "TLCExt") || slices.Contains(module.Extends, "Randomization")
 }
 
 func defaultEmptyModel(module *parser.Module, cfg config.Config) config.Config {

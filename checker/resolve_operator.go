@@ -7,11 +7,7 @@ import (
 )
 
 func (r *resolver) expressionArguments(expr *parser.Expression, scope map[string]symbol) error {
-	var params []int
-	if expr.Kind == "Apply" {
-		sym, _ := r.lookup(expr.Text, scope)
-		params = sym.params
-	}
+	params := r.argumentParameters(expr, scope)
 	for i, arg := range expr.Args {
 		if i < len(params) && params[i] > 0 {
 			if err := r.operatorArgument(arg, params[i], scope); err != nil {
@@ -24,6 +20,18 @@ func (r *resolver) expressionArguments(expr *parser.Expression, scope map[string
 		}
 	}
 	return nil
+}
+
+func (r *resolver) argumentParameters(expr *parser.Expression, scope map[string]symbol) []int {
+	var params []int
+	if expr.BuiltinTLC && expr.Text == "!tlc!SortSeq" && len(expr.Args) > 0 {
+		params = make([]int, len(expr.Args))
+		params[len(params)-1] = 2
+	} else if expr.Kind == "Apply" {
+		sym, _ := r.lookup(expr.Text, scope)
+		params = sym.params
+	}
+	return params
 }
 
 func (r *resolver) operatorArgument(expr *parser.Expression, arity int, scope map[string]symbol) error {

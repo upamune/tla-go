@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
@@ -222,13 +223,25 @@ func (e *evaluator) evalExpression(expr *parser.Expression) (value.Value, error)
 	case "String":
 		return value.String(expr.Text), nil
 	case "Identifier":
-		return e.identifier(expr.Text)
+		return e.expressionIdentifier(expr)
 	case "Apply":
 		return e.apply(expr)
 	case "And", "Or":
 		return e.junction(expr)
 	}
 	return e.evalCompound(expr)
+}
+
+func (e *evaluator) expressionIdentifier(expr *parser.Expression) (value.Value, error) {
+	if expr.BuiltinTLC {
+		switch expr.Text {
+		case "!tlc!Any":
+			return value.Any(), nil
+		case "!tlc!JavaTime":
+			return javaTime()
+		}
+	}
+	return e.identifier(expr.Text)
 }
 
 func (e *evaluator) evalCompound(expr *parser.Expression) (value.Value, error) {
@@ -332,11 +345,8 @@ type UnboundVariable struct {
 
 func (e *UnboundVariable) Error() string { return fmt.Sprintf("variable %s is unassigned", e.Name) }
 func (e *evaluator) standardConstant(name string) (value.Value, error) {
-	if e.tlcext && isTLCExtStateOperator(name) {
-		return e.tlcExtStateOperator(name)
-	}
-	if name == "Any" && e.tlc {
-		return value.Any(), nil
+	if result, ok, err := e.tlcStandardConstant(name); ok {
+		return result, err
 	}
 	if name == "EmptyBag" && e.bags {
 		return value.Function(nil)
@@ -345,6 +355,25 @@ func (e *evaluator) standardConstant(name string) (value.Value, error) {
 		return set, nil
 	}
 	return standardConstant(name)
+}
+
+func (e *evaluator) tlcStandardConstant(name string) (value.Value, bool, error) {
+	if e.tlcext && isTLCExtStateOperator(name) {
+		v, err := e.tlcExtStateOperator(name)
+		return v, true, err
+	}
+	if name == "Any" && e.tlc {
+		return value.Any(), true, nil
+	}
+	if name == "JavaTime" && e.tlc {
+		v, err := javaTime()
+		return v, true, err
+	}
+	return value.Value{}, false, nil
+}
+
+func javaTime() (value.Value, error) {
+	return value.Integer(time.Now().UnixMilli() & 0x7fffffff)
 }
 
 func (e *evaluator) numericSet(name string) (value.Value, bool) {

@@ -176,7 +176,8 @@ func (m *model) isTLCDefer(expr *parser.Expression) bool {
 }
 
 func isTLCRuntimeRead(expr *parser.Expression) bool {
-	return expr.Kind == "Apply" && (expr.Text == "TLCGet" || expr.Text == "TLCSet" || expr.Text == "TLCGetOrDefault" || expr.Text == "TLCGetAndSet")
+	name := tlcOperatorName(expr)
+	return expr.Kind == "Apply" && (name == "TLCGet" || name == "TLCSet" || name == "TLCGetOrDefault" || name == "TLCGetAndSet")
 }
 
 func (m *model) isTLCExtState(expr *parser.Expression) bool {

@@ -25,6 +25,13 @@ func (r *resolver) expression(expr *parser.Expression, scope map[string]symbol) 
 }
 
 func (r *resolver) expressionHead(expr *parser.Expression, scope map[string]symbol) error {
+	if expr.BuiltinTLC {
+		return nil
+	}
+	return r.expressionName(expr, scope)
+}
+
+func (r *resolver) expressionName(expr *parser.Expression, scope map[string]symbol) error {
 	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && r.assumeProve[expr.Text] {
 		if _, shadowed := scope[expr.Text]; !shadowed {
 			return fmt.Errorf("ASSUME/PROVE used where an expression is required")

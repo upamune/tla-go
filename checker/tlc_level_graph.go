@@ -97,7 +97,7 @@ func (m *model) expressionUsesTLC(expr *parser.Expression, seen map[string]bool)
 	if expr == nil {
 		return false
 	}
-	if expr.Kind == "Apply" && expr.Text == "TLCGet" {
+	if expr.Kind == "Apply" && tlcOperatorName(expr) == "TLCGet" {
 		return true
 	}
 	if m.tlcDefinitionUses(expr, seen) {

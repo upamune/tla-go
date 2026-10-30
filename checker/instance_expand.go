@@ -18,6 +18,9 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	}
 	replacements, err := r.prepareInstance(module, instance, index)
 	if err != nil {
+		if isBuiltinTLCModule(module) {
+			return &SemanticError{Err: err}
+		}
 		return err
 	}
 	generated := instanceDefinitionNames(module, instance, index)

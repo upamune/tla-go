@@ -107,7 +107,7 @@ func (m *model) replayExpressionHasEffects(expr *parser.Expression, seen map[str
 	if expr == nil || m.isTLCDefer(expr) {
 		return false
 	}
-	if isEffectfulBuiltin(expr) || expr.Kind == "Apply" && isRandomName(expr.Text) {
+	if isEffectfulBuiltin(expr) || expr.Kind == "Apply" && isRandomName(tlcOperatorName(expr)) {
 		return true
 	}
 	if m.replayDefinitionHasEffects(expr, seen) {

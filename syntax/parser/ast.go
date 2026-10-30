@@ -20,8 +20,10 @@ type Location struct {
 
 // Expression is a TLA+ expression. Kind identifies which fields are present.
 type Expression struct {
-	Kind, Text     string
-	Bulleted       bool
+	Kind, Text string
+	Bulleted   bool
+	// BuiltinTLC marks an internal call to a TLC standard-module operator.
+	BuiltinTLC     bool `json:"-"`
 	Quantifier     string
 	Temporal       bool
 	Names          []string
@@ -165,7 +167,9 @@ type Module struct {
 	Theorems             []Theorem
 	ProofDirectives      []ProofDirective `json:",omitempty"`
 	// ImportedProofFacts preserves named theorems when extension units are merged.
-	ImportedProofFacts    []string `json:"-"`
+	ImportedProofFacts []string `json:"-"`
+	// HasTLCInstance enables runtime services for standard-module instances.
+	HasTLCInstance        bool `json:"-"`
 	RecursiveDeclarations []Declaration
 	Location              Location
 }

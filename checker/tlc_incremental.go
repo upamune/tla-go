@@ -18,7 +18,7 @@ func (m *model) expressionUsesUnstableTLC(expr *parser.Expression, seen map[stri
 	if expr == nil {
 		return false
 	}
-	if expr.Kind == "Apply" && expr.Text == "TLCGet" && !stableTLCRead(expr) {
+	if expr.Kind == "Apply" && tlcOperatorName(expr) == "TLCGet" && !stableTLCRead(expr) {
 		return true
 	}
 	if m.definitionUsesUnstableTLC(expr, seen) {

@@ -236,7 +236,7 @@ func (r *resolver) lookupJSONStandard(name string) (symbol, bool) {
 }
 
 func (r *resolver) lookupNonJSONStandard(name string) (symbol, bool) {
-	if r.tlc && name == "Any" {
+	if r.tlc && (name == "Any" || name == "JavaTime") {
 		return symbol{}, true
 	}
 	if r.arithmetic && name == "Nat" || r.integers && name == "Int" {
