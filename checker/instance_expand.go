@@ -21,10 +21,7 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 		return err
 	}
 	generated := instanceDefinitionNames(module, instance, index)
-	generatedSet := make(map[string]bool, len(generated))
-	for _, name := range generated {
-		generatedSet[name] = true
-	}
+	generatedSet := instanceGeneratedArities(module, generated)
 	variables := make(map[string]bool, len(module.Variables))
 	for _, variable := range module.Variables {
 		variables[variable.Name] = true
@@ -36,6 +33,21 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	}
 	result.Definitions = append(result.Definitions, instanceValidationDefinitions(module, instance, replacements, index)...)
 	return nil
+}
+
+func instanceGeneratedArities(module *parser.Module, generated map[string]string) map[string]int {
+	arities := make(map[string]int, len(generated))
+	for _, definition := range module.Definitions {
+		arity := 0
+		if definition.Kind == "Operator" {
+			arity = len(definition.Params)
+			if hasOperatorParameters(definition.Params) {
+				arity = -1
+			}
+		}
+		arities[generated[definition.Name]] = arity
+	}
+	return arities
 }
 
 func (r *instanceResolver) prepareInstance(module *parser.Module, instance parser.Instance, index int) (map[string]*parser.Expression, error) {

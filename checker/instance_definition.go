@@ -1,6 +1,10 @@
 package checker
 
-import "github.com/upamune/tla-go/syntax/parser"
+import (
+	"fmt"
+
+	"github.com/upamune/tla-go/syntax/parser"
+)
 
 func declarationNames(params []parser.Declaration) map[string]bool {
 	names := make(map[string]bool, len(params))
@@ -10,7 +14,7 @@ func declarationNames(params []parser.Declaration) map[string]bool {
 	return names
 }
 
-func instanceDefinition(definition parser.Definition, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet, variables map[string]bool, scope string) parser.Definition {
+func instanceDefinition(definition parser.Definition, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet map[string]int, variables map[string]bool, scope string) parser.Definition {
 	definition.Origins = instanceOrigins(definition, instance)
 	definition.InstanceRange = instance.Location.Range
 	definition.InstanceParamCount = len(instance.Params)
@@ -67,7 +71,7 @@ func instanceOrigins(definition parser.Definition, instance parser.Instance) []p
 	return append(origins, parser.DefinitionOrigin{Module: instance.Module, Name: definition.Name, Prefix: len(instance.Params)})
 }
 
-func instanceExpression(expr *parser.Expression, replacements map[string]*parser.Expression, generated map[string]bool, params []parser.Declaration, self string) *parser.Expression {
+func instanceExpression(expr *parser.Expression, replacements map[string]*parser.Expression, generated map[string]int, params []parser.Declaration, self string) *parser.Expression {
 	result := substitute(substitute(expr, replacements), nil)
 	if len(params) > 0 {
 		addInstanceArguments(result, generated, params, self)
@@ -75,7 +79,7 @@ func instanceExpression(expr *parser.Expression, replacements map[string]*parser
 	return result
 }
 
-func instanceBounds(bounds []parser.Bound, replacements map[string]*parser.Expression, generated map[string]bool, params []parser.Declaration) []parser.Bound {
+func instanceBounds(bounds []parser.Bound, replacements map[string]*parser.Expression, generated map[string]int, params []parser.Declaration) []parser.Bound {
 	out := append([]parser.Bound(nil), bounds...)
 	for i := range out {
 		if out[i].Set != nil {
@@ -85,8 +89,12 @@ func instanceBounds(bounds []parser.Bound, replacements map[string]*parser.Expre
 	return out
 }
 
-func addInstanceArguments(expr *parser.Expression, generated map[string]bool, params []parser.Declaration, self string) {
-	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && generated[expr.Text] && expr.Text != self {
+func addInstanceArguments(expr *parser.Expression, generated map[string]int, params []parser.Declaration, self string) {
+	if arity, found := generatedInstanceReference(expr, generated, self); found {
+		if expr.Kind == "Identifier" && arity > 0 {
+			partialInstanceOperator(expr, params, arity)
+			return
+		}
 		args := make([]*parser.Expression, 0, len(params)+len(expr.Args))
 		for _, param := range params {
 			args = append(args, &parser.Expression{Kind: "Identifier", Text: param.Name})
@@ -95,4 +103,26 @@ func addInstanceArguments(expr *parser.Expression, generated map[string]bool, pa
 		expr.Kind = "Apply"
 	}
 	walkChildren(expr, func(child *parser.Expression) { addInstanceArguments(child, generated, params, self) })
+}
+
+func generatedInstanceReference(expr *parser.Expression, generated map[string]int, self string) (int, bool) {
+	if expr.Kind != "Identifier" && expr.Kind != "Apply" || expr.Text == self {
+		return 0, false
+	}
+	arity, found := generated[expr.Text]
+	return arity, found
+}
+
+func partialInstanceOperator(expr *parser.Expression, params []parser.Declaration, arity int) {
+	args := make([]*parser.Expression, 0, len(params)+arity)
+	for _, param := range params {
+		args = append(args, &parser.Expression{Kind: "Identifier", Text: param.Name})
+	}
+	names := make([]string, arity)
+	for i := range names {
+		names[i] = fmt.Sprintf("!instance-partial!%s!%d", expr.Text, i)
+		args = append(args, &parser.Expression{Kind: "Identifier", Text: names[i]})
+	}
+	body := &parser.Expression{Kind: "Apply", Text: expr.Text, Args: args, Location: expr.Location}
+	*expr = parser.Expression{Kind: "Lambda", Names: names, Args: []*parser.Expression{body}, Location: expr.Location}
 }

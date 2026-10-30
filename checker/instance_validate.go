@@ -100,10 +100,7 @@ func hasInstanceLevelConstraints(module *parser.Module) bool {
 
 func addInstanceAnalysisDefinitions(model *model, module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, index int) {
 	names := instanceDefinitionNames(module, instance, index)
-	generated := make(map[string]bool, len(names))
-	for _, name := range names {
-		generated[name] = true
-	}
+	generated := instanceGeneratedArities(module, names)
 	for _, definition := range module.Definitions {
 		name := names[definition.Name]
 		self := ""

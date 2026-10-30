@@ -31,3 +31,6 @@ subexpression references and their lexical scopes.
 
 `test206` and `test206a` are unchanged models from the same suite. They test
 labels, selected subexpressions, and instance operator substitutions.
+
+`test219` and `test219a` are unchanged models from the same suite. They test
+parameterized instances, theorem labels, and subexpression selections.
