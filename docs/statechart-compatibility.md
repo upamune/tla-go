@@ -13,11 +13,12 @@ TLC 1.7.4 now agree on exit codes and the verdicts, initial and distinct state
 counts, and traces read by statechart's actual parser. This comparison does not
 establish SANY or full single-binary equivalence.
 
-A separate hybrid test runs statechart's generated models and compares all 33
-charts and reports with the pinned corpus. It uses Java SANY and a test-only
-bridge to select tla-go for TLC, but passes the original library path and
-`-metadir` through without copying modules. It is not a replacement for testing
-the final single-binary integration.
+The hybrid test runs statechart's generated models and compares all 33 charts
+and reports with the pinned corpus, using Java SANY and tla-go for TLC. A second
+test routes both calls to tla-go and obtains the same 33 charts and reports with
+a nonexistent JAR path; its bridge rejects all other Java invocations. Both use
+the original library path and `-metadir` without copying modules. These are
+test-only adapters, not a change to statechart's released backend selection.
 
 ## 1. Establish the integration baseline
 
@@ -79,7 +80,7 @@ and the output has not yet been validated across the full TLC suite.
 To run the corpus test locally, check out the pinned `cursor/plugins` revision
 and set `STATECHART_DIR` to its `pstack/skills/statechart` directory and
 `TLC_JAR` to the Java TLC 1.7.4 jar. Run
-`mise exec bun@1.3.11 -- go test ./cmd/tla-go -run '^TestJavaTLCStatechart(Corpus|Marks|Hybrid)$' -count=1`.
+`mise exec bun@1.3.11 -- go test ./cmd/tla-go -run '^(TestJavaTLCStatechart(Corpus|Marks|Hybrid|Standalone)|TestJavaSANY(MetadataLevels|StatechartMetadata|TLCLevels|TLCInstanceLevels))$' -count=1`.
 
 ## 4. DOT state graph
 
@@ -101,13 +102,17 @@ and fingerprint collision behavior can still differ from Java TLC.
 
 ## 5. SANY-compatible metadata
 
-- Identify the exact SANY XML command and fields statechart consumes, including
-  variable declaration order and operator definition levels. Implement an
-  equivalent interface that its existing consumer can read, or coordinate an
-  explicitly tested consumer change.
+- `-sany-metadata` emits an XML projection accepted by statechart's existing
+  SANY reader. It includes variable order, constants and user-defined operator
+  levels; it is not SANY's complete XML semantic graph. The 33 corpus models
+  compare Go's variables and exported definition levels directly with Java SANY
+  1.7.4, and the no-Java bridge runs the complete chart and report tests.
 - Derive levels from semantic analysis, including imports, substitutions,
   parameters, bound names and standard modules; do not guess unsupported levels.
-  Reject unsupported cases rather than emit misleading metadata.
+  The current analysis handles many of these cases but rejects recursive
+  definitions and higher-order operator calls; other SANY constructs and standard-module
+  definitions are incomplete. Continue checking semantics and reject unsupported
+  cases rather than emit misleading metadata.
 - Compare parsed output against Java SANY for the statechart specs and targeted
   fixtures covering ordering, nested instances, scopes, and semantic errors.
 

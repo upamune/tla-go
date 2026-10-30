@@ -69,11 +69,14 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-fp 0` | Select the currently supported default TLC fingerprint polynomial. |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
 | `-dump dot,actionlabels FILE` | Write an action-labeled DOT graph during exploration; `.dot` is appended if absent. |
+| `-sany-metadata [-I DIR] FILE` | Emit experimental SANY-shaped XML containing variable order and definition levels, without checking a model. |
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |
 | `-modern-random-subsets` | Use the newer TLC random-subset algorithm. |
 | `-version`, `-help` | Show the version or usage. |
 
 The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and DOT output are compared with Java TLC for representative models, but full compatibility is not yet established. Only the values shown for `-workers` and `-fp` are accepted; state identity and fingerprint collision behavior can still differ from Java TLC.
+
+`-sany-metadata` emits only the metadata consumed by statechart, not the complete SANY XML semantic graph. It rejects some constructs that Java SANY supports, including recursive definitions and higher-order operator calls. Its level analysis and semantic validation are experimental; use Java SANY when complete XML or authoritative analysis is needed.
 
 ## Documentation
 

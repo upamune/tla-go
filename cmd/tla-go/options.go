@@ -39,7 +39,7 @@ func parseOption(opts *options, args []string) (int, error) {
 		opts.modernRandomSubsets = true
 	case "-tool":
 		opts.tool = true
-	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp", "-metadir":
+	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp", "-metadir", "-I":
 		return parseValueOption(opts, args)
 	default:
 		return 0, parsePath(opts, args[0])
@@ -94,8 +94,8 @@ func parseValueOption(opts *options, args []string) (int, error) {
 			return 0, errMissingLivenessStrategy
 		}
 		return 1, nil
-	case "-dump", "-workers", "-fp":
-		return parseGraphOption(opts, args)
+	case "-dump", "-workers", "-fp", "-I":
+		return parseAuxiliaryOption(opts, args)
 	}
 	return 0, nil
 }
@@ -112,7 +112,14 @@ func parseSeedOption(opts *options, args []string) (int, error) {
 	return 1, nil
 }
 
-func parseGraphOption(opts *options, args []string) (int, error) {
+func parseAuxiliaryOption(opts *options, args []string) (int, error) {
+	if args[0] == "-I" {
+		if len(args) < 2 {
+			return 0, fmt.Errorf("-I requires a path")
+		}
+		opts.libraryPaths = append(opts.libraryPaths, args[1])
+		return 1, nil
+	}
 	if args[0] == "-dump" {
 		return parseDumpOption(opts, args)
 	}
@@ -120,6 +127,10 @@ func parseGraphOption(opts *options, args []string) (int, error) {
 }
 
 func parsePath(opts *options, path string) error {
+	if path == "-sany-metadata" {
+		opts.sanyMetadata = true
+		return nil
+	}
 	if library, ok := strings.CutPrefix(path, "-DTLA-Library="); ok {
 		opts.libraryPaths = filepath.SplitList(library)
 		return nil

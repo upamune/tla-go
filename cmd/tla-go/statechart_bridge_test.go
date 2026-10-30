@@ -31,12 +31,29 @@ func statechartBridge(args []string) int {
 		if arg == "tlc2.TLC" {
 			index = i
 		}
+		if arg == "tla2sany.xml.XMLExporter" && os.Getenv("TLA_GO_STATECHART_SANY") == "1" {
+			return statechartSANYBridge(args[i+1:])
+		}
 	}
 	if index < 0 {
+		if os.Getenv("TLA_GO_STATECHART_STRICT") == "1" {
+			fmt.Fprintln(os.Stderr, "unexpected Java invocation")
+			return 255
+		}
 		return bridgeJava(args)
 	}
 	tlcArgs := append([]string{"-DTLA-Library=" + folder}, args[index+1:]...)
 	return run(context.Background(), tlcArgs, os.Stdout, os.Stderr)
+}
+
+func statechartSANYBridge(args []string) int {
+	forwarded := []string{"-sany-metadata"}
+	for _, arg := range args {
+		if arg != "-o" {
+			forwarded = append(forwarded, arg)
+		}
+	}
+	return run(context.Background(), forwarded, os.Stdout, os.Stderr)
 }
 
 func bridgeJava(args []string) int {
@@ -53,9 +70,21 @@ func bridgeJava(args []string) int {
 }
 
 func TestJavaTLCStatechartHybrid(t *testing.T) {
+	testStatechartModels(t, false)
+}
+
+func TestJavaTLCStatechartStandalone(t *testing.T) {
+	testStatechartModels(t, true)
+}
+
+func testStatechartModels(t *testing.T, standalone bool) {
+	t.Helper()
 	root, jar := os.Getenv("STATECHART_DIR"), os.Getenv("TLC_JAR")
-	if root == "" || jar == "" {
+	if root == "" || (!standalone && jar == "") {
 		t.Skip("set STATECHART_DIR and TLC_JAR to run statechart differential tests")
+	}
+	if standalone {
+		jar = filepath.Join(t.TempDir(), "does-not-exist.jar")
 	}
 	bridge, err := os.Executable()
 	if err != nil {
@@ -73,7 +102,7 @@ func TestJavaTLCStatechartHybrid(t *testing.T) {
 		}
 		count++
 		t.Run(entry.Name(), func(t *testing.T) {
-			compareStatechartHybrid(t, root, jar, bridge, filepath.Join(corpus, entry.Name()))
+			compareStatechartHybrid(t, root, jar, bridge, filepath.Join(corpus, entry.Name()), standalone)
 		})
 	}
 	if count == 0 {
@@ -81,7 +110,7 @@ func TestJavaTLCStatechartHybrid(t *testing.T) {
 	}
 }
 
-func compareStatechartHybrid(t *testing.T, root, jar, bridge, fixture string) {
+func compareStatechartHybrid(t *testing.T, root, jar, bridge, fixture string, standalone bool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
 	defer cancel()
@@ -93,6 +122,9 @@ func compareStatechartHybrid(t *testing.T, root, jar, bridge, fixture string) {
 	}
 	cmd := exec.CommandContext(ctx, "bun", args...)
 	cmd.Env = append(os.Environ(), "JAVA="+bridge, "TLA2TOOLS="+jar, "TLA_GO_STATECHART_BRIDGE=1")
+	if standalone {
+		cmd.Env = append(cmd.Env, "TLA_GO_STATECHART_SANY=1", "TLA_GO_STATECHART_STRICT=1")
+	}
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil {
 		t.Fatalf("statechart: %v\n%s", err, output)
