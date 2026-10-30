@@ -25,3 +25,6 @@ suite. They exercise symbolic operators passed as higher-order arguments.
 
 `test203` and `test203a` are unchanged models from the same suite. They test a
 recursive operator passed into a parameterized module instance.
+
+`test209` is an unchanged model from the same suite. It exercises positional
+subexpression references and their lexical scopes.

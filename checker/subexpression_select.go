@@ -165,6 +165,9 @@ func (s *subexpressionSelection) application() (*parser.Expression, error) {
 	for _, v := range slices.Backward(s.lets) {
 		body = &parser.Expression{Kind: "Let", Definitions: v, Args: []*parser.Expression{body}, Location: s.location}
 	}
+	if len(s.lets) > 0 {
+		body = (&alphaRenamer{prefix: "selected-let"}).expression(body, nil)
+	}
 	if len(s.params) == 0 {
 		return body, nil
 	}
