@@ -50,8 +50,13 @@ func (s *search) shouldCollapseGeneralTrace(v *Violation) bool {
 	}
 	for _, property := range s.model.livenessOrder {
 		if property.name == v.Name && property.mode == generalTemporal {
-			return true
+			return !s.model.hasReduction() || s.supportsReducedStateFormula(property) || s.pureSymmetryTrace(property)
 		}
 	}
 	return false
+}
+
+func (s *search) pureSymmetryTrace(property temporalProperty) bool {
+	return s.model.cfg.Symmetry != "" && s.model.cfg.View == "" &&
+		!s.model.environmentIsImpure() && s.pureReducedFormula(property.general)
 }

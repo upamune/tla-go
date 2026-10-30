@@ -55,9 +55,6 @@ func (c *javaFairCycle) recordTableau(root int) error {
 }
 
 func (f *fairSearch) supportsJavaTableauCycle() bool {
-	if len(f.search.model.fairness) == 0 {
-		return false
-	}
 	for _, fair := range f.search.model.fairness {
 		if fair.recurrence {
 			return false

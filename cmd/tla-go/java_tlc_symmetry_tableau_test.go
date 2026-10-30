@@ -173,3 +173,27 @@ func TestJavaTLCSymmetryFairRecurrenceToolTrace(t *testing.T) {
 		})
 	}
 }
+
+func TestJavaTLCSymmetryUnfairGeneralToolTrace(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("set TLC_JAR to compare Java TLC tool output")
+	}
+	for _, tc := range []struct{ name, next, property string }{
+		{"guard nondeterministic", "x' \\in P /\\ bit' \\in {0,1}", "[](bit=0 => <>(x=b))"},
+		{"nested alternating", "x' = x /\\ bit' = 1-bit", "<>(x=b /\\ []<>(x=a))"},
+		{"nested symmetric alternating", "x' \\in P /\\ bit' = 1-bit", "<>(x=b /\\ []<>(x=a))"},
+		{"guard alternating", "x' = x /\\ bit' = 1-bit", "[](bit=0 => <>(x=b))"},
+		{"guard symmetric alternating", "x' \\in P /\\ bit' = 1-bit", "[](bit=0 => <>(x=b))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "CONSTANTS P,a,b\nVARIABLES x,bit\nvars == <<x,bit>>\n" +
+				"Init == x \\in P /\\ bit = 0\nNext == " + tc.next + "\nSpec == Init /\\ [][Next]_vars\n" +
+				"Sym == Permutations(P)\nProp == " + tc.property
+			cfg := "CONSTANTS P={a,b} a=a b=b SPECIFICATION Spec SYMMETRY Sym PROPERTY Prop CHECK_DEADLOCK FALSE"
+			writeDOTFixture(t, dir, body, cfg)
+			compareFullSymmetryToolTrace(t, jar, dir, "M.tla")
+		})
+	}
+}

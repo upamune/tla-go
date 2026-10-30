@@ -28,7 +28,7 @@ type ltlProductBuilder struct {
 }
 
 func (s *search) checkGeneralProperty(property temporalProperty) (bool, error) {
-	if len(s.model.fairness) > 0 && s.supportsReducedTableau(property) {
+	if s.supportsReducedTableau(property) {
 		return s.checkReducedTableau(property)
 	}
 	source, canonical, err := s.generalPropertyGraph(property)

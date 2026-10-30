@@ -297,6 +297,9 @@ func (m *model) finalizeCheckResult(result Result) (Result, error) {
 		if err := m.recoverViewResult(&result); err != nil {
 			return result, err
 		}
+		if err := m.updateRecoveredTableauProperties(&result); err != nil {
+			return result, err
+		}
 	}
 	if m.cfg.Alias != "" {
 		m.applyAlias(&result)
