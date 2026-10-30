@@ -28,3 +28,6 @@ recursive operator passed into a parameterized module instance.
 
 `test209` is an unchanged model from the same suite. It exercises positional
 subexpression references and their lexical scopes.
+
+`test206` and `test206a` are unchanged models from the same suite. They test
+labels, selected subexpressions, and instance operator substitutions.

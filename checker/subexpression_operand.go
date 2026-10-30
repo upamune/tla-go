@@ -8,7 +8,7 @@ import (
 
 func (s *subexpressionSelection) selectOperand(selector parser.Selector) error {
 	if selector.Kind == "Colon" {
-		return nil
+		return s.selectColon()
 	}
 	for s.current != nil && s.current.Kind == "Label" {
 		s.current = s.current.Args[0]
@@ -23,6 +23,13 @@ func (s *subexpressionSelection) selectOperand(selector parser.Selector) error {
 		return s.selectBoundOperand(selector)
 	}
 	return s.selectNumberedOperand(selector)
+}
+
+func (s *subexpressionSelection) selectColon() error {
+	if s.current != nil && s.current.Kind == "AssumeProve" {
+		return selectionError(s.location, "ASSUME/PROVE is not an expression")
+	}
+	return nil
 }
 
 func (s *subexpressionSelection) selectNumberedOperand(selector parser.Selector) error {
@@ -84,7 +91,7 @@ func subexpressionOperands(expr *parser.Expression) []*parser.Expression {
 		return subexpressionBoundSets(expr.Bounds)
 	}
 	switch expr.Kind {
-	case "Apply", "And", "Or", "If", "Tuple", "SetEnumeration", "Prime", "Unchanged", "Enabled", "Always", "Eventually", "BoxAction", "AngleAction", "WeakFairness", "StrongFairness", "FunctionSet", "Product":
+	case "Apply", "And", "Or", "If", "Tuple", "SetEnumeration", "Prime", "Unchanged", "Enabled", "Always", "Eventually", "BoxAction", "AngleAction", "WeakFairness", "StrongFairness", "FunctionSet", "Product", "AssumeProve":
 		return expr.Args
 	case "FunctionApplication":
 		return subexpressionFunctionOperands(expr)

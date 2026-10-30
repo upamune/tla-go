@@ -15,6 +15,7 @@ type symbol struct {
 type resolver struct {
 	globals       map[string]symbol
 	positions     map[string]parser.Position
+	assumeProve   map[string]bool
 	position      parser.Position
 	arithmetic    bool
 	finiteSets    bool
@@ -39,7 +40,7 @@ var (
 )
 
 func validateResolved(module *parser.Module) error {
-	r := resolver{globals: map[string]symbol{"TRUE": {}, "FALSE": {}, "BOOLEAN": {}, "STRING": {}}, positions: map[string]parser.Position{}}
+	r := resolver{globals: map[string]symbol{"TRUE": {}, "FALSE": {}, "BOOLEAN": {}, "STRING": {}}, positions: map[string]parser.Position{}, assumeProve: map[string]bool{}}
 	for _, name := range module.Extends {
 		r.includeModule(name)
 	}
@@ -96,12 +97,22 @@ func (r *resolver) declarations(module *parser.Module) error {
 		r.positions[c.Name] = c.Location.Position
 	}
 	for _, d := range module.Definitions {
-		if err := r.declare(d.Name, len(d.Params)); err != nil {
+		if err := r.declareDefinition(d); err != nil {
 			return err
 		}
-		r.globals[d.Name] = definitionSymbol(d)
-		r.positions[d.Name] = d.Location.Position
 	}
+	return nil
+}
+
+func (r *resolver) declareDefinition(d parser.Definition) error {
+	if err := r.declare(d.Name, len(d.Params)); err != nil {
+		return err
+	}
+	r.globals[d.Name] = definitionSymbol(d)
+	if d.Body != nil && d.Body.Kind == "AssumeProve" {
+		r.assumeProve[d.Name] = true
+	}
+	r.positions[d.Name] = d.Location.Position
 	return nil
 }
 

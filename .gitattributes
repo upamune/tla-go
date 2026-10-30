@@ -18,3 +18,6 @@ cmd/tla-go/testdata/java-tlc/test203a.tla whitespace=-trailing-space
 cmd/tla-go/testdata/java-tlc/test203.cfg whitespace=-trailing-space
 cmd/tla-go/testdata/java-tlc/test209.tla whitespace=-trailing-space
 cmd/tla-go/testdata/java-tlc/test209.cfg whitespace=-trailing-space
+cmd/tla-go/testdata/java-tlc/test206.tla whitespace=-trailing-space
+cmd/tla-go/testdata/java-tlc/test206a.tla whitespace=-trailing-space
+cmd/tla-go/testdata/java-tlc/test206.cfg whitespace=-trailing-space

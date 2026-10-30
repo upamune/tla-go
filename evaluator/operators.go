@@ -134,7 +134,7 @@ func (e *evaluator) operatorArgument(expr *parser.Expression, arity int) (operat
 		return operatorRef{arity: arity, lambda: expr, scope: e.scope}, nil
 	}
 	if expr.Kind != "Identifier" && expr.Kind != "OperatorReference" {
-		return operatorRef{}, fmt.Errorf("expected an operator argument")
+		return operatorRef{}, fmt.Errorf("expected an operator argument at line %d, column %d", expr.Location.Line, expr.Location.Column)
 	}
 	return e.namedOperator(expr.Text, arity)
 }

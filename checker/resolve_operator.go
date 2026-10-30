@@ -31,7 +31,7 @@ func (r *resolver) operatorArgument(expr *parser.Expression, arity int, scope ma
 		return r.lambdaArgument(expr, arity, scope)
 	}
 	if expr.Kind != "Identifier" && expr.Kind != "OperatorReference" {
-		return fmt.Errorf("expected an operator argument")
+		return fmt.Errorf("expected an operator argument, got %s %q at line %d, column %d", expr.Kind, expr.Text, expr.Location.Line, expr.Location.Column)
 	}
 	name := expr.Text
 	sym, ok := r.operatorSymbol(name, scope)

@@ -83,11 +83,13 @@ type Definition struct {
 	Recursive bool
 	Bounds    []Bound
 	Name      string
-	Params    []Declaration
-	Body      *Expression
-	Local     bool
-	Location  Location
-	BodyRange Range
+	// SelectorName preserves the source name of an alpha-renamed LET operator.
+	SelectorName string `json:"-"`
+	Params       []Declaration
+	Body         *Expression
+	Local        bool
+	Location     Location
+	BodyRange    Range
 	// Origins records definition copies created while linking module instances.
 	// Parsed syntax leaves it empty; it is not part of the serialized AST.
 	Origins []DefinitionOrigin `json:"-"`

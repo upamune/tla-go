@@ -12,7 +12,7 @@ func (p *parser) theorem(m *Module) error {
 		name = p.next().Text
 		p.next()
 	}
-	statement, err := p.expression(0)
+	statement, err := p.theoremStatement()
 	if err != nil {
 		return err
 	}
@@ -26,6 +26,33 @@ func (p *parser) theorem(m *Module) error {
 		m.Definitions = append(m.Definitions, Definition{Kind: "Operator", Name: name, Body: statement, Location: location})
 	}
 	return nil
+}
+
+func (p *parser) theoremStatement() (*Expression, error) {
+	if !p.at("ASSUME") {
+		return p.expression(0)
+	}
+	start := p.pos
+	token := p.next()
+	var clauses []*Expression
+	for {
+		clause, err := p.expression(0)
+		if err != nil {
+			return nil, err
+		}
+		clauses = append(clauses, clause)
+		if !p.accept(",") {
+			break
+		}
+	}
+	if err := p.expect("PROVE"); err != nil {
+		return nil, err
+	}
+	conclusion, err := p.expression(0)
+	if err != nil {
+		return nil, err
+	}
+	return node("AssumeProve", "", p.location(token, start), append(clauses, conclusion)...), nil
 }
 
 func (p *parser) simpleProof() (*Proof, error) {

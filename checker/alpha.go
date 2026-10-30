@@ -83,7 +83,7 @@ func (a *alphaRenamer) expression(expr *parser.Expression, outer map[string]stri
 		scope = map[string]string{}
 	}
 	result.Bounds, scope = a.bounds(expr.Bounds, scope)
-	if expr.Kind == "Lambda" {
+	if expr.Kind == "Lambda" || expr.Kind == "UnboundedQuantifier" {
 		result.Names = a.bindNames(expr.Names, scope)
 	} else if expr.Kind == "Label" {
 		result.Names = renameLabelParameters(expr.Names, scope)
@@ -134,6 +134,9 @@ func (a *alphaRenamer) localDefinitions(definitions []parser.Definition, outer m
 	}
 	for i := range out {
 		out[i] = a.definition(out[i], scope)
+		if out[i].SelectorName == "" {
+			out[i].SelectorName = definitions[i].Name
+		}
 		out[i].Name = scope[definitions[i].Name]
 	}
 	return out, scope
@@ -146,6 +149,9 @@ func (a *alphaRenamer) sequentialDefinitions(definitions []parser.Definition, ou
 		fresh := a.fresh(definition.Name)
 		scope[definition.Name] = fresh
 		out[i] = a.definition(definition, scope)
+		if out[i].SelectorName == "" {
+			out[i].SelectorName = definition.Name
+		}
 		out[i].Name = fresh
 	}
 	return out, scope

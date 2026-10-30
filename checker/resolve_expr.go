@@ -22,13 +22,18 @@ func (r *resolver) expression(expr *parser.Expression, scope map[string]symbol) 
 }
 
 func (r *resolver) expressionHead(expr *parser.Expression, scope map[string]symbol) error {
+	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && r.assumeProve[expr.Text] {
+		if _, shadowed := scope[expr.Text]; !shadowed {
+			return fmt.Errorf("ASSUME/PROVE used where an expression is required")
+		}
+	}
 	switch expr.Kind {
 	case "Identifier":
 		return r.checkName(expr.Text, 0, scope)
 	case "Apply":
 		return r.checkName(expr.Text, len(expr.Args), scope)
-	case "OperatorReference", "Subexpression", "Lambda", "UnboundedQuantifier":
-		return fmt.Errorf("unsupported expression kind %s", expr.Kind)
+	case "OperatorReference", "Subexpression", "Lambda":
+		return fmt.Errorf("unsupported expression kind %s at line %d, column %d", expr.Kind, expr.Location.Line, expr.Location.Column)
 	}
 	return nil
 }
@@ -37,7 +42,7 @@ func (r *resolver) expressionScope(expr *parser.Expression, scope map[string]sym
 	if len(expr.Instances) > 0 {
 		return nil, fmt.Errorf("LET instances are not yet supported")
 	}
-	if len(expr.Bounds) == 0 && len(expr.Definitions) == 0 {
+	if len(expr.Bounds) == 0 && len(expr.Definitions) == 0 && expr.Kind != "UnboundedQuantifier" {
 		return scope, nil
 	}
 	local := cloneScope(scope)
@@ -49,7 +54,16 @@ func (r *resolver) expressionScope(expr *parser.Expression, scope map[string]sym
 			return nil, err
 		}
 	}
-	return local, nil
+	return r.unboundedScope(expr, local)
+}
+
+func (r *resolver) unboundedScope(expr *parser.Expression, scope map[string]symbol) (map[string]symbol, error) {
+	if expr.Kind == "UnboundedQuantifier" {
+		if err := r.bound(parser.Bound{Names: expr.Names}, scope); err != nil {
+			return nil, err
+		}
+	}
+	return scope, nil
 }
 
 func (r *resolver) localDefinitions(definitions []parser.Definition, scope map[string]symbol) error {

@@ -120,7 +120,7 @@ func (s *subexpressionSelection) selectLetName(selector parser.Selector) error {
 	}
 	s.lets = append(s.lets, s.current.Definitions)
 	for _, definition := range s.current.Definitions {
-		if definition.Name == selector.Name {
+		if definition.Name == selector.Name || definition.SelectorName == selector.Name {
 			return s.enter(definition, s.takeArguments(selector.Args, len(definition.Params)))
 		}
 	}

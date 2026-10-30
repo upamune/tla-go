@@ -142,3 +142,17 @@ func TestUnsupportedProofIsRejected(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestTheoremAssumeProve(t *testing.T) {
+	module, err := ParseModule("---- MODULE M ----\nTHEOREM T == ASSUME TRUE, FALSE PROVE lab :: TRUE\n====")
+	if err != nil {
+		t.Fatal(err)
+	}
+	statement := module.Theorems[0].Statement
+	if statement.Kind != "AssumeProve" || len(statement.Args) != 3 || statement.Args[2].Kind != "Label" {
+		t.Fatalf("got %+v", statement)
+	}
+	if _, err := ParseModule("---- MODULE M ----\nTHEOREM T == ASSUME TRUE\n===="); err == nil {
+		t.Fatal("accepted theorem without PROVE")
+	}
+}

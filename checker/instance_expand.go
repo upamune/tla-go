@@ -12,6 +12,10 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 		return err
 	}
 	module, instance = alphaInstance(module, instance)
+	instance, err = r.resolveInstanceSubexpressions(instance, result)
+	if err != nil {
+		return err
+	}
 	replacements, err := r.prepareInstance(module, instance, index)
 	if err != nil {
 		return err
