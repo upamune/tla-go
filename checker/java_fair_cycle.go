@@ -19,6 +19,8 @@ type javaFairCycle struct {
 	nodes       []int
 	path        []graphEdge
 	witnesses   []cycleWitness
+	tableau     bool
+	promises    []bool
 }
 
 func (f *fairSearch) recordJavaFairCycle(product *search, order [][]int, root int, component, base []int, count int) error {
@@ -54,7 +56,14 @@ func (c *javaFairCycle) step() error {
 	if err := c.product.model.ctx.Err(); err != nil {
 		return err
 	}
-	edge, progressed, found, err := c.chooseEdge()
+	nodeProgress := false
+	if c.tableau {
+		nodeProgress = c.markTableauPromises()
+		if c.complete() {
+			return nil
+		}
+	}
+	edge, progressed, found, err := c.chooseEdge(nodeProgress)
 	if err != nil {
 		return err
 	}
@@ -69,6 +78,11 @@ func (c *javaFairCycle) step() error {
 }
 
 func (c *javaFairCycle) complete() bool {
+	for _, done := range c.promises {
+		if !done {
+			return false
+		}
+	}
 	for _, requirement := range c.requirement {
 		if !requirement.done {
 			return false
@@ -77,14 +91,17 @@ func (c *javaFairCycle) complete() bool {
 	return true
 }
 
-func (c *javaFairCycle) chooseEdge() (graphEdge, bool, bool, error) {
+func (c *javaFairCycle) chooseEdge(nodeProgress bool) (graphEdge, bool, bool, error) {
 	var unseen graphEdge
 	hasUnseen := false
+	var last graphEdge
+	hasLast := false
 	for _, choice := range c.order[c.current] {
 		edge := c.product.edges[c.current][choice]
 		if !c.members[edge.to] {
 			continue
 		}
+		last, hasLast = edge, true
 		progress, err := c.markActions(edge)
 		if err != nil || progress {
 			return edge, true, true, err
@@ -92,6 +109,9 @@ func (c *javaFairCycle) chooseEdge() (graphEdge, bool, bool, error) {
 		if !c.seen[edge.to] {
 			unseen, hasUnseen = edge, true
 		}
+	}
+	if nodeProgress && hasLast {
+		return last, true, true, nil
 	}
 	return unseen, false, hasUnseen, nil
 }
@@ -120,10 +140,13 @@ func (c *javaFairCycle) markActions(edge graphEdge) (bool, error) {
 }
 
 func (c *javaFairCycle) satisfiesWeakFairness(index int, edge graphEdge) (bool, error) {
-	if c.f.enabled[index][c.current-c.count] == -1 {
+	fair := c.f.search.model.fairness[index]
+	if (!c.tableau || !fair.strong) && c.f.enabled[index][c.current-c.count] == -1 {
 		return true, nil
 	}
-	fair := c.f.search.model.fairness[index]
+	if c.tableau {
+		return c.f.search.model.holdsFair(fair, c.product.nodes[c.current].state, c.product.edgeNext(edge))
+	}
 	return c.f.search.model.holdsFair(fair, c.product.nodes[c.current].state, c.product.nodes[edge.to].state)
 }
 

@@ -154,7 +154,7 @@ func printToolLoop(t toolOutput, v *checker.Violation, module *parser.Module) {
 		t.message(2218, 4, fmt.Sprintf("%d: Stuttering", *v.LoopStart+2))
 		return
 	}
-	t.message(2122, 4, fmt.Sprintf("%d: Back to state: <%s>\n", *v.LoopStart+1, actionLabelWithRange(module, v.LoopAction, v.LoopActionRange)))
+	t.message(2122, 4, fmt.Sprintf("%d: Back to state: <%s>\n\n", *v.LoopStart+1, actionLabelWithRange(module, v.LoopAction, v.LoopActionRange)))
 }
 
 func printToolStatistics(t toolOutput, result checker.Result) {

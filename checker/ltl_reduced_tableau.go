@@ -127,6 +127,9 @@ func (f *fairSearch) findReducedTableauCycle(allowed []bool) (bool, error) {
 				break
 			}
 		}
+		if f.supportsJavaTableauCycle() {
+			return true, f.recordJavaTableauCycle(root, component, order)
+		}
 		return true, f.recordCycle(component)
 	})
 	if fallback {

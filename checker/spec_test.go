@@ -56,3 +56,31 @@ func TestSpecificationWithoutVariables(t *testing.T) {
 		})
 	}
 }
+
+func TestSpecificationFairnessSubscript(t *testing.T) {
+	for _, tc := range []struct {
+		name, fairness string
+		status         Status
+	}{
+		{"weak x", "WF_x(Next)", Success},
+		{"strong x", "SF_x(Next)", Success},
+		{"weak y", "WF_y(Next)", LivenessViolation},
+		{"strong y", "SF_y(Next)", LivenessViolation},
+		{"both", "WF_x(Next) /\\ WF_y(Next)", Success},
+		{"expression", "WF_sum(Next)", LivenessViolation},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLES x,y\nvars == <<x,y>>\nsum == y+0\n" +
+				"Init == x=0 /\\ y=0\nNext == x' \\in {x,1} /\\ y' \\in {y,1}\n" +
+				"Spec == Init /\\ [][Next]_vars /\\ " + tc.fairness + "\nP == <>(x=1)\n===="
+			cfg := "SPECIFICATION Spec PROPERTY P CHECK_DEADLOCK FALSE"
+			result, err := Check(source, cfg)
+			if err != nil || result.Status != tc.status {
+				t.Fatalf("got %+v, %v; want %s", result, err, tc.status)
+			}
+			if result.Status == LivenessViolation {
+				checkLasso(t, source, cfg, result.Violation)
+			}
+		})
+	}
+}

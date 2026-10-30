@@ -1,6 +1,10 @@
 package checker
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/upamune/tla-go/syntax/parser"
+)
 
 func (m *model) prepareFairness() error {
 	if err := m.validateFairness(); err != nil {
@@ -19,6 +23,9 @@ func (m *model) validateFairness() error {
 }
 
 func (m *model) validateFairnessCondition(fair fairnessCondition) error {
+	if !fair.recurrence && !m.validFairnessSubscript(fair.subscript) {
+		return fmt.Errorf("fairness subscript must be a state expression")
+	}
 	if err := m.validateFairnessExpression(fair); err != nil {
 		return err
 	}
@@ -41,4 +48,8 @@ func (m *model) validateFairnessExpression(fair fairnessCondition) error {
 		return fmt.Errorf("recurrence action subscript must be a state expression")
 	}
 	return nil
+}
+
+func (m *model) validFairnessSubscript(expr *parser.Expression) bool {
+	return !m.hasTemporal(expr, map[string]bool{}) && !m.hasAction(expr, map[string]bool{})
 }

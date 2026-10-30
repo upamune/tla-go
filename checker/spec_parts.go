@@ -220,7 +220,7 @@ func (p *specificationParts) nextOperator(expr *parser.Expression) string {
 }
 
 func (p *specificationParts) fairAction(expr *parser.Expression) bool {
-	if len(expr.Args) != 2 || !validSubscript(p.module, expr.Args[0]) {
+	if len(expr.Args) != 2 {
 		return false
 	}
 	p.fairness = append(p.fairness, fairnessCondition{strong: expr.Kind == "StrongFairness", subscript: expr.Args[0], action: expr.Args[1], bounds: append([]parser.Bound(nil), p.bounds...)})
