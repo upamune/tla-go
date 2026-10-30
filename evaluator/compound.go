@@ -1,0 +1,282 @@
+package evaluator
+
+import (
+	"fmt"
+
+	"github.com/upamune/tla-go/syntax/parser"
+	"github.com/upamune/tla-go/value"
+)
+
+func (e *evaluator) evalArgs(args []*parser.Expression) ([]value.Value, error) {
+	result := make([]value.Value, 0, len(args))
+	for _, arg := range args {
+		v, err := e.eval(arg)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, v)
+	}
+	return result, nil
+}
+
+func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
+	if e.hasOperators {
+		if op, ok := e.findOperator(expr.Text); ok {
+			args, err := e.evalArgs(expr.Args)
+			if err != nil {
+				return value.Value{}, err
+			}
+			return e.invokeOperator(op, args)
+		}
+	}
+	if expr.Text == "=>" {
+		return e.implies(expr)
+	}
+	if def, scope, ok := e.findDefinition(expr.Text); ok {
+		return e.applyDefinition(def, expr.Args, scope)
+	}
+	return e.builtin(expr)
+}
+
+func (e *evaluator) builtin(expr *parser.Expression) (value.Value, error) {
+	if e.randomization && isRandomOperator(expr.Text) {
+		return e.randomOperator(expr)
+	}
+	if e.bags && isBagOperator(expr.Text) {
+		return e.bagOperator(expr)
+	}
+	if e.json && isJSONOperator(expr.Text) {
+		return e.jsonOperator(expr)
+	}
+	return e.otherBuiltin(expr)
+}
+
+func (e *evaluator) otherBuiltin(expr *parser.Expression) (value.Value, error) {
+	if e.isTLCBuiltin(expr.Text) {
+		return e.callTLCBuiltin(expr)
+	}
+	if e.sequences && isSequenceOperator(expr.Text) {
+		return e.sequenceOperator(expr)
+	}
+	if e.finiteSets && (expr.Text == "Cardinality" || expr.Text == "IsFiniteSet") {
+		return e.finiteSetsOperator(expr)
+	}
+	return e.builtinByArity(expr)
+}
+
+func (e *evaluator) builtinByArity(expr *parser.Expression) (value.Value, error) {
+	if len(expr.Args) == 1 {
+		return e.unaryBuiltin(expr)
+	}
+	if len(expr.Args) == 2 {
+		left, err := e.eval(expr.Args[0])
+		if err != nil {
+			return value.Value{}, err
+		}
+		right, err := e.eval(expr.Args[1])
+		if err != nil {
+			return value.Value{}, err
+		}
+		result, err := binary(expr.Text, left, right)
+		if err != nil {
+			return result, err
+		}
+		return e.orderSetResult(expr.Text, result)
+	}
+	return value.Value{}, fmt.Errorf("unknown operator %s with %d arguments", expr.Text, len(expr.Args))
+}
+
+func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {
+	v, err := e.eval(expr.Args[0])
+	if err != nil {
+		return value.Value{}, err
+	}
+	if expr.Text == "SUBSET" {
+		return value.SubsetsWithSource(v, expr)
+	}
+	return unary(expr.Text, v)
+}
+
+func boolean(v value.Value) (bool, error) {
+	b, ok := v.Bool()
+	if !ok {
+		return false, fmt.Errorf("expected a boolean, found %s", v)
+	}
+	return b, nil
+}
+
+func (e *evaluator) condition(expr *parser.Expression) (bool, error) {
+	v, err := e.eval(expr)
+	if err != nil {
+		return false, err
+	}
+	return boolean(v)
+}
+
+func (e *evaluator) junction(expr *parser.Expression) (value.Value, error) {
+	want := expr.Kind == "And"
+	for _, operand := range expr.Args {
+		b, err := e.condition(operand)
+		if err != nil {
+			return value.Value{}, err
+		}
+		if b != want {
+			return value.Bool(!want), nil
+		}
+	}
+	return value.Bool(want), nil
+}
+
+func (e *evaluator) implies(expr *parser.Expression) (value.Value, error) {
+	if len(expr.Args) != 2 {
+		return value.Value{}, fmt.Errorf("=> expects 2 arguments")
+	}
+	left, err := e.condition(expr.Args[0])
+	if err != nil {
+		return value.Value{}, err
+	}
+	if !left {
+		return value.Bool(true), nil
+	}
+	right, err := e.condition(expr.Args[1])
+	return value.Bool(right), err
+}
+
+func (e *evaluator) prime(expr *parser.Expression) (value.Value, error) {
+	if e.context.Next == nil {
+		return value.Value{}, fmt.Errorf("prime without a next state")
+	}
+	child := *e
+	child.context.Current = e.context.Next
+	child.context.Next = nil
+	child.primeArguments = true
+	if e.program.tlcRuntime != nil {
+		child.primed = &tlcPrime{source: e.context.Current}
+	}
+	return child.eval(expr.Args[0])
+}
+
+func (e *evaluator) unchanged(expr *parser.Expression) (value.Value, error) {
+	current, err := e.eval(expr.Args[0])
+	if err != nil {
+		return value.Value{}, err
+	}
+	next, err := e.prime(expr)
+	if err != nil {
+		return value.Value{}, err
+	}
+	same, err := value.Equal(current, next)
+	return value.Bool(same), err
+}
+
+func (e *evaluator) ifExpression(expr *parser.Expression) (value.Value, error) {
+	b, err := e.condition(expr.Args[0])
+	if err != nil {
+		return value.Value{}, err
+	}
+	if b {
+		return e.eval(expr.Args[1])
+	}
+	return e.eval(expr.Args[2])
+}
+
+func (e *evaluator) caseExpression(expr *parser.Expression) (value.Value, error) {
+	for _, arm := range expr.Arms {
+		b, err := e.condition(arm.Condition)
+		if err != nil {
+			return value.Value{}, err
+		}
+		if b {
+			return e.eval(arm.Body)
+		}
+	}
+	if len(expr.Args) > 0 {
+		return e.eval(expr.Args[0])
+	}
+	if expr.Text == "!config-table!" {
+		return value.Value{}, e.configTableError(expr)
+	}
+	return value.Value{}, fmt.Errorf("no CASE guard is true")
+}
+
+func (e *evaluator) let(expr *parser.Expression) (value.Value, error) {
+	if len(expr.Instances) > 0 {
+		return value.Value{}, fmt.Errorf("LET instances are unsupported")
+	}
+	defs := make(map[string]parser.Definition, len(expr.Definitions))
+	for _, d := range expr.Definitions {
+		defs[d.Name] = d
+	}
+	child := *e
+	child.scope = &scope{parent: e.scope, definitions: defs}
+	return child.eval(expr.Args[0])
+}
+
+func (e *evaluator) set(args []*parser.Expression) (value.Value, error) {
+	values, err := e.evalArgs(args)
+	if err != nil {
+		return value.Value{}, err
+	}
+	return e.orderedSet(values)
+}
+
+func (e *evaluator) tuple(args []*parser.Expression) (value.Value, error) {
+	values, err := e.evalArgs(args)
+	if err != nil {
+		return value.Value{}, err
+	}
+	return value.Tuple(values)
+}
+
+func (e *evaluator) record(expr *parser.Expression) (value.Value, error) {
+	pairs := make([]value.Pair, 0, len(expr.Fields))
+	for _, field := range expr.Fields {
+		v, err := e.eval(field.Value)
+		if err != nil {
+			return value.Value{}, err
+		}
+		pairs = append(pairs, value.Pair{Key: value.String(field.Name), Value: v})
+	}
+	return e.orderedRecord(pairs)
+}
+
+func (e *evaluator) functionApplication(expr *parser.Expression) (value.Value, error) {
+	fn, err := e.functionOperand(expr.Args[0])
+	if err != nil {
+		return value.Value{}, err
+	}
+	args, err := e.evalArgs(expr.Args[1:])
+	if err != nil {
+		return value.Value{}, err
+	}
+	if len(args) == 0 {
+		return value.Value{}, fmt.Errorf("missing function argument")
+	}
+	key := args[0]
+	if len(args) > 1 {
+		key, err = value.Tuple(args)
+		if err != nil {
+			return value.Value{}, err
+		}
+	}
+	return functionLookup(fn, key)
+}
+
+func (e *evaluator) field(expr *parser.Expression) (value.Value, error) {
+	record, err := e.eval(expr.Args[0])
+	if err != nil {
+		return value.Value{}, err
+	}
+	return record.Lookup(value.String(expr.Text))
+}
+
+func (e *evaluator) isTLCBuiltin(name string) bool {
+	return e.tlcext && isTLCExtOperator(name) || e.tlc && isTLCOperator(name)
+}
+
+func (e *evaluator) callTLCBuiltin(expr *parser.Expression) (value.Value, error) {
+	if e.tlcext && isTLCExtOperator(expr.Text) {
+		return e.tlcExtOperator(expr)
+	}
+	return e.tlcOperator(expr)
+}

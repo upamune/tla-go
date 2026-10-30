@@ -1,0 +1,5 @@
+languages = ["go"]
+max-cognitive = 10
+max-cyclomatic = 8
+# Tests often contain several independent assertions rather than production logic.
+exclude = ["**/*_test.go"]

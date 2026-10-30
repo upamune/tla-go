@@ -1,0 +1,32 @@
+{"expr":"EmptyBag","want":"<<>>"}
+{"expr":"IsABag(<<>>)","want":"TRUE"}
+{"expr":"IsABag(<<1,2,3>>)","want":"TRUE"}
+{"expr":"IsABag(<<0>>)","want":"FALSE"}
+{"expr":"IsABag({1})","want":"FALSE"}
+{"expr":"BagCardinality(<<1,2,3>>)","want":"6"}
+{"expr":"BagIn(2, <<1,0,3>>)","want":"FALSE"}
+{"expr":"BagIn(4, <<1,2,3>>)","want":"FALSE"}
+{"expr":"CopiesIn(2, <<1,-1>>)","want":"-1"}
+{"expr":"CopiesIn(4, <<1,2>>)","want":"0"}
+{"expr":"BagToSet(<<1,0,3>>)","want":"1..3"}
+{"expr":"SetToBag({\"a\", \"b\"})","want":"[a |-> 1, b |-> 1]"}
+{"expr":"<<1,2>> (+) <<2,3>>","want":"<<3, 5>>"}
+{"expr":"<<1,2>> \\oplus <<2,3>>","want":"<<3, 5>>"}
+{"expr":"<<2,4,1>> (-) <<1,2,1>>","want":"<<1, 2>>"}
+{"expr":"<<2,4,1>> \\ominus <<1,2,1>>","want":"<<1, 2>>"}
+{"expr":"<<0,-1,2>> (-) EmptyBag","want":"(3 :> 2)"}
+{"expr":"<<1,2>> \\sqsubseteq <<2,3>>","want":"TRUE"}
+{"expr":"<<2,3>> \\sqsubseteq <<1,2>>","want":"FALSE"}
+{"expr":"<<0>> \\sqsubseteq EmptyBag","want":"TRUE"}
+{"expr":"BagUnion({})","want":"<<>>"}
+{"expr":"BagUnion({1})","want":"1"}
+{"expr":"BagUnion({<<1,2>>, <<2,1>>})","want":"<<3, 3>>"}
+{"expr":"BagUnion({<<>>, <<1,1,1>>, <<1,2,3,4>>})","want":"<<2, 3, 4, 4>>"}
+{"expr":"SubBag(EmptyBag)","want":"{<<>>}"}
+{"expr":"SubBag(<<2,1>>)","want":"{<<>>, <<1>>, <<2>>, (2 :> 1), <<1, 1>>, <<2, 1>>}"}
+{"expr":"Cardinality(SubBag(<<2,1,3>>))","want":"24"}
+{"expr":"BagOfAll(LAMBDA n : n % 2, <<1,2,3,4>>)","want":"(0 :> 6 @@ 1 :> 4)"}
+{"expr":"BagOfAll(LAMBDA e : TRUE, <<1,2,3>>)","want":"(TRUE :> 6)"}
+{"expr":"LET Inc(n) == n + 1 IN BagOfAll(Inc, <<1,2>>)","want":"(2 :> 1 @@ 3 :> 2)"}
+{"expr":"LET Twice(F(_), b) == BagOfAll(F, b) IN Twice(LAMBDA n : n % 2, <<1,2,3>>)","want":"(0 :> 2 @@ 1 :> 4)"}
+{"expr":"LET F(B(_, _), a, b) == B(a, b) IN F(\\oplus, <<1>>, <<2>>)","want":"<<3>>"}

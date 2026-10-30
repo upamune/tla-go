@@ -1,0 +1,2 @@
+Checking AssumptionFalse.tla with AssumptionFalse.cfg
+Error: Assumption line 4, col 20 to line 4, col 24 of module AssumptionFalse is false.

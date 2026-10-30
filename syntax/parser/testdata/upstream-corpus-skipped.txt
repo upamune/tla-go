@@ -1,0 +1,7 @@
+obligation-errors/Declaration.tla	Expected an identifier but found "====" at line 3, column 1
+obligation-errors/Hide.tla	The only expression allowed as a fact in a HIDE is the name of a theorem, assumption, or step at line 3, column 6
+obligation-errors/Unexpected.tla	Expected an identifier but found "PROVE" at line 3, column 15
+obligations/Incomplete.tla	undefined is not an object (evaluating 'r.module')
+obligations/Omit.tla	undefined is not an object (evaluating 'r.module')
+obligations/Proofs.tla	undefined is not an object (evaluating 'r.module')
+obligations/Warnings.tla	DEF clause entry should describe a defined operator at line 6, column 18

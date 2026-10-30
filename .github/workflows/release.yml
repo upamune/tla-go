@@ -1,0 +1,87 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          cache: false
+          install_args: go gofumpt go:golang.org/x/tools/cmd/goimports github:moznion/cccc github:Songmu/gosimilarity actionlint
+      - run: mise run ci
+  build:
+    needs: check
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          cache: false
+          install_args: go
+      - name: Build and package
+        env:
+          TARGET_OS: ${{ matrix.goos }}
+          TARGET_ARCH: ${{ matrix.goarch }}
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          set -eu
+          mkdir -p staging dist
+          binary=tla-go
+          if [ "$TARGET_OS" = windows ]; then binary=tla-go.exe; fi
+          CGO_ENABLED=0 GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" \
+            mise exec -- go build -trimpath -ldflags "-s -w -X main.version=$RELEASE_VERSION" -o "staging/$binary" ./cmd/tla-go
+          cp UPSTREAM-LICENSE staging/
+          asset="tla-go_${RELEASE_VERSION}_${TARGET_OS}_${TARGET_ARCH}"
+          if [ "$TARGET_OS" = windows ]; then
+            (cd staging && zip -q "../dist/$asset.zip" "$binary" UPSTREAM-LICENSE)
+            archive="$asset.zip"
+          else
+            tar -C staging -czf "dist/$asset.tar.gz" "$binary" UPSTREAM-LICENSE
+            archive="$asset.tar.gz"
+          fi
+          (cd dist && sha256sum "$archive" > "$archive.sha256")
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tla-go-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # Publish the verified release assets.
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: tla-go-*
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/*

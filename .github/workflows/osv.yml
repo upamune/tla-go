@@ -1,0 +1,63 @@
+name: OSV-Scanner
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osv-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # Upload completed scans to code scanning.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          install_args: go github:google/osv-scanner
+      - name: Scan Go dependencies
+        id: scan
+        run: |
+          report="$RUNNER_TEMP/osv-results.sarif"
+          set +e
+          mise exec -- osv-scanner scan source --lockfile=go.mod --format=sarif --output-file="$report"
+          status=$?
+          set -e
+          case "$status" in
+            0|1)
+              echo 'completed=true' >> "$GITHUB_OUTPUT"
+              echo "report=$report" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::OSV scan failed with exit $status; no report will be published."
+              exit "$status"
+              ;;
+          esac
+          exit "$status"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() && steps.scan.outputs.completed == 'true' }}
+        with:
+          name: osv-results
+          path: ${{ steps.scan.outputs.report }}
+          if-no-files-found: error
+          retention-days: 14
+      - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        if: ${{ !cancelled() && steps.scan.outputs.completed == 'true' }}
+        with:
+          sarif_file: ${{ steps.scan.outputs.report }}
+          category: osv-scanner

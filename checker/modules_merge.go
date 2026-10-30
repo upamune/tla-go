@@ -1,0 +1,56 @@
+package checker
+
+import "github.com/upamune/tla-go/syntax/parser"
+
+func mergeExtensions(root *parser.Module, units []*parser.Module, standard []string) *parser.Module {
+	result := *root
+	result.Extends = standard
+	result.Constants = nil
+	result.Variables = nil
+	result.Definitions = nil
+	result.Assumptions = nil
+	result.RecursiveDeclarations = nil
+	offset := 0
+	for _, unit := range units {
+		mergeExtensionUnit(&result, unit, offset)
+		offset += extensionLastLine(unit) + 1
+	}
+	return &result
+}
+
+func mergeExtensionUnit(result, unit *parser.Module, offset int) {
+	for _, declaration := range unit.Constants {
+		declaration.Location.Line += offset
+		result.Constants = append(result.Constants, declaration)
+	}
+	for _, declaration := range unit.Variables {
+		declaration.Location.Line += offset
+		result.Variables = append(result.Variables, declaration)
+	}
+	for _, definition := range unit.Definitions {
+		definition.Location.Line += offset
+		result.Definitions = append(result.Definitions, definition)
+	}
+	for _, assumption := range unit.Assumptions {
+		assumption.Location.Line += offset
+		result.Assumptions = append(result.Assumptions, assumption)
+	}
+	result.RecursiveDeclarations = append(result.RecursiveDeclarations, unit.RecursiveDeclarations...)
+}
+
+func extensionLastLine(module *parser.Module) int {
+	line := module.Location.Range.End.Line
+	for _, definition := range module.Definitions {
+		line = max(line, definition.Location.Line)
+	}
+	for _, declaration := range module.Constants {
+		line = max(line, declaration.Location.Line)
+	}
+	for _, declaration := range module.Variables {
+		line = max(line, declaration.Location.Line)
+	}
+	for _, assumption := range module.Assumptions {
+		line = max(line, assumption.Location.Line)
+	}
+	return line
+}

@@ -1,0 +1,180 @@
+{"expr":"1 + 2 * 3","want":"7"}
+{"expr":"(-7) \\div 2","want":"-4"}
+{"expr":"(-7) % 3","want":"2"}
+{"expr":"2 ^ 10","want":"1024"}
+{"expr":"1..3","want":"1..3"}
+{"expr":"{3,1,2,2}","want":"{1, 2, 3}"}
+{"expr":"<<1, 2>>","want":"<<1, 2>>"}
+{"expr":"[a |-> 2, b |-> 3].b","want":"3"}
+{"expr":"<<1, 2>>[2]","want":"2"}
+{"expr":"IF x = 2 THEN x + 3 ELSE 0","want":"5"}
+{"expr":"LET F(a) == a * 2 IN F(x)","want":"4"}
+{"expr":"LET A == 1 F == A IN LET B == 2 IN F + B","want":"3"}
+{"expr":"x' = x + 1","want":"TRUE"}
+{"expr":"UNCHANGED x","want":"FALSE"}
+{"expr":"TRUE /\\ x = 2","want":"TRUE"}
+{"expr":"FALSE => 1 \\div 0 = 1","want":"TRUE"}
+{"expr":"2 \\in 1..3","want":"TRUE"}
+{"expr":"{1,2} \\cup {2,3}","want":"{1, 2, 3}"}
+{"expr":"{1,2} \\subseteq 1..3","want":"TRUE"}
+{"expr":"DOMAIN <<1, 2>>","want":"1..2"}
+{"expr":"CASE FALSE -> 0 [] OTHER -> 2","want":"2"}
+{"expr":"\\A n \\in 1..3 : n > 0","want":"TRUE"}
+{"expr":"\\E <<a,b>> \\in {<<1,2>>,<<2,3>>} : a = 1","want":"TRUE"}
+{"expr":"{n \\in 1..5 : n % 2 = 0}","want":"{2, 4}"}
+{"expr":"{n * 2 : n \\in 1..3}","want":"{2, 4, 6}"}
+{"expr":"CHOOSE n \\in 1..3 : n > 1","want":"2"}
+{"expr":"[n \\in 1..3 |-> n + 2][2]","want":"4"}
+{"expr":"\\A n \\in 1..3, m \\in 1..3 : n + m > 1","want":"TRUE"}
+{"expr":"[x = 2]_x","want":"TRUE"}
+{"expr":"<<x = 2>>_x","want":"TRUE"}
+{"expr":"[<<1,2>> EXCEPT ![1] = @ + 4][1]","want":"5"}
+{"expr":"[<<1,2>> EXCEPT ![9] = 1 \\div 0][1]","want":"1"}
+{"expr":"[[a |-> <<1,2>>] EXCEPT !.a[2] = @ + 3].a[2]","want":"5"}
+{"expr":"[1..2 -> 0..1]","want":"{<<0, 0>>, <<0, 1>>, <<1, 0>>, <<1, 1>>}"}
+{"expr":"<<1, 2>> \\in [1..2 -> 1..2]","want":"TRUE"}
+{"expr":"<<1, 3>> \\in [1..2 -> 1..2]","want":"FALSE"}
+{"expr":"[{} -> {}]","want":"{<<>>}"}
+{"expr":"[1..1 -> {}] = {}","want":"TRUE"}
+{"expr":"\\E f \\in [1..2 -> 1..2] : f[1] = 2","want":"TRUE"}
+{"expr":"[b : BOOLEAN, a : 1..2]","want":"{[a |-> 1, b |-> FALSE], [a |-> 1, b |-> TRUE], [a |-> 2, b |-> FALSE], [a |-> 2, b |-> TRUE]}"}
+{"expr":"[a |-> 1, b |-> TRUE] \\in [b : BOOLEAN, a : 1..2]","want":"TRUE"}
+{"expr":"[a |-> 3, b |-> FALSE] \\in [a : 1..2, b : BOOLEAN]","want":"FALSE"}
+{"expr":"[a : {}] = {}","want":"TRUE"}
+{"expr":"{1, 2} \\X {3, 4}","want":"{<<1, 3>>, <<1, 4>>, <<2, 3>>, <<2, 4>>}"}
+{"expr":"<<1, 4>> \\in ({1, 2} \\X {3, 4})","want":"TRUE"}
+{"expr":"<<1, 5>> \\in ({1, 2} \\X {3, 4})","want":"FALSE"}
+{"expr":"({1} \\X {} = {})","want":"TRUE"}
+{"expr":"\\E pair \\in ((1..2) \\X (1..2)) : pair[1] = 2","want":"TRUE"}
+{"expr":"[a : {1}, b : {TRUE}] = {[a |-> 1, b |-> TRUE]}","want":"TRUE"}
+{"expr":"SUBSET {1,2,3}","want":"{{}, {1}, {2}, {3}, {1, 2}, {1, 3}, {2, 3}, {1, 2, 3}}"}
+{"expr":"{1,3} \\in SUBSET 1..3","want":"TRUE"}
+{"expr":"{1,4} \\in SUBSET 1..3","want":"FALSE"}
+{"expr":"SUBSET {} = {{}}","want":"TRUE"}
+{"expr":"UNION {{1,2},{2,3}}","want":"{1, 2, 3}"}
+{"expr":"2 \\in UNION {{1,2},{3}}","want":"TRUE"}
+{"expr":"\\E s \\in SUBSET 1..3 : s = {2}","want":"TRUE"}
+{"expr":"UNION {} = {}","want":"TRUE"}
+{"expr":"Cardinality(1..1000000)","want":"1000000"}
+{"expr":"Cardinality(SUBSET (1..4))","want":"16"}
+{"expr":"Cardinality([1..3 -> BOOLEAN])","want":"8"}
+{"expr":"Cardinality([{} -> {}])","want":"1"}
+{"expr":"Cardinality([1..2 -> {}])","want":"0"}
+{"expr":"Cardinality([a : 1..3, b : 1..5])","want":"15"}
+{"expr":"Cardinality((1..3) \\X {} \\X (1..4))","want":"0"}
+{"expr":"Cardinality(SUBSET SUBSET (1..4))","want":"65536"}
+{"expr":"Cardinality([((1..50000) \\X (1..50000)) -> {\"d1\"}])","want":"1"}
+{"expr":"IsFiniteSet({1, 2})","want":"TRUE"}
+{"expr":"IsFiniteSet(<<1,2>>)","want":"TRUE"}
+{"expr":"Cardinality(UNION {{1,2},{2,3}})","want":"3"}
+{"expr":"<<1,2>> \\in Seq(1..3)","want":"TRUE"}
+{"expr":"<<1,4>> \\in Seq(1..3)","want":"FALSE"}
+{"expr":"<<>> \\in Seq({})","want":"TRUE"}
+{"expr":"Len(<<1,2,3>>)","want":"3"}
+{"expr":"Len(\"abc\")","want":"3"}
+{"expr":"Append(<<1,2>>, 3)","want":"<<1, 2, 3>>"}
+{"expr":"Head(<<2,3>>)","want":"2"}
+{"expr":"Tail(<<2,3>>)","want":"<<3>>"}
+{"expr":"Tail(\"abc\")","want":"\"bc\""}
+{"expr":"SubSeq(<<1,2,3>>, 2, 3)","want":"<<2, 3>>"}
+{"expr":"SubSeq(\"abcd\", 2, 3)","want":"\"bc\""}
+{"expr":"SubSeq(<<1>>, 2, 1)","want":"<<>>"}
+{"expr":"<<1,2>> \\o <<3>>","want":"<<1, 2, 3>>"}
+{"expr":"\"hello\" \\o \" world\"","want":"\"hello world\""}
+{"expr":"IsFiniteSet(Seq({}))","want":"TRUE"}
+{"expr":"IsFiniteSet(Seq({1}))","want":"FALSE"}
+{"expr":"0 \\in Nat","want":"TRUE"}
+{"expr":"(-1) \\in Nat","want":"FALSE"}
+{"expr":"(-1) \\in Int","want":"TRUE"}
+{"expr":"\"hello\" \\in STRING","want":"TRUE"}
+{"expr":"Nat = Nat","want":"TRUE"}
+{"expr":"Int = Int","want":"TRUE"}
+{"expr":"STRING = STRING","want":"TRUE"}
+{"expr":"Nat # Int","want":"TRUE"}
+{"expr":"IsFiniteSet(Nat)","want":"FALSE"}
+{"expr":"IsFiniteSet(Int)","want":"FALSE"}
+{"expr":"IsFiniteSet(STRING)","want":"FALSE"}
+{"expr":"IsFiniteSet(Nat \\X {})","want":"TRUE"}
+{"expr":"IsFiniteSet([Nat -> {0}])","want":"TRUE"}
+{"expr":"IsFiniteSet([Nat -> BOOLEAN])","want":"FALSE"}
+{"expr":"Cardinality([Nat -> {0}])","want":"1"}
+{"expr":"Cardinality([{} -> Nat])","want":"1"}
+{"expr":"Cardinality([Nat -> {}])","want":"0"}
+{"expr":"Cardinality([STRING -> {0}])","want":"1"}
+{"expr":"[STRING -> {1}] = [STRING -> {1}]","want":"TRUE"}
+{"expr":"<<1,2>> \\in Seq(Nat)","want":"TRUE"}
+{"expr":"{\"a\"} \\in SUBSET STRING","want":"TRUE"}
+{"expr":"STRING \\in {STRING}","want":"TRUE"}
+{"expr":"3 \\in Nat \\ {0}","want":"TRUE"}
+{"expr":"0 \\notin Nat \\ {0}","want":"TRUE"}
+{"expr":"(Nat \\cap {-1,2}) = {2}","want":"TRUE"}
+{"expr":"({-1,2} \\cap Nat) = {2}","want":"TRUE"}
+{"expr":"(-1) \\in Nat \\cup {-1}","want":"TRUE"}
+{"expr":"(-2) \\notin Nat \\cup {-1}","want":"TRUE"}
+{"expr":"{1, -2} \\ Nat = {-2}","want":"TRUE"}
+{"expr":"IsFiniteSet(Nat \\cap {1,2})","want":"TRUE"}
+{"expr":"IsFiniteSet(Nat \\cup {1})","want":"FALSE"}
+{"expr":"Cardinality(Nat \\cap {1,2})","want":"2"}
+{"expr":"3 \\in {n \\in Nat : n > 2}","want":"TRUE"}
+{"expr":"2 \\notin {n \\in Nat : n > 2}","want":"TRUE"}
+{"expr":"4 \\in {n \\in Int : n % 2 = 0}","want":"TRUE"}
+{"expr":"(-1) \\notin {n \\in Nat : 1 \\div 0 = 1}","want":"TRUE"}
+{"expr":"[j \\in {1} |-> 4] \\in [{1} -> {n \\in Int : n % 2 = 0}]","want":"TRUE"}
+{"expr":"({n \\in Nat : n > 2} \\cap {1,2,3,4}) = {3,4}","want":"TRUE"}
+{"expr":"LET limit == 2 IN 3 \\in {n \\in Nat : n > limit}","want":"TRUE"}
+{"expr":"3 \\in {n \\in (Nat \\cup {(-1)}) : n > 2}","want":"TRUE"}
+{"expr":"3 \\in {n \\in (1..5 \\cap Nat) : n > 2}","want":"TRUE"}
+{"expr":"IsFiniteSet({n \\in (1..5 \\cap Nat) : n > 2})","want":"TRUE"}
+{"expr":"<<1,2>> \\in {<<a,b>> \\in (Nat \\X Nat) : a < b}","want":"TRUE"}
+{"expr":"<<2,1>> \\notin {<<a,b>> \\in (Nat \\X Nat) : a < b}","want":"TRUE"}
+{"expr":"Cardinality({n \\in (1..6 \\cap Nat) : n % 2 = 0})","want":"3"}
+{"expr":"LET fact[n \\in Nat] == IF n = 0 THEN 1 ELSE n * fact[n - 1] IN fact[5]","want":"120"}
+{"expr":"LET fact[n \\in Nat] == IF n = 0 THEN 1 ELSE n * fact[n - 1] twice[n \\in Nat] == fact[n] * 2 IN twice[3]","want":"12"}
+{"expr":"[n \\in Nat |-> n * n][5]","want":"25"}
+{"expr":"DOMAIN [n \\in Nat |-> n] = Nat","want":"TRUE"}
+{"expr":"[n \\in {0,1} |-> 1 \\div n][1]","want":"1"}
+{"expr":"[[n \\in Nat |-> n] EXCEPT ![3] = @ + 1][3]","want":"4"}
+{"expr":"[[n \\in Nat |-> n] EXCEPT ![3] = @ + 1][4]","want":"4"}
+{"expr":"LET f[n \\in 1..3] == n * 2 IN f","want":"<<2, 4, 6>>"}
+{"expr":"LET f[n \\in 1..3] == n * 2 IN f = <<2,4,6>>","want":"TRUE"}
+{"expr":"LET f[n \\in 1..2] == n * 2 IN f \\in [1..2 -> 1..4]","want":"TRUE"}
+{"expr":"LET f[i,j \\in Nat] == i + j IN f[2,3]","want":"5"}
+{"expr":"[<<a,b>> \\in ((1..2) \\X {1}) |-> a + b][<<2,1>>]","want":"3"}
+{"expr":"LET f[n \\in Nat] == n IN f = f","want":"TRUE"}
+{"expr":"LET f[n \\in Nat] == n IN <<f>> = <<f>>","want":"TRUE"}
+{"expr":"\\A i \\in 1..3 : LET f[n \\in Nat] == n + i IN /\\ f = f /\\ f[0] = i","want":"TRUE"}
+{"expr":"(1 :> \"a\" @@ 2 :> \"b\") = <<\"a\", \"b\">>","want":"TRUE"}
+{"expr":"(1 :> \"a\" @@ 1 :> \"b\")[1]","want":"\"a\""}
+{"expr":"DOMAIN (3 :> \"x\" @@ 1 :> \"y\")","want":"{1, 3}"}
+{"expr":"ToString(<<1, \"a\">>)","want":"\"<<1, \\\"a\\\">>\""}
+{"expr":"ToString(3..1)","want":"\"{}\""}
+{"expr":"ToString([a |-> 1, b |-> TRUE])","want":"\"[a |-> 1, b |-> TRUE]\""}
+{"expr":"ToString(\"hello\")","want":"\"\\\"hello\\\"\""}
+{"expr":"Permutations({1,2}) = {<<1,2>>, <<2,1>>}","want":"TRUE"}
+{"expr":"Cardinality(Permutations({1,2,3}))","want":"6"}
+{"expr":"Permutations({}) = {<<>>}","want":"TRUE"}
+{"expr":"TLCEval({3, 1, 2})","want":"{1, 2, 3}"}
+{"expr":"Assert(TRUE, \"ignored\")","want":"TRUE"}
+{"expr":"(1 :> 2 @@ 2 :> 3 @@ 1 :> 4)[1]","want":"2"}
+{"expr":"Permutations({1})","want":"{<<1>>}"}
+{"expr":"ToString(\"123\" :> 1)","want":"\"(\\\"123\\\" :> 1)\""}
+{"expr":"ToString(\"a-b\" :> 1)","want":"\"(\\\"a-b\\\" :> 1)\""}
+{"expr":"ToString(\"abc\" :> 1)","want":"\"[abc |-> 1]\""}
+{"expr":"ToString(SUBSET (1..7))","want":"\"SUBSET (1..7)\""}
+{"expr":"ToString([1..12 -> BOOLEAN])","want":"\"[1..12 -> {FALSE, TRUE}]\""}
+{"expr":"ToString((1..50) \\X (1..50))","want":"\"(1..50 \\\\X 1..50)\""}
+{"expr":"ToString([a : 1..100, b : 1..100])","want":"\"[a: 1..100, b: 1..100]\""}
+{"expr":"SelectSeq(<<1,2,3,4>>, LAMBDA n : n % 2 = 0)","want":"<<2, 4>>"}
+{"expr":"SortSeq(<<3,1,2>>, <)","want":"<<1, 2, 3>>"}
+{"expr":"SortSeq(<<3,1,2>>, LAMBDA a,b : a > b)","want":"<<3, 2, 1>>"}
+{"expr":"LET Increment(n) == n + 1 Apply(F(_), item) == F(item) IN Apply(Increment, 1)","want":"2"}
+{"expr":"LET Apply(F(_), item) == F(item) IN Apply(LAMBDA n : n * 10, 2)","want":"20"}
+{"expr":"LET Twice(F(_), item) == F(F(item)) Add(n) == n + 1 IN Twice(Add, 3)","want":"5"}
+{"expr":"SelectSeq(<<1,2,3>>, LAMBDA n : n > x)","want":"<<3>>"}
+{"expr":"LET cutoff == 2 IN SelectSeq(<<1,2,3>>, LAMBDA n : n > cutoff)","want":"<<3>>"}
+{"expr":"SelectSeq(<<TRUE,FALSE>>, ~)","want":"<<FALSE>>"}
+{"expr":"SortSeq(<<3,1,2>>, LAMBDA a,b : 0)","want":"<<3, 1, 2>>"}
+{"expr":"LET Apply(F(_), item) == F(item) IN Apply(-., 2)","want":"-2"}
+{"expr":"LET Compare(_--_, a, b) == a -- b IN Compare(+, 4, 3)","want":"7"}
+{"expr":"LET Apply(F(_), v) == F(v) Forward(G(_), v) == Apply(G, v) Inc(n) == n + 1 IN Forward(Inc, 4)","want":"5"}
+{"expr":"LET Test(P(_)) == SelectSeq(<<1,2,3>>, P) IN Test(LAMBDA n : n > x)","want":"<<3>>"}

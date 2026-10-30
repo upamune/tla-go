@@ -1,0 +1,13 @@
+Checking SafetyProperty.tla with SafetyProperty.cfg
+Error: Temporal property Bounded was violated.
+
+Error: The following behavior constitutes a counter-example:
+
+State 1: <Initial predicate>
+x = 0
+
+State 2: <Next line 5, col 9 to line 5, col 27 of module SafetyProperty>
+x = 1
+
+3 states generated, 3 distinct states found, 1 states left on queue.
+The depth of the complete state graph search is 3.

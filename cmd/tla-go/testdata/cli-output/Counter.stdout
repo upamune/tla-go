@@ -1,0 +1,17 @@
+Checking Counter.tla with Counter.cfg
+Error: Deadlock reached.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+count = 0
+
+State 2: <Increment line 10, col 14 to line 11, col 34 of module Counter>
+count = 1
+
+State 3: <Increment line 10, col 14 to line 11, col 34 of module Counter>
+count = 2
+
+State 4: <Increment line 10, col 14 to line 11, col 34 of module Counter>
+count = 3
+
+4 states generated, 4 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 4.

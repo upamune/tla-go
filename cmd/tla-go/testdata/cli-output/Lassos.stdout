@@ -1,0 +1,18 @@
+Checking Lassos.tla with Lassos.cfg
+Error: Temporal properties Reach, Settle, and Stop were violated.
+
+Error: The following behavior constitutes a counter-example:
+
+State 1: <Initial predicate>
+x = 0
+
+State 2: <Next line 5, col 9 to line 5, col 24 of module Lassos>
+x = 1
+
+State 3: <Next line 5, col 9 to line 5, col 24 of module Lassos>
+x = 2
+
+Back to state 1: <Next line 5, col 9 to line 5, col 24 of module Lassos>
+
+4 states generated, 3 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 3.

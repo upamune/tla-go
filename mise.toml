@@ -1,0 +1,32 @@
+[tools]
+go = "1.27.3"
+gofumpt = "0.12.0"
+"go:golang.org/x/tools/cmd/goimports" = "0.52.0"
+pinact = "5.0.1"
+"npm:backlog" = "1.4.56"
+"github:moznion/cccc" = "1.8.5"
+"github:Songmu/gosimilarity" = "0.0.3"
+actionlint = "1.7.12"
+gitleaks = "8.30.1"
+"github:zizmorcore/zizmor" = "1.31.1"
+"github:google/osv-scanner" = "2.7.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
+
+[tasks.format]
+run = ["goimports -w .", "gofumpt -w .", "go fix ./..."]
+[tasks."format:check"]
+run = ["test -z \"$(goimports -l .)\"", "test -z \"$(gofumpt -l .)\"", "test -z \"$(go fix -diff ./...)\""]
+[tasks.similarity]
+run = "gosimilarity . --threshold 0.95 --min-lines 8"
+[tasks.lint]
+run = ["go vet ./...", "cccc . --table", "gosimilarity . --threshold 1 --min-lines 12 --fail-on-duplicates", "actionlint"]
+[tasks.test]
+run = "go test -race ./..."
+[tasks.secrets]
+run = "gitleaks git --redact --no-banner --log-opts=--all"
+[tasks."security:workflows"]
+run = "zizmor --offline --no-progress --persona auditor --min-severity low .github"
+[tasks."security:dependencies"]
+run = "govulncheck ./..."
+[tasks.ci]
+depends = ["format:check", "lint", "test"]

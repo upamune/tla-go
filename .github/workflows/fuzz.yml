@@ -1,0 +1,40 @@
+name: Parser fuzzing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { package: ./syntax, target: FuzzTokenize }
+          - { package: ./syntax/parser, target: FuzzParseModule }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        with:
+          install_args: go
+      - name: Fuzz TLA+ input
+        env:
+          FUZZ_PACKAGE: ${{ matrix.package }}
+          FUZZ_TARGET: ${{ matrix.target }}
+          FUZZ_TIME: ${{ github.event_name == 'schedule' && '2m' || '15s' }}
+        run: mise exec -- go test "$FUZZ_PACKAGE" -run '^$' -fuzz "^$FUZZ_TARGET$" -fuzztime "$FUZZ_TIME" -parallel 2

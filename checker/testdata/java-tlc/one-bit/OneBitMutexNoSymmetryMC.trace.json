@@ -1,0 +1,182 @@
+[
+  {
+    "action": "",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> FALSE)",
+      "pc": "(A :> \"ncs\" @@ B :> \"ncs\")"
+    }
+  },
+  {
+    "action": "ncs",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> FALSE)",
+      "pc": "(A :> \"e1\" @@ B :> \"ncs\")"
+    }
+  },
+  {
+    "action": "ncs",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> FALSE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e1\")"
+    }
+  },
+  {
+    "action": "e1",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {A})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> TRUE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e2\")"
+    }
+  },
+  {
+    "action": "e2",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> TRUE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e3\")"
+    }
+  },
+  {
+    "action": "e3",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> TRUE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e2\")"
+    }
+  },
+  {
+    "action": "e2",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> TRUE)",
+      "pc": "(A :> \"e1\" @@ B :> \"cs\")"
+    }
+  },
+  {
+    "action": "e1",
+    "state": {
+      "unchecked": "(A :> {B} @@ B :> {})",
+      "other": "(A :> A @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> TRUE)",
+      "pc": "(A :> \"e2\" @@ B :> \"cs\")"
+    }
+  },
+  {
+    "action": "e2",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> TRUE)",
+      "pc": "(A :> \"e3\" @@ B :> \"cs\")"
+    }
+  },
+  {
+    "action": "cs",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> TRUE)",
+      "pc": "(A :> \"e3\" @@ B :> \"f\")"
+    }
+  },
+  {
+    "action": "e3",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> TRUE)",
+      "pc": "(A :> \"e4\" @@ B :> \"f\")"
+    }
+  },
+  {
+    "action": "f",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> FALSE)",
+      "pc": "(A :> \"e4\" @@ B :> \"ncs\")"
+    }
+  },
+  {
+    "action": "ncs",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> FALSE)",
+      "pc": "(A :> \"e4\" @@ B :> \"e1\")"
+    }
+  },
+  {
+    "action": "e4",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> FALSE)",
+      "pc": "(A :> \"e5\" @@ B :> \"e1\")"
+    }
+  },
+  {
+    "action": "e5",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> FALSE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e1\")"
+    }
+  },
+  {
+    "action": "e1",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {A})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> TRUE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e2\")"
+    }
+  },
+  {
+    "action": "e2",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> TRUE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e3\")"
+    }
+  },
+  {
+    "action": "e3",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> FALSE @@ B :> TRUE)",
+      "pc": "(A :> \"e1\" @@ B :> \"e2\")"
+    }
+  },
+  {
+    "action": "e1",
+    "state": {
+      "unchecked": "(A :> {B} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> TRUE)",
+      "pc": "(A :> \"e2\" @@ B :> \"e2\")"
+    }
+  },
+  {
+    "action": "e2",
+    "state": {
+      "unchecked": "(A :> {} @@ B :> {})",
+      "other": "(A :> B @@ B :> A)",
+      "x": "(A :> TRUE @@ B :> TRUE)",
+      "pc": "(A :> \"e3\" @@ B :> \"e2\")"
+    }
+  }
+]
