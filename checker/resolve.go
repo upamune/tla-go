@@ -51,6 +51,9 @@ func validateResolved(module *parser.Module) error {
 	if err := r.validateBodies(module); err != nil {
 		return err
 	}
+	if err := r.validateTheoremProofs(module); err != nil {
+		return err
+	}
 	return r.validateProofDirectives(module)
 }
 
@@ -130,6 +133,18 @@ func (r *resolver) validateBodies(module *parser.Module) error {
 		r.position = a.Location.Position
 		if err := r.expression(a.Expression, nil); err != nil {
 			return err
+		}
+	}
+	return r.validateAnonymousTheorems(module.Theorems)
+}
+
+func (r *resolver) validateAnonymousTheorems(theorems []parser.Theorem) error {
+	for _, theorem := range theorems {
+		if theorem.Name == "" {
+			r.position = theorem.Location.Position
+			if err := r.expression(theorem.Statement, nil); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

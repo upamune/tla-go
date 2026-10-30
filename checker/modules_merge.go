@@ -12,12 +12,22 @@ func mergeExtensions(root *parser.Module, units []*parser.Module, standard []str
 	result.ProofDirectives = nil
 	result.ImportedProofFacts = nil
 	result.RecursiveDeclarations = nil
+	result.Theorems = append([]parser.Theorem(nil), root.Theorems...)
 	offset := 0
 	for _, unit := range units {
+		if unit.Name == root.Name {
+			shiftTheoremLocations(result.Theorems, offset)
+		}
 		mergeExtensionUnit(&result, unit, offset)
 		offset += extensionLastLine(unit) + 1
 	}
 	return &result
+}
+
+func shiftTheoremLocations(theorems []parser.Theorem, offset int) {
+	for i := range theorems {
+		theorems[i].Location.Line += offset
+	}
 }
 
 func mergeExtensionUnit(result, unit *parser.Module, offset int) {

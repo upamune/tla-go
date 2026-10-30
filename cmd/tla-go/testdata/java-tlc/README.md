@@ -14,6 +14,11 @@ arguments.
 `test57` and `test57a` are unchanged models from the same suite. They exercise
 `ENABLED` through operator arguments and substituted module variables.
 
+`test61` and `test61a` come from the same suite; `test61.tla` has its trailing
+blank line removed. Java TLC 1.7.4
+rejects its parameterized instance, while 1.8.0 and tla-go explore five
+distinct states. `TestJavaTLCParameterizedInstanceVersion` records both results.
+
 `test30` and `test999` are unchanged models from the same suite. They exercise
 configuration substitutions of standard and infix operators.
 

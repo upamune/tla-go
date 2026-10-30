@@ -28,6 +28,10 @@ func (s *metadataScope) expression(expr *parser.Expression, visiting map[*metada
 }
 
 func (s *metadataScope) reference(expr *parser.Expression, visiting map[*metadataDefinition]bool) (int, bool, error) {
+	if expr.Kind == "AssumeProve" {
+		level, err := s.assumeProveLevel(expr, visiting)
+		return level, true, err
+	}
 	if expr.Kind != "Identifier" && expr.Kind != "Apply" {
 		return 0, false, nil
 	}
@@ -38,10 +42,18 @@ func (s *metadataScope) reference(expr *parser.Expression, visiting map[*metadat
 	if level, handled, err := s.builtinTLCLevel(expr, visiting); handled {
 		return level, true, err
 	}
-	if level, ok := s.values[expr.Text]; ok && expr.Kind == "Identifier" {
-		return level, true, nil
+	if level, ok := s.values[expr.Text]; ok {
+		return s.declaredValueLevel(expr, level, visiting)
 	}
 	return 0, false, nil
+}
+
+func (s *metadataScope) declaredValueLevel(expr *parser.Expression, level int, visiting map[*metadataDefinition]bool) (int, bool, error) {
+	if expr.Kind == "Identifier" {
+		return level, true, nil
+	}
+	children, err := s.childrenLevel(expr, visiting)
+	return max(level, children), true, err
 }
 
 // SANY determines these operators' levels from their TLA+ bodies, including

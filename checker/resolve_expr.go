@@ -11,6 +11,14 @@ func (r *resolver) expression(expr *parser.Expression, scope map[string]symbol) 
 	if expr == nil {
 		return fmt.Errorf("missing expression")
 	}
+	if expr.Kind == "AssumeProve" {
+		proofResolver := *r
+		proofResolver.proofScope = true
+		if err := proofResolver.assumeProveExpression(expr, scope); err != nil {
+			return &SemanticError{Err: err}
+		}
+		return nil
+	}
 	if err := validateRecordFields(expr); err != nil {
 		return err
 	}

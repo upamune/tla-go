@@ -36,7 +36,7 @@ func (p *parser) theoremStatement() (*Expression, error) {
 	token := p.next()
 	var clauses []*Expression
 	for {
-		clause, err := p.expression(0)
+		clause, err := p.theoremAssumption()
 		if err != nil {
 			return nil, err
 		}
