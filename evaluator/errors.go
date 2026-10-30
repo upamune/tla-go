@@ -22,6 +22,10 @@ type RuntimeError struct {
 // AddUnexpectedSource records an evaluation frame unless a fingerprint stack
 // already supplies the more specific value provenance.
 func AddUnexpectedSource(err error, source *parser.Expression) {
+	if missing, ok := errors.AsType[*UnboundVariable](err); ok {
+		missing.Sources = append(missing.Sources, source)
+		return
+	}
 	failure, ok := errors.AsType[*RuntimeError](err)
 	if ok {
 		if failure.Unexpected != nil && failure.Fingerprint == nil {

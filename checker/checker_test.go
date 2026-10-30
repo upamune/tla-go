@@ -91,7 +91,6 @@ func TestRejectsUnsupportedOrUnresolvedModels(t *testing.T) {
 		{"constant next with no initial states", "---- MODULE M ----\nVARIABLE x\nInit == x \\in {}\nNext == TRUE\n====", "INIT Init NEXT Next"},
 		{"temporal next without states", "---- MODULE M ----\nVARIABLE x\nInit == x \\in {}\nNext == x' = x /\\ (FALSE => <>TRUE)\n====", "INIT Init NEXT Next"},
 		{"action invariant with no initial states", "---- MODULE M ----\nVARIABLE x\nInit == x \\in {}\nNext == x' = x\nInv == x' = x\n====", "INIT Init NEXT Next INVARIANT Inv"},
-		{"missing variable", "---- MODULE M ----\nVARIABLES x, y\nInit == /\\ x = y /\\ y = 1\nNext == /\\ x' = x /\\ y' = y\n====", "INIT Init NEXT Next"},
 		{"recursive action", "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nLoop == Loop\nNext == Loop\n====", "INIT Init NEXT Next"},
 		{"recursive expression", "---- MODULE M ----\nVARIABLE x\nF(a) == F(a)\nInit == x = 0\nNext == x' = F(1)\n====", "INIT Init NEXT Next"},
 	}

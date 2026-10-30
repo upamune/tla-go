@@ -44,3 +44,6 @@ They test wrong operator argument counts and an undefined qualified name.
 `etest12` through `etest15` are unchanged models from the same suite. They
 exercise errors while evaluating assumptions, including cardinality overflow,
 an unsatisfied CHOOSE, and comparison of incompatible function-domain values.
+
+`etest6` is unchanged from the same suite. It tests a next-state action that
+reads an unassigned primed variable through an operator argument.

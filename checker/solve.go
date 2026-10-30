@@ -170,7 +170,9 @@ func (g *generator) expandWork(item work, expanded *parser.Expression, rest []wo
 	}
 	more, err := g.solve(prepend(work{expr: expanded, path: path, label: item.label && g.source == nil, locals: item.locals}, rest), partial, action)
 	g.source = previous
-	if err == nil && !more {
+	if err != nil {
+		addUnboundActionCallSource(err, item.expr, expanded)
+	} else if !more {
 		g.addInitialExpandedSource(item.expr, expanded)
 	}
 	return more, err

@@ -30,6 +30,9 @@ func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 	if !ok {
 		return Result{}, err
 	}
+	if missing, ok := errors.AsType[*evaluator.UnboundVariable](err); ok {
+		failure.Unexpected = &value.UnexpectedError{Message: failure.Message, Sources: missing.Sources}
+	}
 	if failure.Unexpected != nil {
 		failure = nextUnexpectedFailure(failure)
 	}
@@ -47,7 +50,19 @@ func asRuntimeError(err error) (*evaluator.RuntimeError, bool) {
 	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok {
 		return failure, true
 	}
+	if missing, ok := errors.AsType[*evaluator.UnboundVariable](err); ok {
+		return unboundVariableFailure(missing), true
+	}
 	return evaluator.ValueRuntimeError(err)
+}
+
+func unboundVariableFailure(missing *evaluator.UnboundVariable) *evaluator.RuntimeError {
+	message := fmt.Sprintf("In evaluation, the identifier %s is either undefined or not an operator.", missing.Name)
+	if len(missing.Sources) > 0 {
+		r := missing.Sources[0].Location.Range
+		message += fmt.Sprintf("\nline %d, col %d to line %d, col %d of module %s", r.Start.Line, r.Start.Column, r.End.Line, r.End.Column, r.Module)
+	}
+	return &evaluator.RuntimeError{Message: message, Sources: missing.Sources}
 }
 
 func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {

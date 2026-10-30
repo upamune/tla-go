@@ -322,7 +322,10 @@ func (e *evaluator) identifier(name string) (value.Value, error) {
 }
 
 // UnboundVariable reports a declared variable missing from the current state.
-type UnboundVariable struct{ Name string }
+type UnboundVariable struct {
+	Name    string
+	Sources []*parser.Expression
+}
 
 func (e *UnboundVariable) Error() string { return fmt.Sprintf("variable %s is unassigned", e.Name) }
 func (e *evaluator) standardConstant(name string) (value.Value, error) {
