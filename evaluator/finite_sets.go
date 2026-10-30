@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -25,7 +26,19 @@ func finiteSetsValue(name string, v value.Value) (value.Value, error) {
 	}
 	size, err := v.Cardinality()
 	if err != nil {
+		if overflow, ok := errors.AsType[*value.CardinalityOverflowError](err); ok {
+			return value.Value{}, cardinalityOverflow(overflow.Set, err)
+		}
 		return value.Value{}, err
 	}
 	return value.Integer(size)
+}
+
+func cardinalityOverflow(v value.Value, err error) error {
+	text, renderErr := v.StrictString()
+	if renderErr != nil {
+		return err
+	}
+	message := fmt.Sprintf("Attempted to apply the operator overridden by the Java method\npublic static tlc2.value.impl.IntValue tlc2.module.FiniteSets.Cardinality(tlc2.value.impl.Value),\nbut it produced the following error:\nOverflow when computing the number of elements in:\n%s", text)
+	return &RuntimeError{Message: message, Legacy: err.Error(), Standard: true}
 }

@@ -22,6 +22,7 @@ func (e *evaluator) constantDefinition(d parser.Definition, args []value.Value, 
 		result, err = evaluate()
 	}
 	if err == nil {
+		result = result.DeepNormalizedMembership()
 		e.program.constantCache[d.Name] = result
 	}
 	return result, err

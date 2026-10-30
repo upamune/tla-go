@@ -1,9 +1,19 @@
 package value
 
 import (
+	"errors"
 	"fmt"
 	"math"
 )
+
+// ErrCardinalityOverflow indicates a set size outside TLC's integer range.
+var ErrCardinalityOverflow = errors.New("set cardinality exceeds the maximum 32-bit integer")
+
+// CardinalityOverflowError identifies the function set whose size overflowed.
+type CardinalityOverflowError struct{ Set Value }
+
+func (e *CardinalityOverflowError) Error() string { return ErrCardinalityOverflow.Error() }
+func (e *CardinalityOverflowError) Unwrap() error { return ErrCardinalityOverflow }
 
 // Cardinality computes the size of supported finite sets without enumerating
 // products, powersets or function sets. Results must fit TLC's 32-bit integers.
@@ -48,7 +58,7 @@ func (v Value) infiniteCardinality() (int64, error) {
 
 func checkedSize(n int64) (int64, error) {
 	if n > math.MaxInt32 {
-		return 0, fmt.Errorf("set cardinality exceeds the maximum 32-bit integer")
+		return 0, ErrCardinalityOverflow
 	}
 	return n, nil
 }
@@ -87,7 +97,15 @@ func (v Value) functionSetCardinality() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return checkedPower(base, exponent)
+	return v.functionPowerCardinality(base, exponent)
+}
+
+func (v Value) functionPowerCardinality(base, exponent int64) (int64, error) {
+	size, err := checkedPower(base, exponent)
+	if err != nil {
+		return 0, &CardinalityOverflowError{Set: v}
+	}
+	return size, nil
 }
 
 func checkedPower(base, exponent int64) (int64, error) {

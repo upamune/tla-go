@@ -16,8 +16,8 @@ func Equal(a, b Value) (bool, error) {
 }
 
 func equalRegular(a, b Value) (bool, error) {
-	if a.kind == IntegerKind && b.kind != IntegerKind && b.kind != ModelKind {
-		return false, &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of integer %s with non-integer:\n%s", a, b)}
+	if err := incompatibleEquality(a, b); err != nil {
+		return false, err
 	}
 	if a.kind == FunctionSetKind && b.kind == FunctionSetKind {
 		return equalFunctionSets(a, b)
@@ -27,6 +27,16 @@ func equalRegular(a, b Value) (bool, error) {
 	}
 	c, err := Compare(a, b)
 	return c == 0, err
+}
+
+func incompatibleEquality(a, b Value) error {
+	if a.kind == IntegerKind && b.kind != IntegerKind && b.kind != ModelKind {
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of integer %s with non-integer:\n%s", a, b)}
+	}
+	if a.kind == FunctionKind && b.kind != FunctionKind && b.kind != LazyFunctionKind && b.kind != ModelKind {
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of the function %s with the value:\n%s", a, b)}
+	}
+	return nil
 }
 
 func Compare(a, b Value) (int, error) {
@@ -54,6 +64,9 @@ func compareRegular(a, b Value) (int, error) {
 
 func compareOrdinary(a, b Value) (int, error) {
 	if a.kind != b.kind || a.kind == Invalid {
+		if a.kind == IntegerKind {
+			return 0, &UnexpectedError{Message: fmt.Sprintf("Attempted to compare integer %s with non-integer:\n%s", a, b), TLCAssert: true}
+		}
 		return 0, fmt.Errorf("cannot compare different TLA+ value kinds")
 	}
 	return compareSameKind(a, b)

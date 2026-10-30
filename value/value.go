@@ -42,6 +42,7 @@ type payload struct {
 	text             string
 	elements         []Value
 	iteration        []Value
+	membership       *membershipOrder
 	pairs            []Pair
 	displayOrder     []string
 	domain, codomain Value
@@ -49,7 +50,11 @@ type payload struct {
 	lazy             *lazyFunction
 	source           *parser.Expression
 }
-type Pair struct{ Key, Value Value }
+
+type (
+	membershipOrder struct{ items []Value }
+	Pair            struct{ Key, Value Value }
+)
 
 func (v Value) Kind() Kind { return v.kind }
 

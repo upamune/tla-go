@@ -236,7 +236,7 @@ func (e *evaluator) set(args []*parser.Expression) (value.Value, error) {
 	if err != nil {
 		return value.Value{}, err
 	}
-	return e.orderedSet(values)
+	return e.sourceSet(values)
 }
 
 func (e *evaluator) tuple(args []*parser.Expression) (value.Value, error) {

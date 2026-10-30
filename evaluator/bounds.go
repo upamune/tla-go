@@ -115,7 +115,9 @@ func (e *evaluator) choose(expr *parser.Expression) (value.Value, error) {
 		return value.Value{}, err
 	}
 	if !found {
-		return value.Value{}, fmt.Errorf("no value satisfies CHOOSE")
+		location := expr.Location.Range
+		message := fmt.Sprintf("Attempted to compute the value of an expression of form\nCHOOSE x \\in S: P, but no element of S satisfied P.\nline %d, col %d to line %d, col %d of module %s", location.Start.Line, location.Start.Column, location.End.Line, location.End.Column, location.Module)
+		return value.Value{}, &RuntimeError{Message: message, Legacy: "no value satisfies CHOOSE"}
 	}
 	return result, nil
 }
@@ -134,7 +136,7 @@ func (e *evaluator) comprehension(expr *parser.Expression) (value.Value, error) 
 	if err != nil {
 		return value.Value{}, err
 	}
-	return e.orderedSet(elements)
+	return e.sourceSet(elements)
 }
 
 func (e *evaluator) functionConstruction(expr *parser.Expression) (value.Value, error) {

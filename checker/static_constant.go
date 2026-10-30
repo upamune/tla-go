@@ -21,13 +21,32 @@ func (m *model) staticConstantExpression(expr *parser.Expression, bound map[stri
 		if !m.staticOperator(expr.Text) {
 			return false
 		}
-	case "Choose", "Exists", "Forall":
+	case "Choose", "Exists", "Forall", "SetFilter", "SetMap":
 		return m.staticBoundExpression(expr, bound)
-	case "And", "Or", "If", "Set", "Tuple":
+	default:
+		return m.staticCompositeExpression(expr, bound)
+	}
+	return m.staticArguments(expr.Args, bound)
+}
+
+func (m *model) staticCompositeExpression(expr *parser.Expression, bound map[string]bool) bool {
+	switch expr.Kind {
+	case "Record", "RecordSet":
+		return m.staticFields(expr.Fields, bound)
+	case "And", "Or", "If", "SetEnumeration", "Tuple":
+		return m.staticArguments(expr.Args, bound)
 	default:
 		return false
 	}
-	return m.staticArguments(expr.Args, bound)
+}
+
+func (m *model) staticFields(fields []parser.Field, bound map[string]bool) bool {
+	for _, field := range fields {
+		if !m.staticConstantExpression(field.Value, bound) {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *model) staticIdentifier(name string, bound map[string]bool) bool {

@@ -17,6 +17,9 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 			return "", false, err
 		}
 		inModel, err := s.satisfiesConstraints(state, parent)
+		if err == nil {
+			normalizeStateMembership(state)
+		}
 		return key, inModel, err
 	}
 	inModel, err := s.satisfiesConstraints(state, parent)
@@ -24,7 +27,18 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 		return "", false, err
 	}
 	key, err := s.model.stateKey(state)
+	if err == nil {
+		normalizeStateMembership(state)
+	}
 	return key, inModel, err
+}
+
+func normalizeStateMembership(state evaluator.State) {
+	for name, v := range state {
+		if normalized := v.DeepNormalizedMembership(); normalized != v {
+			state[name] = normalized
+		}
+	}
 }
 
 func (m *model) viewKey(state evaluator.State) (string, error) {

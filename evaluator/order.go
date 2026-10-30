@@ -8,6 +8,15 @@ import (
 
 func (e *evaluator) orderedSet(elements []value.Value) (value.Value, error) {
 	v, err := value.Set(elements)
+	return e.orderNewSet(v, elements, err)
+}
+
+func (e *evaluator) sourceSet(elements []value.Value) (value.Value, error) {
+	v, err := value.SetUnnormalized(elements)
+	return e.orderNewSet(v, elements, err)
+}
+
+func (e *evaluator) orderNewSet(v value.Value, elements []value.Value, err error) (value.Value, error) {
 	if err != nil || e.program.ordering == nil || !needsValueOrdering(elements) {
 		return v, err
 	}

@@ -40,3 +40,7 @@ record and record-set fields are rejected during semantic analysis.
 
 `etest1`, `etest2`, and `etest5` are unchanged models from the same suite.
 They test wrong operator argument counts and an undefined qualified name.
+
+`etest12` through `etest15` are unchanged models from the same suite. They
+exercise errors while evaluating assumptions, including cardinality overflow,
+an unsatisfied CHOOSE, and comparison of incompatible function-domain values.

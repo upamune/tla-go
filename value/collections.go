@@ -19,6 +19,16 @@ func Set(elements []Value) (Value, error) {
 	return Value{kind: SetKind, data: &payload{elements: unique(sorted)}}, nil
 }
 
+// SetUnnormalized preserves TLC's comparison order for a newly evaluated set.
+func SetUnnormalized(elements []Value) (Value, error) {
+	v, err := Set(elements)
+	if err != nil {
+		return Value{}, err
+	}
+	v.data.membership = &membershipOrder{items: append([]Value(nil), elements...)}
+	return v, nil
+}
+
 // SetWithIterationOrder keeps the supplied enumeration order while retaining
 // canonical ordering for equality and state keys.
 func SetWithIterationOrder(elements []Value) (Value, error) {
@@ -240,13 +250,33 @@ func (v Value) containsFinite(element Value) (bool, error) {
 	if v.kind != SetKind {
 		return false, fmt.Errorf("expected a set")
 	}
-	for _, item := range v.data.elements {
-		equal, err := Equal(item, element)
+	if v.data.membership != nil {
+		return containsUnnormalized(v.data.membership.items, element)
+	}
+	low, high := 0, len(v.data.elements)
+	for low < high {
+		mid := (low + high) / 2
+		comparison, err := Compare(element, v.data.elements[mid])
 		if err != nil {
 			return false, err
 		}
-		if equal {
+		if comparison == 0 {
 			return true, nil
+		}
+		if comparison < 0 {
+			high = mid
+		} else {
+			low = mid + 1
+		}
+	}
+	return false, nil
+}
+
+func containsUnnormalized(items []Value, element Value) (bool, error) {
+	for _, item := range items {
+		equal, err := Equal(item, element)
+		if err != nil || equal {
+			return equal, err
 		}
 	}
 	return false, nil
