@@ -1,5 +1,4 @@
 // Package evaluator evaluates TLA+ expressions against an explicit state.
-// Only a subset of tla-ts's expression and module semantics is implemented.
 package evaluator
 
 import (
@@ -68,6 +67,9 @@ type evaluator struct {
 	functionCache  map[functionCacheKey]value.Value
 	depth          int
 }
+
+// Deferred values capture snapshots, so an evaluator can be reused after eval.
+var evaluatorPool = sync.Pool{New: func() any { return new(evaluator) }}
 
 // Program holds the immutable definition index for repeated evaluations.
 type Program struct {
@@ -184,7 +186,12 @@ func (p *Program) evaluate(expression *parser.Expression, context Context) (valu
 	if context.OnPrint == nil {
 		context.OnPrint = p.onPrint
 	}
-	e := evaluator{context: context, program: p, scope: &p.root, variables: p.variables, finiteSets: p.finiteSets, sequences: p.sequences, naturals: p.naturals, integers: p.integers, tlc: p.tlc, tlcext: p.tlcext, bags: p.bags, json: p.json, randomization: p.randomization}
+	e := evaluatorPool.Get().(*evaluator)
+	*e = evaluator{context: context, program: p, scope: &p.root, variables: p.variables, finiteSets: p.finiteSets, sequences: p.sequences, naturals: p.naturals, integers: p.integers, tlc: p.tlc, tlcext: p.tlcext, bags: p.bags, json: p.json, randomization: p.randomization}
+	defer func() {
+		*e = evaluator{}
+		evaluatorPool.Put(e)
+	}()
 	if context.Lexical != nil {
 		e.scope = context.Lexical.scope
 		e.hasOperators = context.Lexical.hasOperators

@@ -47,6 +47,8 @@ Without `TLC_JAR`, the tests still run tla-go assertions but do not execute the 
 
 Fixtures from Java TLC 1.7.4 are traceable to TLA+ Tools commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`. Fixture-specific provenance is recorded alongside the test data. The `OneBitMutexNoSymmetryMC.trace.json` fixture records the counterexample asserted by that version's Java test.
 
+The upstream `test-model/symmetry` directory includes general temporal properties with distinct concrete successors that share a symmetry-reduced state. These are not fully supported yet. In Java TLC's `LiveCheck.TableauLiveChecker`, successors are checked for tableau consistency before transitions are deduplicated by reduced fingerprint and tableau node. Deduplicating all transitions by reduced state alone misses violations in `ChooseTableauSymmetryMC`; keeping all concrete transitions reports false violations in `April21MC` and `MC`. Use those models together with the existing symmetry matrices when changing the product construction.
+
 Additional lexer, parser, evaluator, and checker fixtures come from tla-ts commit `19c763f07fda4b098e8a24405301628a424547c0`. They provide regression coverage but do not establish Java TLC compatibility. See the fixture READMEs and [UPSTREAM-LICENSE](../UPSTREAM-LICENSE).
 
 The auxiliary TypeScript generators call tla-ts directly and are not used by the normal Go build or CI. See [scripts/README.md](../scripts/README.md) for their purpose and usage.
