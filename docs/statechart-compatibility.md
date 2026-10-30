@@ -88,13 +88,13 @@ and set `STATECHART_DIR` to its `pstack/skills/statechart` directory and
 
 ## 4. DOT state graph
 
-The CLI now supports `-dump dot,actionlabels`, `-workers 1`, and `-fp 0` for
+The CLI now supports `-dump dot,actionlabels`, `-workers 1`, and `-fp N` (0–130) for
 single-model runs. Targeted tests compare DOT bytes with Java TLC 1.7.4 for
 branching, repeated transitions, constraints, VIEW, symmetry, Unicode,
 liveness stuttering and failure paths. The statechart integration tests also
 compare the consumer-visible charts for the pinned corpus. This is a partial
 implementation: byte-for-byte DOT equivalence for that corpus has not been
-established, other dump formats and worker/fingerprint settings are unsupported,
+established, other dump formats and additional worker settings are unsupported,
 and state identity and fingerprint collision behavior can still differ from Java TLC.
 
 - Complete the `-dump dot,actionlabels` invocation for all statechart models,

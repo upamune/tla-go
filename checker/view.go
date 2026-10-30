@@ -53,7 +53,7 @@ func (m *model) viewKey(state evaluator.State) (string, error) {
 	if !m.tlcFingerprint {
 		return v.Key()
 	}
-	fingerprint, err := value.TLCFingerprint([]value.Value{v})
+	fingerprint, err := m.fingerprintAlgorithm.Fingerprint([]value.Value{v}, nil, nil)
 	if err != nil {
 		return "", err
 	}

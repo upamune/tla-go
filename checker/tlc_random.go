@@ -22,7 +22,7 @@ func (r *tlcRuntime) Random() (*evaluator.JavaRandom, error) {
 		values[i] = state[name]
 	}
 	rank := func(text string) (int, bool) { n, ok := r.model.valueRanks[text]; return n, ok }
-	fingerprint, err := value.TLCFingerprintWithOrdering(values, rank, r.model.compareOrderedValues)
+	fingerprint, err := r.model.fingerprintAlgorithm.Fingerprint(values, rank, r.model.compareOrderedValues)
 	if err != nil {
 		return nil, err
 	}

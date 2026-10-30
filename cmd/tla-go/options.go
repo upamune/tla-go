@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/upamune/tla-go/value"
 )
 
 var errMissingLivenessStrategy = errors.New("Error: expect a strategy such as final for -lncheck option.")
@@ -61,18 +63,28 @@ func parseDumpOption(opts *options, args []string) (int, error) {
 	return 2, nil
 }
 
-func parseFixedOption(args []string) (int, error) {
+func parseFixedOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, fmt.Errorf("%s requires an integer", args[0])
 	}
-	value, err := strconv.Atoi(args[1])
+	parsed, err := strconv.Atoi(args[1])
 	if err != nil {
 		return 0, fmt.Errorf("invalid %s value %s", args[0], args[1])
 	}
-	if args[0] == "-workers" && value != 1 || args[0] == "-fp" && value != 0 {
+	if unsupportedFixedOption(args[0], parsed) {
 		return 0, fmt.Errorf("unsupported %s value %s", args[0], args[1])
 	}
+	if args[0] == "-fp" {
+		opts.fingerprint = parsed
+	}
 	return 1, nil
+}
+
+func unsupportedFixedOption(option string, number int) bool {
+	if option == "-workers" {
+		return number != 1
+	}
+	return number < 0 || number >= value.TLCFingerprintPolynomialCount
 }
 
 func parseValueOption(opts *options, args []string) (int, error) {
@@ -123,7 +135,7 @@ func parseAuxiliaryOption(opts *options, args []string) (int, error) {
 	if args[0] == "-dump" {
 		return parseDumpOption(opts, args)
 	}
-	return parseFixedOption(args)
+	return parseFixedOption(opts, args)
 }
 
 func parsePath(opts *options, path string) error {

@@ -94,39 +94,40 @@ type Failure struct {
 	evaluationSources []*parser.Expression
 }
 type model struct {
-	module            *parser.Module
-	cfg               config.Config
-	descriptionConfig config.Config
-	sourceConfig      config.Config
-	program           *evaluator.Program
-	defs              map[string]parser.Definition
-	variables         map[string]bool
-	constants         map[string]value.Value
-	symmetry          []permutation
-	symmetryOrder     []string
-	valueRanks        map[string]int
-	sourceUnits       map[string]*parser.Module
-	rankedSets        map[value.Value][]value.Value
-	rankedFunctions   map[value.Value][]value.Pair
-	names             []string
-	ctx               context.Context
-	actionCache       map[*parser.Expression]*parser.Expression
-	funcActionCache   map[*parser.Expression]parser.Definition
-	letCache          map[*parser.Expression]*parser.Expression
-	tlcFingerprint    bool
-	fromSpecification bool
-	tlcRuntime        *tlcRuntime
-	enabledCallback   evaluator.EnabledCallback
-	properties        []temporalProperty
-	livenessOrder     []temporalProperty
-	safety            []temporalProperty
-	guarded           []temporalProperty
-	fairness          []fairnessCondition
-	possibleStates    []possiblePredicate
-	possibleActions   []possiblePredicate
-	debug             func(string)
-	graph             func(GraphEvent) error
-	searchEvent       func(SearchEvent)
+	module               *parser.Module
+	cfg                  config.Config
+	descriptionConfig    config.Config
+	sourceConfig         config.Config
+	program              *evaluator.Program
+	defs                 map[string]parser.Definition
+	variables            map[string]bool
+	constants            map[string]value.Value
+	symmetry             []permutation
+	symmetryOrder        []string
+	valueRanks           map[string]int
+	sourceUnits          map[string]*parser.Module
+	rankedSets           map[value.Value][]value.Value
+	rankedFunctions      map[value.Value][]value.Pair
+	names                []string
+	ctx                  context.Context
+	actionCache          map[*parser.Expression]*parser.Expression
+	funcActionCache      map[*parser.Expression]parser.Definition
+	letCache             map[*parser.Expression]*parser.Expression
+	tlcFingerprint       bool
+	fingerprintAlgorithm *value.TLCFingerprintAlgorithm
+	fromSpecification    bool
+	tlcRuntime           *tlcRuntime
+	enabledCallback      evaluator.EnabledCallback
+	properties           []temporalProperty
+	livenessOrder        []temporalProperty
+	safety               []temporalProperty
+	guarded              []temporalProperty
+	fairness             []fairnessCondition
+	possibleStates       []possiblePredicate
+	possibleActions      []possiblePredicate
+	debug                func(string)
+	graph                func(GraphEvent) error
+	searchEvent          func(SearchEvent)
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
@@ -141,6 +142,8 @@ type Options struct {
 	ReadFile  func(string) (string, error)
 	WriteFile func(string, string) error
 	Seed      int64
+	// Fingerprint selects a Java TLC FP64 polynomial (0 through 130).
+	Fingerprint int
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
 	// OnDebug receives JSON lines describing liveness exploration when set.
@@ -330,6 +333,14 @@ func prepareWithOutput(module *parser.Module, cfg config.Config, options Options
 }
 
 func prepareWithSources(module *parser.Module, cfg config.Config, options Options, sourceUnits map[string]*parser.Module) (*model, error) {
+	fingerprintAlgorithm, err := value.NewTLCFingerprintAlgorithm(options.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
+	return prepareWithFingerprint(module, cfg, options, sourceUnits, fingerprintAlgorithm)
+}
+
+func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Options, sourceUnits map[string]*parser.Module, fingerprintAlgorithm *value.TLCFingerprintAlgorithm) (*model, error) {
 	var err error
 	var fairness []fairnessCondition
 	module, err = resolveTemporalExpressions(module)
@@ -364,6 +375,7 @@ func prepareWithSources(module *parser.Module, cfg config.Config, options Option
 	m.sourceUnits = sourceUnits
 	runtime.model = m
 	m.enabledCallback = m.enabled
+	m.fingerprintAlgorithm = fingerprintAlgorithm
 	m.tlcFingerprint = useTLCFingerprint(module, cfg)
 	if err := m.bindAndValidate(); err != nil {
 		return nil, err

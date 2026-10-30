@@ -163,7 +163,7 @@ func (m *model) fingerprintKey(state evaluator.State) (string, error) {
 	for i, name := range m.names {
 		values[i] = state[name]
 	}
-	fingerprint, err := value.TLCFingerprint(values)
+	fingerprint, err := m.fingerprintAlgorithm.Fingerprint(values, nil, nil)
 	if err != nil {
 		return "", err
 	}

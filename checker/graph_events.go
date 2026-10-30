@@ -73,5 +73,5 @@ func (s *search) graphFingerprint(state evaluator.State) (uint64, error) {
 		values[i] = state[name]
 	}
 	rank := func(text string) (int, bool) { n, ok := s.model.valueRanks[text]; return n, ok }
-	return value.TLCFingerprintWithOrdering(values, rank, s.model.compareOrderedValues)
+	return s.model.fingerprintAlgorithm.Fingerprint(values, rank, s.model.compareOrderedValues)
 }

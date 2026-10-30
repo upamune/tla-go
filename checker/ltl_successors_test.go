@@ -46,12 +46,17 @@ V == x
 
 func TestLiveSuccessorFingerprintUsesSymmetryRepresentative(t *testing.T) {
 	a, b := value.Model("A"), value.Model("B")
+	algorithm, err := value.NewTLCFingerprintAlgorithm(0)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m := &model{
-		cfg:           config.Config{Symmetry: "Sym"},
-		names:         []string{"x"},
-		symmetryOrder: []string{"x"},
-		valueRanks:    map[string]int{"A": 0, "B": 1},
-		symmetry:      []permutation{{images: map[string]value.Value{"A": b, "B": a}}},
+		fingerprintAlgorithm: algorithm,
+		cfg:                  config.Config{Symmetry: "Sym"},
+		names:                []string{"x"},
+		symmetryOrder:        []string{"x"},
+		valueRanks:           map[string]int{"A": 0, "B": 1},
+		symmetry:             []permutation{{images: map[string]value.Value{"A": b, "B": a}}},
 	}
 	s := search{model: m, nodes: []stateNode{{state: evaluator.State{"x": b}}}, ltlVariableOrder: []string{"x"}, ltlFingerprints: map[int]uint64{}}
 	set := liveSuccessorSet{search: &s}

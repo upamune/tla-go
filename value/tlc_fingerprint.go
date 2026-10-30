@@ -3,14 +3,41 @@ package value
 import (
 	"fmt"
 	"slices"
+	"sync"
 	"unicode/utf16"
 )
 
-const tlcPolynomial uint64 = 0x911498ae0e66bad6
+// TLCFingerprintPolynomialCount is the number of FP64 polynomials supported by TLC.
+const TLCFingerprintPolynomialCount = len(tlcPolynomials)
 
-var tlcByteTable = makeTLCByteTable()
+type fingerprintTable struct {
+	once  sync.Once
+	bytes [256]uint64
+}
 
-func makeTLCByteTable() [256]uint64 {
+var fingerprintTables [TLCFingerprintPolynomialCount]fingerprintTable
+
+// TLCFingerprintAlgorithm holds one immutable FP64 algorithm. Separate checks
+// may use different polynomials concurrently.
+type TLCFingerprintAlgorithm struct {
+	polynomial uint64
+	table      *[256]uint64
+}
+
+// NewTLCFingerprintAlgorithm selects a polynomial by its Java TLC index.
+func NewTLCFingerprintAlgorithm(index int) (*TLCFingerprintAlgorithm, error) {
+	if index < 0 || index >= len(tlcPolynomials) {
+		return nil, fmt.Errorf("TLC fingerprint polynomial index %d is out of range", index)
+	}
+	entry := &fingerprintTables[index]
+	entry.once.Do(func() { entry.bytes = makeTLCByteTable(tlcPolynomials[index]) })
+	return &TLCFingerprintAlgorithm{polynomial: tlcPolynomials[index], table: &entry.bytes}, nil
+}
+
+// Polynomial returns the signed long reported by Java TLC for this algorithm.
+func (a *TLCFingerprintAlgorithm) Polynomial() int64 { return int64(a.polynomial) }
+
+func makeTLCByteTable(polynomial uint64) [256]uint64 {
 	var powers [72]uint64
 	power := uint64(1) << 63
 	for i := range powers {
@@ -18,7 +45,7 @@ func makeTLCByteTable() [256]uint64 {
 		low := power & 1
 		power >>= 1
 		if low != 0 {
-			power ^= tlcPolynomial
+			power ^= polynomial
 		}
 	}
 	var table [256]uint64
@@ -34,12 +61,13 @@ func makeTLCByteTable() [256]uint64 {
 
 type tlcFingerprinter struct {
 	fingerprint uint64
+	table       *[256]uint64
 	rank        func(string) (int, bool)
 	compare     func(Value, Value) (int, error)
 }
 
 func (f *tlcFingerprinter) byte(b byte) {
-	f.fingerprint = f.fingerprint>>8 ^ tlcByteTable[byte(f.fingerprint)^b]
+	f.fingerprint = f.fingerprint>>8 ^ f.table[byte(f.fingerprint)^b]
 }
 
 func (f *tlcFingerprinter) integer(n uint32) {
@@ -57,7 +85,13 @@ func TLCFingerprint(state []Value) (uint64, error) {
 
 // TLCFingerprintWithOrdering uses the check's intern ranks and value ordering.
 func TLCFingerprintWithOrdering(state []Value, rank func(string) (int, bool), compare func(Value, Value) (int, error)) (uint64, error) {
-	f := tlcFingerprinter{fingerprint: tlcPolynomial, rank: rank, compare: compare}
+	algorithm, _ := NewTLCFingerprintAlgorithm(0)
+	return algorithm.Fingerprint(state, rank, compare)
+}
+
+// Fingerprint computes the Java TLC FP64 fingerprint using the selected polynomial.
+func (a *TLCFingerprintAlgorithm) Fingerprint(state []Value, rank func(string) (int, bool), compare func(Value, Value) (int, error)) (uint64, error) {
+	f := tlcFingerprinter{fingerprint: a.polynomial, table: a.table, rank: rank, compare: compare}
 	for _, v := range state {
 		if err := f.value(v); err != nil {
 			return 0, err

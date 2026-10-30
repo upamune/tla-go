@@ -94,7 +94,8 @@ func TestDotOptionErrors(t *testing.T) {
 		{"-dump", "dot", "out.dot", "M.tla"},
 		{"-workers", "2", "M.tla"},
 		{"-workers", "oops", "M.tla"},
-		{"-fp", "1", "M.tla"},
+		{"-fp", "-1", "M.tla"},
+		{"-fp", "131", "M.tla"},
 	} {
 		if _, err := parseOptions(args); err == nil {
 			t.Errorf("parseOptions(%q) unexpectedly succeeded", args)

@@ -119,7 +119,7 @@ func (set *liveSuccessorSet) fingerprint(index int) (uint64, error) {
 		return 0, err
 	}
 	rank := func(text string) (int, bool) { n, ok := m.valueRanks[text]; return n, ok }
-	fingerprint, err := value.TLCFingerprintWithOrdering(values, rank, m.compareOrderedValues)
+	fingerprint, err := m.fingerprintAlgorithm.Fingerprint(values, rank, m.compareOrderedValues)
 	if err == nil {
 		set.search.ltlFingerprints[index] = fingerprint
 	}
