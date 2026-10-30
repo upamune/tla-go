@@ -49,6 +49,8 @@ Fixtures from Java TLC 1.7.4 are traceable to TLA+ Tools commit `5a47802b5c391f5
 
 Additional lexer, parser, evaluator, and checker fixtures come from tla-ts commit `19c763f07fda4b098e8a24405301628a424547c0`. They provide regression coverage but do not establish Java TLC compatibility. See the fixture READMEs and [UPSTREAM-LICENSE](../UPSTREAM-LICENSE).
 
+The auxiliary TypeScript generators call tla-ts directly and are not used by the normal Go build or CI. See [scripts/README.md](../scripts/README.md) for their purpose and usage.
+
 ## Releases
 
 The release workflow builds CGO-free binaries for Linux, macOS, and Windows on amd64 and arm64 when a `v*` tag is pushed. It publishes archives and SHA-256 checksums to a GitHub release after the checks pass.

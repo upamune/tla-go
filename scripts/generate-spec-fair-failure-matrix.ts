@@ -1,4 +1,4 @@
-// bun scripts/generate-spec-spec-fair-failure-matrix.ts /path/to/tla-ts > checker/testdata/upstream-spec-spec-fair-failure-matrix.jsonl
+// bun scripts/generate-spec-fair-failure-matrix.ts /path/to/tla-ts > checker/testdata/upstream-spec-fair-failure-matrix.jsonl
 import {cp, mkdtemp, readFile, writeFile} from 'node:fs/promises';
 import {join, resolve} from 'node:path';
 import {tmpdir} from 'node:os';
