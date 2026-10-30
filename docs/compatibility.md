@@ -12,7 +12,7 @@ Support is partial. Complex temporal formulas, action predicates, fairness combi
 
 The parser and evaluator support selected TLA+ expressions, operators, functions, recursive functions, and operator arguments. Module loading includes transitive `EXTENDS`, `LOCAL` definitions, and many named, parameterized, and nested `INSTANCE` forms. Some instance combinations, subexpression references, capture-avoiding substitutions, and function actions with operator parameters are not supported. Full TLC level checking and proof obligations are not implemented.
 
-Theorem `ASSUME`/`PROVE` statements support `NEW` declarations, including their local scope, bounded constant declarations, and references in simple `BY` proofs. Structured proofs are not yet supported. Java TLC 1.7.4 rejects the upstream `test61` parameterized instance, whereas Java TLC 1.8.0 and tla-go both explore its five distinct states.
+Theorem `ASSUME`/`PROVE` statements support `NEW` declarations, including their local scope, bounded constant declarations, and references in `BY` proofs. Numeric hierarchical proof steps support assertions, `SUFFICES`, `DEFINE`, `QED`, and step references, including the upstream `test207` model. Other proof forms, including automatic step names and proof-local instances, remain unsupported; proof obligations are not checked. Java TLC 1.7.4 rejects the upstream `test61` parameterized instance, whereas Java TLC 1.8.0 and tla-go both explore its five distinct states.
 
 `ENABLED` and primed expressions support several action and operator-argument forms, including selected module-variable substitution boundaries. More complex nested instances and action expressions can differ. Java TLC versions themselves can differ on some of these cases.
 

@@ -63,6 +63,9 @@ func (p *parser) simpleProof() (*Proof, error) {
 	t := p.peek()
 	p.accept("PROOF")
 	keywordStart := p.pos
+	if p.peek().Kind == "Step" {
+		return p.structuredProof(start, t)
+	}
 	if p.accept("BY") {
 		return p.byProof(start, t, keywordStart)
 	}

@@ -136,6 +136,17 @@ type Proof struct {
 	Kind        string
 	Keyword     Range
 	Location    Location
+	Steps       []ProofStep `json:",omitempty"`
+}
+
+// ProofStep represents one numbered step in a hierarchical proof.
+type ProofStep struct {
+	Label       string
+	Kind        string
+	Statement   *Expression
+	Definitions []Definition
+	Proof       *Proof
+	Location    Location
 }
 
 // ProofDirective is a module-level USE or HIDE directive.

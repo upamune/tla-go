@@ -48,6 +48,7 @@ func (r *subexpressionResolver) rewriteModule(module *parser.Module) (*parser.Mo
 	result := *module
 	result.Definitions = append([]parser.Definition(nil), module.Definitions...)
 	result.Assumptions = append([]parser.Assumption(nil), module.Assumptions...)
+	result.Theorems = append([]parser.Theorem(nil), module.Theorems...)
 	for i := range result.Definitions {
 		body, err := r.rewriteRoot(result.Definitions[i].Body, r.definitions)
 		if err != nil {
@@ -67,7 +68,21 @@ func (r *subexpressionResolver) rewriteModule(module *parser.Module) (*parser.Mo
 		}
 		result.Assumptions[i].Expression = body
 	}
+	if err := r.rewriteTheoremStatements(result.Theorems); err != nil {
+		return nil, err
+	}
 	return &result, nil
+}
+
+func (r *subexpressionResolver) rewriteTheoremStatements(theorems []parser.Theorem) error {
+	for i := range theorems {
+		body, err := r.rewriteRoot(theorems[i].Statement, r.definitions)
+		if err != nil {
+			return err
+		}
+		theorems[i].Statement = body
+	}
+	return nil
 }
 
 func moduleHasSubexpressions(module *parser.Module) bool {
@@ -81,6 +96,15 @@ func moduleHasSubexpressions(module *parser.Module) bool {
 	}
 	for _, assumption := range module.Assumptions {
 		if containsSubexpression(assumption.Expression) {
+			return true
+		}
+	}
+	return theoremsHaveSubexpressions(module.Theorems)
+}
+
+func theoremsHaveSubexpressions(theorems []parser.Theorem) bool {
+	for _, theorem := range theorems {
+		if containsSubexpression(theorem.Statement) {
 			return true
 		}
 	}

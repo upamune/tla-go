@@ -50,7 +50,7 @@ func (r *resolver) expressionName(expr *parser.Expression, scope map[string]symb
 		return r.checkName(expr.Text, 0, scope)
 	case "Apply":
 		return r.checkName(expr.Text, len(expr.Args), scope)
-	case "OperatorReference", "Subexpression", "Lambda":
+	case "OperatorReference", "Subexpression", "Lambda", "ProofStepReference":
 		return fmt.Errorf("unsupported expression kind %s at line %d, column %d", expr.Kind, expr.Location.Line, expr.Location.Column)
 	}
 	return nil

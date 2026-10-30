@@ -36,10 +36,11 @@ test-only adapters, not a change to statechart's released backend selection.
 Module-level `USE DEF` and `USE DEFS` directives are parsed and checked for
 defined operators and declaration order. Targeted tests also cover facts and
 `HIDE` directives, imported definitions, and invalid references against Java
-TLC 1.7.4. Structured proofs and all possible proof directives are not yet
-supported. Theorem `ASSUME`/`PROVE` statements now support local `NEW`
-declarations and validate their scope against Java TLC 1.7.4 and 1.8.0; the
-statechart specifications have not yet been verified for all proof forms.
+TLC 1.7.4. Theorem `ASSUME`/`PROVE` statements support local `NEW` declarations,
+and selected numeric hierarchical proof forms validate `SUFFICES`, `DEFINE`,
+and step-reference scopes against Java TLC. Other proof forms and directives
+remain unsupported; the statechart specifications have not yet been verified
+for all proof forms.
 
 Named and unnamed `INSTANCE TLC` and `INSTANCE Naturals` support their
 implemented operators, including TLC runtime state and side effects. Targeted

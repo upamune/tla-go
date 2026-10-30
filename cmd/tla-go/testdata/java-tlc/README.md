@@ -40,6 +40,9 @@ subexpression references and their lexical scopes.
 `test206` and `test206a` are unchanged models from the same suite. They test
 labels, selected subexpressions, and instance operator substitutions.
 
+`test207` is from the same suite, with trailing whitespace normalized. It covers
+hierarchical proof steps and the scope of `NEW`, `SUFFICES`, and `DEFINE`.
+
 `test219` and `test219a` are unchanged models from the same suite. They test
 parameterized instances, theorem labels, and subexpression selections.
 
@@ -65,6 +68,10 @@ error reported when an imported module declares a different name.
 
 `test215` is an unchanged model from the same suite. It exercises SANY's level
 checks for temporal operators and bounded temporal formulas.
+
+`test216`, `test216a`, `test216b`, and `test216c` come from the same suite,
+with trailing whitespace normalized. They cover anonymous theorem selections and
+theorem references through module instances.
 
 `test217` and `test217a` are unchanged models from the same suite. They check
 level constraints for arguments to parameterized module instances.

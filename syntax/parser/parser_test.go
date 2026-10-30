@@ -137,8 +137,8 @@ func TestParameterizedInstanceRequiresArguments(t *testing.T) {
 }
 
 func TestUnsupportedProofIsRejected(t *testing.T) {
-	_, err := ParseModule("---- MODULE M ----\nTHEOREM T == TRUE\n<1>1. TRUE\n<1> QED\n====")
-	if err == nil || !strings.Contains(err.Error(), "Unsupported proof form") {
+	_, err := ParseModule("---- MODULE M ----\nTHEOREM T == TRUE\n<*>1. TRUE\n<*> QED\n====")
+	if err == nil || !strings.Contains(err.Error(), "unsupported proof step level") {
 		t.Fatalf("got %v", err)
 	}
 }

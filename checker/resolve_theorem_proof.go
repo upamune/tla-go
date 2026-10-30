@@ -11,14 +11,25 @@ func (r *resolver) validateTheoremProofs(module *parser.Module) error {
 		definitions[def.Name] = true
 	}
 	for _, theorem := range module.Theorems {
-		if theorem.Proof == nil || theorem.Proof.Kind != "By" {
+		if theorem.Proof == nil {
 			continue
 		}
-		if err := r.validateTheoremBy(theorem, definitions); err != nil {
+		if err := r.validateTheoremProof(module, theorem, definitions); err != nil {
 			return &SemanticError{Err: err}
 		}
 	}
 	return nil
+}
+
+func (r *resolver) validateTheoremProof(module *parser.Module, theorem parser.Theorem, definitions map[string]bool) error {
+	switch theorem.Proof.Kind {
+	case "By":
+		return r.validateTheoremBy(theorem, definitions)
+	case "Structured":
+		return r.validateStructuredTheorem(module, theorem)
+	default:
+		return nil
+	}
 }
 
 func (r *resolver) validateTheoremBy(theorem parser.Theorem, definitions map[string]bool) error {
