@@ -98,6 +98,9 @@ func (v Value) functionKey(b *strings.Builder) error {
 }
 
 func (v Value) appendSpecialKey(b *strings.Builder) error {
+	if v.kind == SubsetKind {
+		return v.appendSubsetKey(b)
+	}
 	if v.kind == LazyFunctionKind {
 		f, err := v.materializedFunction()
 		if err != nil {

@@ -16,6 +16,8 @@ As in Java TLC, `AXIOM` declarations are not evaluated during the initial assump
 
 Fingerprint failures report Java TLC-style tool messages for the tested initial and successor states. Intersections with explicit sets or intervals use Java TLC's reduction order, including for nested power sets. Other lazy-set failures can still evaluate operands in a different order, producing a different underlying error or source location.
 
+Finite `SUBSET` values can be stored in states without first materializing the entire power set for the state key. The exact key still grows with the number of subsets, so large power sets can require substantial time and memory. The upstream `Bug279` model exercises a 20-element base and recursive operators.
+
 Temporal formulas used in an initial predicate, next-state action, or constraint are evaluated only when reached. Like Java TLC, tla-go reports an evaluation error when one is reached, and accepts an unused temporal `NEXT` when there are no initial states. SANY-style level checks reject Boolean operators that combine an action with a temporal formula. Other temporal level rules and error details remain incomplete.
 
 Java TLC 1.7.4 and 1.8.0 differ on some temporal formulas. For example, `~(\E i \in {} : <>[](x = i))` produces a tautology error in 1.7.4 and a temporal-action error in 1.8.0; tla-go currently follows the 1.7.4 result for this case.

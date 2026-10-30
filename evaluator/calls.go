@@ -11,6 +11,22 @@ import (
 )
 
 func (e *evaluator) callKey(d parser.Definition, args []value.Value, defined *scope) (string, error) {
+	key, err := callArgumentsKey(d, args, defined)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	b.WriteString(key)
+	if err := appendState(&b, e.context.Current); err != nil {
+		return "", err
+	}
+	if err := appendState(&b, e.context.Next); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}
+
+func callArgumentsKey(d parser.Definition, args []value.Value, defined *scope) (string, error) {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("%p:%s:", defined, d.Name))
 	for _, v := range args {
@@ -19,12 +35,6 @@ func (e *evaluator) callKey(d parser.Definition, args []value.Value, defined *sc
 			return "", err
 		}
 		appendKey(&b, key)
-	}
-	if err := appendState(&b, e.context.Current); err != nil {
-		return "", err
-	}
-	if err := appendState(&b, e.context.Next); err != nil {
-		return "", err
 	}
 	return b.String(), nil
 }

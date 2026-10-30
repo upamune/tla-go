@@ -112,15 +112,11 @@ func tupleDomain(pairs []Pair) bool {
 }
 
 func (v Value) formatSpecial() string {
+	if v.symbolicSubset() {
+		return v.unenumerableString()
+	}
 	if v.kind == LazyFunctionKind {
-		if v.hasLazyDescription() {
-			return v.data.lazy.description
-		}
-		f, err := v.materializedFunction()
-		if err != nil {
-			return "<non-enumerable function>"
-		}
-		return f.String()
+		return v.formatLazyFunction()
 	}
 	if v.kind == InfiniteSetKind {
 		return v.infiniteName()
@@ -136,6 +132,25 @@ func (v Value) formatSpecial() string {
 		return v.unenumerableString()
 	}
 	return set.String()
+}
+
+func (v Value) formatLazyFunction() string {
+	if v.hasLazyDescription() {
+		return v.data.lazy.description
+	}
+	f, err := v.materializedFunction()
+	if err != nil {
+		return "<non-enumerable function>"
+	}
+	return f.String()
+}
+
+func (v Value) symbolicSubset() bool {
+	if v.kind != SubsetKind {
+		return false
+	}
+	expand, err := v.strictExpand()
+	return err != nil || !expand
 }
 
 func (v Value) unenumerableString() string {

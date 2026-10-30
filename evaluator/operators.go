@@ -134,6 +134,10 @@ func (e *evaluator) operatorCallKey(d parser.Definition, args []value.Value, ops
 	if err != nil {
 		return "", err
 	}
+	return appendOperatorBindings(key, d, ops), nil
+}
+
+func appendOperatorBindings(key string, d parser.Definition, ops map[string]operatorRef) string {
 	var b strings.Builder
 	b.WriteString(key)
 	for _, param := range d.Params {
@@ -143,7 +147,7 @@ func (e *evaluator) operatorCallKey(d parser.Definition, args []value.Value, ops
 		op := ops[param.Name]
 		appendKey(&b, fmt.Sprintf("%p:%p:%s", op.scope, op.lambda, op.name))
 	}
-	return b.String(), nil
+	return b.String()
 }
 
 func (e *evaluator) operatorArgument(expr *parser.Expression, arity int) (operatorRef, error) {
