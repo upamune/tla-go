@@ -26,6 +26,7 @@
 
 # coverage（go test -coverprofile など）
 *.out
+!**/testdata/**/*.out
 
 # Go workspace（使うときだけ）
 go.work
