@@ -66,7 +66,7 @@ func (g *generator) atomic(items []work, partial evaluator.State, action string)
 	if expr.Kind == "Unchanged" && !g.initial {
 		return g.unchanged(expr, rest, partial, action)
 	}
-	if name, operator, ok := g.assignment(expr); ok {
+	if name, operator, ok := g.assignment(expr, items[0].locals); ok {
 		return g.assign(name, operator, expr.Args[1], items, partial, action)
 	}
 	return g.guard(items, partial, action)
@@ -290,19 +290,14 @@ func isAssignment(expr *parser.Expression) bool {
 	return expr.Kind == "Apply" && len(expr.Args) == 2 && (expr.Text == "=" || expr.Text == "\\in")
 }
 
-func (g *generator) assignment(expr *parser.Expression) (string, string, bool) {
+func (g *generator) assignment(expr *parser.Expression, locals map[string]value.Value) (string, string, bool) {
 	if !isAssignment(expr) {
 		return "", "", false
 	}
 	target := expr.Args[0]
 	if !g.initial {
-		if target.Kind != "Prime" || len(target.Args) != 1 {
-			return "", "", false
-		}
-		if name, ok := g.lexical.EnabledVariable(target); g.enabled && ok {
-			return name, expr.Text, true
-		}
-		target = target.Args[0]
+		name, ok := g.actionAssignmentTarget(target, locals)
+		return name, expr.Text, ok
 	}
 	name, ok := g.assignable(target, map[string]bool{})
 	return name, expr.Text, ok

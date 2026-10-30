@@ -8,6 +8,8 @@ Supported finite-state models include `INIT`/`NEXT`, common `SPECIFICATION` form
 
 Support is partial. Complex temporal formulas, action predicates, fairness combined with state reductions, and some recursive or effectful expressions can fail or differ from Java TLC. Counterexample selection, state ordering, fingerprinting, error messages, printed values, and exit codes are not fully compatible. TLC runtime values, side effects, random choices, and duration-dependent checks can also produce different results.
 
+State-only `SPECIFICATION` predicates can be checked without a next-state action. As in Java TLC, invariants and temporal properties require a next-state predicate; otherwise TLC checks initial states before reporting that no next action exists. Next-state assignments can also use zero-argument aliases such as `a == x'`; upstream `AS`, `C`, and `CoverageStatistics` models cover these forms.
+
 For symmetry-reduced models, selected pure Boolean combinations of recurrence properties use Java TLC's no-tableau successor ordering and transition handling. Selected state-predicate tableau and leads-to properties also regenerate successors when a tableau node appears after its reduced state was explored. Nine upstream symmetry models and additional weak- and strong-fairness cases are compared against Java TLC. Tests also compare raw tool traces for the two `ChooseTableauSymmetry` models and selected temporal properties with and without fairness, including subscripts that name individual variables. Other tableau formulas and reductions remain incomplete, and counterexample traces can differ.
 
 As in Java TLC, `AXIOM` declarations are not evaluated during the initial assumption check. Named axioms can still be referenced by the model.
