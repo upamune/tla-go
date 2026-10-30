@@ -24,12 +24,22 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 	if len(trace) > 0 {
 		s.result.Failure.ToolCode = failure.ToolCode
 	} else {
-		setInitialAssertFailure(s.result.Failure, failure)
+		setInitialNestedFailure(s.result.Failure, failure)
 	}
-	if candidate, ok := errors.AsType[*candidateFingerprintError](err); ok && candidate.parent < 0 {
-		s.result.Failure.InitialState = candidate.state
-	}
+	setInitialCandidateFailure(s.result.Failure, failure, err)
 	return s.result, nil
+}
+
+func setInitialCandidateFailure(result *Failure, failure *evaluator.RuntimeError, err error) {
+	if candidate, ok := errors.AsType[*candidateFingerprintError](err); ok && candidate.parent < 0 {
+		result.InitialState = candidate.state
+	}
+	if candidate, ok := errors.AsType[*candidateConstraintError](err); ok && candidate.parent < 0 {
+		result.InitialState = candidate.state
+		result.ToolCode = 2102
+		result.NestedToolCode = failure.ToolCode
+		result.NestedMessage = failure.Message
+	}
 }
 
 func setFingerprintCause(result *Failure, failure *evaluator.RuntimeError) {
@@ -39,8 +49,8 @@ func setFingerprintCause(result *Failure, failure *evaluator.RuntimeError) {
 	}
 }
 
-func setInitialAssertFailure(result *Failure, failure *evaluator.RuntimeError) {
-	if failure.ToolCode == 2132 {
+func setInitialNestedFailure(result *Failure, failure *evaluator.RuntimeError) {
+	if failure.ToolCode == 2132 || failure.ToolCode == 2266 {
 		result.NestedToolCode = failure.ToolCode
 		result.NestedMessage = failure.Message
 		result.evaluationSources = slices.Clone(failure.Sources)
@@ -50,6 +60,9 @@ func setInitialAssertFailure(result *Failure, failure *evaluator.RuntimeError) {
 func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 	if incomplete, ok := errors.AsType[*incompleteState](err); ok {
 		return s.incompleteSuccessorFailure(incomplete, index)
+	}
+	if candidate, ok := errors.AsType[*candidateConstraintError](err); ok {
+		return s.nextConstraintFailure(candidate)
 	}
 	failure, ok := asRuntimeError(err)
 	if !ok {
@@ -125,8 +138,20 @@ func candidateFailure(err error, state evaluator.State, parent int) error {
 	if _, ok := errors.AsType[*value.FingerprintError](err); ok {
 		return &candidateFingerprintError{cause: err, state: state, parent: parent}
 	}
+	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && failure.ToolCode == 2215 {
+		return &candidateConstraintError{cause: err, state: state, parent: parent}
+	}
 	return err
 }
+
+type candidateConstraintError struct {
+	cause  error
+	state  evaluator.State
+	parent int
+}
+
+func (e *candidateConstraintError) Error() string { return e.cause.Error() }
+func (e *candidateConstraintError) Unwrap() error { return e.cause }
 
 func (e *candidateFingerprintError) Error() string { return e.cause.Error() }
 func (e *candidateFingerprintError) Unwrap() error { return e.cause }
@@ -167,7 +192,7 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 	}
 	result := &Failure{Message: failure.Message, ExitCode: 75}
 	if parent < 0 {
-		setInitialAssertFailure(result, failure)
+		setInitialNestedFailure(result, failure)
 		if len(failure.Sources) > 0 {
 			result.evaluationSources = slices.Clone(failure.Sources)
 			result.SuppressDepth = true

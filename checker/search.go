@@ -377,7 +377,7 @@ func (s *search) satisfiesConstraints(state evaluator.State, parent int) (bool, 
 func (s *search) constraints(names []string, current, next evaluator.State) (bool, error) {
 	for _, name := range names {
 		expr, _ := s.model.definition(name)
-		ok, err := s.model.holds(expr, current, next)
+		ok, err := s.model.constraintHolds(expr, current, next)
 		if err != nil || !ok {
 			return ok, err
 		}

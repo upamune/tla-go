@@ -29,7 +29,7 @@ func (e *evaluator) naturalBinary(name string, left value.Value, argument *parse
 	if err != nil {
 		return value.Value{}, err
 	}
-	result, err := binary(name, left, right)
+	result, err := comparisonCheckedBinary(name, left, right, true)
 	if err != nil {
 		return result, err
 	}

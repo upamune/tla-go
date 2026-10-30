@@ -91,22 +91,22 @@ func (e *evaluator) invokeOtherBuiltin(name string, args []value.Value) (value.V
 	if e.finiteSets && (name == "Cardinality" || name == "IsFiniteSet") {
 		return finiteSetsValue(name, args[0])
 	}
-	return invokeCoreBuiltin(name, args)
+	return e.invokeCoreBuiltin(name, args)
 }
 
-func invokeCoreBuiltin(name string, args []value.Value) (value.Value, error) {
+func (e *evaluator) invokeCoreBuiltin(name string, args []value.Value) (value.Value, error) {
 	if len(args) == 1 {
 		return unary(name, args[0])
 	}
 	if len(args) == 2 {
-		return operatorBinary(name, args[0], args[1])
+		return operatorBinary(name, args[0], args[1], e.naturals && !e.integers)
 	}
 	return value.Value{}, fmt.Errorf("unsupported operator %s", name)
 }
 
-func operatorBinary(name string, left, right value.Value) (value.Value, error) {
+func operatorBinary(name string, left, right value.Value, naturalOnly bool) (value.Value, error) {
 	if !booleanOperator(name) {
-		return binary(name, left, right)
+		return comparisonCheckedBinary(name, left, right, naturalOnly)
 	}
 	a, err := boolean(left)
 	if err != nil {

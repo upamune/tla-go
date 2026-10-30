@@ -113,7 +113,7 @@ func (e *evaluator) builtinByArity(expr *parser.Expression) (value.Value, error)
 		if err != nil {
 			return value.Value{}, err
 		}
-		result, err := binaryWithSource(expr, left, right)
+		result, err := e.binaryWithSource(expr, left, right)
 		if err != nil {
 			return result, err
 		}
@@ -122,11 +122,11 @@ func (e *evaluator) builtinByArity(expr *parser.Expression) (value.Value, error)
 	return value.Value{}, fmt.Errorf("unknown operator %s with %d arguments", expr.Text, len(expr.Args))
 }
 
-func binaryWithSource(expr *parser.Expression, left, right value.Value) (value.Value, error) {
+func (e *evaluator) binaryWithSource(expr *parser.Expression, left, right value.Value) (value.Value, error) {
 	if expr.Text == "\\cap" {
 		return value.SetOperationWithSource(expr.Text, left, right, expr)
 	}
-	return binary(expr.Text, left, right)
+	return comparisonCheckedBinary(expr.Text, left, right, e.naturals && !e.integers)
 }
 
 func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {

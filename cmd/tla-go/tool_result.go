@@ -13,6 +13,9 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 	if printToolInitialFingerprintFailure(t, failure) {
 		return
 	}
+	if printToolInitialConstraintFailure(t, failure) {
+		return
+	}
 	printToolFailureHeader(t, failure)
 	if failure.InitialState != nil && failure.FingerprintDetail == "" {
 		var body bytes.Buffer
@@ -29,6 +32,17 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 	if failure.EvaluationDetail != "" {
 		t.message(2103, 1, failure.EvaluationDetail)
 	}
+}
+
+func printToolInitialConstraintFailure(t toolOutput, failure *checker.Failure) bool {
+	if failure.ToolCode != 2102 || failure.InitialState == nil || failure.NestedToolCode != 2215 {
+		return false
+	}
+	printToolInitialNestedFailure(t, failure, 2215, failure.NestedMessage)
+	if failure.EvaluationDetail != "" {
+		t.message(2103, 1, failure.EvaluationDetail)
+	}
+	return true
 }
 
 func printToolFailureHeader(t toolOutput, failure *checker.Failure) {
@@ -54,13 +68,17 @@ func printToolInitialFingerprintFailure(t toolOutput, failure *checker.Failure) 
 	if failure.InitialState == nil || failure.FingerprintDetail == "" || failure.FingerprintCauseCode == 0 {
 		return false
 	}
+	printToolInitialNestedFailure(t, failure, failure.FingerprintCauseCode, failure.FingerprintCause)
+	printToolFingerprintDetail(t, failure)
+	return true
+}
+
+func printToolInitialNestedFailure(t toolOutput, failure *checker.Failure, code int, message string) {
 	fmt.Fprintln(t.out, "@!@!@STARTMSG 2102:1 @!@!@")
-	t.message(failure.FingerprintCauseCode, 0, failure.FingerprintCause)
+	t.message(code, 0, message)
 	fmt.Fprintln(t.out, "While working on the initial state:")
 	printStateOrdered(t.out, failure.InitialState, failure.InitialStateOrder)
 	fmt.Fprintln(t.out, "@!@!@ENDMSG 2102 @!@!@")
-	printToolFingerprintDetail(t, failure)
-	return true
 }
 
 func printToolFingerprintDetail(t toolOutput, failure *checker.Failure) {
