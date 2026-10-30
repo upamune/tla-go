@@ -459,6 +459,9 @@ func (m *model) validateModel() error {
 	if err := m.prepareProperties(); err != nil {
 		return err
 	}
+	if err := m.validateNextRequiredForChecks(); err != nil {
+		return err
+	}
 	return m.validatePossibleAndConstants()
 }
 

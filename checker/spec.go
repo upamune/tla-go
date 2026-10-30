@@ -25,7 +25,7 @@ func lowerSpecification(module *parser.Module, cfg config.Config) (config.Config
 		return cfg, nil, fmt.Errorf("unsupported SPECIFICATION form")
 	}
 	parts.defaultEmptyInit()
-	if parts.init == "" || parts.next == "" {
+	if parts.init == "" {
 		return cfg, nil, fmt.Errorf("unsupported SPECIFICATION form")
 	}
 	cfg.Init = parts.init

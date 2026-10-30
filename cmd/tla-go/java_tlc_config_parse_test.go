@@ -167,16 +167,46 @@ func TestJavaTLCMissingStatePredicates(t *testing.T) {
 		{"missing init", "x = 0", "NEXT Next\n", "The configuration file did not specify the initial state predicate.", 151},
 		{"missing next with states", "x = 0", "INIT Init\n", "No next state actions defined to generate successor states from.", 75},
 		{"missing next with no states", "FALSE /\\ x = 0", "INIT Init\n", "0 states generated, 0 distinct states found", 0},
+		{"missing next with invariant", "x = 0", "INIT Init\nINVARIANT Inv\n", "The configuration file did not specify the next state predicate.", 151},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			writeDOTFixture(t, dir, "VARIABLE x\nInit == "+tc.init+"\nNext == x' = x", tc.cfg)
+			writeDOTFixture(t, dir, "VARIABLE x\nInit == "+tc.init+"\nNext == x' = x\nInv == x = 1", tc.cfg)
 			var out, errout bytes.Buffer
 			if code := run(context.Background(), []string{"-tool", filepath.Join(dir, "M.tla")}, &out, &errout); code != tc.code || !strings.Contains(out.String(), tc.message) {
 				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
 			}
 			if tc.code == 75 && hasToolMessage(readToolMessages(out.String()), 2199) {
 				t.Fatalf("unexpected statistics for missing NEXT: %s", out.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java := runJavaTLCForExit(t, jar, dir, "M", tc.code)
+				if !strings.Contains(java, tc.message) {
+					t.Fatalf("Java output: %s", java)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCStateOnlySpecification(t *testing.T) {
+	for _, tc := range []struct {
+		name, spec, extra, message string
+		code                       int
+	}{
+		{"initial states", "x = 0", "", "No next state actions defined to generate successor states from.", 75},
+		{"no initial states", "x \\in {}", "", "0 states generated, 0 distinct states found", 0},
+		{"multiple initial states", "x \\in {0,1}", "", "No next state actions defined to generate successor states from.", 75},
+		{"invariant requires next", "x = 0", "INVARIANT Inv\n", "The configuration file did not specify the next state predicate.", 151},
+		{"temporal property requires next", "x = 0", "PROPERTY Future\n", "The configuration file did not specify the next state predicate.", 151},
+		{"state property", "x = 0", "PROPERTY Inv\n", "Property Inv is violated by the initial state", 13},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, "VARIABLE x\nSpec == "+tc.spec+"\nInv == x = 1\nFuture == <>(x = 1)", "SPECIFICATION Spec\n"+tc.extra)
+			var out, errout bytes.Buffer
+			if code := run(context.Background(), []string{"-tool", filepath.Join(dir, "M.tla")}, &out, &errout); code != tc.code || !strings.Contains(out.String(), tc.message) {
+				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				java := runJavaTLCForExit(t, jar, dir, "M", tc.code)
