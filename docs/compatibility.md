@@ -10,6 +10,8 @@ Support is partial. Complex temporal formulas, action predicates, fairness combi
 
 State-only `SPECIFICATION` predicates can be checked without a next-state action. As in Java TLC, invariants and temporal properties require a next-state predicate; otherwise TLC checks initial states before reporting that no next action exists. Next-state assignments can also use zero-argument aliases such as `a == x'`; upstream `AS`, `C`, and `CoverageStatistics` models cover these forms.
 
+After a successor invariant or action-property evaluation error, Java TLC replays successors to collect an evaluation stack. tla-go reproduces the resulting state counts, exit code, and stack for selected cases, including the upstream `BasicMultiTrace` model. Replay of effectful expressions, other errors, and all possible state reductions is not yet fully verified.
+
 For symmetry-reduced models, selected pure Boolean combinations of recurrence properties use Java TLC's no-tableau successor ordering and transition handling. Selected state-predicate tableau and leads-to properties also regenerate successors when a tableau node appears after its reduced state was explored. Nine upstream symmetry models and additional weak- and strong-fairness cases are compared against Java TLC. Tests also compare raw tool traces for the two `ChooseTableauSymmetry` models and selected temporal properties with and without fairness, including subscripts that name individual variables. Other tableau formulas and reductions remain incomplete, and counterexample traces can differ.
 
 As in Java TLC, `AXIOM` declarations are not evaluated during the initial assumption check. Named axioms can still be referenced by the model.

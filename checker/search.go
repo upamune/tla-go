@@ -37,6 +37,7 @@ type search struct {
 	graphOrder          []string
 	graphStates         map[string]evaluator.State
 	candidateInModel    bool
+	failureCandidateKey string
 	reducedTableauTrace bool
 }
 
@@ -129,7 +130,7 @@ func (s *search) explore() (Result, error) {
 			return s.nextRuntimeFailure(err, i)
 		}
 		if !more {
-			return s.result, nil
+			return s.finishFailedExpansion(i, next)
 		}
 	}
 	s.debugLivenessGraph()
@@ -254,6 +255,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 		s.countState(parent)
 	}
 	if more, err := s.checkGraphCandidate(state, parent, action, inModel); err != nil || !more {
+		s.recordFailureCandidate(key, parent, inModel)
 		return more, err
 	}
 	s.addIfIncluded(state, parent, action, key, inModel)
@@ -275,11 +277,12 @@ func (s *search) checkNewCandidate(state evaluator.State, parent int, action str
 }
 
 func (s *search) visitExisting(state evaluator.State, parent int, action, key string) (bool, error) {
-	if more, err := s.checkSafetyProperties(state, parent, action); err != nil || !more {
-		return more, err
-	}
 	if err := s.graphTransition(s.graphRepresentative(state, key), parent, action, false); err != nil {
 		return false, err
+	}
+	if more, err := s.checkSafetyProperties(state, parent, action); err != nil || !more {
+		s.recordFailureCandidate(key, parent, s.candidateInModel)
+		return more, err
 	}
 	s.linkExisting(parent, key, action, state)
 	return true, nil
