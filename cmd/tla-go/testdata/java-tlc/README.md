@@ -19,3 +19,6 @@ symbolic operator calls, including calls through module instances.
 
 `test45` is an unchanged model from the same suite. It exercises recursive
 functions returning functions.
+
+`test51`, `test51a`, `test51b`, and `test52` are unchanged models from the same
+suite. They exercise symbolic operators passed as higher-order arguments.

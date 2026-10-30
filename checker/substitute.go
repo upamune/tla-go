@@ -130,5 +130,9 @@ func substituteOperatorCall(expr, operator *parser.Expression, replacements map[
 	result := *expr
 	result.Text = operator.Text
 	result.Args = args
+	if kind, ok := parser.SpecialOperatorKind(operator.Text); ok {
+		result.Kind = kind
+		result.Text = ""
+	}
 	return &result
 }

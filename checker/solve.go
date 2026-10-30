@@ -101,6 +101,8 @@ func (g *generator) structural(item work, rest []work, partial evaluator.State, 
 
 func (g *generator) scopedAction(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {
 	switch item.expr.Kind {
+	case "Identifier":
+		return g.lazyEnabledAction(item, rest, partial, action)
 	case "Apply":
 		if item.expr.Text == "=>" {
 			more, err := g.implication(item, rest, partial, action)

@@ -34,7 +34,7 @@ func (r *resolver) operatorArgument(expr *parser.Expression, arity int, scope ma
 		return fmt.Errorf("expected an operator argument")
 	}
 	name := expr.Text
-	sym, ok := r.lookup(name, scope)
+	sym, ok := r.operatorSymbol(name, scope)
 	if !ok || sym.arity != arity {
 		return fmt.Errorf("operator %s must have arity %d", name, arity)
 	}
@@ -44,6 +44,16 @@ func (r *resolver) operatorArgument(expr *parser.Expression, arity int, scope ma
 		}
 	}
 	return nil
+}
+
+func (r *resolver) operatorSymbol(name string, scope map[string]symbol) (symbol, bool) {
+	if sym, ok := r.lookup(name, scope); ok {
+		return sym, true
+	}
+	if arity, ok := parser.SpecialOperatorArity(name); ok {
+		return symbol{arity: arity}, true
+	}
+	return symbol{}, false
 }
 
 func (r *resolver) lambdaArgument(expr *parser.Expression, arity int, scope map[string]symbol) error {

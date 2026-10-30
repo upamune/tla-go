@@ -29,7 +29,7 @@ func TestJavaTLCNestedRecursiveFunctions(t *testing.T) {
 	code := run(context.Background(), []string{filepath.Join(dir, "test45.tla")}, &out, &errout)
 	checkNestedFunctionOutput(t, code, out.String(), errout.String())
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		output := runNestedFunctionJava(t, jar, dir, "test45", 0)
+		output := runJavaTLCForExit(t, jar, dir, "test45", 0)
 		checkNestedFunctionOutput(t, 0, output, "")
 	}
 }
@@ -76,13 +76,13 @@ func TestJavaTLCFunctionApplicationEvaluation(t *testing.T) {
 				t.Fatalf("exit %d, stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				runNestedFunctionJava(t, jar, dir, "M", tc.code)
+				runJavaTLCForExit(t, jar, dir, "M", tc.code)
 			}
 		})
 	}
 }
 
-func runNestedFunctionJava(t *testing.T, jar, dir, name string, want int) string {
+func runJavaTLCForExit(t *testing.T, jar, dir, name string, want int) string {
 	t.Helper()
 	jar, err := filepath.Abs(jar)
 	if err != nil {

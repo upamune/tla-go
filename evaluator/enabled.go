@@ -66,6 +66,19 @@ func (s *LexicalScope) EnabledVariable(expr *parser.Expression) (string, bool) {
 	return "", false
 }
 
+// Argument returns a lazy operator argument and its original lexical scope.
+func (s *LexicalScope) Argument(name string) (*parser.Expression, *LexicalScope, bool) {
+	if s == nil {
+		return nil, nil, false
+	}
+	arg, ok := lookupPrimeArgument(s.scope, name)
+	if !ok {
+		return nil, nil, false
+	}
+	caller := &LexicalScope{scope: arg.scope, hasOperators: s.hasOperators, enabledScopes: s.enabledScopes}
+	return arg.expression, caller, true
+}
+
 // Definition looks up a visible definition while respecting shadowing.
 func (s *LexicalScope) Definition(name string) (parser.Definition, bool) {
 	if s == nil {

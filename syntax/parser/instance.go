@@ -59,8 +59,7 @@ func (p *parser) argument() (*Expression, error) {
 	if p.at("LAMBDA") {
 		return p.lambda()
 	}
-	_, ok := infix[t.Text]
-	if (ok || t.Text == "-." || t.Text == "~" || t.Text == "-") && p.standaloneArgument() {
+	if (t.Kind == "Operator" || t.Kind == "Keyword") && operatorArgument(t.Text) && p.standaloneArgument() {
 		start := p.pos
 		p.next()
 		return node("OperatorReference", t.Text, p.location(t, start)), nil
@@ -68,9 +67,35 @@ func (p *parser) argument() (*Expression, error) {
 	return p.expression(0)
 }
 
+func operatorArgument(name string) bool {
+	if _, ok := infix[name]; ok {
+		return true
+	}
+	if postfixOperator(name) {
+		return true
+	}
+	_, _, _, ok := prefixInfo(name)
+	return ok || name == "-."
+}
+
 func (p *parser) standaloneArgument() bool {
 	t := p.look(1)
+	if t.Kind == "Keyword" && expressionStartKeyword(t.Text) {
+		return false
+	}
 	return p.definitionAfterArgument(t) || isArgumentEnd(t)
+}
+
+func expressionStartKeyword(name string) bool {
+	if _, _, _, ok := prefixInfo(name); ok {
+		return true
+	}
+	switch name {
+	case "IF", "CASE", "CHOOSE", "LET", "LAMBDA", "WF_", "SF_":
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *parser) definitionAfterArgument(t syntax.Token) bool {

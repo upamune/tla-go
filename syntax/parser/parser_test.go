@@ -80,6 +80,38 @@ func TestParenthesizedJunctionAndMinus(t *testing.T) {
 	}
 }
 
+func TestPrefixAndPostfixOperatorArguments(t *testing.T) {
+	for _, name := range []string{"[]", "<>", "ENABLED", "UNCHANGED", "SUBSET", "UNION", "DOMAIN", "'", "^+", "^*", "^#"} {
+		t.Run(name, func(t *testing.T) {
+			m, err := ParseModule("---- MODULE M ----\nA == F(" + name + ")\n====")
+			if err != nil {
+				t.Fatal(err)
+			}
+			arg := m.Definitions[0].Body.Args[0]
+			if arg.Kind != "OperatorReference" || arg.Text != name {
+				t.Fatalf("got %+v", arg)
+			}
+		})
+	}
+	m, err := ParseModule("---- MODULE M ----\nA == F(SUBSET UNION {{1}})\n====")
+	if err != nil {
+		t.Fatal(err)
+	}
+	arg := m.Definitions[0].Body.Args[0]
+	if arg.Kind != "Apply" || arg.Text != "SUBSET" || arg.Args[0].Text != "UNION" {
+		t.Fatalf("nested prefix expression: %+v", arg)
+	}
+	m, err = ParseModule("---- MODULE M ----\nA == F(\"[]\", \"^+\", \"+\")\n====")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, arg := range m.Definitions[0].Body.Args {
+		if arg.Kind != "String" {
+			t.Fatalf("string argument: %+v", arg)
+		}
+	}
+}
+
 func TestUnsupportedSyntaxFails(t *testing.T) {
 	_, err := ParseModule("---- MODULE M ----\nA == THEOREM\n====")
 	if err == nil {

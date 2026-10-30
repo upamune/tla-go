@@ -41,6 +41,9 @@ func (e *evaluator) applyOperator(op operatorRef, expressions []*parser.Expressi
 	if op.lambda != nil {
 		return e.invokeLambdaExpressions(op, expressions)
 	}
+	if kind, ok := parser.SpecialOperatorKind(op.name); ok {
+		return e.eval(&parser.Expression{Kind: kind, Args: expressions})
+	}
 	args, err := e.evalArgs(expressions)
 	if err != nil {
 		return value.Value{}, err

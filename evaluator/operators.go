@@ -149,6 +149,9 @@ func (e *evaluator) namedOperator(name string, arity int) (operatorRef, error) {
 	if def, scope, ok := e.findDefinition(name); ok {
 		return definitionOperator(def, scope, arity)
 	}
+	if expected, ok := parser.SpecialOperatorArity(name); ok && arity == expected {
+		return operatorRef{name: name, arity: arity}, nil
+	}
 	if !e.supportsBuiltin(name, arity) {
 		return operatorRef{}, fmt.Errorf("unknown operator %s with arity %d", name, arity)
 	}
