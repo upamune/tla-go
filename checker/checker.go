@@ -292,7 +292,7 @@ func prepareWithOutput(module *parser.Module, cfg config.Config, options Options
 func prepareWithSources(module *parser.Module, cfg config.Config, options Options, sourceUnits map[string]*parser.Module) (*model, error) {
 	var err error
 	var fairness []fairnessCondition
-	module, err = resolveSubexpressions(module)
+	module, err = resolveTemporalExpressions(module)
 	if err != nil {
 		return nil, err
 	}

@@ -57,3 +57,6 @@ operator constant.
 
 `testa` and `test` are unchanged models from the same suite. They test the
 error reported when an imported module declares a different name.
+
+`test215` is an unchanged model from the same suite. It exercises SANY's level
+checks for temporal operators and bounded temporal formulas.
