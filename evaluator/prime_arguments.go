@@ -8,14 +8,14 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func primeArgumentBindings(params []parser.Declaration, expressions []*parser.Expression, caller *scope) map[string]*primeArgument {
+func primeArgumentBindings(params []parser.Declaration, expressions []*parser.Expression, caller *scope, enabledScopes []string) map[string]*primeArgument {
 	if len(expressions) == 0 {
 		return nil
 	}
 	bindings := make(map[string]*primeArgument, len(expressions))
 	for i, param := range params {
 		if param.Arity == 0 {
-			bindings[param.Name] = &primeArgument{expression: expressions[i], scope: caller}
+			bindings[param.Name] = &primeArgument{expression: expressions[i], scope: caller, enabledScopes: enabledScopes}
 		}
 	}
 	return bindings

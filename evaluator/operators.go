@@ -10,15 +10,21 @@ import (
 
 // Operators are separate from TLA+ values; closures retain their lexical scope.
 type operatorRef struct {
-	name       string
-	arity      int
-	definition *parser.Definition
-	lambda     *parser.Expression
-	scope      *scope
+	name           string
+	arity          int
+	definition     *parser.Definition
+	lambda         *parser.Expression
+	scope          *scope
+	enabledScopes  []string
+	scopesCaptured bool
 }
 
 func (e *evaluator) findOperator(name string) (operatorRef, bool) {
-	for s := e.scope; s != nil; s = s.parent {
+	return findScopedOperator(e.scope, name)
+}
+
+func findScopedOperator(start *scope, name string) (operatorRef, bool) {
+	for s := start; s != nil; s = s.parent {
 		if op, ok := s.operators[name]; ok {
 			return op, true
 		}
@@ -85,6 +91,10 @@ func hasOperatorParameters(params []parser.Declaration) bool {
 func (e *evaluator) definitionArgument(param parser.Declaration, expr *parser.Expression, lazy bool) (value.Value, operatorRef, error) {
 	if param.Arity > 0 {
 		op, err := e.operatorArgument(expr, param.Arity)
+		if err == nil && !op.scopesCaptured {
+			op.enabledScopes = capturedOperatorScopes(e.activeEnabledScopes(), expr.InstanceScopes)
+			op.scopesCaptured = true
+		}
 		return value.Bool(false), op, err
 	}
 	if lazy {
@@ -92,6 +102,16 @@ func (e *evaluator) definitionArgument(param parser.Declaration, expr *parser.Ex
 	}
 	v, err := e.eval(expr)
 	return v, operatorRef{}, err
+}
+
+func capturedOperatorScopes(active, introduced []string) []string {
+	if len(active) == 0 {
+		return introduced
+	}
+	if len(introduced) == 0 {
+		return active
+	}
+	return append(append([]string(nil), active...), introduced...)
 }
 
 func valueBindings(params []parser.Declaration, args []value.Value, operators map[string]operatorRef) (map[string]value.Value, error) {
@@ -216,6 +236,6 @@ func (e *evaluator) invokeLambdaExpressions(op operatorRef, expressions []*parse
 	}
 	child := *e
 	child.depth++
-	child.scope = &scope{parent: op.scope, values: values, primeArgs: primeArgumentBindings(params, expressions, e.scope)}
+	child.scope = &scope{parent: op.scope, values: values, primeArgs: primeArgumentBindings(params, expressions, e.scope, e.activeEnabledScopes())}
 	return child.eval(op.lambda.Args[0])
 }

@@ -108,6 +108,7 @@ func (g *generator) scopedAction(item work, rest []work, partial evaluator.State
 			more, err := g.implication(item, rest, partial, action)
 			return true, more, err
 		}
+		return g.lazyEnabledOperatorAction(item, rest, partial, action)
 	case "Let":
 		more, err := g.letAction(item, rest, partial, action)
 		return true, more, err
@@ -123,7 +124,6 @@ func (g *generator) scopedAction(item work, rest []work, partial evaluator.State
 	default:
 		return g.otherScopedAction(item, rest, partial, action)
 	}
-	return false, false, nil
 }
 
 func (g *generator) otherScopedAction(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {

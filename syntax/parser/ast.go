@@ -38,6 +38,8 @@ type Expression struct {
 	// Instance metadata preserves substitution boundaries for ENABLED.
 	EnabledScopes   []string         `json:"-"`
 	EnabledBindings []EnabledBinding `json:"-"`
+	// InstanceScopes records where an operator reference was introduced.
+	InstanceScopes []string `json:"-"`
 	// DuplicateField locates the first repeated record field for semantic diagnostics.
 	DuplicateField *Position `json:"-"`
 }

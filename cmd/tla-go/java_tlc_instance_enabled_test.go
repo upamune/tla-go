@@ -34,6 +34,11 @@ func TestJavaTLCEnabledInstance(t *testing.T) {
 			"Local.cfg": "INIT Init\nNEXT Next\nINVARIANT Inv\n",
 			"Inner.tla": "---- MODULE Inner ----\nVARIABLES x, y\nA == /\\ x' = 0 /\\ y' = 1\nF == ENABLED A\n====\n",
 		}},
+		{name: "Operators", stats: "2 states generated, 1 distinct states found, 0 states left on queue.", files: map[string]string{
+			"Operators.tla": "---- MODULE Operators ----\nEXTENDS Naturals\nVARIABLE x\nI == INSTANCE Inner WITH u <- x, v <- x\nInit == x = 0\nNext == UNCHANGED x\nInv == /\\ I!C /\\ I!D /\\ ~I!B(I!F) /\\ ~ENABLED I!F(0)\n====\n",
+			"Operators.cfg": "INIT Init\nNEXT Next\nINVARIANT Inv\n",
+			"Inner.tla":     "---- MODULE Inner ----\nEXTENDS Naturals\nVARIABLES u, v\nF(i) == /\\ u' = i /\\ v' = i + 1\nB(G(_)) == ENABLED G(0)\nC == B(F)\nD == ENABLED F(0)\n====\n",
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

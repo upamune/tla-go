@@ -43,6 +43,12 @@ func markEnabledInstanceVariables(expr *parser.Expression, variables map[string]
 	for i := range expr.EnabledBindings {
 		expr.EnabledBindings[i].Scope = scope + expr.EnabledBindings[i].Scope
 	}
+	for i := range expr.InstanceScopes {
+		expr.InstanceScopes[i] = scope + expr.InstanceScopes[i]
+	}
+	if expr.Kind == "Identifier" || expr.Kind == "OperatorReference" {
+		expr.InstanceScopes = append(expr.InstanceScopes, scope)
+	}
 	if expr.Kind == "Enabled" {
 		expr.EnabledScopes = append(expr.EnabledScopes, scope)
 	}

@@ -13,12 +13,13 @@ func substitute(expr *parser.Expression, replacements map[string]*parser.Express
 	}
 	if expr.Kind == "Identifier" || expr.Kind == "OperatorReference" {
 		if replacement, ok := replacements[expr.Text]; ok {
-			return replacement
+			return substituteInstanceScopes(expr, replacement)
 		}
 	}
 	result := *expr
 	result.EnabledScopes = append([]string(nil), expr.EnabledScopes...)
 	result.EnabledBindings = append([]parser.EnabledBinding(nil), expr.EnabledBindings...)
+	result.InstanceScopes = append([]string(nil), expr.InstanceScopes...)
 	result.Args = subExpressions(expr.Args, replacements)
 	result.Bounds = subBounds(expr.Bounds, replacements)
 	result.Fields = subFields(expr.Fields, replacements)
@@ -26,6 +27,15 @@ func substitute(expr *parser.Expression, replacements map[string]*parser.Express
 	result.Updates = subUpdates(expr.Updates, replacements)
 	result.Definitions = subDefinitions(expr.Definitions, replacements)
 	result.Selectors = subSelectors(expr.Selectors, replacements)
+	return &result
+}
+
+func substituteInstanceScopes(expr, replacement *parser.Expression) *parser.Expression {
+	if len(expr.InstanceScopes) == 0 {
+		return replacement
+	}
+	result := *replacement
+	result.InstanceScopes = append(append([]string(nil), replacement.InstanceScopes...), expr.InstanceScopes...)
 	return &result
 }
 

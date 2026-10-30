@@ -38,11 +38,12 @@ type scope struct {
 }
 
 type primeArgument struct {
-	expression *parser.Expression
-	scope      *scope
-	cacheMu    sync.Mutex
-	cached     [2]bool
-	values     [2]value.Value
+	expression    *parser.Expression
+	scope         *scope
+	enabledScopes []string
+	cacheMu       sync.Mutex
+	cached        [2]bool
+	values        [2]value.Value
 }
 type evaluator struct {
 	context        Context
@@ -419,7 +420,7 @@ func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value
 	}
 	child := *e
 	child.depth++
-	child.scope = &scope{parent: defined, values: bindings, operators: operators, primeArgs: primeArgumentBindings(d.Params, expressions, caller)}
+	child.scope = &scope{parent: defined, values: bindings, operators: operators, primeArgs: primeArgumentBindings(d.Params, expressions, caller, e.activeEnabledScopes())}
 	child.hasOperators = e.hasOperators || len(operators) > 0
 	return child.eval(d.Body)
 }

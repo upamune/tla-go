@@ -27,22 +27,33 @@ func (m *model) hasAction(expr *parser.Expression, seen map[string]bool) bool {
 	if m.isTLCDefer(expr) {
 		return false
 	}
+	if actionKind(expr) {
+		return true
+	}
+	if expr.Kind == "Enabled" {
+		return false
+	}
+	if expr.Kind == "Let" {
+		return m.letHasAction(expr, seen)
+	}
+	if action, ok := m.actionCallLevel(expr, seen); ok {
+		return action
+	}
+	if m.definitionHasAction(expr, seen) {
+		return true
+	}
+	return m.childrenHaveAction(expr, seen)
+}
+
+func actionKind(expr *parser.Expression) bool {
 	if expr.Kind == "Apply" && expr.Text == "~>" {
 		return true
 	}
 	switch expr.Kind {
 	case "Prime", "BoxAction", "AngleAction", "Always", "Eventually", "WeakFairness", "StrongFairness":
 		return true
-	case "Enabled":
-		return false
 	}
-	if expr.Kind == "Let" {
-		return m.letHasAction(expr, seen)
-	}
-	if m.definitionHasAction(expr, seen) {
-		return true
-	}
-	return m.childrenHaveAction(expr, seen)
+	return false
 }
 
 func (m *model) definitionHasAction(expr *parser.Expression, seen map[string]bool) bool {

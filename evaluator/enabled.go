@@ -75,8 +75,48 @@ func (s *LexicalScope) Argument(name string) (*parser.Expression, *LexicalScope,
 	if !ok {
 		return nil, nil, false
 	}
-	caller := &LexicalScope{scope: arg.scope, hasOperators: s.hasOperators, enabledScopes: s.enabledScopes}
+	caller := &LexicalScope{scope: arg.scope, hasOperators: s.hasOperators, enabledScopes: arg.enabledScopes}
 	return arg.expression, caller, true
+}
+
+// BindActionOperator expands an operator argument in its captured lexical scope.
+func (s *LexicalScope) BindActionOperator(name string, args []*parser.Expression) (*parser.Expression, *LexicalScope, bool, error) {
+	if s == nil {
+		return nil, nil, false, nil
+	}
+	op, ok := findScopedOperator(s.scope, name)
+	if !ok || op.definition == nil && op.lambda == nil {
+		return nil, nil, false, nil
+	}
+	params, body := actionOperatorBody(op)
+	if len(params) != len(args) {
+		return nil, nil, true, fmt.Errorf("operator %s expects %d arguments", name, len(params))
+	}
+	values := make(map[string]value.Value, len(params))
+	for _, param := range params {
+		values[param.Name] = value.Bool(false)
+	}
+	bound := &scope{parent: op.scope, values: values, primeArgs: primeArgumentBindings(params, args, s.scope, s.enabledScopes)}
+	lexical := &LexicalScope{scope: bound, hasOperators: s.hasOperators, enabledScopes: op.enabledScopes}
+	return body, lexical, true, nil
+}
+
+func actionOperatorBody(op operatorRef) ([]parser.Declaration, *parser.Expression) {
+	if op.definition != nil {
+		return op.definition.Params, op.definition.Body
+	}
+	params := make([]parser.Declaration, len(op.lambda.Names))
+	for i, name := range op.lambda.Names {
+		params[i].Name = name
+	}
+	return params, op.lambda.Args[0]
+}
+
+func (e *evaluator) activeEnabledScopes() []string {
+	if e.context.Lexical == nil {
+		return nil
+	}
+	return e.context.Lexical.enabledScopes
 }
 
 // Definition looks up a visible definition while respecting shadowing.
