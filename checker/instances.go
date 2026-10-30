@@ -68,13 +68,14 @@ type nestedModuleBinding struct {
 }
 
 type instanceResolver struct {
-	ctx         context.Context
-	root        *parser.Module
-	loader      ModuleLoader
-	nested      map[string]nestedModuleBinding
-	cache       map[string]*parser.Module
-	session     *instanceSession
-	usedModules map[string]bool
+	ctx                  context.Context
+	root                 *parser.Module
+	loader               ModuleLoader
+	nested               map[string]nestedModuleBinding
+	cache                map[string]*parser.Module
+	session              *instanceSession
+	usedModules          map[string]bool
+	constantRequirements map[string][]bool
 }
 
 func (r *instanceResolver) registerNested() error {

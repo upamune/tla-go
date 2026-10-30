@@ -70,8 +70,12 @@ func earlierInstanceReference(expr *parser.Expression, instance parser.Instance)
 	return found
 }
 
-func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression) error {
+func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, index int) error {
+	if !hasInstanceLevelConstraints(module) {
+		return nil
+	}
 	model := r.substitutionModel()
+	addInstanceAnalysisDefinitions(&model, module, instance, replacements, index)
 	required, err := constantSubstitutionParameters(module.Constants, instance.Params, replacements, &model)
 	if err != nil {
 		return err
@@ -80,6 +84,37 @@ func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, ins
 		return err
 	}
 	return validateVariableSubstitutions(module.Variables, replacements, &model)
+}
+
+func hasInstanceLevelConstraints(module *parser.Module) bool {
+	if len(module.Variables) > 0 {
+		return true
+	}
+	for _, declaration := range module.Constants {
+		if declaration.Arity == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func addInstanceAnalysisDefinitions(model *model, module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, index int) {
+	names := instanceDefinitionNames(module, instance, index)
+	generated := make(map[string]bool, len(names))
+	for _, name := range names {
+		generated[name] = true
+	}
+	for _, definition := range module.Definitions {
+		name := names[definition.Name]
+		self := ""
+		if definition.Kind == "Function" {
+			self = name
+		}
+		definition.Name = name
+		definition.Body = instanceExpression(definition.Body, replacements, generated, instance.Params, self)
+		definition.Params = append(append([]parser.Declaration(nil), instance.Params...), definition.Params...)
+		model.defs[name] = definition
+	}
 }
 
 func (r *instanceResolver) substitutionModel() model {
@@ -97,6 +132,10 @@ func constantSubstitutionParameters(constants, instanceParams []parser.Declarati
 	params := declarationNames(instanceParams)
 	required := map[string]bool{}
 	for _, declaration := range constants {
+		// TLC permits operator substitutions to depend on the current state.
+		if declaration.Arity > 0 {
+			continue
+		}
 		names := map[string]bool{}
 		collectArgumentNames(replacements[declaration.Name], names)
 		for name := range params {
@@ -122,20 +161,15 @@ func validateVariableSubstitutions(variables []parser.Declaration, replacements 
 }
 
 func unsafeConstantSubstitution(m *model, expr *parser.Expression) bool {
-	names := map[string]bool{}
-	collectArgumentNames(expr, names)
-	for name := range names {
-		if strings.Contains(name, "!") && !strings.HasPrefix(name, "!bound!") {
-			return true
-		}
-	}
 	return m.hasAction(expr, map[string]bool{}) || m.readsState(expr, map[string]bool{}) || containsQualifiedReference(m, expr, map[string]bool{})
 }
 
 func containsQualifiedReference(m *model, expr *parser.Expression, seen map[string]bool) bool {
-	if expr.Kind == "Identifier" || expr.Kind == "Apply" {
+	if expr.Kind == "Identifier" || expr.Kind == "Apply" || expr.Kind == "OperatorReference" {
 		if strings.Contains(expr.Text, "!") && !strings.HasPrefix(expr.Text, "!bound!") {
-			return true
+			if _, ok := m.defs[expr.Text]; !ok {
+				return true
+			}
 		}
 		if qualifiedDefinitionReference(m, expr.Text, seen) {
 			return true

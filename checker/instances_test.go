@@ -39,7 +39,7 @@ func TestInstanceConstantParameters(t *testing.T) {
 		{"literal", "P(0)!Public", true},
 		{"constant quantified", "\\A i \\in {0,1} : P(i)!Public \\/ ~P(i)!Public", true},
 		{"state argument", "P(x)!Public", false},
-		{"state quantified", "\\A i \\in {x} : P(i)!Public", false},
+		{"state quantified", "\\A i \\in {x} : P(i)!Public", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			source := "---- MODULE M ----\nVARIABLE x\nP(p) == INSTANCE A WITH C <- p, y <- x\nInit == x = 0\nNext == x' = x\nInv == " + tt.expression + "\n===="

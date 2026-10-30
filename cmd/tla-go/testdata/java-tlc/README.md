@@ -22,3 +22,6 @@ functions returning functions.
 
 `test51`, `test51a`, `test51b`, and `test52` are unchanged models from the same
 suite. They exercise symbolic operators passed as higher-order arguments.
+
+`test203` and `test203a` are unchanged models from the same suite. They test a
+recursive operator passed into a parameterized module instance.
