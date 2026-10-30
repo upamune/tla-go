@@ -73,6 +73,7 @@ The exit code is 0 on success, 11 for deadlock, 12 for invariant or property vio
 
 - [Compatibility and limitations](docs/compatibility.md): supported model constructs and known differences from Java TLC.
 - [Development and testing](docs/development.md): building from source, quality checks, Java TLC comparisons, and fixture provenance.
+- [Statechart compatibility plan](docs/statechart-compatibility.md): the CLI, graph, and metadata interfaces needed by statechart.
 - [Security](SECURITY.md): how to report a vulnerability.
 
 Java TLC is the compatibility target. Some regression fixtures also come from [tla-ts](https://github.com/aidenybai/tla-ts), pinned at `19c763f07fda4b098e8a24405301628a424547c0`; see [UPSTREAM-LICENSE](UPSTREAM-LICENSE).

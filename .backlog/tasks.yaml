@@ -27,3 +27,38 @@ tasks:
       push_comments: false
     created_at: 2026-10-29T16:27:43.476Z
     updated_at: 2026-10-29T16:27:43.476Z
+  - id: task_002
+    title: Statechart が必要とする Java TLC インターフェース互換
+    description: docs/statechart-compatibility.md に実装順と受け入れ条件を記載。Java TLC を基準に
+      statechart の 33 件と実際の連携を検証する。
+    source_links: []
+    status: ready
+    priority: P1
+    labels: []
+    repo_targets:
+      - tla-go
+    acceptance_criteria:
+      - Java TLC と比較した tool メッセージと終了コードを statechart のパーサーで処理できる
+      - DOT actionlabels の状態と遷移を Java TLC および statechart と照合する
+      - SANY に相当する変数の宣言順と定義レベルを statechart が利用できる
+      - モジュール検索パス、名前付き標準 INSTANCE、USE DEF、必要な TLC オプションを実装する
+      - statechart の全 33 仕様と Java フォールバックをエンドツーエンドで検証し、性能と CI を確認する
+    dependencies: []
+    planning:
+      split_status: pending
+      risk: medium
+    execution_defaults:
+      manual_approval_required: false
+      auto_commit: true
+      push_when_done: true
+      create_pr: false
+      merge_pr: false
+      worktree_mode: direct
+      preferred_agents: []
+      max_subagents: 5
+    sync:
+      source_of_truth: backlog
+      push_status: false
+      push_comments: false
+    created_at: 2026-10-30T10:57:30.154Z
+    updated_at: 2026-10-30T10:57:30.154Z

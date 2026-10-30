@@ -1,0 +1,82 @@
+# Statechart compatibility plan
+
+Statechart integration is part of tla-go's Java TLC compatibility goal. This
+plan tracks the additional interfaces needed to use tla-go as a statechart
+backend; matching state counts alone is not sufficient.
+
+At tla-go commit `25cc6e0`, the statechart report supplied by the user says 32
+of 33 specifications matched Java TLC's exit code and state counts. That report
+has not yet been reproduced in this repository. The remaining specification and
+its failure need to be recorded alongside the integration tests. The current
+CLI also rejects `X == INSTANCE TLC` and module-level `USE DEF` in simple
+models that Java TLC accepts.
+
+## 1. Establish the integration baseline
+
+- Obtain the statechart repository, its exact revision and all 33 test specs.
+  Record the Java TLC version, commands, configuration, and expected results.
+- Run the existing integration tests with Java TLC and capture representative
+  `-tool` messages, DOT files and SANY XML. Include successful exploration,
+  deadlock, invariant violation, syntax or semantic error, and non-ASCII values.
+- Keep the existing Java backend as the default in statechart. The alternative
+  backend must be selected explicitly or when available according to the
+  consumer's integration design; do not silently substitute an unverified binary.
+
+## 2. Module and CLI compatibility
+
+- Support the module search paths used by statechart, with Java-compatible
+  lookup order, relative paths, transitive imports, and diagnostics. Test paths
+  containing spaces and missing or conflicting modules.
+- Support named standard-module instances such as `X == INSTANCE TLC`, including
+  qualified operator calls and relevant substitutions. Retain support for named
+  instances of user-defined modules.
+- Parse and validate the `USE DEF` forms used by the models without changing
+  model-checking semantics. Invalid proof directives must still be rejected.
+- Implement the actual statechart invocations of `-workers 1`, `-fp 0`, and
+  `-metadir`: verify their argument syntax and observable behavior against Java
+  TLC. Do not silently accept values or filesystem behavior that are not
+  implemented; test invalid and unsupported values too.
+
+## 3. TLC tool protocol
+
+- Implement `-tool` message framing, codes, severity, ordering, output streams,
+  and process exit behavior for the messages consumed by statechart. Use Java
+  TLC as the oracle, including progress, success, failure, and counterexamples.
+- Add direct protocol tests and tests using statechart's real message parser.
+  Preserve normal human-readable output when `-tool` is not selected.
+
+## 4. DOT state graph
+
+- Implement the `-dump dot,actionlabels` invocation used by statechart and write
+  the requested graph file, including initial states, transitions, action
+  labels, and Java-compatible state and value formatting.
+- Compare parsed graphs against Java TLC for branching, repeated transitions,
+  self-loops, constraints, special characters and Unicode. Exercise failure
+  paths and ensure output and errors are handled correctly.
+- Keep graph collection opt-in. Measure its runtime and memory costs on both
+  small and larger state spaces, and avoid slowing ordinary checks unnecessarily.
+
+## 5. SANY-compatible metadata
+
+- Identify the exact SANY XML command and fields statechart consumes, including
+  variable declaration order and operator definition levels. Implement an
+  equivalent interface that its existing consumer can read, or coordinate an
+  explicitly tested consumer change.
+- Derive levels from semantic analysis, including imports, substitutions,
+  parameters, bound names and standard modules; do not guess unsupported levels.
+  Reject unsupported cases rather than emit misleading metadata.
+- Compare parsed output against Java SANY for the statechart specs and targeted
+  fixtures covering ordering, nested instances, scopes, and semantic errors.
+
+## 6. End-to-end acceptance
+
+- Run all 33 statechart specifications through both backends. Compare the
+  consumer-visible tool messages, graph and SANY metadata, final charts, exit
+  codes, and explored state counts. Investigate any differences rather than
+  accepting a count match as proof of equivalence.
+- Test Java fallback, tla-go selection, missing binaries and errors in the actual
+  statechart integration. Preserve the Java default until compatibility is
+  verified and the consumer chooses to change it.
+- Run the repository's race tests, quality and security checks, the Java TLC
+  differential tests, native binary smoke tests, and relevant benchmarks. The
+  Java baseline and any newer TLC version used must be identified explicitly.
