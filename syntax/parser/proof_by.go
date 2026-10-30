@@ -58,8 +58,12 @@ func (p *parser) fact() (*Expression, error) {
 	t := p.peek()
 	start := p.pos
 	if t.Kind == "Step" {
+		label, err := p.proofStepReference(t.Text)
+		if err != nil {
+			return nil, p.error(err.Error())
+		}
 		p.next()
-		return node("ProofStepReference", canonicalProofLabel(t.Text), p.location(t, start)), nil
+		return node("ProofStepReference", label, p.location(t, start)), nil
 	}
 	if p.accept("MODULE") {
 		name, err := p.name()

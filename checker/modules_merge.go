@@ -11,6 +11,7 @@ func mergeExtensions(root *parser.Module, units []*parser.Module, standard []str
 	result.Assumptions = nil
 	result.ProofDirectives = nil
 	result.ImportedProofFacts = nil
+	result.ProofModules = append([]string(nil), root.ProofModules...)
 	result.RecursiveDeclarations = nil
 	result.Theorems = append([]parser.Theorem(nil), root.Theorems...)
 	offset := 0
@@ -31,6 +32,8 @@ func shiftTheoremLocations(theorems []parser.Theorem, offset int) {
 }
 
 func mergeExtensionUnit(result, unit *parser.Module, offset int) {
+	addProofModules(result, unit.Name)
+	addProofModules(result, unit.ProofModules...)
 	for _, declaration := range unit.Constants {
 		declaration.Location.Line += offset
 		result.Constants = append(result.Constants, declaration)

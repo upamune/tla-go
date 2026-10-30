@@ -6,6 +6,11 @@ import "github.com/upamune/tla-go/syntax/parser"
 func nestedScope(module, parent *parser.Module) parser.Module {
 	result := *module
 	result.Extends = append(append([]string(nil), module.Extends...), parent.Extends...)
+	result.ProofModules = append([]string(nil), module.ProofModules...)
+	addProofModules(&result, parent.ProofModules...)
+	for _, instance := range parent.Instances {
+		addProofModules(&result, instance.Module)
+	}
 	line := module.Location.Range.Start.Line
 	result.Constants = append(declarationsBefore(parent.Constants, parent.Name, line), module.Constants...)
 	result.Variables = append(declarationsBefore(parent.Variables, parent.Name, line), module.Variables...)

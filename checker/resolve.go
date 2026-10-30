@@ -13,6 +13,7 @@ type symbol struct {
 }
 
 type resolver struct {
+	proofModule   *parser.Module
 	globals       map[string]symbol
 	positions     map[string]parser.Position
 	assumeProve   map[string]bool
@@ -41,7 +42,7 @@ var (
 )
 
 func validateResolved(module *parser.Module) error {
-	r := resolver{globals: map[string]symbol{"TRUE": {}, "FALSE": {}, "BOOLEAN": {}, "STRING": {}}, positions: map[string]parser.Position{}, assumeProve: map[string]bool{}}
+	r := resolver{proofModule: module, globals: map[string]symbol{"TRUE": {}, "FALSE": {}, "BOOLEAN": {}, "STRING": {}}, positions: map[string]parser.Position{}, assumeProve: map[string]bool{}}
 	for _, name := range module.Extends {
 		r.includeModule(name)
 	}

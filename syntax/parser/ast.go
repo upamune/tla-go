@@ -145,6 +145,7 @@ type ProofStep struct {
 	Kind        string
 	Statement   *Expression
 	Definitions []Definition
+	Directive   *ProofDirective `json:",omitempty"`
 	Proof       *Proof
 	Location    Location
 }
@@ -153,6 +154,7 @@ type ProofStep struct {
 type ProofDirective struct {
 	Kind        string
 	Facts, Defs []*Expression
+	Only        bool `json:",omitempty"`
 	Location    Location
 }
 type Theorem struct {
@@ -181,6 +183,8 @@ type Module struct {
 	ProofDirectives      []ProofDirective `json:",omitempty"`
 	// ImportedProofFacts preserves named theorems when extension units are merged.
 	ImportedProofFacts []string `json:"-"`
+	// ProofModules retains module names after EXTENDS and INSTANCE expansion.
+	ProofModules []string `json:"-"`
 	// HasTLCInstance enables runtime services for standard-module instances.
 	HasTLCInstance        bool `json:"-"`
 	RecursiveDeclarations []Declaration

@@ -11,6 +11,9 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	if err != nil {
 		return err
 	}
+	addProofModules(result, module.Name)
+	addProofModules(result, module.ProofModules...)
+	addProofModules(result, module.Extends...)
 	module, instance = alphaInstance(module, instance)
 	instance, err = r.resolveInstanceSubexpressions(instance, result)
 	if err != nil {
@@ -24,6 +27,7 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 		return err
 	}
 	generated := instanceDefinitionNames(module, instance, index)
+	addInstanceProofFacts(result, module, generated)
 	generatedSet := instanceGeneratedArities(module, generated)
 	variables := make(map[string]bool, len(module.Variables))
 	for _, variable := range module.Variables {

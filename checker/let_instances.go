@@ -177,6 +177,7 @@ func (r *instanceResolver) expandLetScope(expr *parser.Expression, locals []pars
 			return err
 		}
 	}
+	r.proofModules = append(r.proofModules, generated.ProofModules...)
 	expr.Definitions = append(expr.Definitions, generated.Definitions...)
 	expr.Instances = nil
 	return nil

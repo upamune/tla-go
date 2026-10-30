@@ -25,6 +25,8 @@ func resolveInstancesScoped(ctx context.Context, module *parser.Module, loader M
 	}
 	result := *module
 	result.Definitions = append([]parser.Definition(nil), module.Definitions...)
+	result.ProofModules = append([]string(nil), module.ProofModules...)
+	result.ImportedProofFacts = append([]string(nil), module.ImportedProofFacts...)
 	result.Instances, result.Modules = nil, nil
 	for index, instance := range module.Instances {
 		if err := r.instantiate(&result, instance, index); err != nil {
@@ -34,6 +36,7 @@ func resolveInstancesScoped(ctx context.Context, module *parser.Module, loader M
 	if err := r.expandLetInstances(&result); err != nil {
 		return nil, err
 	}
+	addProofModules(&result, r.proofModules...)
 	return &result, nil
 }
 
@@ -76,6 +79,7 @@ type instanceResolver struct {
 	cache                map[string]*parser.Module
 	session              *instanceSession
 	usedModules          map[string]bool
+	proofModules         []string
 	constantRequirements map[string][]bool
 }
 
@@ -167,7 +171,11 @@ func (r *instanceResolver) validateUnit(module, parent *parser.Module) error {
 	}
 	check := *module
 	if parent != nil {
-		check = nestedScope(module, parent)
+		var err error
+		check, err = r.nestedProofScope(module, parent)
+		if err != nil {
+			return err
+		}
 	}
 	if err := validateResolved(&check); err != nil {
 		return fmt.Errorf("instance module %s: %w", module.Name, err)

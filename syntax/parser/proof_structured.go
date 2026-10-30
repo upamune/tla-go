@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/upamune/tla-go/syntax"
@@ -10,30 +9,24 @@ import (
 
 func canonicalProofLabel(label string) string { return strings.TrimRight(label, ".") }
 
-func proofStepLevel(label string) (int, error) {
+func proofStepParts(label string) (string, string, error) {
 	end := strings.IndexByte(label, '>')
 	if end < 2 || label[0] != '<' {
-		return 0, fmt.Errorf("invalid proof step %q", label)
+		return "", "", fmt.Errorf("invalid proof step %q", label)
 	}
-	level, err := strconv.Atoi(label[1:end])
-	if err != nil || level < 1 {
-		return 0, fmt.Errorf("unsupported proof step level %q", label)
-	}
-	name := canonicalProofLabel(label[end+1:])
-	if name == "*" || name == "-" {
-		return 0, fmt.Errorf("automatic proof step names are not supported")
-	}
-	return level, nil
+	return label[1:end], canonicalProofLabel(label[end+1:]), nil
 }
 
 func (p *parser) structuredProof(start int, token syntax.Token) (*Proof, error) {
-	level, err := proofStepLevel(p.peek().Text)
+	level, err := p.firstProofLevel(p.peek().Text)
 	if err != nil {
 		return nil, p.error(err.Error())
 	}
 	proof := &Proof{Kind: "Structured"}
+	p.proofLevels = append(p.proofLevels, level)
+	defer func() { p.proofLevels = p.proofLevels[:len(p.proofLevels)-1] }()
 	for {
-		step, err := p.structuredStep(level)
+		step, err := p.structuredStep(level, len(proof.Steps) == 0)
 		if err != nil {
 			return nil, err
 		}
@@ -46,9 +39,9 @@ func (p *parser) structuredProof(start int, token syntax.Token) (*Proof, error) 
 	return proof, nil
 }
 
-func (p *parser) structuredStep(level int) (ProofStep, error) {
+func (p *parser) structuredStep(level int, first bool) (ProofStep, error) {
 	start := p.pos
-	token, err := p.proofStepToken(level)
+	token, err := p.proofStepToken(level, first)
 	if err != nil {
 		return ProofStep{}, err
 	}
@@ -60,19 +53,23 @@ func (p *parser) structuredStep(level int) (ProofStep, error) {
 	if err != nil {
 		return ProofStep{}, err
 	}
-	if step.Kind == "Define" && step.Proof != nil {
-		return ProofStep{}, p.error("DEFINE cannot have a proof")
+	if proofStepHasNoProof(step.Kind) && step.Proof != nil {
+		return ProofStep{}, p.error("this proof step cannot have a proof")
 	}
 	step.Location = p.location(token, start)
 	return step, nil
 }
 
-func (p *parser) proofStepToken(level int) (syntax.Token, error) {
+func proofStepHasNoProof(kind string) bool {
+	return kind == "Define" || kind == "Use" || kind == "Hide"
+}
+
+func (p *parser) proofStepToken(level int, first bool) (syntax.Token, error) {
 	token := p.peek()
 	if token.Kind != "Step" {
 		return token, p.error("structured proof requires QED")
 	}
-	actual, err := proofStepLevel(token.Text)
+	actual, err := proofCurrentLevel(token.Text, level, first)
 	if err != nil {
 		return token, p.error(err.Error())
 	}
@@ -80,6 +77,7 @@ func (p *parser) proofStepToken(level int) (syntax.Token, error) {
 		return token, p.error("unexpected proof step level")
 	}
 	p.next()
+	token.Text = proofHeaderLabel(token.Text, level)
 	return token, nil
 }
 
@@ -92,6 +90,9 @@ func (p *parser) proofStepBody(token syntax.Token) (ProofStep, error) {
 		step.Kind = "Qed"
 		return step, nil
 	}
+	if isProofDirective(p.peek().Text) {
+		return p.structuredDirective(step)
+	}
 	if p.accept("SUFFICES") {
 		step.Kind = "Suffices"
 	}
@@ -100,6 +101,19 @@ func (p *parser) proofStepBody(token syntax.Token) (ProofStep, error) {
 		return ProofStep{}, err
 	}
 	step.Statement = statement
+	return step, nil
+}
+
+func (p *parser) structuredDirective(step ProofStep) (ProofStep, error) {
+	directive, err := p.parseProofDirective(true)
+	if err != nil {
+		return ProofStep{}, err
+	}
+	step.Kind = "Use"
+	if directive.Kind == "HIDE" {
+		step.Kind = "Hide"
+	}
+	step.Directive = &directive
 	return step, nil
 }
 
@@ -142,11 +156,11 @@ func (p *parser) proofBelow(level int) (*Proof, error) {
 		offset = 1
 	}
 	if p.look(offset).Kind == "Step" {
-		child, err := proofStepLevel(p.look(offset).Text)
+		child, err := beginsNestedProof(p.look(offset).Text, level, offset != 0)
 		if err != nil {
 			return nil, p.error(err.Error())
 		}
-		if child <= level {
+		if !child {
 			return nil, nil
 		}
 		return p.simpleProof()

@@ -70,7 +70,7 @@ func (r *resolver) validateDirective(directive parser.ProofDirective, definition
 }
 
 func (r *resolver) validateDirectiveFact(kind string, fact *parser.Expression, facts map[string]bool) error {
-	if kind == "HIDE" && (fact.Kind != "Identifier" || !facts[fact.Text]) {
+	if kind == "HIDE" && fact.Kind != "ModuleFact" && (fact.Kind != "Identifier" || !facts[fact.Text]) {
 		return fmt.Errorf("HIDE requires a named theorem or assumption")
 	}
 	proofResolver := *r

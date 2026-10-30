@@ -37,8 +37,9 @@ Module-level `USE DEF` and `USE DEFS` directives are parsed and checked for
 defined operators and declaration order. Targeted tests also cover facts and
 `HIDE` directives, imported definitions, and invalid references against Java
 TLC 1.7.4. Theorem `ASSUME`/`PROVE` statements support local `NEW` declarations,
-and selected numeric hierarchical proof forms validate `SUFFICES`, `DEFINE`,
-and step-reference scopes against Java TLC. Other proof forms and directives
+and selected hierarchical proof forms validate `SUFFICES`, `DEFINE`, `USE`,
+`HIDE`, and step-reference scopes against Java TLC. Relative and unnumbered step
+markers are also supported. Other proof forms and directives
 remain unsupported; the statechart specifications have not yet been verified
 for all proof forms.
 
@@ -83,17 +84,18 @@ and the output has not yet been validated across the full TLC suite.
 To run the corpus test locally, check out the pinned `cursor/plugins` revision
 and set `STATECHART_DIR` to its `pstack/skills/statechart` directory and
 `TLC_JAR` to the Java TLC 1.7.4 jar. Run
-`mise exec bun@1.3.11 -- go test ./cmd/tla-go -run '^(TestJavaTLCStatechart(Corpus|Marks|Hybrid|Standalone)|TestJavaSANY(MetadataLevels|StatechartMetadata|TLCLevels|TLCInstanceLevels))$' -count=1`.
+`mise exec bun@1.3.11 -- go test ./cmd/tla-go -run '^(TestJavaTLCStatechart(Corpus|Marks|Hybrid|Standalone)|TestJavaSANY(MetadataLevels|StatechartMetadata|TLCLevels|TLCInstanceLevels|TheoremNewLevels))$' -count=1`.
 
 ## 4. DOT state graph
 
 The CLI now supports `-dump dot,actionlabels`, `-workers 1`, and `-fp 0` for
 single-model runs. Targeted tests compare DOT bytes with Java TLC 1.7.4 for
 branching, repeated transitions, constraints, VIEW, symmetry, Unicode,
-liveness stuttering and failure paths. This is a partial implementation:
-statechart's actual specifications have not yet been checked, other dump
-formats and worker/fingerprint settings are unsupported, and state identity
-and fingerprint collision behavior can still differ from Java TLC.
+liveness stuttering and failure paths. The statechart integration tests also
+compare the consumer-visible charts for the pinned corpus. This is a partial
+implementation: byte-for-byte DOT equivalence for that corpus has not been
+established, other dump formats and worker/fingerprint settings are unsupported,
+and state identity and fingerprint collision behavior can still differ from Java TLC.
 
 - Complete the `-dump dot,actionlabels` invocation for all statechart models,
   including Java-compatible state, transition, and value formatting.

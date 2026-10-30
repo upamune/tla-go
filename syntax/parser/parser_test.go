@@ -137,8 +137,8 @@ func TestParameterizedInstanceRequiresArguments(t *testing.T) {
 }
 
 func TestUnsupportedProofIsRejected(t *testing.T) {
-	_, err := ParseModule("---- MODULE M ----\nTHEOREM T == TRUE\n<*>1. TRUE\n<*> QED\n====")
-	if err == nil || !strings.Contains(err.Error(), "unsupported proof step level") {
+	_, err := ParseModule("---- MODULE M ----\nTHEOREM T == TRUE\n<+>1. TRUE\n<*> QED\n====")
+	if err == nil || !strings.Contains(err.Error(), "relative proof step cannot be named") {
 		t.Fatalf("got %v", err)
 	}
 }

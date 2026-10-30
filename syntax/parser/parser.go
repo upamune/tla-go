@@ -7,12 +7,13 @@ import (
 )
 
 type parser struct {
-	tokens    []syntax.Token
-	pos       int
-	module    string
-	offside   int
-	recursive []map[string]bool
-	modules   []*Module
+	tokens      []syntax.Token
+	pos         int
+	module      string
+	offside     int
+	recursive   []map[string]bool
+	modules     []*Module
+	proofLevels []int
 }
 
 func (p *parser) raw() syntax.Token { return p.tokens[p.pos] }

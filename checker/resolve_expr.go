@@ -36,6 +36,9 @@ func (r *resolver) expressionHead(expr *parser.Expression, scope map[string]symb
 	if expr.BuiltinTLC || expr.BuiltinNatural {
 		return nil
 	}
+	if expr.Kind == "ModuleFact" {
+		return r.checkProofModule(expr.Text)
+	}
 	return r.expressionName(expr, scope)
 }
 
