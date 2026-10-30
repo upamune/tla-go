@@ -15,6 +15,9 @@ concurrency:
   group: osv-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  MISE_AUTO_INSTALL: "false"
+
 jobs:
   scan:
     if: github.event.repository.private == false
@@ -34,12 +37,17 @@ jobs:
         id: scan
         run: |
           report="$RUNNER_TEMP/osv-results.sarif"
+          : > "$report"
           set +e
-          mise exec -- osv-scanner scan source --lockfile=go.mod --format=sarif --output-file="$report"
+          osv-scanner scan source --lockfile=go.mod --format=sarif --output-file="$report"
           status=$?
           set -e
           case "$status" in
             0|1)
+              if ! jq -e '.version == "2.1.0" and (.runs | type == "array")' "$report" > /dev/null; then
+                echo '::error::OSV did not produce a valid SARIF report.'
+                exit 2
+              fi
               echo 'completed=true' >> "$GITHUB_OUTPUT"
               echo "report=$report" >> "$GITHUB_OUTPUT"
               ;;

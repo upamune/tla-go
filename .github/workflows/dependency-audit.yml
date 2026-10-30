@@ -15,6 +15,9 @@ concurrency:
   group: dependency-audit-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  MISE_AUTO_INSTALL: "false"
+
 jobs:
   govulncheck:
     runs-on: ubuntu-24.04
