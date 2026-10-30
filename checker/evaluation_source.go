@@ -39,6 +39,12 @@ func actionErrorSources(err error) []*parser.Expression {
 	return failure.Sources
 }
 
+func addInitialAssignmentErrorSource(err error, source *parser.Expression) {
+	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && failure.TrackSource {
+		evaluator.AddUnexpectedSource(err, source)
+	}
+}
+
 func addUnboundActionCallSource(err error, call, body *parser.Expression) {
 	missing, ok := errors.AsType[*evaluator.UnboundVariable](err)
 	if !ok || len(missing.Sources) == 0 || body == nil {

@@ -104,10 +104,12 @@ func assert(args []value.Value) (value.Value, error) {
 		message = formatted
 	}
 	return value.Value{}, &RuntimeError{
-		Message:  fmt.Sprintf("The first argument of Assert evaluated to FALSE; the second argument was:\n%s", value.PrettyPrint(message)),
-		Legacy:   fmt.Sprintf("assertion failed: %s", args[1]),
-		Standard: true,
-		ExitCode: 14,
+		Message:     fmt.Sprintf("The first argument of Assert evaluated to FALSE; the second argument was:\n%s", value.PrettyPrint(message)),
+		Legacy:      fmt.Sprintf("assertion failed: %s", args[1]),
+		Standard:    true,
+		ExitCode:    14,
+		ToolCode:    2132,
+		TrackSource: true,
 	}
 }
 

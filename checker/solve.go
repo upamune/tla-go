@@ -346,6 +346,9 @@ func (g *generator) assign(name, operator string, rhs *parser.Expression, items 
 	} else {
 		more, err = g.assignMembers(name, v, items[1:], partial, action)
 	}
+	if g.initial && err != nil {
+		addInitialAssignmentErrorSource(err, items[0].expr)
+	}
 	if err == nil && !more {
 		g.addInitialFailureSource(items[0].expr, true)
 	}

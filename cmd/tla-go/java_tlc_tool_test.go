@@ -123,7 +123,11 @@ func toolConsumerMessages(messages []toolMessage) []toolMessage {
 	var selected []toolMessage
 	for _, message := range messages {
 		switch message.code {
-		case 2104, 2105, 2107, 2108, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2121, 2122, 2146, 2179, 2190, 2191, 2199, 2217, 2218, 2229, 2230, 2233, 2253, 2264:
+		case 1000:
+			if strings.Contains(message.body, "@!@!@STARTMSG 2132:0 @!@!@") {
+				selected = append(selected, message)
+			}
+		case 2104, 2105, 2107, 2108, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2121, 2122, 2132, 2146, 2179, 2190, 2191, 2199, 2217, 2218, 2229, 2230, 2233, 2253, 2264:
 			if message.code == 2190 || message.code == 2191 {
 				message.body, _, _ = strings.Cut(message.body, " at ")
 			}
@@ -141,6 +145,11 @@ func TestJavaTLCToolEvaluationFailures(t *testing.T) {
 		{"next division", "Init == x=0\nNext == x' = 1 \\div 0", "INIT Init\nNEXT Next\n", 255, 2179},
 		{"invariant division", "Init == x=1\nNext == x'=0\nInv == 1 \\div x > 0", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 76, 2111},
 		{"assumption division", "ASSUME 1 \\div 0 = 0\nInit == x=0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n", 10, 2105},
+		{"next assert", "Init == x=0\nNext == Assert(x < 0, \"oops\") /\\ x'=x", "INIT Init\nNEXT Next\n", 14, 2132},
+		{"initial assert", "Init == x=0 /\\ Assert(FALSE, \"oops\")\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n", 75, 1000},
+		{"initial invariant assert", "Init == x=0\nNext == UNCHANGED x\nInv == Assert(x < 0, \"oops\")", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 75, 1000},
+		{"invariant assert", "Init == x=0\nNext == x'=x+1\nInv == Assert(x < 1, \"oops\")", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 76, 2111},
+		{"assumption assert", "ASSUME Assert(FALSE, \"oops\")\nInit == x=0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n", 10, 2105},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -150,6 +159,15 @@ func TestJavaTLCToolEvaluationFailures(t *testing.T) {
 			messages := readToolMessages(out.String())
 			if code != tc.code || !hasToolMessage(messages, tc.message) || errout.Len() != 0 {
 				t.Fatalf("exit %d, want %d; stdout %s; stderr %s", code, tc.code, out.String(), errout.String())
+			}
+			if strings.Contains(tc.name, "initial") && !strings.Contains(out.String(), "@!@!@STARTMSG 2132:0 @!@!@") {
+				t.Fatalf("missing nested assertion error: %s", out.String())
+			}
+			if tc.name == "initial assert" {
+				want := "0. Line 4, column 9 to line 4, column 36 in M\n1. Line 4, column 9 to line 4, column 11 in M\n2. Line 4, column 16 to line 4, column 36 in M"
+				if !strings.Contains(out.String(), want) {
+					t.Fatalf("missing Java TLC evaluation frames: %s", out.String())
+				}
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				compareJavaToolMessages(t, jar, dir, code, messages)

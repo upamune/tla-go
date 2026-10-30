@@ -22,11 +22,21 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 	}
 	if len(trace) > 0 {
 		s.result.Failure.ToolCode = failure.ToolCode
+	} else {
+		setInitialAssertFailure(s.result.Failure, failure)
 	}
 	if candidate, ok := errors.AsType[*candidateFingerprintError](err); ok && candidate.parent < 0 {
 		s.result.Failure.InitialState = candidate.state
 	}
 	return s.result, nil
+}
+
+func setInitialAssertFailure(result *Failure, failure *evaluator.RuntimeError) {
+	if failure.ToolCode == 2132 {
+		result.NestedToolCode = failure.ToolCode
+		result.NestedMessage = failure.Message
+		result.evaluationSources = slices.Clone(failure.Sources)
+	}
 }
 
 func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
@@ -146,6 +156,7 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 	}
 	result := &Failure{Message: failure.Message, ExitCode: 75}
 	if parent < 0 {
+		setInitialAssertFailure(result, failure)
 		if len(failure.Sources) > 0 {
 			result.evaluationSources = slices.Clone(failure.Sources)
 			result.SuppressDepth = true
