@@ -21,7 +21,7 @@ func (v Value) FunctionSetParts() (Value, Value, error) {
 
 func (v Value) containsFunction(element Value) (bool, error) {
 	if element.kind == ModelKind {
-		return false, nil
+		return v.modelFunctionMembership(element)
 	}
 	if element.kind == LazyFunctionKind {
 		fn, err := element.materializedFunction()
@@ -35,7 +35,7 @@ func (v Value) containsFunction(element Value) (bool, error) {
 
 func (v Value) containsFiniteFunction(element Value) (bool, error) {
 	if element.kind != FunctionKind {
-		return false, fmt.Errorf("expected a function in function set membership")
+		return false, v.nonFunctionMembershipError(element)
 	}
 	keys := make([]Value, len(element.data.pairs))
 	for i, pair := range element.data.pairs {
@@ -50,6 +50,26 @@ func (v Value) containsFiniteFunction(element Value) (bool, error) {
 		return false, err
 	}
 	return v.containsRange(element.data.pairs)
+}
+
+func (v Value) nonFunctionMembershipError(element Value) error {
+	set, err := v.StrictString()
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("Attempted to check if \n%s\nwhich is not a TLC function value, is in the set of functions:\n%s", element, PrettyPrint(set))
+	return &UnexpectedError{Message: message}
+}
+
+func (v Value) modelFunctionMembership(element Value) (bool, error) {
+	if modelType(element) == "" {
+		return false, nil
+	}
+	set, err := v.StrictString()
+	if err != nil {
+		return false, err
+	}
+	return false, &UnexpectedError{Message: fmt.Sprintf("Attempted to check if the typed model value %s is an element of\n%s", element, PrettyPrint(set))}
 }
 
 func (v Value) containsRange(pairs []Pair) (bool, error) {
