@@ -19,9 +19,20 @@ func TestJavaTLCEnabledInstance(t *testing.T) {
 	}{
 		{name: "test55", stats: "3 states generated, 2 distinct states found, 0 states left on queue."},
 		{name: "M", stats: "2 states generated, 1 distinct states found, 0 states left on queue.", files: map[string]string{
-			"M.tla":     "---- MODULE M ----\nVARIABLE z\nI == INSTANCE Inner WITH x <- z, y <- z\nInit == z = 0\nNext == UNCHANGED z\nInv == /\\ I!F /\\ ~I!G /\\ I!R /\\ ~ENABLED I!A\n====\n",
+			"M.tla":     "---- MODULE M ----\nVARIABLE z\nI == INSTANCE Inner WITH x <- z, y <- z\nJ == INSTANCE Inner WITH x <- z, y <- z\nInit == z = 0\nNext == UNCHANGED z\nInv == /\\ I!F /\\ I!H /\\ J!F /\\ ~I!G /\\ I!R /\\ ~ENABLED I!A /\\ ~ENABLED J!A\n====\n",
 			"M.cfg":     "INIT Init\nNEXT Next\nINVARIANT Inv\n",
-			"Inner.tla": "---- MODULE Inner ----\nVARIABLES x, y\nA == /\\ x' = 0 /\\ y' = 1\nF == ENABLED (x' = 0 /\\ y' = 1)\nG == ENABLED (x # y /\\ x' = 0 /\\ y' = 1)\nR == ENABLED (x' = 0 /\\ y' = 1 /\\ x' = 0)\n====\n",
+			"Inner.tla": "---- MODULE Inner ----\nVARIABLES x, y\nA == /\\ x' = 0 /\\ y' = 1\nF == ENABLED A\nH == ENABLED (LET L == A IN L)\nG == ENABLED (x # y /\\ x' = 0 /\\ y' = 1)\nR == ENABLED (x' = 0 /\\ y' = 1 /\\ x' = 0)\n====\n",
+		}},
+		{name: "Nested", stats: "2 states generated, 1 distinct states found, 0 states left on queue.", files: map[string]string{
+			"Nested.tla": "---- MODULE Nested ----\nVARIABLE z\nI == INSTANCE Middle WITH p <- z, q <- z\nInit == z = 0\nNext == UNCHANGED z\nInv == /\\ ~I!F /\\ I!H /\\ ~ENABLED I!J!A(1)\n====\n",
+			"Nested.cfg": "INIT Init\nNEXT Next\nINVARIANT Inv\n",
+			"Middle.tla": "---- MODULE Middle ----\nVARIABLES p, q\nJ == INSTANCE Inner WITH x <- p, y <- q\nF == ENABLED J!A(1)\nH == J!E\n====\n",
+			"Inner.tla":  "---- MODULE Inner ----\nVARIABLES x, y\nA(k) == /\\ x' = 0 /\\ y' = k\nE == ENABLED A(1)\n====\n",
+		}},
+		{name: "Local", stats: "2 states generated, 1 distinct states found, 0 states left on queue.", files: map[string]string{
+			"Local.tla": "---- MODULE Local ----\nVARIABLE z\nInit == z = 0\nNext == UNCHANGED z\nInv == LET I == INSTANCE Inner WITH x <- z, y <- z IN /\\ I!F /\\ ~ENABLED I!A\n====\n",
+			"Local.cfg": "INIT Init\nNEXT Next\nINVARIANT Inv\n",
+			"Inner.tla": "---- MODULE Inner ----\nVARIABLES x, y\nA == /\\ x' = 0 /\\ y' = 1\nF == ENABLED A\n====\n",
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

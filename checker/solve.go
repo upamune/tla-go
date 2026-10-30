@@ -295,8 +295,8 @@ func (g *generator) assignment(expr *parser.Expression) (string, string, bool) {
 		if target.Kind != "Prime" || len(target.Args) != 1 {
 			return "", "", false
 		}
-		if g.enabled && target.EnabledVariable != "" {
-			return target.EnabledVariable, expr.Text, true
+		if name, ok := g.lexical.EnabledVariable(target); g.enabled && ok {
+			return name, expr.Text, true
 		}
 		target = target.Args[0]
 	}

@@ -17,6 +17,8 @@ func substitute(expr *parser.Expression, replacements map[string]*parser.Express
 		}
 	}
 	result := *expr
+	result.EnabledScopes = append([]string(nil), expr.EnabledScopes...)
+	result.EnabledBindings = append([]parser.EnabledBinding(nil), expr.EnabledBindings...)
 	result.Args = subExpressions(expr.Args, replacements)
 	result.Bounds = subBounds(expr.Bounds, replacements)
 	result.Fields = subFields(expr.Fields, replacements)

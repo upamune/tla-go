@@ -35,9 +35,13 @@ type Expression struct {
 	Instances      []Instance
 	Location       Location
 	Args           []*Expression
-	// EnabledVariable preserves an instantiated variable's name inside ENABLED.
-	EnabledVariable string `json:"-"`
+	// Instance metadata preserves substitution boundaries for ENABLED.
+	EnabledScopes   []string         `json:"-"`
+	EnabledBindings []EnabledBinding `json:"-"`
 }
+
+// EnabledBinding identifies a variable before an instance substitution.
+type EnabledBinding struct{ Scope, Name string }
 
 // Selector is a component of a qualified operator or subexpression reference.
 type Selector struct {

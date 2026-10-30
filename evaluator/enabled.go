@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
@@ -10,8 +11,9 @@ import (
 
 // LexicalScope is an immutable snapshot used by an ENABLED callback.
 type LexicalScope struct {
-	scope        *scope
-	hasOperators bool
+	scope         *scope
+	hasOperators  bool
+	enabledScopes []string
 }
 
 type EnabledCallback func(action *parser.Expression, current State, lexical *LexicalScope) (bool, error)
@@ -31,7 +33,11 @@ func (p *Program) ExtendScope(parent *LexicalScope, definitions []parser.Definit
 	for _, definition := range definitions {
 		defs[definition.Name] = definition
 	}
-	return &LexicalScope{scope: &scope{parent: base, definitions: defs}, hasOperators: hasOperators}
+	var enabledScopes []string
+	if parent != nil {
+		enabledScopes = parent.enabledScopes
+	}
+	return &LexicalScope{scope: &scope{parent: base, definitions: defs}, hasOperators: hasOperators, enabledScopes: enabledScopes}
 }
 
 func (e *evaluator) enabled(expr *parser.Expression) (value.Value, error) {
@@ -41,9 +47,23 @@ func (e *evaluator) enabled(expr *parser.Expression) (value.Value, error) {
 	if len(expr.Args) != 1 {
 		return value.Value{}, fmt.Errorf("invalid ENABLED expression")
 	}
-	lexical := &LexicalScope{scope: snapshotScope(e.scope), hasOperators: e.hasOperators}
+	lexical := &LexicalScope{scope: snapshotScope(e.scope), hasOperators: e.hasOperators, enabledScopes: expr.EnabledScopes}
 	result, err := e.context.Enabled(expr.Args[0], e.context.Current, lexical)
 	return value.Bool(result), err
+}
+
+// EnabledVariable resolves a primed variable at the ENABLED scope boundary.
+func (s *LexicalScope) EnabledVariable(expr *parser.Expression) (string, bool) {
+	if s == nil {
+		return "", false
+	}
+	if len(expr.EnabledBindings) > 0 {
+		// If the innermost instance is entered after ENABLED, TLC follows its
+		// substitution through outer instances instead of stopping at them.
+		binding := expr.EnabledBindings[0]
+		return binding.Name, slices.Contains(s.enabledScopes, binding.Scope)
+	}
+	return "", false
 }
 
 // Definition looks up a visible definition while respecting shadowing.

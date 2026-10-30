@@ -50,6 +50,7 @@ func newInstanceResolver(ctx context.Context, module *parser.Module, loader Modu
 }
 
 type instanceSession struct {
+	nextInstance    int
 	active          map[string]bool
 	inherited       map[*parser.Module][]nestedModuleBinding
 	declaredImports map[*parser.Module][]string

@@ -25,8 +25,10 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	for _, variable := range module.Variables {
 		variables[variable.Name] = true
 	}
+	r.session.nextInstance++
+	scope := fmt.Sprintf("!instance-scope!%d!", r.session.nextInstance)
 	for _, definition := range module.Definitions {
-		result.Definitions = append(result.Definitions, instanceDefinition(definition, instance, replacements, generated, generatedSet, variables))
+		result.Definitions = append(result.Definitions, instanceDefinition(definition, instance, replacements, generated, generatedSet, variables, scope))
 	}
 	result.Definitions = append(result.Definitions, instanceValidationDefinitions(module, instance, replacements, index)...)
 	return nil

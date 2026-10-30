@@ -10,7 +10,7 @@ func declarationNames(params []parser.Declaration) map[string]bool {
 	return names
 }
 
-func instanceDefinition(definition parser.Definition, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet, variables map[string]bool) parser.Definition {
+func instanceDefinition(definition parser.Definition, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet, variables map[string]bool, scope string) parser.Definition {
 	definition.Origins = instanceOrigins(definition, instance)
 	definition.InstanceRange = instance.Location.Range
 	definition.InstanceParamCount = len(instance.Params)
@@ -22,31 +22,37 @@ func instanceDefinition(definition parser.Definition, instance parser.Instance, 
 		self = definition.Name
 	}
 	body := substitute(definition.Body, nil)
-	markEnabledInstanceVariables(body, variables, false)
+	markEnabledInstanceVariables(body, variables, scope)
 	definition.Body = instanceExpression(body, replacements, generatedSet, instance.Params, self)
 	definition.Bounds = instanceBounds(definition.Bounds, replacements, generatedSet, instance.Params)
 	definition.Location.Position = instance.Location.Position
 	return definition
 }
 
-func markEnabledInstanceVariables(expr *parser.Expression, variables map[string]bool, inside bool) {
+func markEnabledInstanceVariables(expr *parser.Expression, variables map[string]bool, scope string) {
 	if expr == nil {
 		return
 	}
-	inside = inside || expr.Kind == "Enabled"
-	if inside {
-		markEnabledPrime(expr, variables)
+	for i := range expr.EnabledScopes {
+		expr.EnabledScopes[i] = scope + expr.EnabledScopes[i]
 	}
-	walkChildren(expr, func(child *parser.Expression) { markEnabledInstanceVariables(child, variables, inside) })
+	for i := range expr.EnabledBindings {
+		expr.EnabledBindings[i].Scope = scope + expr.EnabledBindings[i].Scope
+	}
+	if expr.Kind == "Enabled" {
+		expr.EnabledScopes = append(expr.EnabledScopes, scope)
+	}
+	markEnabledPrime(expr, variables, scope)
+	walkChildren(expr, func(child *parser.Expression) { markEnabledInstanceVariables(child, variables, scope) })
 }
 
-func markEnabledPrime(expr *parser.Expression, variables map[string]bool) {
-	if expr.Kind != "Prime" || expr.EnabledVariable != "" || len(expr.Args) != 1 {
+func markEnabledPrime(expr *parser.Expression, variables map[string]bool, scope string) {
+	if expr.Kind != "Prime" || len(expr.Args) != 1 {
 		return
 	}
 	arg := expr.Args[0]
 	if arg.Kind == "Identifier" && variables[arg.Text] {
-		expr.EnabledVariable = arg.Text
+		expr.EnabledBindings = append(expr.EnabledBindings, parser.EnabledBinding{Scope: scope, Name: arg.Text})
 	}
 }
 
