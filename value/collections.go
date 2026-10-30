@@ -181,8 +181,13 @@ func Tuple(elements []Value) (Value, error) {
 }
 
 func (v Value) Lookup(key Value) (Value, error) {
+	return v.LookupWithLazyResult(key, false)
+}
+
+// LookupWithLazyResult preserves nested function values when requested.
+func (v Value) LookupWithLazyResult(key Value, keepLazy bool) (Value, error) {
 	if v.kind == LazyFunctionKind {
-		return v.lazyLookup(key)
+		return v.lazyLookup(key, keepLazy)
 	}
 	if v.kind != FunctionKind {
 		return Value{}, fmt.Errorf("expected a function")

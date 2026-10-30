@@ -6,10 +6,15 @@ import (
 )
 
 type lazyFunction struct {
-	compute     func(Value, Value) (Value, error)
+	compute     func(Value, Value, bool) (Value, error)
 	description string
 	mu          sync.RWMutex
-	cache       map[string]Value
+	cache       map[lazyFunctionKey]Value
+}
+
+type lazyFunctionKey struct {
+	key      string
+	keepLazy bool
 }
 
 // LazyFunction constructs a function whose body is evaluated on application.
@@ -24,7 +29,17 @@ func LazyFunctionDescribed(domain Value, description string, compute func(Value,
 	if !domain.IsSet() || compute == nil {
 		return Value{}, fmt.Errorf("lazy function requires a domain and body")
 	}
-	return Value{kind: LazyFunctionKind, data: &payload{domain: domain, lazy: &lazyFunction{compute: compute, description: description, cache: map[string]Value{}}}}, nil
+	return LazyFunctionWithControl(domain, description, func(argument, self Value, _ bool) (Value, error) {
+		return compute(argument, self)
+	})
+}
+
+// LazyFunctionWithControl passes the caller's requested laziness to its body.
+func LazyFunctionWithControl(domain Value, description string, compute func(Value, Value, bool) (Value, error)) (Value, error) {
+	if !domain.IsSet() || compute == nil {
+		return Value{}, fmt.Errorf("lazy function requires a domain and body")
+	}
+	return Value{kind: LazyFunctionKind, data: &payload{domain: domain, lazy: &lazyFunction{compute: compute, description: description, cache: map[lazyFunctionKey]Value{}}}}, nil
 }
 
 func (v Value) hasLazyDescription() bool {
@@ -47,7 +62,7 @@ func (v Value) FunctionDomain() (Value, error) {
 	return Set(keys)
 }
 
-func (v Value) lazyLookup(key Value) (Value, error) {
+func (v Value) lazyLookup(key Value, keepLazy bool) (Value, error) {
 	found, err := v.data.domain.Contains(key)
 	if err != nil {
 		return Value{}, err
@@ -58,11 +73,12 @@ func (v Value) lazyLookup(key Value) (Value, error) {
 	if v.number >= 4096 {
 		return Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	return v.lazyCompute(key)
+	return v.lazyCompute(key, keepLazy)
 }
 
-func (v Value) lazyCompute(key Value) (Value, error) {
-	cacheKey, keyErr := key.Key()
+func (v Value) lazyCompute(key Value, keepLazy bool) (Value, error) {
+	keyText, keyErr := key.Key()
+	cacheKey := lazyFunctionKey{key: keyText, keepLazy: keepLazy}
 	if keyErr == nil {
 		v.data.lazy.mu.RLock()
 		result, ok := v.data.lazy.cache[cacheKey]
@@ -73,7 +89,7 @@ func (v Value) lazyCompute(key Value) (Value, error) {
 	}
 	self := v
 	self.number++
-	result, err := v.data.lazy.compute(key, self)
+	result, err := v.data.lazy.compute(key, self, keepLazy)
 	if err == nil && keyErr == nil {
 		v.data.lazy.mu.Lock()
 		v.data.lazy.cache[cacheKey] = result
@@ -126,8 +142,8 @@ func (v Value) lazyUpdate(key Value, update func(Value) (Value, error)) (Value, 
 	if err != nil || !found {
 		return v, err
 	}
-	return LazyFunctionDescribed(v.data.domain, v.data.lazy.description, func(item, _ Value) (Value, error) {
-		previous, err := v.Lookup(item)
+	return LazyFunctionWithControl(v.data.domain, v.data.lazy.description, func(item, _ Value, keepLazy bool) (Value, error) {
+		previous, err := v.LookupWithLazyResult(item, keepLazy)
 		if err != nil {
 			return Value{}, err
 		}

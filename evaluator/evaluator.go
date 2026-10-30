@@ -59,6 +59,7 @@ type evaluator struct {
 	randomization  bool
 	hasOperators   bool
 	primeArguments bool
+	keepLazy       bool
 	active         map[string]bool
 	functionCache  map[functionCacheKey]value.Value
 	depth          int

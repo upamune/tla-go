@@ -7,8 +7,8 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func functionLookup(fn, key value.Value) (value.Value, error) {
-	result, err := fn.Lookup(key)
+func functionLookup(fn, key value.Value, keepLazy bool) (value.Value, error) {
+	result, err := fn.LookupWithLazyResult(key, keepLazy)
 	if err == nil {
 		return result, nil
 	}

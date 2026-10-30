@@ -275,7 +275,7 @@ func (e *evaluator) functionApplication(expr *parser.Expression) (value.Value, e
 			return value.Value{}, err
 		}
 	}
-	return functionLookup(fn, key)
+	return functionLookup(fn, key, e.keepLazy)
 }
 
 func (e *evaluator) field(expr *parser.Expression) (value.Value, error) {

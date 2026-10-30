@@ -142,7 +142,7 @@ func (e *evaluator) functionConstruction(expr *parser.Expression) (value.Value, 
 	if err != nil {
 		return value.Value{}, err
 	}
-	if !domain.IsEnumerable() {
+	if e.keepLazy || !domain.IsEnumerable() {
 		return e.lazyFunctionOnDomain(domain, expr.Bounds, expr.Args[0], "")
 	}
 	var pairs []value.Pair

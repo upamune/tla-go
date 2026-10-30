@@ -71,3 +71,24 @@ func TestLazyFunctionMatchesFiniteFunctionKey(t *testing.T) {
 		t.Fatal("out-of-domain argument accepted")
 	}
 }
+
+func TestLazyFunctionCachesEvaluationModesSeparately(t *testing.T) {
+	var calls atomic.Int32
+	fn, err := LazyFunctionWithControl(Interval(1, 1), "", func(_, _ Value, keepLazy bool) (Value, error) {
+		calls.Add(1)
+		return Bool(keepLazy), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, _ := Integer(1)
+	for _, keepLazy := range []bool{true, false, true, false} {
+		got, err := fn.LookupWithLazyResult(key, keepLazy)
+		if result, ok := got.Bool(); err != nil || !ok || result != keepLazy {
+			t.Fatalf("keepLazy=%v: got %v, %v", keepLazy, got, err)
+		}
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("computed %d times, want 2", got)
+	}
+}

@@ -101,8 +101,9 @@ func (e *evaluator) makeLazyFunction(bounds []parser.Bound, body *parser.Express
 func (e *evaluator) lazyFunctionOnDomain(domain value.Value, bounds []parser.Bound, body *parser.Expression, name string) (value.Value, error) {
 	captured := e.snapshot()
 	description := lazyDescription(domain, bounds, body)
-	return value.LazyFunctionDescribed(domain, description, func(argument, self value.Value) (value.Value, error) {
+	return value.LazyFunctionWithControl(domain, description, func(argument, self value.Value, keepLazy bool) (value.Value, error) {
 		instance := captured
+		instance.keepLazy = keepLazy
 		if name != "" {
 			instance.scope = &scope{parent: instance.scope, values: map[string]value.Value{name: self}}
 		}
@@ -136,8 +137,7 @@ func (e *evaluator) bindFunctionArgument(bounds []parser.Bound, argument value.V
 }
 
 func (e *evaluator) functionOperand(expr *parser.Expression) (value.Value, error) {
-	if expr.Kind == "FunctionConstruction" {
-		return e.makeLazyFunction(expr.Bounds, expr.Args[0], "")
-	}
-	return e.eval(expr)
+	child := *e
+	child.keepLazy = true
+	return child.eval(expr)
 }
