@@ -8,9 +8,11 @@ Supported finite-state models include `INIT`/`NEXT`, common `SPECIFICATION` form
 
 Support is partial. Complex temporal formulas, action predicates, fairness combined with state reductions, and some recursive or effectful expressions can fail or differ from Java TLC. Counterexample selection, state ordering, fingerprinting, error messages, printed values, and exit codes are not fully compatible. TLC runtime values, side effects, random choices, and duration-dependent checks can also produce different results.
 
+Java TLC 1.7.4 and 1.8.0 differ on some temporal formulas. For example, `~(\E i \in {} : <>[](x = i))` produces a tautology error in 1.7.4 and a temporal-action error in 1.8.0; tla-go currently follows the 1.7.4 result for this case.
+
 ## Language and modules
 
-The parser and evaluator support selected TLA+ expressions, operators, functions, recursive functions, and operator arguments. Module loading includes transitive `EXTENDS`, `LOCAL` definitions, and many named, parameterized, and nested `INSTANCE` forms. Some instance combinations, subexpression references, capture-avoiding substitutions, and function actions with operator parameters are not supported. Full TLC level checking and proof obligations are not implemented.
+The parser and evaluator support selected TLA+ expressions, operators, functions, recursive functions, and operator arguments. Module loading includes transitive `EXTENDS`, `LOCAL` definitions, and many named, parameterized, and nested `INSTANCE` forms. Some instance combinations, subexpression references, capture-avoiding substitutions, and function actions with operator parameters are not supported. In particular, substitutions into a constant module can be rejected more strictly than Java TLC; the upstream `test213` also reports a different exit code. Full TLC level checking and proof obligations are not implemented.
 
 Theorem `ASSUME`/`PROVE` statements support `NEW` declarations, including their local scope, bounded constant declarations, and references in `BY` proofs. Hierarchical proof steps support assertions, `SUFFICES`, `DEFINE`, `USE`, `HIDE`, `PICK`, `TAKE`, `HAVE`, `WITNESS`, `CASE`, `QED`, step references, and relative or unnumbered step markers, including the upstream `test207` model. Other proof forms, including proof-local instances, remain unsupported; proof obligations are not checked. Java TLC 1.7.4 rejects the upstream `test61` parameterized instance, whereas Java TLC 1.8.0 and tla-go both explore its five distinct states.
 

@@ -145,6 +145,10 @@ func graphShouldFinish(result checker.Result, err error, graph *dotDump) bool {
 }
 
 func reportModelError(out, errout io.Writer, err error) int {
+	if modelErr, ok := errors.AsType[*checker.ModelValidationError](err); ok {
+		fmt.Fprintf(out, "Error: %s\n", modelErr.Message)
+		return modelErr.ExitCode
+	}
 	if configErr, ok := errors.AsType[*checker.ConfigurationError](err); ok {
 		fmt.Fprintf(out, "Error: %s\n", configErr.Message)
 		return 151

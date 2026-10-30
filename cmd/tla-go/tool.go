@@ -103,6 +103,10 @@ func toolLoadFailure(t toolOutput, diagnostic *bytes.Buffer, code int) int {
 }
 
 func toolModelError(t toolOutput, err error) int {
+	if modelErr, ok := errors.AsType[*checker.ModelValidationError](err); ok {
+		t.message(modelErr.Code, 1, modelErr.Message)
+		return modelErr.ExitCode
+	}
 	var syntaxErr *checker.SyntaxError
 	var semanticErr *checker.SemanticError
 	if errors.As(err, &syntaxErr) || errors.As(err, &semanticErr) {

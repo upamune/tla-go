@@ -180,6 +180,15 @@ func (e *ConfigurationError) Error() string {
 }
 func (e *ConfigurationError) Unwrap() error { return e.Err }
 
+// ModelValidationError describes a Java TLC model validation failure.
+type ModelValidationError struct {
+	Message  string
+	Code     int
+	ExitCode int
+}
+
+func (e *ModelValidationError) Error() string { return e.Message }
+
 // CheckContext supports cancellation during state exploration.
 func CheckContext(ctx context.Context, source, configuration string) (Result, error) {
 	return CheckWithLoader(ctx, source, configuration, nil)
@@ -409,6 +418,9 @@ func applyConfigOverrides(module *parser.Module, cfg config.Config) (*parser.Mod
 }
 
 func (m *model) validateModel() error {
+	if err := m.validateInvariantLevels(); err != nil {
+		return err
+	}
 	if err := m.validateDefinitions(); err != nil {
 		return err
 	}

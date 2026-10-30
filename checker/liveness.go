@@ -104,7 +104,7 @@ func (m *model) prepareNonConjunctProperty(name string, expr *parser.Expression,
 	property, ok := m.classifyProperty(temporalProperty{name: name, bounds: bounds}, expr)
 	if !ok {
 		if trivialTemporalImplication(expr) {
-			return fmt.Errorf("Temporal formula is a tautology (its negation is unsatisfiable)")
+			return temporalTautologyError()
 		}
 		property = temporalProperty{name: name, bounds: bounds, predicate: expr, mode: generalTemporal}
 	}
@@ -279,11 +279,19 @@ func (m *model) compileGeneralProperty(instance *temporalProperty) error {
 		return err
 	}
 	if formula.kind == ltlFalse {
-		return fmt.Errorf("Temporal formula is a tautology (its negation is unsatisfiable)")
+		return temporalTautologyError()
 	}
 	compiler.retainEventualities(formula)
 	instance.general, instance.eventualities = formula, compiler.eventuality
 	return nil
+}
+
+func temporalTautologyError() error {
+	return &ModelValidationError{
+		Message:  "Temporal formula is a tautology (its negation is unsatisfiable).",
+		Code:     2253,
+		ExitCode: 77,
+	}
 }
 
 func (m *model) holdsProperty(expr *parser.Expression, current evaluator.State, locals map[string]value.Value) (bool, error) {
