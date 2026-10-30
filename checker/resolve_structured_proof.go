@@ -50,14 +50,35 @@ func (s *structuredProofScope) clone() *structuredProofScope {
 func (s *structuredProofScope) structured(proof *parser.Proof) error {
 	local := s.clone()
 	for _, step := range proof.Steps {
-		if namedProofStep(step.Label) {
-			local.facts[step.Label] = proofStepIsFact(step.Kind)
-		}
+		local.addStepFact(step)
 		if err := local.step(step); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (s *structuredProofScope) addStepFact(step parser.ProofStep) {
+	if !namedProofStep(step.Label) {
+		return
+	}
+	s.facts[step.Label] = proofStepIsFact(step.Kind)
+	if !s.facts[step.Label] {
+		return
+	}
+	s.symbols[step.Label] = symbol{}
+	if step.Statement != nil {
+		s.definitions[step.Label] = proofStepDefinition(step)
+		s.localDefs[step.Label] = true
+	}
+}
+
+func proofStepDefinition(step parser.ProofStep) parser.Definition {
+	body := step.Statement
+	if step.Kind == "Suffices" && body.Kind != "AssumeProve" {
+		body = &parser.Expression{Kind: "Suffices", Args: []*parser.Expression{body}, Location: body.Location}
+	}
+	return parser.Definition{Kind: "Operator", Name: step.Label, Body: body}
 }
 
 func proofStepIsFact(kind string) bool {

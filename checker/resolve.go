@@ -172,7 +172,9 @@ func (r *resolver) definition(d parser.Definition, scope map[string]symbol) erro
 
 func (r *resolver) definitionInScope(d parser.Definition, scope map[string]symbol) error {
 	previous := r.position
-	r.position = d.Location.Position
+	if !r.proofScope {
+		r.position = d.Location.Position
+	}
 	defer func() { r.position = previous }()
 	if d.Kind != "Operator" && d.Kind != "Function" {
 		return fmt.Errorf("unsupported definition %s", d.Name)
@@ -193,7 +195,7 @@ func (r *resolver) definitionBody(d parser.Definition, local map[string]symbol) 
 			return err
 		}
 	}
-	if d.Kind == "Function" && len(d.Params) > 0 {
+	if d.Kind == "Function" {
 		local[d.Name] = symbol{}
 	}
 	return r.expression(d.Body, local)

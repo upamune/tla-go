@@ -150,6 +150,9 @@ func (p *parser) fieldAccess(start int, left *Expression) (*Expression, bool, er
 
 func (p *parser) prefix() (*Expression, error) {
 	t := p.peek()
+	if t.Kind == "Step" && p.currentProofLevel() >= 0 {
+		return p.proofStepExpression(t)
+	}
 	if t.Kind == "Operator" && p.operatorCallAhead() {
 		return p.identifier()
 	}
@@ -157,6 +160,17 @@ func (p *parser) prefix() (*Expression, error) {
 		return p.junction()
 	}
 	return p.prefixOrPrimary(t)
+}
+
+func (p *parser) proofStepExpression(token syntax.Token) (*Expression, error) {
+	start := p.pos
+	label, err := p.proofStepReference(token.Text)
+	if err != nil {
+		return nil, p.error(err.Error())
+	}
+	p.next()
+	token.Text = label
+	return p.identifierTail(start, token)
 }
 
 func (p *parser) prefixOrPrimary(t syntax.Token) (*Expression, error) {

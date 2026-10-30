@@ -168,6 +168,9 @@ func configSymbol(module *parser.Module, name string) (parser.Definition, bool) 
 			return configConstantDefinition(declaration), true
 		}
 	}
+	if configStandardValue(module, name) {
+		return parser.Definition{Kind: "Operator", Name: name}, true
+	}
 	return configStandardOperator(module, name)
 }
 

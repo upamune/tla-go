@@ -83,7 +83,7 @@ func (p *parser) proofStepToken(level int, first bool) (syntax.Token, error) {
 
 func (p *parser) proofStepBody(token syntax.Token) (ProofStep, error) {
 	step := ProofStep{Label: canonicalProofLabel(token.Text), Kind: "Assert"}
-	if p.accept("DEFINE") {
+	if p.accept("DEFINE") || p.implicitProofDefinitionAhead() {
 		return p.proofDefineStep(step)
 	}
 	if p.accept("QED") {
@@ -105,6 +105,59 @@ func (p *parser) proofStepBody(token syntax.Token) (ProofStep, error) {
 	}
 	step.Statement = statement
 	return step, nil
+}
+
+func (p *parser) implicitProofDefinitionAhead() bool {
+	if p.isOperatorDefinition() {
+		return true
+	}
+	if p.peek().Kind != "Identifier" {
+		return false
+	}
+	if p.look(1).Text == "==" {
+		return true
+	}
+	open := p.look(1).Text
+	if open != "(" && open != "[" {
+		return false
+	}
+	close := ")"
+	if open == "[" {
+		close = "]"
+	}
+	return p.definitionAfterClosingDelimiter(open, close)
+}
+
+func (p *parser) definitionAfterClosingDelimiter(open, close string) bool {
+	depth := 0
+	for offset := 1; ; offset++ {
+		t := p.look(offset)
+		if proofDefinitionBoundary(t) {
+			return false
+		}
+		depth += proofDelimiterDelta(t, open, close)
+		if depth == 0 {
+			next := p.look(offset + 1)
+			return next.Kind != "String" && next.Text == "=="
+		}
+	}
+}
+
+func proofDefinitionBoundary(token syntax.Token) bool {
+	return token.Kind == "End" || token.Kind == "Step" || token.Kind == "ModuleEnd"
+}
+
+func proofDelimiterDelta(token syntax.Token, open, close string) int {
+	if token.Kind == "String" {
+		return 0
+	}
+	if token.Text == open {
+		return 1
+	}
+	if token.Text == close {
+		return -1
+	}
+	return 0
 }
 
 func (p *parser) structuredDirective(step ProofStep) (ProofStep, error) {

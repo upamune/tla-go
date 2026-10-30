@@ -1,14 +1,14 @@
 package parser
 
 func (p *parser) theoremAssumption() (*Expression, error) {
-	if !p.at("NEW") {
+	if !p.proofDeclarationAhead() {
 		return p.expression(0)
 	}
 	start := p.pos
-	token := p.next()
+	token := p.peek()
+	p.accept("NEW")
 	kind := "CONSTANT"
-	switch p.peek().Text {
-	case "CONSTANT", "VARIABLE", "STATE", "ACTION":
+	if proofDeclarationKind(p.peek().Text) {
 		kind = p.next().Text
 	}
 	decl, err := p.declaration(true)
@@ -30,4 +30,17 @@ func (p *parser) theoremAssumption() (*Expression, error) {
 	result.Names = []string{decl.Name}
 	result.ArgumentCounts = []int{decl.Arity}
 	return result, nil
+}
+
+func (p *parser) proofDeclarationAhead() bool {
+	return p.at("NEW") || proofDeclarationKind(p.peek().Text)
+}
+
+func proofDeclarationKind(text string) bool {
+	switch text {
+	case "CONSTANT", "VARIABLE", "STATE", "ACTION", "TEMPORAL":
+		return true
+	default:
+		return false
+	}
 }

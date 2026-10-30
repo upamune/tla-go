@@ -10,6 +10,10 @@ import (
 func (p *parser) identifier() (*Expression, error) {
 	start := p.pos
 	t := p.next()
+	return p.identifierTail(start, t)
+}
+
+func (p *parser) identifierTail(start int, t syntax.Token) (*Expression, error) {
 	args, hasArgs, err := p.selectorArgs()
 	if err != nil {
 		return nil, err

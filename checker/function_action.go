@@ -34,14 +34,14 @@ func (g *generator) checkedFunctionAction(item work, definition parser.Definitio
 }
 
 func (g *generator) expandFunctionAction(item work, definition parser.Definition, rest []work, partial evaluator.State, action string) (bool, error) {
-	if item.path.contains(definition.Name) {
+	if item.path.functionLimitReached() {
 		return false, fmt.Errorf("recursive action expansion: %s", definition.Name)
 	}
 	bindings, err := g.functionWitnesses(item, definition, partial)
 	if err != nil {
 		return false, err
 	}
-	path := item.path.withName(definition.Name)
+	path := item.path.withFunction()
 	body := work{expr: definition.Body, path: path, locals: bindings}
 	return g.solve(prepend(body, rest), partial, action)
 }

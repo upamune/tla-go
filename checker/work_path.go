@@ -8,9 +8,23 @@ import (
 
 // workPath carries both recursion detection and an optional lexical boundary.
 type workPath struct {
-	names    map[string]bool
-	scope    *evaluator.LexicalScope
-	hasScope bool
+	names         map[string]bool
+	scope         *evaluator.LexicalScope
+	hasScope      bool
+	functionDepth int
+}
+
+func (p *workPath) withFunction() *workPath {
+	result := workPath{}
+	if p != nil {
+		result = *p
+	}
+	result.functionDepth++
+	return &result
+}
+
+func (p *workPath) functionLimitReached() bool {
+	return p != nil && p.functionDepth >= 4096
 }
 
 func (p *workPath) hasLexicalScope() bool { return p != nil && p.hasScope }

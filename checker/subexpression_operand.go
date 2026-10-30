@@ -91,7 +91,7 @@ func subexpressionOperands(expr *parser.Expression) []*parser.Expression {
 		return subexpressionBoundSets(expr.Bounds)
 	}
 	switch expr.Kind {
-	case "Apply", "And", "Or", "If", "Tuple", "SetEnumeration", "Prime", "Unchanged", "Enabled", "Always", "Eventually", "BoxAction", "AngleAction", "WeakFairness", "StrongFairness", "FunctionSet", "Product", "AssumeProve":
+	case "Apply", "And", "Or", "If", "Tuple", "SetEnumeration", "Prime", "Unchanged", "Enabled", "Always", "Eventually", "BoxAction", "AngleAction", "WeakFairness", "StrongFairness", "FunctionSet", "Product", "AssumeProve", "Suffices":
 		return expr.Args
 	case "FunctionApplication":
 		return subexpressionFunctionOperands(expr)

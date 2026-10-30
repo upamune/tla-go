@@ -74,6 +74,9 @@ func (m *model) check() (Result, error) {
 
 func (m *model) checkAssumptions() (Result, bool, error) {
 	for _, assumption := range m.module.Assumptions {
+		if assumption.Axiom {
+			continue
+		}
 		ok, err := m.holds(assumption.Expression, nil, nil)
 		if err != nil {
 			if failure, valid := errors.AsType[*evaluator.RuntimeError](err); valid {
