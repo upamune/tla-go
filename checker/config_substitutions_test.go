@@ -26,6 +26,12 @@ func TestConfigSubstitutions(t *testing.T) {
 			config: "INIT Init\nNEXT Next\nINVARIANT Inv\nCONSTANT F <- Inc G <- Add C = 1",
 			status: InvariantViolation, states: 3,
 		},
+		{
+			name:   "standard operators",
+			source: "---- MODULE M ----\nEXTENDS Naturals, Sequences\nVARIABLE x\nPlus(a, b) == 99\nLen2(s) == 7\nInit == x = 0\nNext == UNCHANGED x\nInv == /\\ 1 + 2 = 99 /\\ Len(<<1, 2>>) = 7\n====",
+			config: "INIT Init NEXT Next INVARIANT Inv CONSTANT + <- Plus Len <- Len2",
+			status: Success, states: 1,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := Check(tc.source, tc.config)
@@ -36,6 +42,21 @@ func TestConfigSubstitutions(t *testing.T) {
 				t.Fatalf("got %+v", result)
 			}
 		})
+	}
+}
+
+func TestInvalidStandardOperatorSubstitutions(t *testing.T) {
+	for _, source := range []string{
+		"---- MODULE M ----\nCONSTANT F(_)\nVARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n====",
+		"---- MODULE M ----\nEXTENDS Naturals\nCONSTANT F(_)\nVARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n====",
+	} {
+		if result, err := Check(source, "INIT Init NEXT Next CONSTANT F <- Len"); err == nil {
+			t.Fatalf("unexpected result without Sequences: %+v", result)
+		}
+	}
+	source := "---- MODULE M ----\nEXTENDS Sequences\nCONSTANT F(_, _)\nVARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n===="
+	if result, err := Check(source, "INIT Init NEXT Next CONSTANT F <- Len"); err == nil {
+		t.Fatalf("unexpected result for different arities: %+v", result)
 	}
 }
 

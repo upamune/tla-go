@@ -171,7 +171,7 @@ func configSymbol(module *parser.Module, name string) (parser.Definition, bool) 
 			return configConstantDefinition(declaration), true
 		}
 	}
-	return parser.Definition{}, false
+	return configStandardOperator(module, name)
 }
 
 func configConstantDefinition(declaration parser.Declaration) parser.Definition {

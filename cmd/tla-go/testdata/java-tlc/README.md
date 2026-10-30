@@ -10,3 +10,6 @@ arguments.
 
 `test55` and `test55a` are unchanged models from the same suite. They exercise
 `ENABLED` with substituted module variables.
+
+`test30` and `test999` are unchanged models from the same suite. They exercise
+configuration substitutions of standard and infix operators.

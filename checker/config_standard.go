@@ -8,6 +8,24 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
+// Standard operators participate in configuration substitutions even when
+// they are implemented directly by the evaluator instead of as definitions.
+func configStandardOperator(module *parser.Module, name string) (parser.Definition, bool) {
+	r := resolver{}
+	for _, extended := range module.Extends {
+		r.includeModule(extended)
+	}
+	sym, ok := r.lookupStandard(name)
+	if !ok || sym.arity == 0 {
+		return parser.Definition{}, false
+	}
+	definition := configConstantDefinition(parser.Declaration{Name: name, Arity: sym.arity})
+	for i, arity := range sym.params {
+		definition.Params[i].Arity = arity
+	}
+	return definition, true
+}
+
 // Represent overridden standard values as definitions so all existing name
 // resolution, lexical scope and model evaluation paths use the replacement.
 func addScopedStandardDefinitions(module *parser.Module, cfg config.Config) error {
