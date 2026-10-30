@@ -37,6 +37,12 @@ func (s *search) checkFairProperty(p temporalProperty) (bool, error) {
 }
 
 func (s *search) checkFairGraph(p temporalProperty) (bool, error) {
+	if p.mode == leadsTo && s.model.cfg.Symmetry != "" {
+		general := s.reducedLeadsTo(p)
+		if s.supportsReducedTableau(general) {
+			return s.checkReducedTableau(general)
+		}
+	}
 	if s.model.hasReduction() && p.mode == eventually && len(s.model.fairness) > 0 {
 		graph := s.viewTableauGraph()
 		found, err := graph.checkFairGraphRequired(p, nil, false, false)

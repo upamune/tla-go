@@ -20,19 +20,28 @@ type ltlAlternative struct {
 }
 
 type ltlExpander struct {
-	model       *model
-	state       evaluator.State
-	nextState   evaluator.State
-	eventuality []*ltlFormula
-	values      map[int]bool
-	known       map[int]bool
-	cache       map[ltlValueKey]bool
-	base        int
-	choice      int
+	model             *model
+	state             evaluator.State
+	nextState         evaluator.State
+	eventuality       []*ltlFormula
+	values            map[int]bool
+	known             map[int]bool
+	cache             map[ltlValueKey]bool
+	base              int
+	choice            int
+	tableau           bool
+	tableauAtoms      map[int]*ltlFormula
+	tableauConditions [][]*ltlFormula
 }
 
 func (e *ltlExpander) alternatives(formulas []*ltlFormula) ([]ltlAlternative, error) {
 	branch := ltlBranch{todo: append([]*ltlFormula(nil), formulas...), seen: map[int]bool{}, next: map[int]*ltlFormula{}, fulfilled: map[int]bool{}}
+	if e.tableau {
+		if e.tableauAtoms == nil {
+			e.tableauAtoms = map[int]*ltlFormula{}
+		}
+		e.tableauConditions = nil
+	}
 	var result []ltlAlternative
 	err := e.expand(branch, &result)
 	return result, err
@@ -69,20 +78,29 @@ func (e *ltlExpander) expandSimple(formula *ltlFormula, branch *ltlBranch) (bool
 	case ltlFalse:
 		return false, nil
 	case ltlAtom, ltlAction:
-		valid, err := e.atomHolds(formula)
-		if err != nil {
-			return true, err
-		}
-		if !valid {
-			branch.todo = nil
-			return false, nil
-		}
+		return e.expandAtom(formula, branch)
 	case ltlAnd:
 		branch.todo = append(branch.todo, formula.left, formula.right)
 	case ltlAlways:
 		branch.todo = append(branch.todo, formula.left)
 		branch.next[formula.id] = formula
 	default:
+		return false, nil
+	}
+	return true, nil
+}
+
+func (e *ltlExpander) expandAtom(formula *ltlFormula, branch *ltlBranch) (bool, error) {
+	if e.tableau {
+		e.tableauAtoms[formula.id] = formula
+		return true, nil
+	}
+	valid, err := e.atomHolds(formula)
+	if err != nil {
+		return true, err
+	}
+	if !valid {
+		branch.todo = nil
 		return false, nil
 	}
 	return true, nil
@@ -149,9 +167,23 @@ func (e *ltlExpander) makeAlternative(branch ltlBranch) ltlAlternative {
 	for _, formula := range branch.next {
 		alternative.next = append(alternative.next, formula)
 	}
+	if e.tableau {
+		e.tableauConditions = append(e.tableauConditions, e.conditionsFor(branch.seen))
+	}
 	slices.SortFunc(alternative.next, func(a, b *ltlFormula) int { return a.id - b.id })
 	for i, formula := range e.eventuality {
 		alternative.accepting[i] = !branch.seen[formula.id] || branch.fulfilled[formula.id]
 	}
 	return alternative
+}
+
+func (e *ltlExpander) conditionsFor(seen map[int]bool) []*ltlFormula {
+	var conditions []*ltlFormula
+	for id := range seen {
+		if formula := e.tableauAtoms[id]; formula != nil {
+			conditions = append(conditions, formula)
+		}
+	}
+	slices.SortFunc(conditions, func(a, b *ltlFormula) int { return a.id - b.id })
+	return conditions
 }

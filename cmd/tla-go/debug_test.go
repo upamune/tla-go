@@ -35,3 +35,17 @@ P == (x = 0) ~> (x = 2)
 		t.Fatalf("missing debug events: %s", debugErr.String())
 	}
 }
+
+func TestCLIReducedTableauDebugIsOptIn(t *testing.T) {
+	dir := copySymmetryRecurrenceFixtures(t)
+	model := filepath.Join(dir, "ChooseTableauSymmetryMC.tla")
+	var plainOut, plainErr, debugOut, debugErr bytes.Buffer
+	plainCode := run(context.Background(), []string{model}, &plainOut, &plainErr)
+	debugCode := run(context.Background(), []string{"-debug-liveness", model}, &debugOut, &debugErr)
+	if plainCode != 13 || debugCode != plainCode || plainOut.String() != debugOut.String() || plainErr.Len() != 0 {
+		t.Fatalf("debugging changed CLI result: %d %q %q vs %d %q", plainCode, plainOut.String(), plainErr.String(), debugCode, debugOut.String())
+	}
+	if !strings.Contains(debugErr.String(), `"event":"tableau-node"`) || !strings.Contains(debugErr.String(), `"event":"tableau-regenerated"`) {
+		t.Fatalf("missing regenerated tableau debug events: %s", debugErr.String())
+	}
+}
