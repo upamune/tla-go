@@ -8,6 +8,8 @@ Supported finite-state models include `INIT`/`NEXT`, common `SPECIFICATION` form
 
 Support is partial. Complex temporal formulas, action predicates, fairness combined with state reductions, and some recursive or effectful expressions can fail or differ from Java TLC. Counterexample selection, state ordering, fingerprinting, error messages, printed values, and exit codes are not fully compatible. TLC runtime values, side effects, random choices, and duration-dependent checks can also produce different results.
 
+For symmetry-reduced models, selected pure Boolean combinations of recurrence properties use Java TLC's no-tableau successor ordering and transition handling. Seven upstream symmetry models and additional weak- and strong-fairness cases are compared against Java TLC. General tableau formulas with merged concrete successors remain unsupported.
+
 As in Java TLC, `AXIOM` declarations are not evaluated during the initial assumption check. Named axioms can still be referenced by the model.
 
 Fingerprint failures report Java TLC-style tool messages for the tested initial and successor states. Intersections with explicit sets or intervals use Java TLC's reduction order, including for nested power sets. Other lazy-set failures can still evaluate operands in a different order, producing a different underlying error or source location.

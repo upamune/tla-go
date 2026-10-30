@@ -19,18 +19,20 @@ type ltlProductNode struct {
 }
 
 type ltlProductBuilder struct {
-	source      *search
-	eventuality []*ltlFormula
-	product     search
-	nodes       []ltlProductNode
-	indices     map[string]int
+	source               *search
+	eventuality          []*ltlFormula
+	product              search
+	nodes                []ltlProductNode
+	indices              map[string]int
+	representativeStates bool
 }
 
 func (s *search) checkGeneralProperty(property temporalProperty) (bool, error) {
-	if err := s.validateGeneralReduction(property); err != nil {
+	source, canonical, err := s.generalPropertyGraph(property)
+	if err != nil {
 		return false, err
 	}
-	b := ltlProductBuilder{source: s, eventuality: property.eventualities, product: search{model: s.model, result: s.result, fairChecks: s.fairChecks}, indices: map[string]int{}}
+	b := ltlProductBuilder{source: source, eventuality: property.eventualities, product: search{model: s.model, result: s.result, fairChecks: s.fairChecks}, indices: map[string]int{}, representativeStates: canonical}
 	if err := b.build(property.general); err != nil {
 		return false, err
 	}
@@ -219,7 +221,11 @@ func (b *ltlProductBuilder) build(formula *ltlFormula) error {
 func (b *ltlProductBuilder) expand(index int) error {
 	node := b.nodes[index]
 	edge := b.source.edges[node.base][node.choice]
-	indices, err := b.addAlternatives(edge.to, b.source.edgeNext(edge), node.next)
+	current := b.source.edgeNext(edge)
+	if b.representativeStates {
+		current = b.source.nodes[edge.to].state
+	}
+	indices, err := b.addAlternatives(edge.to, current, node.next)
 	if err != nil {
 		return err
 	}
