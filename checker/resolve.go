@@ -17,6 +17,7 @@ type resolver struct {
 	positions     map[string]parser.Position
 	assumeProve   map[string]bool
 	position      parser.Position
+	proofScope    bool
 	arithmetic    bool
 	finiteSets    bool
 	sequences     bool
@@ -47,7 +48,10 @@ func validateResolved(module *parser.Module) error {
 	if err := r.declarations(module); err != nil {
 		return err
 	}
-	return r.validateBodies(module)
+	if err := r.validateBodies(module); err != nil {
+		return err
+	}
+	return r.validateProofDirectives(module)
 }
 
 func (r *resolver) includeModule(name string) {
@@ -297,6 +301,9 @@ func (r *resolver) lookupArithmeticAndSets(name string) (symbol, bool) {
 }
 
 func (r *resolver) checkName(name string, arity int, scope map[string]symbol) error {
+	if r.proofScope && !r.proofNameInScope(name, scope) {
+		return &SemanticError{Err: fmt.Errorf("fact %s is referenced before its declaration", name)}
+	}
 	expected, ok := r.lookup(name, scope)
 	if !ok {
 		return &SemanticError{Err: fmt.Errorf("undefined symbol %s", name)}

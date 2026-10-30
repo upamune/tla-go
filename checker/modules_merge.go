@@ -9,6 +9,8 @@ func mergeExtensions(root *parser.Module, units []*parser.Module, standard []str
 	result.Variables = nil
 	result.Definitions = nil
 	result.Assumptions = nil
+	result.ProofDirectives = nil
+	result.ImportedProofFacts = nil
 	result.RecursiveDeclarations = nil
 	offset := 0
 	for _, unit := range units {
@@ -34,6 +36,16 @@ func mergeExtensionUnit(result, unit *parser.Module, offset int) {
 	for _, assumption := range unit.Assumptions {
 		assumption.Location.Line += offset
 		result.Assumptions = append(result.Assumptions, assumption)
+	}
+	for _, directive := range unit.ProofDirectives {
+		directive.Location.Line += offset
+		result.ProofDirectives = append(result.ProofDirectives, directive)
+	}
+	result.ImportedProofFacts = append(result.ImportedProofFacts, unit.ImportedProofFacts...)
+	for _, theorem := range unit.Theorems {
+		if theorem.Name != "" {
+			result.ImportedProofFacts = append(result.ImportedProofFacts, theorem.Name)
+		}
 	}
 	result.RecursiveDeclarations = append(result.RecursiveDeclarations, unit.RecursiveDeclarations...)
 }

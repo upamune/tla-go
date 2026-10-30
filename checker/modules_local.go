@@ -19,6 +19,7 @@ func isolateLocalDefinitions(module *parser.Module) (*parser.Module, error) {
 	result := *module
 	result.Definitions = renameLocalDefinitions(definitions, replacements)
 	result.Assumptions = renameLocalAssumptions(assumptions, replacements)
+	result.ProofDirectives = renameLocalProofDirectives(module.ProofDirectives, replacements)
 	result.RecursiveDeclarations = renameLocalDeclarations(module.RecursiveDeclarations, replacements)
 	return &result, nil
 }

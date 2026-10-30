@@ -199,6 +199,9 @@ func (p *parser) assertion(m *Module) (bool, error) {
 	if isTheorem(text) {
 		return true, p.theorem(m)
 	}
+	if isProofDirective(text) {
+		return true, p.proofDirective(m)
+	}
 	return false, nil
 }
 

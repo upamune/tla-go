@@ -133,6 +133,13 @@ type Proof struct {
 	Keyword     Range
 	Location    Location
 }
+
+// ProofDirective is a module-level USE or HIDE directive.
+type ProofDirective struct {
+	Kind        string
+	Facts, Defs []*Expression
+	Location    Location
+}
 type Theorem struct {
 	Name      string
 	Statement *Expression
@@ -147,15 +154,18 @@ type Assumption struct {
 }
 type Module struct {
 	// SourceTokens retain parse-time token order for TLC string interning.
-	SourceTokens          []syntax.Token `json:"-"`
-	Name                  string
-	Extends               []string
-	Constants, Variables  []Declaration
-	Definitions           []Definition
-	Instances             []Instance
-	Modules               []Module
-	Assumptions           []Assumption
-	Theorems              []Theorem
+	SourceTokens         []syntax.Token `json:"-"`
+	Name                 string
+	Extends              []string
+	Constants, Variables []Declaration
+	Definitions          []Definition
+	Instances            []Instance
+	Modules              []Module
+	Assumptions          []Assumption
+	Theorems             []Theorem
+	ProofDirectives      []ProofDirective `json:",omitempty"`
+	// ImportedProofFacts preserves named theorems when extension units are merged.
+	ImportedProofFacts    []string `json:"-"`
 	RecursiveDeclarations []Declaration
 	Location              Location
 }

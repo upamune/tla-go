@@ -8,8 +8,7 @@ At tla-go commit `25cc6e0`, the statechart report supplied by the user says 32
 of 33 specifications matched Java TLC's exit code and state counts. That report
 has not yet been reproduced in this repository. The remaining specification and
 its failure need to be recorded alongside the integration tests. The current
-CLI also rejects `X == INSTANCE TLC` and module-level `USE DEF` in simple
-models that Java TLC accepts.
+CLI still rejects `X == INSTANCE TLC` in simple models that Java TLC accepts.
 
 ## 1. Establish the integration baseline
 
@@ -24,14 +23,20 @@ models that Java TLC accepts.
 
 ## 2. Module and CLI compatibility
 
+Module-level `USE DEF` and `USE DEFS` directives are parsed and checked for
+defined operators and declaration order. Targeted tests also cover facts and
+`HIDE` directives, imported definitions, and invalid references against Java
+TLC 1.7.4. Structured proofs and all possible proof directives are not yet
+supported; the statechart specifications have not yet been verified.
+
 - Support the module search paths used by statechart, with Java-compatible
   lookup order, relative paths, transitive imports, and diagnostics. Test paths
   containing spaces and missing or conflicting modules.
 - Support named standard-module instances such as `X == INSTANCE TLC`, including
   qualified operator calls and relevant substitutions. Retain support for named
   instances of user-defined modules.
-- Parse and validate the `USE DEF` forms used by the models without changing
-  model-checking semantics. Invalid proof directives must still be rejected.
+- Verify the `USE DEF` forms used by the actual statechart models without
+  changing model-checking semantics. Invalid proof directives must be rejected.
 - Complete the Java-compatible behavior of the accepted `-workers 1` and
   `-fp 0` options, including fingerprint collisions, and implement `-metadir`.
   Verify the actual statechart invocations and filesystem behavior against Java
