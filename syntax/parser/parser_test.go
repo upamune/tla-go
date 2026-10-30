@@ -47,6 +47,39 @@ func TestPrecedenceConflicts(t *testing.T) {
 	}
 }
 
+func TestSymbolicOperatorCalls(t *testing.T) {
+	for _, tc := range []struct{ source, name string }{
+		{"+(1, 2)", "+"},
+		{"\\cup({1}, {2})", "\\cup"},
+		{"^+(1)", "^+"},
+		{"-.(1)", "-."},
+		{"I!+(1, 2)", "I!+"},
+	} {
+		t.Run(tc.source, func(t *testing.T) {
+			m, err := ParseModule("---- MODULE M ----\nA == " + tc.source + "\n====")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := m.Definitions[0].Body; got.Kind != "Apply" || got.Text != tc.name {
+				t.Fatalf("got %+v", got)
+			}
+		})
+	}
+}
+
+func TestParenthesizedJunctionAndMinus(t *testing.T) {
+	m, err := ParseModule("---- MODULE M ----\nA == /\\ (TRUE)\n     /\\ (TRUE)\nB == -(4)\n====")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := m.Definitions[0].Body; got.Kind != "And" || !got.Bulleted || len(got.Args) != 2 {
+		t.Fatalf("junction: %+v", got)
+	}
+	if got := m.Definitions[1].Body; got.Kind != "Apply" || got.Text != "-." || len(got.Args) != 1 {
+		t.Fatalf("minus: %+v", got)
+	}
+}
+
 func TestUnsupportedSyntaxFails(t *testing.T) {
 	_, err := ParseModule("---- MODULE M ----\nA == THEOREM\n====")
 	if err == nil {

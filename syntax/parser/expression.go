@@ -150,9 +150,16 @@ func (p *parser) fieldAccess(start int, left *Expression) (*Expression, bool, er
 
 func (p *parser) prefix() (*Expression, error) {
 	t := p.peek()
+	if t.Kind == "Operator" && p.operatorCallAhead() {
+		return p.identifier()
+	}
 	if t.Kind == "Operator" && (t.Text == "/\\" || t.Text == "\\/") {
 		return p.junction()
 	}
+	return p.prefixOrPrimary(t)
+}
+
+func (p *parser) prefixOrPrimary(t syntax.Token) (*Expression, error) {
 	if priority, kind, text, ok := prefixInfo(t.Text); ok && (t.Kind == "Operator" || t.Kind == "Keyword") {
 		start := p.pos
 		p.next()
@@ -163,6 +170,19 @@ func (p *parser) prefix() (*Expression, error) {
 		return node(kind, text, p.location(t, start), expr), nil
 	}
 	return p.primary()
+}
+
+func (p *parser) operatorCallAhead() bool {
+	t := p.peek()
+	switch t.Text {
+	case "-", "/\\", "\\/", "'":
+		return false
+	}
+	if p.look(1).Text != "(" {
+		return false
+	}
+	_, infixOperator := infix[t.Text]
+	return infixOperator || t.Text == "-." || postfixOperator(t.Text)
 }
 
 func prefixInfo(text string) (int, string, string, bool) {

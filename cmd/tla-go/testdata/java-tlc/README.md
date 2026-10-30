@@ -13,3 +13,6 @@ arguments.
 
 `test30` and `test999` are unchanged models from the same suite. They exercise
 configuration substitutions of standard and infix operators.
+
+`test204` and `test205` are unchanged models from the same suite. They exercise
+symbolic operator calls, including calls through module instances.
