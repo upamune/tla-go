@@ -37,3 +37,6 @@ parameterized instances, theorem labels, and subexpression selections.
 
 `etest16` is an unchanged model from the same suite. It checks that duplicate
 record and record-set fields are rejected during semantic analysis.
+
+`etest1`, `etest2`, and `etest5` are unchanged models from the same suite.
+They test wrong operator argument counts and an undefined qualified name.

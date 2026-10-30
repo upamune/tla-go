@@ -299,10 +299,10 @@ func (r *resolver) lookupArithmeticAndSets(name string) (symbol, bool) {
 func (r *resolver) checkName(name string, arity int, scope map[string]symbol) error {
 	expected, ok := r.lookup(name, scope)
 	if !ok {
-		return fmt.Errorf("undefined symbol %s", name)
+		return &SemanticError{Err: fmt.Errorf("undefined symbol %s", name)}
 	}
 	if expected.arity != arity {
-		return fmt.Errorf("operator %s expects %d arguments, got %d", name, expected.arity, arity)
+		return &SemanticError{Err: fmt.Errorf("operator %s expects %d arguments, got %d", name, expected.arity, arity)}
 	}
 	return nil
 }
