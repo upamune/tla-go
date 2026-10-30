@@ -60,3 +60,6 @@ error reported when an imported module declares a different name.
 
 `test215` is an unchanged model from the same suite. It exercises SANY's level
 checks for temporal operators and bounded temporal formulas.
+
+`test217` and `test217a` are unchanged models from the same suite. They check
+level constraints for arguments to parameterized module instances.

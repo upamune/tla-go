@@ -75,7 +75,11 @@ func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, ins
 		return nil
 	}
 	model := r.substitutionModel()
+	model.module = r.root
 	addInstanceAnalysisDefinitions(&model, module, instance, replacements, index)
+	if err := r.validateStateInstanceArguments(module, instance, replacements, &model); err != nil {
+		return err
+	}
 	required, err := constantSubstitutionParameters(module.Constants, instance.Params, replacements, &model)
 	if err != nil {
 		return err
