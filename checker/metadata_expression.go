@@ -42,6 +42,10 @@ func (s *metadataScope) reference(expr *parser.Expression, visiting map[*metadat
 	if expr.Kind != "Identifier" && expr.Kind != "Apply" {
 		return 0, false, nil
 	}
+	if expr.BuiltinStandard != "" {
+		level, err := s.childrenLevel(expr, visiting)
+		return level, true, err
+	}
 	if d, ok := s.defs[expr.Text]; ok {
 		level, err := s.call(d, expr, visiting)
 		return level, true, err

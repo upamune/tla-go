@@ -94,6 +94,36 @@ func TestJavaSANYMetadataLevels(t *testing.T) {
 	compareSANYMetadata(t, jar, path)
 }
 
+func TestJavaSANYRealTimeMetadata(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("set TLC_JAR to compare SANY metadata")
+	}
+	path := filepath.Join(t.TempDir(), "M.tla")
+	source := "---- MODULE M ----\nEXTENDS RealTime\nInit == now = 0\nNext == now' = 1 - now\n====\n"
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	compareSANYMetadata(t, jar, path)
+}
+
+func TestJavaSANYInheritedNaturalsMetadata(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("set TLC_JAR to compare SANY metadata")
+	}
+	dir := t.TempDir()
+	for name, source := range map[string]string{
+		"A.tla": "---- MODULE A ----\nEXTENDS Naturals\nF == 1 + 2\n====\n",
+		"M.tla": "---- MODULE M ----\nI == INSTANCE A\n====\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	compareSANYMetadata(t, jar, filepath.Join(dir, "M.tla"))
+}
+
 func TestJavaSANYStatechartMetadata(t *testing.T) {
 	root, jar := os.Getenv("STATECHART_DIR"), os.Getenv("TLC_JAR")
 	if root == "" || jar == "" {

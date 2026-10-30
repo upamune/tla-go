@@ -25,6 +25,9 @@ func (r *instanceResolver) missingInstanceSource(name string, err error) (string
 		if module := r.builtinInstanceModule(name); module != nil {
 			return "", module, nil
 		}
+		if source, ok := embeddedStandardSource(name); ok {
+			return source, nil, nil
+		}
 	}
 	if err == nil {
 		return "", nil, fmt.Errorf("instance module %s requires a module loader", name)
@@ -53,7 +56,7 @@ func builtinTLCModule() *parser.Module {
 		module.Definitions = append(module.Definitions, builtinTLCDefinition(name, tlcOperators[name]))
 	}
 	for _, name := range []string{"Any", "JavaTime"} {
-		module.Definitions = append(module.Definitions, parser.Definition{Kind: "Operator", Name: name, Body: &parser.Expression{Kind: "Identifier", Text: "!tlc!" + name, BuiltinTLC: true}})
+		module.Definitions = append(module.Definitions, parser.Definition{Kind: "Operator", Name: name, BuiltinInstance: true, Body: &parser.Expression{Kind: "Identifier", Text: "!tlc!" + name, BuiltinTLC: true}})
 	}
 	return module
 }
@@ -71,14 +74,20 @@ func addBuiltinInstanceArguments(body *parser.Expression, params []parser.Declar
 	}
 	args := make([]*parser.Expression, 0, len(params)+len(body.Args))
 	for _, param := range params {
-		args = append(args, &parser.Expression{Kind: "Identifier", Text: param.Name})
+		name := param.Name
+		if param.Arity > 0 {
+			// An operator is not a TLA+ value, but still occupies an argument
+			// slot in TLC's overridden standard-module call.
+			name = "TRUE"
+		}
+		args = append(args, &parser.Expression{Kind: "Identifier", Text: name})
 	}
 	body.Kind = "Apply"
 	body.Args = append(args, body.Args...)
 }
 
 func builtinTLCDefinition(name string, arity int) parser.Definition {
-	definition := parser.Definition{Kind: "Operator", Name: name}
+	definition := parser.Definition{Kind: "Operator", Name: name, BuiltinInstance: true}
 	body := &parser.Expression{Kind: "Apply", Text: "!tlc!" + name, BuiltinTLC: true}
 	for i := range arity {
 		param := parser.Declaration{Name: fmt.Sprintf("!tlc-argument-%d", i)}

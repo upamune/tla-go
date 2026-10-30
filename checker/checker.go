@@ -394,7 +394,11 @@ func newEvaluatorProgram(module *parser.Module, onPrint func(string), runtime *t
 }
 
 func usesTLCRuntime(module *parser.Module) bool {
-	return module.HasTLCInstance || slices.Contains(module.Extends, "TLC") || slices.Contains(module.Extends, "TLCExt") || slices.Contains(module.Extends, "Randomization")
+	return module.HasTLCInstance || hasTLCRuntimeModule(module.Extends) || hasTLCRuntimeModule(module.InstanceStandardModules)
+}
+
+func hasTLCRuntimeModule(modules []string) bool {
+	return slices.Contains(modules, "TLC") || slices.Contains(modules, "TLCExt") || slices.Contains(modules, "Randomization")
 }
 
 func defaultEmptyModel(module *parser.Module, cfg config.Config) config.Config {

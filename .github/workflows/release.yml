@@ -55,12 +55,13 @@ jobs:
           CGO_ENABLED=0 GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" \
             mise exec -- go build -trimpath -ldflags "-s -w -X main.version=$RELEASE_VERSION" -o "staging/$binary" ./cmd/tla-go
           cp UPSTREAM-LICENSE staging/
+          cp checker/standard/LICENSE staging/TLA-TOOLS-LICENSE
           asset="tla-go_${RELEASE_VERSION}_${TARGET_OS}_${TARGET_ARCH}"
           if [ "$TARGET_OS" = windows ]; then
-            (cd staging && zip -q "../dist/$asset.zip" "$binary" UPSTREAM-LICENSE)
+            (cd staging && zip -q "../dist/$asset.zip" "$binary" UPSTREAM-LICENSE TLA-TOOLS-LICENSE)
             archive="$asset.zip"
           else
-            tar -C staging -czf "dist/$asset.tar.gz" "$binary" UPSTREAM-LICENSE
+            tar -C staging -czf "dist/$asset.tar.gz" "$binary" UPSTREAM-LICENSE TLA-TOOLS-LICENSE
             archive="$asset.tar.gz"
           fi
           (cd dist && sha256sum "$archive" > "$archive.sha256")

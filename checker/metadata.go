@@ -81,7 +81,20 @@ func semanticMetadata(ctx context.Context, module *parser.Module) (SemanticMetad
 		if err != nil {
 			return SemanticMetadata{}, fmt.Errorf("definition %s: %w", definition.Name, err)
 		}
-		result.Definitions = append(result.Definitions, DefinitionLevel{Name: definition.Name, Level: level})
+		result.Definitions = append(result.Definitions, DefinitionLevel{Name: metadataDefinitionName(definition), Level: level})
 	}
 	return result, nil
+}
+
+func metadataDefinitionName(definition parser.Definition) string {
+	if !definition.BuiltinInstance {
+		return definition.Name
+	}
+	if before, ok := strings.CutSuffix(definition.Name, "<="); ok {
+		return before + `\leq`
+	}
+	if before, ok := strings.CutSuffix(definition.Name, ">="); ok {
+		return before + `\geq`
+	}
+	return definition.Name
 }

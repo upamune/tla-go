@@ -26,7 +26,9 @@ func instanceDefinition(definition parser.Definition, instance parser.Instance, 
 		self = definition.Name
 	}
 	body := substitute(definition.Body, nil)
-	addBuiltinInstanceArguments(body, instance.Params)
+	if definition.BuiltinInstance {
+		addBuiltinInstanceArguments(body, instance.Params)
+	}
 	markEnabledInstanceVariables(body, variables, scope)
 	definition.Body = instanceExpression(body, replacements, generatedSet, instance.Params, self)
 	definition.Bounds = instanceBounds(definition.Bounds, replacements, generatedSet, instance.Params)

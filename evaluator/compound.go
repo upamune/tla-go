@@ -29,6 +29,9 @@ func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
 	if expr.BuiltinNatural {
 		return e.applyNaturalBuiltin(expr)
 	}
+	if expr.BuiltinStandard != "" {
+		return e.applyStandardBuiltin(expr)
+	}
 	if e.hasOperators {
 		if op, ok := e.findOperator(expr.Text); ok {
 			return e.applyOperator(op, expr.Args)

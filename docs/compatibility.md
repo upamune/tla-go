@@ -18,7 +18,7 @@ Theorem `ASSUME`/`PROVE` statements support `NEW` declarations, including their 
 
 `ENABLED` and primed expressions support several action and operator-argument forms, including selected module-variable substitution boundaries. More complex nested instances and action expressions can differ. Java TLC versions themselves can differ on some of these cases.
 
-The implementation provides selected functionality from `Naturals`, `Integers`, `FiniteSets`, `Sequences`, `Bags`, `TLC`, `TLCExt`, `Json`, and `Randomization`. Support for infinite sets and individual standard operators is partial. Some functions require enumerable finite values.
+The implementation provides selected functionality from `Naturals`, `Integers`, `FiniteSets`, `Sequences`, `Bags`, `TLC`, `TLCExt`, `Json`, and `Randomization`. The Java TLC 1.7.4 sources for `Reals` and `RealTime` are embedded and can also be supplied as local modules. Standard imports used inside an `INSTANCE` retain their own bindings; inherited operators and substitutions are not yet fully supported for every standard module. Support for infinite sets and individual standard operators is partial. Some functions require enumerable finite values.
 
 The CLI reads and writes JSON paths relative to its working directory. Go callers can supply `Options.ReadFile` and `Options.WriteFile`; without callbacks, reads fail as missing files and writes have no effect.
 

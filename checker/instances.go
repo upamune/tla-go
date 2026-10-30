@@ -26,6 +26,7 @@ func resolveInstancesScoped(ctx context.Context, module *parser.Module, loader M
 	result := *module
 	result.Definitions = append([]parser.Definition(nil), module.Definitions...)
 	result.ProofModules = append([]string(nil), module.ProofModules...)
+	result.InstanceStandardModules = append([]string(nil), module.InstanceStandardModules...)
 	result.ImportedProofFacts = append([]string(nil), module.ImportedProofFacts...)
 	result.Instances, result.Modules = nil, nil
 	for index, instance := range module.Instances {
@@ -37,6 +38,7 @@ func resolveInstancesScoped(ctx context.Context, module *parser.Module, loader M
 		return nil, err
 	}
 	addProofModules(&result, r.proofModules...)
+	addInstanceStandardModules(&result, r.instanceStandardModules...)
 	return &result, nil
 }
 
@@ -72,17 +74,18 @@ type nestedModuleBinding struct {
 }
 
 type instanceResolver struct {
-	ctx                  context.Context
-	root                 *parser.Module
-	loader               ModuleLoader
-	nested               map[string]nestedModuleBinding
-	cache                map[string]*parser.Module
-	session              *instanceSession
-	usedModules          map[string]bool
-	proofModules         []string
-	constantRequirements map[string][]bool
-	constantTargets      map[string][]bool
-	constantLocalNames   map[string]bool
+	ctx                     context.Context
+	root                    *parser.Module
+	loader                  ModuleLoader
+	nested                  map[string]nestedModuleBinding
+	cache                   map[string]*parser.Module
+	session                 *instanceSession
+	usedModules             map[string]bool
+	proofModules            []string
+	instanceStandardModules []string
+	constantRequirements    map[string][]bool
+	constantTargets         map[string][]bool
+	constantLocalNames      map[string]bool
 }
 
 func (r *instanceResolver) registerNested() error {
@@ -168,9 +171,6 @@ func (r *instanceResolver) validateUnit(module, parent *parser.Module) error {
 	if len(module.Instances) > 0 || len(module.Modules) > 0 || hasExternalExtensions(module.Extends) {
 		return fmt.Errorf("instance module %s has unsupported nested or external dependencies", module.Name)
 	}
-	if !standardSubset(module.Extends, r.root.Extends) {
-		return fmt.Errorf("instance module %s requires standard modules not extended by the root", module.Name)
-	}
 	check := *module
 	if parent != nil {
 		var err error
@@ -183,17 +183,4 @@ func (r *instanceResolver) validateUnit(module, parent *parser.Module) error {
 		return fmt.Errorf("instance module %s: %w", module.Name, err)
 	}
 	return nil
-}
-
-func standardSubset(names, available []string) bool {
-	for _, name := range names {
-		found := false
-		for _, candidate := range available {
-			found = found || name == candidate
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
 }

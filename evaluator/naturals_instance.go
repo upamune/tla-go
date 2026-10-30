@@ -8,12 +8,32 @@ import (
 )
 
 func (e *evaluator) applyNaturalBuiltin(expr *parser.Expression) (value.Value, error) {
-	builtin := *expr
-	builtin.Text = strings.TrimPrefix(expr.Text, "!naturals!")
-	if builtin.Text == "Nat" || len(builtin.Args) != 2 {
+	name := strings.TrimPrefix(expr.Text, "!naturals!")
+	if name == "Nat" || name == "Int" || len(expr.Args) != 2 && !(name == "-." && len(expr.Args) == 1) {
+		builtin := *expr
+		builtin.Text = name
 		return e.naturalArgumentMismatch(&builtin)
 	}
-	return e.builtinByArity(&builtin)
+	left, err := e.eval(expr.Args[0])
+	if err != nil {
+		return value.Value{}, err
+	}
+	if len(expr.Args) == 1 {
+		return unary(name, left)
+	}
+	return e.naturalBinary(name, left, expr.Args[1])
+}
+
+func (e *evaluator) naturalBinary(name string, left value.Value, argument *parser.Expression) (value.Value, error) {
+	right, err := e.eval(argument)
+	if err != nil {
+		return value.Value{}, err
+	}
+	result, err := binary(name, left, right)
+	if err != nil {
+		return result, err
+	}
+	return e.orderSetResult(name, result)
 }
 
 func (e *evaluator) naturalArgumentMismatch(expr *parser.Expression) (value.Value, error) {

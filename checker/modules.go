@@ -2,7 +2,9 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 
 	"github.com/upamune/tla-go/syntax/parser"
 )
@@ -137,12 +139,9 @@ func (r *extensionResolver) collectExtension(name string) error {
 }
 
 func (r *extensionResolver) load(name string) (*parser.Module, error) {
-	if r.loader == nil {
-		return nil, fmt.Errorf("module %s requires a module loader", name)
-	}
-	source, err := r.loader(r.ctx, name)
+	source, err := r.extensionSource(name)
 	if err != nil {
-		return nil, moduleLoadError("module", name, err)
+		return nil, err
 	}
 	module, err := parser.ParseModule(source)
 	if err != nil {
@@ -153,4 +152,25 @@ func (r *extensionResolver) load(name string) (*parser.Module, error) {
 	}
 	r.session.sourceUnits[name] = module
 	return module, nil
+}
+
+func (r *extensionResolver) extensionSource(name string) (string, error) {
+	var missing error
+	if r.loader != nil {
+		source, err := r.loader(r.ctx, name)
+		if err == nil {
+			return source, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", moduleLoadError("module", name, err)
+		}
+		missing = err
+	}
+	if source, ok := embeddedStandardSource(name); ok {
+		return source, nil
+	}
+	if r.loader == nil {
+		return "", fmt.Errorf("module %s requires a module loader", name)
+	}
+	return "", moduleLoadError("module", name, missing)
 }

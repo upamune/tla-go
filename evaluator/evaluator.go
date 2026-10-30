@@ -105,7 +105,11 @@ func New(module *parser.Module) *Program {
 	for _, v := range module.Variables {
 		variables[v.Name] = true
 	}
-	return &Program{root: scope{definitions: defs}, variables: variables, finiteSets: slices.Contains(module.Extends, "FiniteSets"), sequences: slices.Contains(module.Extends, "Sequences"), naturals: hasNaturals(module.Extends), integers: slices.Contains(module.Extends, "Integers"), tlc: slices.Contains(module.Extends, "TLC"), tlcext: slices.Contains(module.Extends, "TLCExt"), bags: slices.Contains(module.Extends, "Bags"), json: slices.Contains(module.Extends, "Json"), randomization: slices.Contains(module.Extends, "Randomization")}
+	imports := module.Extends
+	if len(module.InstanceStandardModules) != 0 {
+		imports = append(append([]string(nil), imports...), module.InstanceStandardModules...)
+	}
+	return &Program{root: scope{definitions: defs}, variables: variables, finiteSets: slices.Contains(imports, "FiniteSets"), sequences: slices.Contains(imports, "Sequences"), naturals: hasNaturals(imports), integers: slices.Contains(imports, "Integers"), tlc: slices.Contains(imports, "TLC"), tlcext: slices.Contains(imports, "TLCExt"), bags: slices.Contains(imports, "Bags"), json: slices.Contains(imports, "Json"), randomization: slices.Contains(imports, "Randomization")}
 }
 
 // NewWithPrint configures the callback used by TLC Print and PrintT.
@@ -236,6 +240,9 @@ func (e *evaluator) expressionIdentifier(expr *parser.Expression) (value.Value, 
 	if expr.BuiltinNatural && expr.Text == "!naturals!Nat" {
 		return value.NaturalNumbers(), nil
 	}
+	if expr.BuiltinNatural && expr.Text == "!naturals!Int" {
+		return value.Integers(), nil
+	}
 	if expr.BuiltinTLC {
 		switch expr.Text {
 		case "!tlc!Any":
@@ -243,6 +250,16 @@ func (e *evaluator) expressionIdentifier(expr *parser.Expression) (value.Value, 
 		case "!tlc!JavaTime":
 			return javaTime()
 		}
+	}
+	return e.standardIdentifier(expr)
+}
+
+func (e *evaluator) standardIdentifier(expr *parser.Expression) (value.Value, error) {
+	if expr.BuiltinStandard == "Bags" && expr.Text == "EmptyBag" {
+		return value.Function(nil)
+	}
+	if expr.BuiltinStandard == "TLCExt" && isTLCExtStateOperator(expr.Text) {
+		return e.tlcExtStateOperator(expr.Text)
 	}
 	return e.identifier(expr.Text)
 }

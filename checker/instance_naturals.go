@@ -8,9 +8,9 @@ import (
 
 func builtinNaturalsModule() *parser.Module {
 	module := &parser.Module{Name: "Naturals"}
-	module.Definitions = append(module.Definitions, parser.Definition{Kind: "Operator", Name: "Nat", Body: &parser.Expression{Kind: "Identifier", Text: "!naturals!Nat", BuiltinNatural: true}})
+	module.Definitions = append(module.Definitions, parser.Definition{Kind: "Operator", Name: "Nat", BuiltinInstance: true, Body: &parser.Expression{Kind: "Identifier", Text: "!naturals!Nat", BuiltinNatural: true}})
 	for _, name := range []string{"+", "-", "*", "^", "<", ">", "<=", ">=", "%", "\\div", ".."} {
-		definition := parser.Definition{Kind: "Operator", Name: name}
+		definition := parser.Definition{Kind: "Operator", Name: name, BuiltinInstance: true}
 		body := &parser.Expression{Kind: "Apply", Text: "!naturals!" + name, BuiltinNatural: true}
 		for i := range 2 {
 			param := parser.Declaration{Name: fmt.Sprintf("!naturals-argument-%d", i)}

@@ -11,9 +11,12 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	if err != nil {
 		return err
 	}
+	module = withInheritedStandardDefinitions(module)
 	addProofModules(result, module.Name)
 	addProofModules(result, module.ProofModules...)
 	addProofModules(result, module.Extends...)
+	addInstanceStandardModules(result, module.Extends...)
+	addInstanceStandardModules(result, module.InstanceStandardModules...)
 	module, instance = alphaInstance(module, instance)
 	instance, err = r.resolveInstanceSubexpressions(instance, result)
 	if err != nil {
@@ -35,11 +38,33 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	}
 	r.session.nextInstance++
 	scope := fmt.Sprintf("!instance-scope!%d!", r.session.nextInstance)
-	for _, definition := range module.Definitions {
-		result.Definitions = append(result.Definitions, instanceDefinition(definition, instance, replacements, generated, generatedSet, variables, scope))
-	}
+	appendInstanceDefinitions(result, module, instance, replacements, generated, generatedSet, variables, scope)
 	result.Definitions = append(result.Definitions, instanceValidationDefinitions(module, instance, replacements, index)...)
 	return nil
+}
+
+func appendInstanceDefinitions(result, module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet map[string]int, variables map[string]bool, scope string) {
+	standardNames := instanceStandardNames(module)
+	for _, definition := range module.Definitions {
+		if instance.Name == "" && definition.BuiltinInstance && hasBuiltinInstanceDefinition(result.Definitions, generated[definition.Name]) {
+			continue
+		}
+		markInstanceStandardDefinition(&definition, standardNames)
+		generatedDef := instanceDefinition(definition, instance, replacements, generated, generatedSet, variables, scope)
+		generatedDef.InstanceStandardModules = append([]string(nil), generatedDef.InstanceStandardModules...)
+		generatedDef.InstanceStandardModules = appendUniqueModules(generatedDef.InstanceStandardModules, module.Extends...)
+		generatedDef.InstanceStandardModules = appendUniqueModules(generatedDef.InstanceStandardModules, module.InstanceStandardModules...)
+		result.Definitions = append(result.Definitions, generatedDef)
+	}
+}
+
+func hasBuiltinInstanceDefinition(definitions []parser.Definition, name string) bool {
+	for _, definition := range definitions {
+		if definition.Name == name && definition.BuiltinInstance {
+			return true
+		}
+	}
+	return false
 }
 
 func instanceGeneratedArities(module *parser.Module, generated map[string]string) map[string]int {

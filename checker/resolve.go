@@ -160,6 +160,17 @@ func (r *resolver) declare(name string, arity int) error {
 }
 
 func (r *resolver) definition(d parser.Definition, scope map[string]symbol) error {
+	if len(d.InstanceStandardModules) != 0 {
+		local := *r
+		for _, name := range d.InstanceStandardModules {
+			local.includeModule(name)
+		}
+		return local.definitionInScope(d, scope)
+	}
+	return r.definitionInScope(d, scope)
+}
+
+func (r *resolver) definitionInScope(d parser.Definition, scope map[string]symbol) error {
 	previous := r.position
 	r.position = d.Location.Position
 	defer func() { r.position = previous }()

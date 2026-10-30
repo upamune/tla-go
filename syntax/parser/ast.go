@@ -26,19 +26,21 @@ type Expression struct {
 	BuiltinTLC bool `json:"-"`
 	// BuiltinNatural marks an internal call to a Naturals operator.
 	BuiltinNatural bool `json:"-"`
-	Quantifier     string
-	Temporal       bool
-	Names          []string
-	ArgumentCounts []int
-	Selectors      []Selector
-	Bounds         []Bound
-	Fields         []Field
-	Updates        []Update
-	Arms           []CaseArm
-	Definitions    []Definition
-	Instances      []Instance
-	Location       Location
-	Args           []*Expression
+	// BuiltinStandard preserves a standard-module operator's lexical binding.
+	BuiltinStandard string `json:"-"`
+	Quantifier      string
+	Temporal        bool
+	Names           []string
+	ArgumentCounts  []int
+	Selectors       []Selector
+	Bounds          []Bound
+	Fields          []Field
+	Updates         []Update
+	Arms            []CaseArm
+	Definitions     []Definition
+	Instances       []Instance
+	Location        Location
+	Args            []*Expression
 	// Instance metadata preserves substitution boundaries for ENABLED.
 	EnabledScopes   []string         `json:"-"`
 	EnabledBindings []EnabledBinding `json:"-"`
@@ -110,6 +112,10 @@ type Definition struct {
 	// InstanceRange and InstanceParamCount preserve the source instance for TLC descriptions.
 	InstanceRange      Range `json:"-"`
 	InstanceParamCount int   `json:"-"`
+	// InstanceStandardModules are visible to this instantiated definition.
+	InstanceStandardModules []string `json:"-"`
+	// BuiltinInstance identifies an inherited standard-operator wrapper.
+	BuiltinInstance bool `json:"-"`
 }
 
 // DefinitionOrigin identifies a definition before instance parameters were added.
@@ -187,6 +193,8 @@ type Module struct {
 	ImportedProofFacts []string `json:"-"`
 	// ProofModules retains module names after EXTENDS and INSTANCE expansion.
 	ProofModules []string `json:"-"`
+	// InstanceStandardModules enables standard operators used inside instances.
+	InstanceStandardModules []string `json:"-"`
 	// HasTLCInstance enables runtime services for standard-module instances.
 	HasTLCInstance        bool `json:"-"`
 	RecursiveDeclarations []Declaration

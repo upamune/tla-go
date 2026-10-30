@@ -33,7 +33,7 @@ func (r *resolver) expression(expr *parser.Expression, scope map[string]symbol) 
 }
 
 func (r *resolver) expressionHead(expr *parser.Expression, scope map[string]symbol) error {
-	if expr.BuiltinTLC || expr.BuiltinNatural {
+	if expr.BuiltinTLC || expr.BuiltinNatural || expr.BuiltinStandard != "" {
 		return nil
 	}
 	if expr.Kind == "ModuleFact" {
