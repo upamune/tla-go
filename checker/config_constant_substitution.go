@@ -114,5 +114,5 @@ func constantSubstitutionError(definition parser.Definition, err error) error {
 	} else {
 		return err
 	}
-	return &ConfigurationError{Message: message, Err: err}
+	return &ConfigurationError{Message: message, Code: 2281, Err: err}
 }

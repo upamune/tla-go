@@ -80,6 +80,7 @@ func TestJavaTLCConstantSubstitutionRuntimeFailures(t *testing.T) {
 	for _, tc := range []struct{ name, expression, diagnostic string }{
 		{"division", `1 \div 0`, "The configuration file substitutes constant C with non-constant Foo"},
 		{"empty choose", `CHOOSE y \in {} : TRUE`, "The configuration file substitutes constant C with non-constant Foo - specifically: Attempted to compute the value of an expression of form\nCHOOSE x \\in S: P, but no element of S satisfied P."},
+		{"runtime value", `TLCGet("diameter")`, "The configuration file substitutes constant C with non-constant Foo"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -94,11 +95,14 @@ func TestJavaTLCConstantSubstitutionRuntimeFailures(t *testing.T) {
 			if code != 151 || errout.Len() != 0 || !strings.Contains(out.String(), "Error: "+tc.diagnostic) {
 				t.Fatalf("exit %d, stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 			}
+			out.Reset()
+			code = run(context.Background(), []string{"-tool", filepath.Join(dir, "M.tla")}, &out, &errout)
+			messages := readToolMessages(out.String())
+			if code != 151 || errout.Len() != 0 || !hasToolMessage(messages, 2281) {
+				t.Fatalf("exit %d, stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
+			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				java := runJavaTLCForExit(t, jar, dir, "M", 151)
-				if !strings.Contains(java, tc.diagnostic) {
-					t.Fatalf("Java TLC:\n%s", java)
-				}
+				compareJavaToolMessages(t, jar, dir, code, messages)
 			}
 		})
 	}

@@ -127,7 +127,7 @@ func toolConsumerMessages(messages []toolMessage) []toolMessage {
 			if strings.Contains(message.body, "@!@!@STARTMSG 2132:0 @!@!@") {
 				selected = append(selected, message)
 			}
-		case 2104, 2105, 2107, 2108, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2121, 2122, 2132, 2146, 2179, 2190, 2191, 2199, 2217, 2218, 2229, 2230, 2233, 2253, 2264:
+		case 2104, 2105, 2107, 2108, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2121, 2122, 2132, 2146, 2179, 2190, 2191, 2199, 2217, 2218, 2229, 2230, 2233, 2253, 2264, 2281:
 			if message.code == 2190 || message.code == 2191 {
 				message.body, _, _ = strings.Cut(message.body, " at ")
 			}
