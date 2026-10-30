@@ -25,7 +25,7 @@ func (r *resolver) expression(expr *parser.Expression, scope map[string]symbol) 
 }
 
 func (r *resolver) expressionHead(expr *parser.Expression, scope map[string]symbol) error {
-	if expr.BuiltinTLC {
+	if expr.BuiltinTLC || expr.BuiltinNatural {
 		return nil
 	}
 	return r.expressionName(expr, scope)

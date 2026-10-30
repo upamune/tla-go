@@ -21,13 +21,14 @@ type options struct {
 	deadlockOff, help, version bool
 	debugLiveness              bool
 	modernRandomSubsets        bool
+	tool                       bool
 	dumpPath                   string
 	onPause                    func()
 	seed                       int64
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-config file.cfg] [-deadlock] [-seed integer] [-workers 1] [-fp 0] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-config file.cfg] [-deadlock] [-seed integer] [-workers 1] [-fp 0] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -58,6 +59,9 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 }
 
 func runModel(ctx context.Context, opts options, out, errout io.Writer) int {
+	if opts.tool {
+		return runToolModel(ctx, opts, out, errout)
+	}
 	specPath, configPath, err := inputPaths(opts)
 	if err != nil {
 		fmt.Fprintln(errout, err)
@@ -94,6 +98,9 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath)), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, ModernRandomSubsets: opts.modernRandomSubsets}
 	if graph != nil {
 		checkOptions.OnGraph = graph.event
+	}
+	if opts.tool {
+		checkOptions.OnSearch = func(event checker.SearchEvent) { printToolSearch(out, event) }
 	}
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }

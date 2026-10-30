@@ -63,7 +63,7 @@ func TestActionPropertyEvaluationFailure(t *testing.T) {
 
 func TestFunctionApplicationFailures(t *testing.T) {
 	for _, tc := range []struct{ expression, message string }{
-		{"<<1>>[2]", "Attempted to apply function <<1>> to 2, which is not in its domain"},
+		{"<<1>>[2]", "Attempted to apply tuple\n<<1>>\nto integer 2 which is out of domain."},
 		{"[i \\in {1, 2} |-> i][0]", "In applying the function\n<<1, 2>>,\nthe first argument is:\n0\nwhich is not in its domain.\n"},
 		{"1[1]", "Attempted to apply 1, which is not a function"},
 	} {

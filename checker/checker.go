@@ -35,8 +35,10 @@ type TraceStep struct {
 	StateOrder []string
 }
 type Violation struct {
-	Name        string
-	Message     string
+	Name    string
+	Message string
+	// ToolCode identifies a nested Java TLC evaluation message when known.
+	ToolCode    int
 	Counts      string
 	Unwitnessed *PossibleViolation
 	Trace       []TraceStep
@@ -71,6 +73,10 @@ type Failure struct {
 	InitialState      evaluator.State
 	InitialStateOrder []string
 	ExitCode          int
+	// ToolCode is the Java TLC error message code when known.
+	ToolCode int
+	// NestedToolCode identifies the nested evaluation message when known.
+	NestedToolCode int
 	// SuppressStatistics indicates that TLC stops before reporting search statistics.
 	SuppressStatistics bool
 	// FingerprintDetail records TLC's source stack and underlying cause, if any.
@@ -113,6 +119,7 @@ type model struct {
 	possibleActions   []possiblePredicate
 	debug             func(string)
 	graph             func(GraphEvent) error
+	searchEvent       func(SearchEvent)
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
@@ -134,6 +141,8 @@ type Options struct {
 	// OnGraph receives states and transitions synchronously during exploration.
 	// State and Order must be copied by callers that retain them after the call.
 	OnGraph func(GraphEvent) error
+	// OnSearch receives synchronous initial-state progress events when set.
+	OnSearch func(SearchEvent)
 }
 
 // Check parses a module and a TLC configuration and explores the model.
@@ -159,6 +168,8 @@ func (e *SemanticError) Unwrap() error { return e.Err }
 type ConfigurationError struct {
 	Message string
 	Err     error
+	// Code is the Java TLC message code when the failure has a known equivalent.
+	Code int
 }
 
 func (e *ConfigurationError) Error() string {
@@ -329,7 +340,7 @@ func prepareWithSources(module *parser.Module, cfg config.Config, options Option
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch}
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.sourceUnits = sourceUnits
 	runtime.model = m
@@ -453,6 +464,9 @@ func (m *model) bindModel() error {
 }
 
 func (m *model) validateDefinitions() error {
+	if err := m.validateConfiguredConstants(); err != nil {
+		return err
+	}
 	names := append([]string{m.cfg.Init, m.cfg.Next}, m.cfg.Invariants...)
 	names = append(names, m.cfg.Constraints...)
 	names = append(names, m.cfg.ActionConstraints...)
@@ -471,6 +485,11 @@ func (m *model) validateDefinitions() error {
 
 func (m *model) definition(name string) (*parser.Expression, error) {
 	d, ok := m.defs[name]
+	if !ok {
+		if _, exists := m.constants[name]; exists {
+			return &parser.Expression{Kind: "Identifier", Text: name}, nil
+		}
+	}
 	if !ok || d.Kind != "Operator" || len(d.Params) != 0 {
 		return nil, fmt.Errorf("configuration operator %q is undefined or requires arguments", name)
 	}

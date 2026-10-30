@@ -4,15 +4,24 @@ Statechart integration is part of tla-go's Java TLC compatibility goal. This
 plan tracks the additional interfaces needed to use tla-go as a statechart
 backend; matching state counts alone is not sufficient.
 
-At tla-go commit `25cc6e0`, the statechart report supplied by the user says 32
-of 33 specifications matched Java TLC's exit code and state counts. That report
-has not yet been reproduced in this repository. The remaining specification and
-its failure need to be recorded alongside the integration tests.
+The statechart corpus from `upamune/skills` draft PR #29 was identified at
+commit `cbc22d03dc6090cbba8b3a1b5cc13a0267bd4596`. Its statechart directory
+has the same Git tree as `cursor/plugins` commit
+`4dd1d05818d19792e7cd6e818f1667f95f7e1dbe` (`a79a48c6970be3b63d6efefb0a306b7c87de88d0`).
+For all 33 corpus models with their original configurations, tla-go and Java
+TLC 1.7.4 now agree on exit codes and the verdicts, initial and distinct state
+counts, and traces read by statechart's actual parser. This comparison does not
+establish SANY or full single-binary equivalence.
+
+A separate hybrid test runs statechart's generated models and compares all 33
+charts and reports with the pinned corpus. It uses Java SANY, and a test-only
+bridge copies the library modules into TLC's temporary directory and drops
+`-metadir`; it is not a replacement for testing the final integration.
 
 ## 1. Establish the integration baseline
 
-- Obtain the statechart repository, its exact revision and all 33 test specs.
-  Record the Java TLC version, commands, configuration, and expected results.
+- Maintain the pinned statechart corpus, Java TLC comparison and hybrid chart
+  tests in CI; replace the test bridge with the final single-binary integration.
 - Run the existing integration tests with Java TLC and capture representative
   `-tool` messages, DOT files and SANY XML. Include successful exploration,
   deadlock, invariant violation, syntax or semantic error, and non-ASCII values.
@@ -28,11 +37,11 @@ defined operators and declaration order. Targeted tests also cover facts and
 TLC 1.7.4. Structured proofs and all possible proof directives are not yet
 supported; the statechart specifications have not yet been verified.
 
-Named and unnamed `INSTANCE TLC` support the TLC operators implemented by
-tla-go, including runtime state and side effects. Targeted tests compare their
-results, failures, random behavior and DOT output with Java TLC 1.7.4; local
-`TLC.tla` files retain precedence. Other standard-module instances and full
-statechart coverage remain outstanding.
+Named and unnamed `INSTANCE TLC` and `INSTANCE Naturals` support their
+implemented operators, including TLC runtime state and side effects. Targeted
+tests compare results, failures, random behavior and DOT output with Java TLC
+1.7.4; local module files retain precedence. Other standard-module instances
+and the final statechart integration remain outstanding.
 
 - Support the module search paths used by statechart, with Java-compatible
   lookup order, relative paths, transitive imports, and diagnostics. Test paths
@@ -49,11 +58,22 @@ statechart coverage remain outstanding.
 
 ## 3. TLC tool protocol
 
+`-tool` emits framed messages for initial and final counts, success, common
+violations, traces, and selected errors. The direct comparison above runs in CI
+using statechart's real message, verdict and trace parsers. This is incomplete:
+not every Java TLC message, error code, timing, or progress event is reproduced,
+and the output has not yet been validated across the full TLC suite.
+
 - Implement `-tool` message framing, codes, severity, ordering, output streams,
   and process exit behavior for the messages consumed by statechart. Use Java
   TLC as the oracle, including progress, success, failure, and counterexamples.
 - Add direct protocol tests and tests using statechart's real message parser.
   Preserve normal human-readable output when `-tool` is not selected.
+
+To run the corpus test locally, check out the pinned `cursor/plugins` revision
+and set `STATECHART_DIR` to its `pstack/skills/statechart` directory and
+`TLC_JAR` to the Java TLC 1.7.4 jar. Run
+`mise exec bun@1.3.11 -- go test ./cmd/tla-go -run '^TestJavaTLCStatechart(Corpus|Marks|Hybrid)$' -count=1`.
 
 ## 4. DOT state graph
 

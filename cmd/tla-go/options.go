@@ -36,6 +36,8 @@ func parseOption(opts *options, args []string) (int, error) {
 		opts.debugLiveness = true
 	case "-modern-random-subsets":
 		opts.modernRandomSubsets = true
+	case "-tool":
+		opts.tool = true
 	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp":
 		return parseValueOption(opts, args)
 	default:
@@ -52,6 +54,9 @@ func parseDumpOption(opts *options, args []string) (int, error) {
 		return 0, fmt.Errorf("unsupported dump format %s", args[1])
 	}
 	opts.dumpPath = args[2]
+	if !strings.HasSuffix(opts.dumpPath, ".dot") {
+		opts.dumpPath += ".dot"
+	}
 	return 2, nil
 }
 

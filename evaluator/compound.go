@@ -26,6 +26,9 @@ func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
 		builtin.Text = strings.TrimPrefix(expr.Text, "!tlc!")
 		return e.tlcOperator(&builtin)
 	}
+	if expr.BuiltinNatural {
+		return e.applyNaturalBuiltin(expr)
+	}
 	if e.hasOperators {
 		if op, ok := e.findOperator(expr.Text); ok {
 			return e.applyOperator(op, expr.Args)

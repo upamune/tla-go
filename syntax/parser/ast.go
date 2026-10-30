@@ -23,7 +23,9 @@ type Expression struct {
 	Kind, Text string
 	Bulleted   bool
 	// BuiltinTLC marks an internal call to a TLC standard-module operator.
-	BuiltinTLC     bool `json:"-"`
+	BuiltinTLC bool `json:"-"`
+	// BuiltinNatural marks an internal call to a Naturals operator.
+	BuiltinNatural bool `json:"-"`
 	Quantifier     string
 	Temporal       bool
 	Names          []string

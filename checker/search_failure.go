@@ -16,6 +16,9 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 	}
 	s.result.Status = EvaluationFailure
 	s.result.Failure = &Failure{Message: failure.Message, Trace: trace, ExitCode: code, FingerprintDetail: fingerprintDetail(failure), EvaluationDetail: evaluationDetail(failure), SuppressDepth: failure.Unexpected != nil || len(failure.Sources) > 0}
+	if len(trace) > 0 {
+		s.result.Failure.ToolCode = failure.ToolCode
+	}
 	if candidate, ok := errors.AsType[*candidateFingerprintError](err); ok && candidate.parent < 0 {
 		s.result.Failure.InitialState = candidate.state
 	}
@@ -118,9 +121,11 @@ func (s *search) propertyRuntimeFailure(err error, name string, state evaluator.
 	}
 	s.result.Status = EvaluationFailure
 	s.result.Failure = &Failure{
-		Message:  fmt.Sprintf("Evaluating action property %s failed.\n%s", name, failure.Message),
-		Trace:    append(s.trace(parent), TraceStep{Action: action, State: state, ActionRange: actionSourceRange(s.actionSource)}),
-		ExitCode: actionFailureCode(failure),
+		Message:        fmt.Sprintf("Evaluating action property %s failed.\n%s", name, failure.Message),
+		Trace:          append(s.trace(parent), TraceStep{Action: action, State: state, ActionRange: actionSourceRange(s.actionSource)}),
+		ExitCode:       actionFailureCode(failure),
+		ToolCode:       2113,
+		NestedToolCode: failure.ToolCode,
 	}
 	return false, nil
 }
@@ -141,9 +146,16 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 		}
 	} else {
 		result.Message = fmt.Sprintf("Evaluating invariant %s failed.\n%s", name, failure.Message)
+		result.ToolCode = 2111
+		result.NestedToolCode = failure.ToolCode
 		result.Trace = append(s.trace(parent), TraceStep{Action: action, State: state, ActionRange: actionSourceRange(s.actionSource)})
 		result.ExitCode = 76
 		s.result.HasOutDegrees = true
+		if !s.candidateInModel {
+			result.ExitCode = actionFailureCode(failure)
+			result.EvaluationDetail = evaluationDetail(failure)
+			result.SuppressDepth = true
+		}
 	}
 	s.result.Status = EvaluationFailure
 	s.result.Failure = result

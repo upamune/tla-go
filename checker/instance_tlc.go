@@ -21,14 +21,27 @@ func (r *instanceResolver) instanceSource(name string) (string, *parser.Module, 
 }
 
 func (r *instanceResolver) missingInstanceSource(name string, err error) (string, *parser.Module, error) {
-	if name == "TLC" && (err == nil || errors.Is(err, fs.ErrNotExist)) {
-		r.session.builtinTLC = true
-		return "", builtinTLCModule(), nil
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		if module := r.builtinInstanceModule(name); module != nil {
+			return "", module, nil
+		}
 	}
 	if err == nil {
 		return "", nil, fmt.Errorf("instance module %s requires a module loader", name)
 	}
 	return "", nil, moduleLoadError("instance module", name, err)
+}
+
+func (r *instanceResolver) builtinInstanceModule(name string) *parser.Module {
+	switch name {
+	case "TLC":
+		r.session.builtinTLC = true
+		return builtinTLCModule()
+	case "Naturals":
+		return builtinNaturalsModule()
+	default:
+		return nil
+	}
 }
 
 // builtinTLCModule represents the public operators of TLC. Their bodies use
@@ -45,12 +58,15 @@ func builtinTLCModule() *parser.Module {
 	return module
 }
 
-func isBuiltinTLCModule(module *parser.Module) bool {
-	return module.Name == "TLC" && len(module.Definitions) > 0 && module.Definitions[0].Body != nil && module.Definitions[0].Body.BuiltinTLC
+func isBuiltinStandardModule(module *parser.Module) bool {
+	if len(module.Definitions) == 0 || module.Definitions[0].Body == nil {
+		return false
+	}
+	return module.Definitions[0].Body.BuiltinTLC || module.Definitions[0].Body.BuiltinNatural
 }
 
 func addBuiltinInstanceArguments(body *parser.Expression, params []parser.Declaration) {
-	if body == nil || !body.BuiltinTLC || len(params) == 0 {
+	if body == nil || !(body.BuiltinTLC || body.BuiltinNatural) || len(params) == 0 {
 		return
 	}
 	args := make([]*parser.Expression, 0, len(params)+len(body.Args))

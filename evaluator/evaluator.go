@@ -233,6 +233,9 @@ func (e *evaluator) evalExpression(expr *parser.Expression) (value.Value, error)
 }
 
 func (e *evaluator) expressionIdentifier(expr *parser.Expression) (value.Value, error) {
+	if expr.BuiltinNatural && expr.Text == "!naturals!Nat" {
+		return value.NaturalNumbers(), nil
+	}
 	if expr.BuiltinTLC {
 		switch expr.Text {
 		case "!tlc!Any":

@@ -17,12 +17,18 @@ func functionLookup(fn, key value.Value, keepLazy bool) (value.Value, error) {
 		return value.Value{}, &RuntimeError{Message: message, Legacy: err.Error()}
 	}
 	if errors.Is(err, value.ErrOutsideFunctionDomain) {
-		return value.Value{}, &RuntimeError{Message: domainFailureMessage(fn, key), Legacy: err.Error()}
+		return value.Value{}, &RuntimeError{Message: domainFailureMessage(fn, key), Legacy: err.Error(), TrackSource: fn.IsTuple()}
 	}
 	return value.Value{}, err
 }
 
 func domainFailureMessage(fn, key value.Value) string {
+	if fn.IsTuple() {
+		if n, ok := key.Int(); ok {
+			return fmt.Sprintf("Attempted to apply tuple\n%s\nto integer %d which is out of domain.", fn, n)
+		}
+		return "Attempted to apply tuple to a non-integer argument."
+	}
 	if fn.Kind() == value.LazyFunctionKind {
 		return fmt.Sprintf("In applying the function\n%s,\nthe first argument is:\n%s\nwhich is not in its domain.\n", fn, key)
 	}

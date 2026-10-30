@@ -54,7 +54,7 @@ func comparison(name string, a, b int64) (value.Value, error) {
 
 func divide(a, b int64) (value.Value, error) {
 	if b == 0 {
-		return value.Value{}, &RuntimeError{Message: "The second argument of \\div is 0.", Legacy: "division by zero", Standard: true}
+		return value.Value{}, &RuntimeError{Message: "The second argument of \\div is 0.", Legacy: "division by zero", Standard: true, ToolCode: 2179}
 	}
 	n := a / b
 	if a%b != 0 && (a < 0) != (b < 0) {

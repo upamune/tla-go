@@ -187,7 +187,11 @@ func Tuple(elements []Value) (Value, error) {
 		}
 		pairs[i] = Pair{key, element}
 	}
-	return FunctionWithDomain(pairs, Interval(1, int32(len(elements))))
+	result, err := FunctionWithDomain(pairs, Interval(1, int32(len(elements))))
+	if err == nil {
+		result.number = 1
+	}
+	return result, err
 }
 
 func (v Value) Lookup(key Value) (Value, error) {

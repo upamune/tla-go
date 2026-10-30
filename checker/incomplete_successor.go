@@ -46,7 +46,7 @@ func (s *search) incompleteSuccessorFailure(incomplete *incompleteState, index i
 	if incomplete.action == "!spec!next" {
 		diagnosticAction = "UnnamedAction"
 	}
-	s.result.Failure = &Failure{Message: s.incompleteMessage(diagnosticAction, missing, incomplete.split), Trace: append(trace, step), ExitCode: 75}
+	s.result.Failure = &Failure{Message: s.incompleteMessage(diagnosticAction, missing, incomplete.split), Trace: append(trace, step), ExitCode: 75, ToolCode: 2109}
 	return s.result, nil
 }
 

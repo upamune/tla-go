@@ -65,12 +65,13 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-seed N` | Set the random seed; the default is 0. |
 | `-workers 1` | Select the currently supported single-worker mode. |
 | `-fp 0` | Select the currently supported default TLC fingerprint polynomial. |
-| `-dump dot,actionlabels FILE` | Write an action-labeled DOT graph during exploration. |
+| `-tool` | Emit experimental TLC-style machine-readable messages. |
+| `-dump dot,actionlabels FILE` | Write an action-labeled DOT graph during exploration; `.dot` is appended if absent. |
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |
 | `-modern-random-subsets` | Use the newer TLC random-subset algorithm. |
 | `-version`, `-help` | Show the version or usage. |
 
-The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. DOT output is compared with Java TLC for representative models, but full compatibility is not yet established. Only the values shown for `-workers` and `-fp` are accepted; state identity and fingerprint collision behavior can still differ from Java TLC.
+The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and DOT output are compared with Java TLC for representative models, but full compatibility is not yet established. Only the values shown for `-workers` and `-fp` are accepted; state identity and fingerprint collision behavior can still differ from Java TLC.
 
 ## Documentation
 

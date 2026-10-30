@@ -36,6 +36,7 @@ type search struct {
 	actionSource     *parser.Expression
 	graphOrder       []string
 	graphStates      map[string]evaluator.State
+	candidateInModel bool
 }
 
 func (m *model) check() (Result, error) {
@@ -46,6 +47,7 @@ func (m *model) check() (Result, error) {
 	if m.noStateSearch() {
 		return Result{Status: Success, Depth: 1}, nil
 	}
+	m.emitSearchEvent(SearchEvent{Kind: InitialStart})
 	init, _ := m.definition(m.cfg.Init)
 	s := newSearch(m)
 	m.tlcRuntime.search = &s
@@ -63,6 +65,7 @@ func (m *model) check() (Result, error) {
 		s.finishInitialEvaluationDetail()
 		return s.result, nil
 	}
+	m.emitSearchEvent(SearchEvent{Kind: InitialComplete, GeneratedStates: s.result.GeneratedStates, DistinctStates: s.result.DistinctStates})
 	return s.explore()
 }
 
@@ -71,21 +74,21 @@ func (m *model) checkAssumptions() (Result, bool, error) {
 		ok, err := m.holds(assumption.Expression, nil, nil)
 		if err != nil {
 			if failure, valid := errors.AsType[*evaluator.RuntimeError](err); valid {
-				return m.assumptionViolation(assumption.Expression, failure.Message), true, nil
+				return m.assumptionViolation(assumption.Expression, failure.Message, failure.ToolCode), true, nil
 			}
 			return Result{}, false, err
 		}
 		if !ok {
-			return m.assumptionViolation(assumption.Expression, ""), true, nil
+			return m.assumptionViolation(assumption.Expression, "", 0), true, nil
 		}
 	}
 	return Result{}, false, nil
 }
 
-func (m *model) assumptionViolation(expr *parser.Expression, message string) Result {
+func (m *model) assumptionViolation(expr *parser.Expression, message string, toolCode int) Result {
 	r := expr.Location.Range
 	name := fmt.Sprintf("line %d, col %d to line %d, col %d of module %s", r.Start.Line, r.Start.Column, r.End.Line, r.End.Column, r.Module)
-	return Result{Status: AssumptionViolation, Violation: &Violation{Name: name, Message: message, Trace: []TraceStep{}}}
+	return Result{Status: AssumptionViolation, Violation: &Violation{Name: name, Message: message, ToolCode: toolCode, Trace: []TraceStep{}}}
 }
 
 func newSearch(m *model) search {
@@ -227,6 +230,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	if err != nil {
 		return false, candidateFailure(err, state, parent)
 	}
+	s.candidateInModel = inModel
 	if s.alreadySeen(inModel, key) {
 		return s.visitExisting(state, parent, action, key)
 	}
@@ -386,7 +390,7 @@ func (s *search) safetyViolation(state evaluator.State) (string, error) {
 		}
 		ok, err := s.model.holdsProperty(p.predicate, state, p.locals)
 		if err != nil || !ok {
-			return p.name, err
+			return s.model.safetyViolationName(p), err
 		}
 	}
 	return "", nil

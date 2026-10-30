@@ -10,10 +10,13 @@ import (
 // RuntimeError is an evaluation failure that TLC reports as part of a model
 // checking result. Standard identifies errors raised by a standard module.
 type RuntimeError struct {
-	Message     string
-	Legacy      string
-	Standard    bool
-	ExitCode    int
+	Message  string
+	Legacy   string
+	Standard bool
+	ExitCode int
+	// ToolCode identifies the corresponding Java TLC message when known.
+	ToolCode    int
+	TrackSource bool
 	Unexpected  *value.UnexpectedError
 	Fingerprint *value.FingerprintError
 	Sources     []*parser.Expression
@@ -31,7 +34,7 @@ func AddUnexpectedSource(err error, source *parser.Expression) {
 		if failure.Unexpected != nil && failure.Fingerprint == nil {
 			failure.Unexpected.Sources = append(failure.Unexpected.Sources, source)
 		}
-		if len(failure.Sources) > 0 {
+		if failure.TrackSource || len(failure.Sources) > 0 {
 			failure.Sources = append(failure.Sources, source)
 		}
 		return

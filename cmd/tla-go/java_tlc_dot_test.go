@@ -106,8 +106,38 @@ func TestDotOutputErrors(t *testing.T) {
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
 	var out, errout bytes.Buffer
-	code := run(context.Background(), []string{"-dump", "dot,actionlabels", dir, filepath.Join(dir, "M.tla")}, &out, &errout)
+	code := run(context.Background(), []string{"-dump", "dot,actionlabels", filepath.Join(dir, "missing", "out.dot"), filepath.Join(dir, "M.tla")}, &out, &errout)
 	if code != 255 || !strings.Contains(errout.String(), "create DOT dump") {
 		t.Fatalf("exit %d, stderr %q", code, errout.String())
+	}
+}
+
+func TestDotOutputSuffix(t *testing.T) {
+	for input, want := range map[string]string{"graph": "graph.dot", "graph.dot": "graph.dot", "graph.foo": "graph.foo.dot", "graph.DOT": "graph.DOT.dot"} {
+		opts, err := parseOptions([]string{"-dump", "dot,actionlabels", input, "M.tla"})
+		if err != nil || opts.dumpPath != want {
+			t.Errorf("dump %q: got %q, error %v; want %q", input, opts.dumpPath, err, want)
+		}
+	}
+}
+
+func TestJavaTLCToolDotSuffix(t *testing.T) {
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
+	path := filepath.Join(dir, "graph")
+	var out, errout bytes.Buffer
+	code := run(context.Background(), []string{"-tool", "-dump", "dot,actionlabels", path, filepath.Join(dir, "M.tla")}, &out, &errout)
+	if code != 0 {
+		t.Fatalf("exit %d; stdout %s; stderr %s", code, out.String(), errout.String())
+	}
+	graph, err := os.ReadFile(path + ".dot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("unexpected file without suffix: %v", err)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		compareJavaDOT(t, jar, dir, graph, 0)
 	}
 }
