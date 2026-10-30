@@ -53,3 +53,30 @@ func TestStandaloneRandomSeed(t *testing.T) {
 		}
 	}
 }
+
+// Java TLC 1.7.4 seeds each simulation worker with the master RNG's nextLong.
+// These pairs are nextDouble()*7 and nextPrime from that worker, respectively.
+func TestJavaRandomSimulationWorkerSequence(t *testing.T) {
+	master := NewJavaRandom(1)
+	worker := NewJavaRandom(master.Long())
+	want := [][2]int64{
+		{0, 1292309},
+		{0, 1290593},
+		{1, 1282163},
+		{4, 1277093},
+		{3, 1278047},
+		{0, 1285429},
+		{3, 1283237},
+		{0, 1293367},
+		{1, 1279787},
+		{6, 1288951},
+		{1, 1282343},
+		{0, 1287589},
+	}
+	for i, expected := range want {
+		got := [2]int64{int64(worker.Float64() * 7), worker.Prime()}
+		if got != expected {
+			t.Fatalf("draw %d: got %v; want %v", i, got, expected)
+		}
+	}
+}

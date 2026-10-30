@@ -43,7 +43,7 @@ func modernSubsetIndices(count int, size int64, random *JavaRandom) []int64 {
 	params := random.subsetParameters(size)
 	modulus, multiplier := params.modulus, params.multiplier
 	index := int64(random.Int(int32(size)))
-	increment := randomPrime(random)
+	increment := random.Prime()
 	indices := make([]int64, count)
 	for i := range indices {
 		for {
@@ -99,9 +99,10 @@ func subsetMultiplier(n int64) (int64, bool) {
 	return product + 1, repeated
 }
 
-func randomPrime(random *JavaRandom) int64 {
+// Prime returns the next prime selected by TLC's RandomGenerator.nextPrime.
+func (r *JavaRandom) Prime() int64 {
 	randomPrimes.once.Do(initRandomPrimes)
-	return randomPrimes.data[int(random.Float64()*float64(len(randomPrimes.data)))]
+	return randomPrimes.data[int(r.Float64()*float64(len(randomPrimes.data)))]
 }
 
 func initRandomPrimes() {
