@@ -48,11 +48,18 @@ func (p *parser) record(start int, t syntax.Token) (*Expression, error) {
 		kind, delimiter = "RecordSet", ":"
 	}
 	var fields []Field
+	var duplicate *Position
+	seen := make(map[string]bool)
 	for {
+		fieldPosition := position(p.peek())
 		field, err := p.recordField(delimiter)
 		if err != nil {
 			return nil, err
 		}
+		if seen[field.Name] && duplicate == nil {
+			duplicate = &fieldPosition
+		}
+		seen[field.Name] = true
 		fields = append(fields, field)
 		if !p.accept(",") {
 			break
@@ -63,6 +70,7 @@ func (p *parser) record(start int, t syntax.Token) (*Expression, error) {
 	}
 	result := node(kind, "", p.location(t, start))
 	result.Fields = fields
+	result.DuplicateField = duplicate
 	return result, nil
 }
 

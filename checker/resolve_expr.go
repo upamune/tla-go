@@ -11,6 +11,9 @@ func (r *resolver) expression(expr *parser.Expression, scope map[string]symbol) 
 	if expr == nil {
 		return fmt.Errorf("missing expression")
 	}
+	if err := validateRecordFields(expr); err != nil {
+		return err
+	}
 	if err := r.expressionHead(expr, scope); err != nil {
 		return err
 	}

@@ -144,6 +144,12 @@ type SyntaxError struct{ Err error }
 func (e *SyntaxError) Error() string { return e.Err.Error() }
 func (e *SyntaxError) Unwrap() error { return e.Err }
 
+// SemanticError wraps a TLA+ semantic validation failure.
+type SemanticError struct{ Err error }
+
+func (e *SemanticError) Error() string { return e.Err.Error() }
+func (e *SemanticError) Unwrap() error { return e.Err }
+
 // CheckContext supports cancellation during state exploration.
 func CheckContext(ctx context.Context, source, configuration string) (Result, error) {
 	return CheckWithLoader(ctx, source, configuration, nil)

@@ -34,3 +34,6 @@ labels, selected subexpressions, and instance operator substitutions.
 
 `test219` and `test219a` are unchanged models from the same suite. They test
 parameterized instances, theorem labels, and subexpression selections.
+
+`etest16` is an unchanged model from the same suite. It checks that duplicate
+record and record-set fields are rejected during semantic analysis.

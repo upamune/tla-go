@@ -149,6 +149,9 @@ func reportError(w io.Writer, err error) int {
 	if _, ok := errors.AsType[*checker.SyntaxError](err); ok {
 		return 150
 	}
+	if _, ok := errors.AsType[*checker.SemanticError](err); ok {
+		return 150
+	}
 	return 255
 }
 
