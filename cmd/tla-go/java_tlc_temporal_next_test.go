@@ -15,8 +15,10 @@ func TestJavaTLCTemporalNextEvaluation(t *testing.T) {
 		code                      int
 	}{
 		{"empty initial states", "FALSE /\\ x = 0", "[](x = 0)", "0 states generated, 0 distinct states found", 0},
+		{"empty initial states constant temporal", "FALSE /\\ x = 0", "[]TRUE", "0 states generated, 0 distinct states found", 0},
 		{"empty initial states box action", "FALSE /\\ x = 0", "[][FALSE /\\ x' = x]_x", "0 states generated, 0 distinct states found", 0},
 		{"always", "x = 0", "[](x = 0)", "temporal formula ([]A)", 75},
+		{"constant temporal", "x = 0", "[]TRUE", "temporal formula ([]A)", 75},
 		{"eventually", "x = 0", "<>(x = 0)", "temporal formula (<>A)", 75},
 		{"leads to", "x = 0", "(x = 0) ~> (x = 1)", "temporal formula (a ~> b)", 75},
 		{"guarantees", "x = 0", "(x = 0) -+-> (x = 1)", "temporal formula (a -+-> formula)", 75},
@@ -92,6 +94,7 @@ func TestJavaTLCTemporalStatePredicates(t *testing.T) {
 		code               int
 	}{
 		{"temporal initial predicate", "[](x = 0)", "", 75},
+		{"constant temporal initial predicate", "[]TRUE", "", 75},
 		{"unreached temporal initial branch", "IF FALSE THEN []TRUE ELSE x = 0", "", 0},
 		{"empty state constraint", "FALSE /\\ x = 0", "CONSTRAINT AC\n", 0},
 		{"state constraint", "x = 0", "CONSTRAINT AC\n", 75},
