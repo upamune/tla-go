@@ -70,7 +70,7 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 	}
 	t.message(2220, 0, "Starting SANY-compatible analysis...")
 	var diagnostic bytes.Buffer
-	module, code := loadModule(specPath, &diagnostic)
+	module, code := loadModule(specPath, opts.libraryPaths, &diagnostic)
 	if code != 0 {
 		return toolLoadFailure(t, &diagnostic, code)
 	}

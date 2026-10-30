@@ -14,9 +14,10 @@ counts, and traces read by statechart's actual parser. This comparison does not
 establish SANY or full single-binary equivalence.
 
 A separate hybrid test runs statechart's generated models and compares all 33
-charts and reports with the pinned corpus. It uses Java SANY, and a test-only
-bridge copies the library modules into TLC's temporary directory and drops
-`-metadir`; it is not a replacement for testing the final integration.
+charts and reports with the pinned corpus. It uses Java SANY and a test-only
+bridge to select tla-go for TLC, but passes the original library path and
+`-metadir` through without copying modules. It is not a replacement for testing
+the final single-binary integration.
 
 ## 1. Establish the integration baseline
 
@@ -43,18 +44,23 @@ tests compare results, failures, random behavior and DOT output with Java TLC
 1.7.4; local module files retain precedence. Other standard-module instances
 and the final statechart integration remain outstanding.
 
-- Support the module search paths used by statechart, with Java-compatible
-  lookup order, relative paths, transitive imports, and diagnostics. Test paths
-  containing spaces and missing or conflicting modules.
+- The `-DTLA-Library=paths` option accepts the same platform-separated library
+  paths as Java's system property. Tests compare local and library precedence,
+  missing modules, paths containing spaces, and transitive imports against Java
+  TLC 1.7.4. Verify remaining lookup and diagnostic differences, including
+  relative paths, standard-module overrides and classpath-only modules.
 - Complete named standard-module instances, including qualified operator calls
   and relevant substitutions. Retain support for user-defined modules and verify
   `X == INSTANCE TLC` with the actual statechart models.
 - Verify the `USE DEF` forms used by the actual statechart models without
   changing model-checking semantics. Invalid proof directives must be rejected.
-- Complete the Java-compatible behavior of the accepted `-workers 1` and
-  `-fp 0` options, including fingerprint collisions, and implement `-metadir`.
-  Verify the actual statechart invocations and filesystem behavior against Java
-  TLC. Test invalid and unsupported values too.
+- `-metadir` creates a timestamped run directory, expands `${metadir}` in a
+  DOT dump path, and removes the run directory on success. Java comparison tests
+  cover this filesystem behavior, and the hybrid statechart test passes the
+  actual option through. Checkpoint and recovery metadata are not implemented.
+  Complete the Java-compatible behavior
+  of the accepted `-workers 1` and `-fp 0` options, including fingerprint
+  collisions, and test invalid and unsupported values.
 
 ## 3. TLC tool protocol
 

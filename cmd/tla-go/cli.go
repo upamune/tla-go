@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/upamune/tla-go/checker"
 	"github.com/upamune/tla-go/config"
@@ -18,6 +19,8 @@ import (
 type options struct {
 	path, configPath           string
 	paths                      []string
+	libraryPaths               []string
+	metaRoot                   string
 	deadlockOff, help, version bool
 	debugLiveness              bool
 	modernRandomSubsets        bool
@@ -28,7 +31,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-config file.cfg] [-deadlock] [-seed integer] [-workers 1] [-fp 0] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-workers 1] [-fp 0] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -58,7 +61,26 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	return runModels(ctx, opts, out, errout)
 }
 
-func runModel(ctx context.Context, opts options, out, errout io.Writer) int {
+func runModel(ctx context.Context, opts options, out, errout io.Writer) (code int) {
+	if opts.metaRoot != "" {
+		metaDir, err := makeMetaDir(opts.metaRoot, time.Now())
+		if err != nil {
+			fmt.Fprintf(errout, "Cannot create metadata directory: %s\n", err)
+			return 255
+		}
+		defer func() {
+			if code == 0 {
+				_ = os.RemoveAll(metaDir)
+			}
+		}()
+		if after, ok := strings.CutPrefix(opts.dumpPath, "${metadir}"); ok {
+			opts.dumpPath = metaDir + after
+		}
+	}
+	return runConfiguredModel(ctx, opts, out, errout)
+}
+
+func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer) int {
 	if opts.tool {
 		return runToolModel(ctx, opts, out, errout)
 	}
@@ -67,7 +89,7 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) int {
 		fmt.Fprintln(errout, err)
 		return 255
 	}
-	module, code := loadModule(specPath, errout)
+	module, code := loadModule(specPath, opts.libraryPaths, errout)
 	if code != 0 {
 		return code
 	}
@@ -95,7 +117,7 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	if err != nil {
 		return checker.Result{}, err
 	}
-	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath)), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, ModernRandomSubsets: opts.modernRandomSubsets}
+	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, ModernRandomSubsets: opts.modernRandomSubsets}
 	if graph != nil {
 		checkOptions.OnGraph = graph.event
 	}
@@ -138,8 +160,16 @@ func writeJSONFile(path, text string) error {
 	return os.WriteFile(path, []byte(text), 0o666)
 }
 
-func loadModule(specPath string, errout io.Writer) (*parser.Module, int) {
+func loadModule(specPath string, libraries []string, errout io.Writer) (*parser.Module, int) {
 	source, err := os.ReadFile(specPath)
+	if errors.Is(err, os.ErrNotExist) && filepath.Dir(specPath) == "." {
+		for _, dir := range libraries {
+			source, err = os.ReadFile(filepath.Join(dir, specPath))
+			if !errors.Is(err, os.ErrNotExist) {
+				break
+			}
+		}
+	}
 	if err != nil {
 		fmt.Fprintf(errout, "Cannot find the specification file %s\n", specPath)
 		return nil, 151
@@ -168,7 +198,7 @@ func loadConfig(configPath string, errout io.Writer) (config.Config, int) {
 	return parsed, 0
 }
 
-func directoryLoader(dir string) checker.ModuleLoader {
+func directoryLoader(dir string, libraries []string) checker.ModuleLoader {
 	return func(ctx context.Context, name string) (string, error) {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -176,9 +206,28 @@ func directoryLoader(dir string) checker.ModuleLoader {
 		if filepath.Base(name) != name || name == "." || name == ".." {
 			return "", fmt.Errorf("invalid module name %q", name)
 		}
-		source, err := os.ReadFile(filepath.Join(dir, name+".tla"))
-		return string(source), err
+		for _, root := range append([]string{dir}, libraries...) {
+			source, err := os.ReadFile(filepath.Join(root, name+".tla"))
+			if err == nil {
+				return string(source), nil
+			}
+			if !errors.Is(err, os.ErrNotExist) {
+				return "", err
+			}
+		}
+		return "", fmt.Errorf("module %s not found in search path: %w", name, os.ErrNotExist)
 	}
+}
+
+func makeMetaDir(root string, now time.Time) (string, error) {
+	if err := os.MkdirAll(root, 0o777); err != nil {
+		return "", err
+	}
+	dir := filepath.Join(root, now.Format("06-01-02-15-04-05"))
+	if err := os.Mkdir(dir, 0o777); err != nil {
+		return "", err
+	}
+	return dir, nil
 }
 
 func reportError(w io.Writer, err error) int {

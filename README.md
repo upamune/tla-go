@@ -56,11 +56,13 @@ tla-go -config path/to/Other.cfg path/to/Model.tla
 tla-go 'models/*.tla'                          # checks matching models with configs
 ```
 
-The module name must match the `.tla` filename. External modules referenced by `EXTENDS` or `INSTANCE` are loaded from the root module's directory. A `.cfg` path can also be passed directly.
+The module name must match the `.tla` filename. External modules referenced by `EXTENDS` or `INSTANCE` are searched in the root module's directory, followed by any directories supplied with `-DTLA-Library`. A `.cfg` path can also be passed directly.
 
 | Option | Purpose |
 | --- | --- |
 | `-config FILE` | Use a different TLC configuration file. |
+| `-DTLA-Library=PATHS` | Search these directories for modules, in order. Separate paths with `:` on Unix or `;` on Windows. |
+| `-metadir DIR` | Create a timestamped run directory under `DIR`; remove it on success. Checkpoint recovery is not yet supported. |
 | `-deadlock` | Disable deadlock reporting. |
 | `-seed N` | Set the random seed; the default is 0. |
 | `-workers 1` | Select the currently supported single-worker mode. |

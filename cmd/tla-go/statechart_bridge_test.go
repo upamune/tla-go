@@ -14,8 +14,7 @@ import (
 )
 
 // The test-only bridge preserves Java SANY and adapts TLC's Java invocation to
-// tla-go. It copies library modules into the temporary run directory and omits
-// -metadir, which are not yet implemented as CLI interfaces.
+// tla-go, forwarding the library path and metadata directory unchanged.
 func TestMain(m *testing.M) {
 	if os.Getenv("TLA_GO_STATECHART_BRIDGE") == "1" {
 		os.Exit(statechartBridge(os.Args[1:]))
@@ -36,11 +35,8 @@ func statechartBridge(args []string) int {
 	if index < 0 {
 		return bridgeJava(args)
 	}
-	if err := bridgeCopyModules(folder); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 255
-	}
-	return run(context.Background(), bridgeTLCArgs(args[index+1:]), os.Stdout, os.Stderr)
+	tlcArgs := append([]string{"-DTLA-Library=" + folder}, args[index+1:]...)
+	return run(context.Background(), tlcArgs, os.Stdout, os.Stderr)
 }
 
 func bridgeJava(args []string) int {
@@ -54,41 +50,6 @@ func bridgeJava(args []string) int {
 		return 255
 	}
 	return 0
-}
-
-func bridgeTLCArgs(args []string) []string {
-	var result []string
-	for i := 0; i < len(args); i++ {
-		if args[i] == "-metadir" && i+1 < len(args) {
-			i++
-			continue
-		}
-		result = append(result, args[i])
-	}
-	return result
-}
-
-func bridgeCopyModules(folder string) error {
-	entries, err := os.ReadDir(folder)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tla") {
-			continue
-		}
-		if _, err := os.Stat(entry.Name()); err == nil {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(folder, entry.Name()))
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(entry.Name(), data, 0o600); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func TestJavaTLCStatechartHybrid(t *testing.T) {

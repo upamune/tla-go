@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -38,7 +39,7 @@ func parseOption(opts *options, args []string) (int, error) {
 		opts.modernRandomSubsets = true
 	case "-tool":
 		opts.tool = true
-	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp":
+	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp", "-metadir":
 		return parseValueOption(opts, args)
 	default:
 		return 0, parsePath(opts, args[0])
@@ -76,11 +77,15 @@ func parseFixedOption(args []string) (int, error) {
 
 func parseValueOption(opts *options, args []string) (int, error) {
 	switch args[0] {
-	case "-config":
+	case "-config", "-metadir":
 		if len(args) < 2 {
-			return 0, fmt.Errorf("-config requires a path")
+			return 0, fmt.Errorf("%s requires a path", args[0])
 		}
-		opts.configPath = args[1]
+		if args[0] == "-config" {
+			opts.configPath = args[1]
+		} else {
+			opts.metaRoot = args[1]
+		}
 		return 1, nil
 	case "-seed":
 		return parseSeedOption(opts, args)
@@ -115,6 +120,10 @@ func parseGraphOption(opts *options, args []string) (int, error) {
 }
 
 func parsePath(opts *options, path string) error {
+	if library, ok := strings.CutPrefix(path, "-DTLA-Library="); ok {
+		opts.libraryPaths = filepath.SplitList(library)
+		return nil
+	}
 	if strings.HasPrefix(path, "-") {
 		return fmt.Errorf("unsupported option %s", path)
 	}
