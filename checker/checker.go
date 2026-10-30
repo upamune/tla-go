@@ -150,6 +150,20 @@ type SemanticError struct{ Err error }
 func (e *SemanticError) Error() string { return e.Err.Error() }
 func (e *SemanticError) Unwrap() error { return e.Err }
 
+// ConfigurationError is a configuration failure reported by Java TLC.
+type ConfigurationError struct {
+	Message string
+	Err     error
+}
+
+func (e *ConfigurationError) Error() string {
+	if e.Err == nil {
+		return e.Message
+	}
+	return e.Err.Error()
+}
+func (e *ConfigurationError) Unwrap() error { return e.Err }
+
 // CheckContext supports cancellation during state exploration.
 func CheckContext(ctx context.Context, source, configuration string) (Result, error) {
 	return CheckWithLoader(ctx, source, configuration, nil)
@@ -288,7 +302,7 @@ func prepareWithSources(module *parser.Module, cfg config.Config, options Option
 		return nil, err
 	}
 	cfg = discardIneffectiveScopedAssignments(module, cfg)
-	module, cfg, err = applyConfigOverrides(module, cfg)
+	module, cfg, err = applyValidatedConfigOverrides(module, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -325,6 +339,9 @@ func (m *model) bindAndValidate() error {
 		return err
 	}
 	m.prepareRandomConstants()
+	if err := m.validateConstantSubstitutions(); err != nil {
+		return err
+	}
 	if err := m.prepareSymmetry(); err != nil {
 		return err
 	}

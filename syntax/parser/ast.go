@@ -97,6 +97,8 @@ type Definition struct {
 	Origins []DefinitionOrigin `json:"-"`
 	// ConfigConstant represents a lazily applied constant-valued operator.
 	ConfigConstant bool `json:"-"`
+	// ConfigSubstitutionTarget identifies a nullary constant overridden by an operator.
+	ConfigSubstitutionTarget string `json:"-"`
 	// ConfigStandard identifies a standard value exposed for configuration overrides.
 	ConfigStandard bool `json:"-"`
 	// InstanceRange and InstanceParamCount preserve the source instance for TLC descriptions.

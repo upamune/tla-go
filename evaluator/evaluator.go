@@ -26,6 +26,8 @@ type Context struct {
 	OnPrint       func(string)
 	// UncachedArguments matches TLC's evaluation of ENABLED predicates.
 	UncachedArguments bool
+	// UncachedConstants evaluates configuration overrides before constant precomputation.
+	UncachedConstants bool
 }
 type scope struct {
 	parent      *scope
@@ -376,7 +378,7 @@ func (e *evaluator) definition(d parser.Definition, args []value.Value, defined 
 }
 
 func (e *evaluator) operatorDefinition(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope, expressions []*parser.Expression, caller *scope) (value.Value, error) {
-	if defined == &e.program.root && len(args) == 0 && e.program.constantDefs[d.Name] {
+	if defined == &e.program.root && len(args) == 0 && e.program.constantDefs[d.Name] && !e.context.UncachedConstants {
 		return e.constantDefinition(d, args, operators, defined)
 	}
 	return e.evaluateOperatorDefinition(d, args, operators, defined, expressions, caller)

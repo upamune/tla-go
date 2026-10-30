@@ -47,3 +47,7 @@ an unsatisfied CHOOSE, and comparison of incompatible function-domain values.
 
 `etest6` is unchanged from the same suite. It tests a next-state action that
 reads an unassigned primed variable through an operator argument.
+
+`etest7` and `test201a` are unchanged models from the same suite. They test
+configuration substitution of a nonconstant expression and an unassigned
+operator constant.

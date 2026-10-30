@@ -6,11 +6,12 @@ func (m *model) prepareRandomConstants() {
 	usesRandom := m.moduleUsesRandom()
 	definitions := make(map[string]bool)
 	expressions := make(map[*parser.Expression]bool)
+	excluded := m.configSubstitutionCacheExclusions()
 	for name, def := range m.defs {
 		if def.Kind != "Operator" || len(def.Params) != 0 {
 			continue
 		}
-		if m.prepareEffectfulConstant(def.Body, expressions, usesRandom) || m.staticConstantExpression(def.Body, nil) {
+		if m.prepareCacheCandidate(def.Body, expressions, usesRandom, excluded[name]) {
 			definitions[name] = true
 		}
 	}
@@ -18,14 +19,21 @@ func (m *model) prepareRandomConstants() {
 	m.program.SetConstantTLCEvaluations(expressions)
 }
 
+func (m *model) prepareCacheCandidate(body *parser.Expression, expressions map[*parser.Expression]bool, usesRandom, excluded bool) bool {
+	if excluded {
+		if usesRandom {
+			m.collectConstantTLCEval(body, expressions)
+		}
+		return false
+	}
+	return m.prepareEffectfulConstant(body, expressions, usesRandom) || m.staticConstantExpression(body, nil)
+}
+
 func (m *model) prepareEffectfulConstant(body *parser.Expression, expressions map[*parser.Expression]bool, usesRandom bool) bool {
 	if usesRandom {
 		m.collectConstantTLCEval(body, expressions)
 	}
-	if m.readsState(body, map[string]bool{}) || m.hasAction(body, map[string]bool{}) {
-		return false
-	}
-	return m.readsRandom(body, map[string]bool{}) || m.expressionHasEffects(body, map[string]bool{})
+	return m.cacheableEffectfulDefinition(body)
 }
 
 func (m *model) moduleUsesRandom() bool {

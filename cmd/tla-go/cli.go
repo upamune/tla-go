@@ -80,13 +80,21 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) int {
 	}
 	result, err := checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
 	if err != nil {
-		return reportError(errout, err)
+		return reportModelError(out, errout, err)
 	}
 	printResult(out, result, module)
 	if result.Failure != nil {
 		return result.Failure.ExitCode
 	}
 	return exitCode(result.Status)
+}
+
+func reportModelError(out, errout io.Writer, err error) int {
+	if configErr, ok := errors.AsType[*checker.ConfigurationError](err); ok {
+		fmt.Fprintf(out, "Error: %s\n", configErr.Message)
+		return 151
+	}
+	return reportError(errout, err)
 }
 
 func readJSONFile(path string) (string, error) {

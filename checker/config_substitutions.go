@@ -74,7 +74,7 @@ func validateConfigSubstitution(module *parser.Module, cfg config.Config, sub co
 	if configAssignsDefinition(module, cfg, sub.Target) {
 		return fmt.Errorf("substitution target %s has a configuration assignment, which is not yet supported", sub.Target)
 	}
-	return validateConfigSubstitutionTypes(module, sub, source, target)
+	return validateConfigSubstitutionTypes(sub, source, target)
 }
 
 func configAssignsDefinition(module *parser.Module, cfg config.Config, name string) bool {
@@ -89,15 +89,12 @@ func configAssignsDefinition(module *parser.Module, cfg config.Config, name stri
 	return false
 }
 
-func validateConfigSubstitutionTypes(module *parser.Module, sub config.Substitution, source, target parser.Definition) error {
+func validateConfigSubstitutionTypes(sub config.Substitution, source, target parser.Definition) error {
 	if len(source.Params) != len(target.Params) {
 		return fmt.Errorf("substitution %s <- %s has different arity", sub.Name, sub.Target)
 	}
 	if hasOperatorParameters(source.Params) || hasOperatorParameters(target.Params) {
 		return fmt.Errorf("substitution of higher-order operators is not yet supported")
-	}
-	if isConstantDeclaration(module, sub.Name) && configTargetReadsState(module, target) {
-		return fmt.Errorf("substitution target %s is not constant", sub.Target)
 	}
 	return nil
 }
@@ -191,20 +188,13 @@ func isConstantDeclaration(module *parser.Module, name string) bool {
 	return false
 }
 
-func configTargetReadsState(module *parser.Module, target parser.Definition) bool {
-	m := model{defs: map[string]parser.Definition{}, variables: map[string]bool{}}
-	for _, definition := range module.Definitions {
-		m.defs[definition.Name] = definition
-	}
-	for _, variable := range module.Variables {
-		m.variables[variable.Name] = true
-	}
-	return target.Body != nil && (m.readsState(target.Body, map[string]bool{}) || m.hasAction(target.Body, map[string]bool{}))
-}
-
 func replaceConfigDefinition(module *parser.Module, sub config.Substitution) {
 	source, _ := configSymbol(module, sub.Name)
+	constant := isConstantDeclaration(module, sub.Name)
 	source = configReplacement(source, sub.Target, 0)
+	if constant && len(source.Params) == 0 {
+		source.ConfigSubstitutionTarget = sub.Target
+	}
 	for i, d := range module.Definitions {
 		if d.Name == sub.Name {
 			module.Definitions[i] = source

@@ -122,7 +122,7 @@ func validateScopedReplacement(module *parser.Module, cfg config.Config, definit
 		return fmt.Errorf("invalid instance parameter count for %s", definition.Name)
 	}
 	definition.Params = definition.Params[prefix:]
-	return validateConfigSubstitutionTypes(module, sub, definition, target)
+	return validateConfigSubstitutionTypes(sub, definition, target)
 }
 
 func replaceScopedDefinition(module *parser.Module, replacement scopedReplacement) {
