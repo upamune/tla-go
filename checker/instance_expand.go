@@ -11,13 +11,15 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	if err != nil {
 		return err
 	}
-	module = withInheritedStandardDefinitions(module)
 	addProofModules(result, module.Name)
 	addProofModules(result, module.ProofModules...)
 	addProofModules(result, module.Extends...)
 	addInstanceStandardModules(result, module.Extends...)
 	addInstanceStandardModules(result, module.InstanceStandardModules...)
 	module, instance = alphaInstance(module, instance)
+	// Synthetic standard definitions use reserved parameter names, so they do
+	// not need the alpha-renaming required for source definitions.
+	module = withInheritedStandardDefinitions(module)
 	instance, err = r.resolveInstanceSubexpressions(instance, result)
 	if err != nil {
 		return err
