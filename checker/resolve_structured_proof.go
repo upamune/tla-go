@@ -75,6 +75,10 @@ func (s *structuredProofScope) step(step parser.ProofStep) error {
 		return s.defineStep(step)
 	case "Use", "Hide":
 		return s.directive(step.Directive)
+	case "Pick", "Take":
+		return s.bindingStep(step)
+	case "Witness":
+		return s.witnessStep(step)
 	default:
 		return s.assertionStep(step)
 	}

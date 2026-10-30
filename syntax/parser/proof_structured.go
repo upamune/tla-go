@@ -61,7 +61,7 @@ func (p *parser) structuredStep(level int, first bool) (ProofStep, error) {
 }
 
 func proofStepHasNoProof(kind string) bool {
-	return kind == "Define" || kind == "Use" || kind == "Hide"
+	return kind == "Define" || kind == "Use" || kind == "Hide" || kind == "Take" || kind == "Have" || kind == "Witness"
 }
 
 func (p *parser) proofStepToken(level int, first bool) (syntax.Token, error) {
@@ -92,6 +92,9 @@ func (p *parser) proofStepBody(token syntax.Token) (ProofStep, error) {
 	}
 	if isProofDirective(p.peek().Text) {
 		return p.structuredDirective(step)
+	}
+	if isProofSpecialStep(p.peek().Text) {
+		return p.proofSpecialStep(step)
 	}
 	if p.accept("SUFFICES") {
 		step.Kind = "Suffices"

@@ -144,6 +144,8 @@ type ProofStep struct {
 	Label       string
 	Kind        string
 	Statement   *Expression
+	Bounds      []Bound       `json:",omitempty"`
+	Arguments   []*Expression `json:",omitempty"`
 	Definitions []Definition
 	Directive   *ProofDirective `json:",omitempty"`
 	Proof       *Proof

@@ -38,8 +38,8 @@ defined operators and declaration order. Targeted tests also cover facts and
 `HIDE` directives, imported definitions, and invalid references against Java
 TLC 1.7.4. Theorem `ASSUME`/`PROVE` statements support local `NEW` declarations,
 and selected hierarchical proof forms validate `SUFFICES`, `DEFINE`, `USE`,
-`HIDE`, and step-reference scopes against Java TLC. Relative and unnumbered step
-markers are also supported. Other proof forms and directives
+`HIDE`, `PICK`, `TAKE`, `HAVE`, `WITNESS`, `CASE`, and step-reference scopes
+against Java TLC. Relative and unnumbered step markers are also supported. Other proof forms and directives
 remain unsupported; the statechart specifications have not yet been verified
 for all proof forms.
 
