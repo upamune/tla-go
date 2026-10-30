@@ -1,37 +1,36 @@
 package checker
 
-import (
-	"fmt"
-
-	"github.com/upamune/tla-go/syntax/parser"
-)
-
-func (m *model) validateActions() error {
-	names := append([]string{m.cfg.Next}, m.cfg.ActionConstraints...)
-	for _, name := range names {
-		expr, _ := m.definition(name)
-		if m.hasTemporal(expr, map[string]bool{}) {
-			return fmt.Errorf("%s uses an unsupported temporal expression", name)
-		}
-	}
-	return nil
-}
+import "github.com/upamune/tla-go/syntax/parser"
 
 func (m *model) hasTemporal(expr *parser.Expression, seen map[string]bool) bool {
 	if m.isTLCDefer(expr) {
 		return false
 	}
-	if expr.Kind == "Apply" && expr.Text == "~>" {
+	if temporalHead(expr) {
 		return true
 	}
-	switch expr.Kind {
-	case "Always", "Eventually", "WeakFairness", "StrongFairness":
-		return true
+	if expr.Kind == "Let" {
+		return m.temporalScope(expr).hasTemporal(expr.Args[0], seen)
+	}
+	if temporal, ok := m.temporalCallLevel(expr, seen); ok {
+		return temporal
 	}
 	if m.definitionHasTemporal(expr, seen) {
 		return true
 	}
 	return m.childrenHaveTemporal(expr, seen)
+}
+
+func temporalHead(expr *parser.Expression) bool {
+	if expr.Kind == "Apply" {
+		return expr.Text == "~>" || expr.Text == "-+->"
+	}
+	switch expr.Kind {
+	case "Always", "Eventually", "WeakFairness", "StrongFairness":
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *model) definitionHasTemporal(expr *parser.Expression, seen map[string]bool) bool {

@@ -21,16 +21,11 @@ func (e *evaluator) evalArgs(args []*parser.Expression) ([]value.Value, error) {
 }
 
 func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
-	if expr.BuiltinTLC {
-		builtin := *expr
-		builtin.Text = strings.TrimPrefix(expr.Text, "!tlc!")
-		return e.tlcOperator(&builtin)
+	if expr.Text == "~>" || expr.Text == "-+->" {
+		return temporalEvaluationError(expr)
 	}
-	if expr.BuiltinNatural {
-		return e.applyNaturalBuiltin(expr)
-	}
-	if expr.BuiltinStandard != "" {
-		return e.applyStandardBuiltin(expr)
+	if isMarkedBuiltin(expr) {
+		return e.markedBuiltin(expr)
 	}
 	if e.hasOperators {
 		if op, ok := e.findOperator(expr.Text); ok {
@@ -44,6 +39,22 @@ func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
 		return e.applyDefinition(def, expr.Args, scope)
 	}
 	return e.builtin(expr)
+}
+
+func isMarkedBuiltin(expr *parser.Expression) bool {
+	return expr.BuiltinTLC || expr.BuiltinNatural || expr.BuiltinStandard != ""
+}
+
+func (e *evaluator) markedBuiltin(expr *parser.Expression) (value.Value, error) {
+	if expr.BuiltinTLC {
+		builtin := *expr
+		builtin.Text = strings.TrimPrefix(expr.Text, "!tlc!")
+		return e.tlcOperator(&builtin)
+	}
+	if expr.BuiltinNatural {
+		return e.applyNaturalBuiltin(expr)
+	}
+	return e.applyStandardBuiltin(expr)
 }
 
 func (e *evaluator) applyOperator(op operatorRef, expressions []*parser.Expression) (value.Value, error) {

@@ -77,6 +77,8 @@ type Failure struct {
 	ToolCode int
 	// NestedToolCode identifies the nested evaluation message when known.
 	NestedToolCode int
+	// NestedMessage is the inner message when the outer diagnostic is multiline.
+	NestedMessage string
 	// SuppressStatistics indicates that TLC stops before reporting search statistics.
 	SuppressStatistics bool
 	// FingerprintDetail records TLC's source stack and underlying cause, if any.
@@ -432,9 +434,6 @@ func (m *model) validateModel() error {
 		return err
 	}
 	if err := m.validatePredicates(); err != nil {
-		return err
-	}
-	if err := m.validateActions(); err != nil {
 		return err
 	}
 	if err := m.prepareFairness(); err != nil {

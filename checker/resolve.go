@@ -37,7 +37,7 @@ var (
 	tlcextOperators     = map[string]int{"Trace": 0, "CounterExample": 0, "TLCDefer": 1, "TLCNoOp": 1, "TLCModelValue": 1, "AssertEq": 2, "AssertError": 2, "TLCGetOrDefault": 2, "TLCGetAndSet": 4, "ToTrace": 1}
 	tlcOperators        = map[string]int{":>": 2, "@@": 2, "ToString": 1, "TLCEval": 1, "Permutations": 1, "Assert": 2, "SortSeq": 2, "Print": 2, "PrintT": 1, "TLCGet": 1, "TLCSet": 2, "RandomElement": 1}
 	sequenceOperators   = map[string]int{"Seq": 1, "Len": 1, "Append": 2, "Head": 1, "Tail": 1, "SubSeq": 3, "\\o": 2, "SelectSeq": 2}
-	coreOperators       = map[string]int{"=": 2, "#": 2, "~": 1, "<=>": 2, "=>": 2, "~>": 2, "/\\": 2, "\\/": 2, "\\in": 2, "\\notin": 2, "\\subseteq": 2, "\\cup": 2, "\\cap": 2, "\\": 2, "DOMAIN": 1, "SUBSET": 1, "UNION": 1}
+	coreOperators       = map[string]int{"=": 2, "#": 2, "~": 1, "<=>": 2, "=>": 2, "~>": 2, "-+->": 2, "/\\": 2, "\\/": 2, "\\in": 2, "\\notin": 2, "\\subseteq": 2, "\\cup": 2, "\\cap": 2, "\\": 2, "DOMAIN": 1, "SUBSET": 1, "UNION": 1}
 	arithmeticOperators = map[string]int{"+": 2, "-": 2, "-.": 1, "*": 2, "^": 2, "\\div": 2, "%": 2, "..": 2, "<": 2, "<=": 2, ">": 2, ">=": 2}
 )
 

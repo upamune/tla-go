@@ -75,3 +75,7 @@ theorem references through module instances.
 
 `test217` and `test217a` are unchanged models from the same suite. They check
 level constraints for arguments to parameterized module instances.
+
+`StandardModules` is an unchanged model from the upstream `test-model`
+directory. Its initial predicate yields no states, so TLC does not evaluate the
+temporal next-state expression.

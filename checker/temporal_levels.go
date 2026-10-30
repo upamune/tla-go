@@ -176,11 +176,19 @@ func removeTemporalNames(defs map[string]parser.Definition, expr *parser.Express
 }
 
 func (m *model) temporalLevelHead(expr *parser.Expression) error {
+	if err := m.temporalValueArguments(expr); err != nil {
+		return err
+	}
 	switch expr.Kind {
 	case "Always", "Eventually":
 		return m.temporalUnaryLevel(expr)
 	case "Apply":
-		return m.temporalInfixLevel(expr)
+		if err := m.temporalInfixLevel(expr); err != nil {
+			return err
+		}
+		return m.temporalBooleanLevel(expr)
+	case "And", "Or":
+		return m.temporalBooleanLevel(expr)
 	case "Forall", "Exists":
 		return m.temporalQuantifierLevel(expr)
 	}

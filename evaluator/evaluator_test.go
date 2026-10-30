@@ -3,8 +3,8 @@ package evaluator
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -63,13 +63,14 @@ func TestEvaluationErrors(t *testing.T) {
 	}
 }
 
-func TestUnsupportedExpressionsFail(t *testing.T) {
+func TestTemporalFormulaEvaluationError(t *testing.T) {
 	m, err := parser.ParseModule("---- MODULE M ----\nA == []TRUE\n====")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = Evaluate(m, m.Definitions[0].Body, Context{})
-	if err == nil || !strings.Contains(err.Error(), "unsupported") {
+	failure, ok := errors.AsType[*RuntimeError](err)
+	if !ok || failure.ToolCode != 2261 {
 		t.Fatalf("got %v", err)
 	}
 }

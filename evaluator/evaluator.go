@@ -230,6 +230,8 @@ func (e *evaluator) evalExpression(expr *parser.Expression) (value.Value, error)
 		return e.expressionIdentifier(expr)
 	case "Apply":
 		return e.apply(expr)
+	case "Always", "Eventually", "WeakFairness", "StrongFairness":
+		return temporalEvaluationError(expr)
 	case "And", "Or":
 		return e.junction(expr)
 	}

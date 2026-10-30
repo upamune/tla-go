@@ -15,11 +15,13 @@ type RuntimeError struct {
 	Standard bool
 	ExitCode int
 	// ToolCode identifies the corresponding Java TLC message when known.
-	ToolCode    int
-	TrackSource bool
-	Unexpected  *value.UnexpectedError
-	Fingerprint *value.FingerprintError
-	Sources     []*parser.Expression
+	ToolCode       int
+	NestedToolCode int
+	NestedMessage  string
+	TrackSource    bool
+	Unexpected     *value.UnexpectedError
+	Fingerprint    *value.FingerprintError
+	Sources        []*parser.Expression
 }
 
 // AddUnexpectedSource records an evaluation frame unless a fingerprint stack

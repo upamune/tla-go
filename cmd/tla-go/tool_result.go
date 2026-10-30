@@ -15,8 +15,14 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 		code = 1000
 	}
 	if failure.NestedToolCode != 0 {
-		heading, detail, _ := strings.Cut(failure.Message, "\n")
-		t.nestedError(code, heading, failure.NestedToolCode, detail)
+		if failure.NestedMessage != "" {
+			heading := strings.TrimSuffix(failure.Message, failure.NestedMessage)
+			heading = strings.TrimSuffix(heading, " ")
+			t.nestedInlineError(code, heading, failure.NestedToolCode, failure.NestedMessage)
+		} else {
+			heading, detail, _ := strings.Cut(failure.Message, "\n")
+			t.nestedError(code, heading, failure.NestedToolCode, detail)
+		}
 	} else {
 		t.message(code, 1, failure.Message)
 	}

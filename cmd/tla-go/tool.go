@@ -32,6 +32,15 @@ func (t toolOutput) nestedError(code int, heading string, nestedCode int, detail
 	fmt.Fprintf(t.out, "@!@!@ENDMSG %d @!@!@\n", code)
 }
 
+func (t toolOutput) nestedInlineError(code int, heading string, nestedCode int, detail string) {
+	fmt.Fprintf(t.out, "@!@!@STARTMSG %d:1 @!@!@\n", code)
+	if heading != "" {
+		fmt.Fprintf(t.out, "%s ", heading)
+	}
+	t.message(nestedCode, 0, detail)
+	fmt.Fprintf(t.out, "@!@!@ENDMSG %d @!@!@\n", code)
+}
+
 func (t toolOutput) finish() {
 	t.message(2186, 0, fmt.Sprintf("Finished in %dms at (%s)", time.Since(t.started).Milliseconds(), toolTime()))
 }

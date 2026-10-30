@@ -9,14 +9,14 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-// validatePredicates rejects action and temporal expressions in state predicates
-// even when there are no reachable states to evaluate.
+// validatePredicates rejects action-level expressions in state predicates.
+// Temporal expressions are evaluated lazily by TLC, including in constraints.
 func (m *model) validatePredicates() error {
 	names := append([]string{m.cfg.Init}, m.cfg.Invariants...)
 	names = append(names, m.cfg.Constraints...)
 	for _, name := range names {
 		expr, _ := m.definition(name)
-		if m.hasAction(expr, map[string]bool{}) {
+		if m.isRawActionLevel(expr) {
 			return fmt.Errorf("%s is not a state predicate", name)
 		}
 	}
@@ -46,7 +46,7 @@ func (m *model) hasAction(expr *parser.Expression, seen map[string]bool) bool {
 }
 
 func actionKind(expr *parser.Expression) bool {
-	if expr.Kind == "Apply" && expr.Text == "~>" {
+	if expr.Kind == "Apply" && (expr.Text == "~>" || expr.Text == "-+->") {
 		return true
 	}
 	switch expr.Kind {

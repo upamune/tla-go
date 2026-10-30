@@ -15,7 +15,11 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 		return Result{}, err
 	}
 	s.result.Status = EvaluationFailure
-	s.result.Failure = &Failure{Message: failure.Message, Trace: trace, ExitCode: code, FingerprintDetail: fingerprintDetail(failure), EvaluationDetail: evaluationDetail(failure), SuppressDepth: failure.Unexpected != nil || len(failure.Sources) > 0}
+	s.result.Failure = &Failure{Message: failure.Message, Trace: trace, ExitCode: code, NestedToolCode: failure.NestedToolCode, NestedMessage: failure.NestedMessage, FingerprintDetail: fingerprintDetail(failure), EvaluationDetail: evaluationDetail(failure), SuppressDepth: failure.Unexpected != nil || len(failure.Sources) > 0}
+	if failure.ToolCode == 2261 && failure.NestedToolCode == 0 {
+		s.result.Failure.NestedMessage = failure.Message
+		s.result.Failure.NestedToolCode = failure.ToolCode
+	}
 	if len(trace) > 0 {
 		s.result.Failure.ToolCode = failure.ToolCode
 	}
@@ -74,7 +78,12 @@ func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeEr
 	if failure.Unexpected.TLCAssert && failure.Fingerprint != nil {
 		cause = "util.Assert$TLCRuntimeException: " + cause
 	}
-	result.Message = "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n: " + cause
+	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n:"
+	result.Message = heading + " " + cause
+	if failure.ToolCode == 2261 {
+		result.NestedMessage = cause
+		result.NestedToolCode, result.ToolCode = failure.ToolCode, 1000
+	}
 	return &result
 }
 
