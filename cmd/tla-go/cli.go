@@ -21,12 +21,13 @@ type options struct {
 	deadlockOff, help, version bool
 	debugLiveness              bool
 	modernRandomSubsets        bool
+	dumpPath                   string
 	onPause                    func()
 	seed                       int64
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-config file.cfg] [-deadlock] [-seed integer] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-config file.cfg] [-deadlock] [-seed integer] [-workers 1] [-fp 0] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -74,11 +75,7 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) int {
 		parsed.CheckDeadlock = false
 	}
 	fmt.Fprintf(out, "Checking %s with %s\n", filepath.Base(specPath), filepath.Base(configPath))
-	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath)), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, ModernRandomSubsets: opts.modernRandomSubsets}
-	if opts.debugLiveness {
-		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
-	}
-	result, err := checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+	result, err := checkModelWithOutput(ctx, opts, module, parsed, specPath, out, errout)
 	if err != nil {
 		return reportModelError(out, errout, err)
 	}
@@ -87,6 +84,31 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) int {
 		return result.Failure.ExitCode
 	}
 	return exitCode(result.Status)
+}
+
+func checkModelWithOutput(ctx context.Context, opts options, module *parser.Module, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
+	graph, err := openGraphDump(opts.dumpPath)
+	if err != nil {
+		return checker.Result{}, err
+	}
+	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath)), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, ModernRandomSubsets: opts.modernRandomSubsets}
+	if graph != nil {
+		checkOptions.OnGraph = graph.event
+	}
+	if opts.debugLiveness {
+		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
+	}
+	result, err := checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+	if graph != nil {
+		if closeErr := graph.close(graphShouldFinish(result, err, graph)); err == nil {
+			err = closeErr
+		}
+	}
+	return result, err
+}
+
+func graphShouldFinish(result checker.Result, err error, graph *dotDump) bool {
+	return err == nil && !(result.Violation != nil && initialViolation(result)) && !(result.Failure != nil && len(graph.levels) == 0)
 }
 
 func reportModelError(out, errout io.Writer, err error) int {

@@ -34,6 +34,8 @@ type search struct {
 	ltlFingerprints  map[int]uint64
 	ltlVariableOrder []string
 	actionSource     *parser.Expression
+	graphOrder       []string
+	graphStates      map[string]evaluator.State
 }
 
 func (m *model) check() (Result, error) {
@@ -88,6 +90,12 @@ func (m *model) assumptionViolation(expr *parser.Expression, message string) Res
 
 func newSearch(m *model) search {
 	s := search{model: m, visited: map[string]bool{}, result: Result{Status: Success}}
+	if m.graph != nil {
+		s.graphOrder = m.symmetryVariableOrder()
+		if m.hasReduction() {
+			s.graphStates = map[string]evaluator.State{}
+		}
+	}
 	if len(m.properties) > 0 || len(m.guarded) > 0 {
 		s.indices = map[string]int{}
 	}
@@ -177,6 +185,13 @@ func (s *search) expandRawNode(index int, next *parser.Expression) (bool, error)
 		}
 		return more, err
 	}
+	return s.finishExpansion(index, count, before)
+}
+
+func (s *search) finishExpansion(index, count, before int) (bool, error) {
+	if err := s.graphStuttering(index); err != nil {
+		return false, err
+	}
 	if count == 0 && s.model.cfg.CheckDeadlock {
 		s.result.Status = Deadlock
 		s.result.Violation = &Violation{Name: "deadlock", Trace: s.trace(index)}
@@ -218,7 +233,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	if inModel {
 		s.countState(parent)
 	}
-	if more, err := s.checkNewCandidate(state, parent, action); err != nil || !more {
+	if more, err := s.checkGraphCandidate(state, parent, action, inModel); err != nil || !more {
 		return more, err
 	}
 	s.addIfIncluded(state, parent, action, key, inModel)
@@ -243,6 +258,9 @@ func (s *search) visitExisting(state evaluator.State, parent int, action, key st
 	if more, err := s.checkSafetyProperties(state, parent, action); err != nil || !more {
 		return more, err
 	}
+	if err := s.graphTransition(s.graphRepresentative(state, key), parent, action, false); err != nil {
+		return false, err
+	}
 	s.linkExisting(parent, key, action, state)
 	return true, nil
 }
@@ -262,6 +280,9 @@ func (s *search) addIfIncluded(state evaluator.State, parent int, action, key st
 		return
 	}
 	s.add(state, parent, action, key)
+	if s.graphStates != nil {
+		s.graphStates[key] = state
+	}
 	if s.indices != nil {
 		s.linkState(parent, key)
 	}

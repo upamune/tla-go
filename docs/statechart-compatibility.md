@@ -32,10 +32,10 @@ models that Java TLC accepts.
   instances of user-defined modules.
 - Parse and validate the `USE DEF` forms used by the models without changing
   model-checking semantics. Invalid proof directives must still be rejected.
-- Implement the actual statechart invocations of `-workers 1`, `-fp 0`, and
-  `-metadir`: verify their argument syntax and observable behavior against Java
-  TLC. Do not silently accept values or filesystem behavior that are not
-  implemented; test invalid and unsupported values too.
+- Complete the Java-compatible behavior of the accepted `-workers 1` and
+  `-fp 0` options, including fingerprint collisions, and implement `-metadir`.
+  Verify the actual statechart invocations and filesystem behavior against Java
+  TLC. Test invalid and unsupported values too.
 
 ## 3. TLC tool protocol
 
@@ -47,9 +47,16 @@ models that Java TLC accepts.
 
 ## 4. DOT state graph
 
-- Implement the `-dump dot,actionlabels` invocation used by statechart and write
-  the requested graph file, including initial states, transitions, action
-  labels, and Java-compatible state and value formatting.
+The CLI now supports `-dump dot,actionlabels`, `-workers 1`, and `-fp 0` for
+single-model runs. Targeted tests compare DOT bytes with Java TLC 1.7.4 for
+branching, repeated transitions, constraints, VIEW, symmetry, Unicode,
+liveness stuttering and failure paths. This is a partial implementation:
+statechart's actual specifications have not yet been checked, other dump
+formats and worker/fingerprint settings are unsupported, and state identity
+and fingerprint collision behavior can still differ from Java TLC.
+
+- Complete the `-dump dot,actionlabels` invocation for all statechart models,
+  including Java-compatible state, transition, and value formatting.
 - Compare parsed graphs against Java TLC for branching, repeated transitions,
   self-loops, constraints, special characters and Unicode. Exercise failure
   paths and ensure output and errors are handled correctly.

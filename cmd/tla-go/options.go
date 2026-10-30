@@ -36,12 +36,37 @@ func parseOption(opts *options, args []string) (int, error) {
 		opts.debugLiveness = true
 	case "-modern-random-subsets":
 		opts.modernRandomSubsets = true
-	case "-config", "-seed", "-lncheck":
+	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp":
 		return parseValueOption(opts, args)
 	default:
 		return 0, parsePath(opts, args[0])
 	}
 	return 0, nil
+}
+
+func parseDumpOption(opts *options, args []string) (int, error) {
+	if len(args) < 3 || args[2] == "" {
+		return 0, fmt.Errorf("-dump requires dot,actionlabels and an output path")
+	}
+	if args[1] != "dot,actionlabels" {
+		return 0, fmt.Errorf("unsupported dump format %s", args[1])
+	}
+	opts.dumpPath = args[2]
+	return 2, nil
+}
+
+func parseFixedOption(args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, fmt.Errorf("%s requires an integer", args[0])
+	}
+	value, err := strconv.Atoi(args[1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value %s", args[0], args[1])
+	}
+	if args[0] == "-workers" && value != 1 || args[0] == "-fp" && value != 0 {
+		return 0, fmt.Errorf("unsupported %s value %s", args[0], args[1])
+	}
+	return 1, nil
 }
 
 func parseValueOption(opts *options, args []string) (int, error) {
@@ -53,22 +78,35 @@ func parseValueOption(opts *options, args []string) (int, error) {
 		opts.configPath = args[1]
 		return 1, nil
 	case "-seed":
-		if len(args) < 2 {
-			return 0, fmt.Errorf("-seed requires an integer")
-		}
-		seed, err := strconv.ParseInt(args[1], 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("invalid seed %s", args[1])
-		}
-		opts.seed = seed
-		return 1, nil
+		return parseSeedOption(opts, args)
 	case "-lncheck":
 		if len(args) < 2 {
 			return 0, errMissingLivenessStrategy
 		}
 		return 1, nil
+	case "-dump", "-workers", "-fp":
+		return parseGraphOption(opts, args)
 	}
 	return 0, nil
+}
+
+func parseSeedOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, fmt.Errorf("-seed requires an integer")
+	}
+	seed, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid seed %s", args[1])
+	}
+	opts.seed = seed
+	return 1, nil
+}
+
+func parseGraphOption(opts *options, args []string) (int, error) {
+	if args[0] == "-dump" {
+		return parseDumpOption(opts, args)
+	}
+	return parseFixedOption(args)
 }
 
 func parsePath(opts *options, path string) error {

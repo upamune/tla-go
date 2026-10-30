@@ -112,6 +112,7 @@ type model struct {
 	possibleStates    []possiblePredicate
 	possibleActions   []possiblePredicate
 	debug             func(string)
+	graph             func(GraphEvent) error
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
@@ -129,6 +130,9 @@ type Options struct {
 	ModernRandomSubsets bool
 	// OnDebug receives JSON lines describing liveness exploration when set.
 	OnDebug func(string)
+	// OnGraph receives states and transitions synchronously during exploration.
+	// State and Order must be copied by callers that retain them after the call.
+	OnGraph func(GraphEvent) error
 }
 
 // Check parses a module and a TLC configuration and explores the model.
@@ -319,7 +323,7 @@ func prepareWithSources(module *parser.Module, cfg config.Config, options Option
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph}
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.sourceUnits = sourceUnits
 	runtime.model = m

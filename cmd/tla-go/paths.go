@@ -23,6 +23,10 @@ func runModels(ctx context.Context, opts options, out, errout io.Writer) int {
 		fmt.Fprintln(errout, "Error: -config applies to one specification, but several were given.")
 		return 1
 	}
+	if opts.dumpPath != "" && len(paths) > 1 {
+		fmt.Fprintln(errout, "Error: -dump applies to one specification, but several were given.")
+		return 1
+	}
 	return checkModelPaths(ctx, opts, paths, out, errout)
 }
 
