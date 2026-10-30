@@ -65,15 +65,17 @@ func (s *search) checkReducedTableau(property temporalProperty) (bool, error) {
 		return false, err
 	}
 	b.debugGraph()
-	f := fairSearch{search: &b.graph, property: property, bad: make([]bool, len(b.nodes)), trigger: make([]bool, len(b.nodes)), enabled: make([][]int8, len(s.model.fairness)), acceptance: b.acceptance(property)}
+	f := fairSearch{search: &b.graph, property: property, bad: make([]bool, len(b.nodes)), trigger: make([]bool, len(b.nodes)), enabled: make([][]int8, len(s.model.fairness)), acceptance: b.acceptance(property), compactWitnesses: true}
 	for i := range f.enabled {
 		if !s.model.fairness[i].recurrence {
 			f.enabled[i] = make([]int8, len(b.nodes))
 		}
 	}
-	found, err := f.findFairCycle(f.reachableStates())
+	allowed := f.reachableStates()
+	found, err := f.findReducedTableauCycle(allowed)
 	if found {
 		s.result = b.graph.result
+		s.reducedTableauTrace = true
 	}
 	return found, err
 }
@@ -95,6 +97,42 @@ func (b *reducedTableauProduct) debugGraph() {
 			Edges   []debugEdge `json:"edges"`
 		}{"tableau-node", index, node.base, node.tableau, edges})
 	}
+}
+
+func (f *fairSearch) findReducedTableauCycle(allowed []bool) (bool, error) {
+	order := make([][]int, len(f.search.nodes))
+	for node, edges := range f.search.edges {
+		order[node] = make([]int, len(edges))
+		for i := range edges {
+			order[node][i] = i
+		}
+	}
+	fallback := false
+	found, err := f.search.visitJavaLiveComponents(order, func(root int, component []int) (bool, error) {
+		valid, pruned, err := f.checkComponent(component)
+		f.debugComponent(component, valid, pruned != nil)
+		if err != nil {
+			return false, err
+		}
+		if pruned != nil {
+			fallback = true
+			return true, nil
+		}
+		if !valid {
+			return false, nil
+		}
+		for i, node := range component {
+			if node == root {
+				component[0], component[i] = component[i], component[0]
+				break
+			}
+		}
+		return true, f.recordCycle(component)
+	})
+	if fallback {
+		return f.findFairCycle(allowed)
+	}
+	return found, err
 }
 
 func (t *reducedTableau) build(m *model, property temporalProperty) error {

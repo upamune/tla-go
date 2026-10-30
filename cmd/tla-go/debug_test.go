@@ -45,7 +45,7 @@ func TestCLIReducedTableauDebugIsOptIn(t *testing.T) {
 	if plainCode != 13 || debugCode != plainCode || plainOut.String() != debugOut.String() || plainErr.Len() != 0 {
 		t.Fatalf("debugging changed CLI result: %d %q %q vs %d %q", plainCode, plainOut.String(), plainErr.String(), debugCode, debugOut.String())
 	}
-	if !strings.Contains(debugErr.String(), `"event":"tableau-node"`) || !strings.Contains(debugErr.String(), `"event":"tableau-regenerated"`) {
+	if !strings.Contains(debugErr.String(), `"event":"tableau-node"`) || !strings.Contains(debugErr.String(), `"event":"tableau-regenerated"`) || !strings.Contains(debugErr.String(), `"event":"fair-component"`) {
 		t.Fatalf("missing regenerated tableau debug events: %s", debugErr.String())
 	}
 }

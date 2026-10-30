@@ -21,6 +21,7 @@ type fairSearch struct {
 	recurrenceWitnesses []cycleWitness
 	recurrenceKnown     []bool
 	acceptance          [][]bool
+	compactWitnesses    bool
 }
 
 func (s *search) checkFairProperty(p temporalProperty) (bool, error) {

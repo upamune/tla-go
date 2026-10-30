@@ -36,6 +36,9 @@ func (s *search) lassoStateKey(state evaluator.State) (string, error) {
 }
 
 func (s *search) shouldCollapseGeneralTrace(v *Violation) bool {
+	if s.reducedTableauTrace {
+		return true
+	}
 	for _, property := range s.model.livenessOrder {
 		if property.name == v.Name && property.mode == generalTemporal {
 			if !s.model.hasReduction() {

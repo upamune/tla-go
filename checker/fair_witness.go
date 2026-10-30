@@ -21,7 +21,47 @@ func (f *fairSearch) cycleWitnesses(component []int, members []bool) ([]cycleWit
 			result = append(result, witness)
 		}
 	}
+	if f.compactWitnesses {
+		return f.compactCycleWitnesses(result)
+	}
 	return result, nil
+}
+
+func (f *fairSearch) compactCycleWitnesses(witnesses []cycleWitness) ([]cycleWitness, error) {
+	var result []cycleWitness
+	for _, witness := range witnesses {
+		duplicate, err := f.hasCycleWitness(result, witness)
+		if err != nil {
+			return nil, err
+		}
+		if !duplicate {
+			result = append(result, witness)
+		}
+	}
+	return result, nil
+}
+
+func (f *fairSearch) hasCycleWitness(witnesses []cycleWitness, target cycleWitness) (bool, error) {
+	for _, witness := range witnesses {
+		same, err := f.sameCycleWitness(witness, target)
+		if err != nil || same {
+			return same, err
+		}
+	}
+	return false, nil
+}
+
+func (f *fairSearch) sameCycleWitness(a, b cycleWitness) (bool, error) {
+	if a.node != b.node || (a.edge == nil) != (b.edge == nil) {
+		return false, nil
+	}
+	if a.edge == nil {
+		return true, nil
+	}
+	if a.edge.to != b.edge.to || a.edge.action != b.edge.action || a.edge.source != b.edge.source {
+		return false, nil
+	}
+	return f.search.sameConcreteState(f.search.edgeNext(*a.edge), f.search.edgeNext(*b.edge))
 }
 
 func (f *fairSearch) propertyWitnesses(component []int, members []bool) ([]cycleWitness, error) {
@@ -72,6 +112,9 @@ func (f *fairSearch) tableauWitnesses(component []int, members []bool) ([]cycleW
 func (f *fairSearch) tableauAcceptanceWitness(component []int, members, acceptance []bool) (cycleWitness, error) {
 	for _, node := range component {
 		if acceptance[node] {
+			if f.compactWitnesses && f.search.stutters(node) {
+				return cycleWitness{node: node}, nil
+			}
 			return f.tableauEdgeWitness(node, members)
 		}
 	}
