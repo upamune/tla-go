@@ -8,7 +8,7 @@ Supported finite-state models include `INIT`/`NEXT`, common `SPECIFICATION` form
 
 Support is partial. Complex temporal formulas, action predicates, fairness combined with state reductions, and some recursive or effectful expressions can fail or differ from Java TLC. Counterexample selection, state ordering, fingerprinting, error messages, printed values, and exit codes are not fully compatible. TLC runtime values, side effects, random choices, and duration-dependent checks can also produce different results.
 
-Fingerprint failures report Java TLC-style tool messages for the tested initial and successor states. Other lazy-set failures can still evaluate operands in a different order, producing a different underlying error or source location.
+Fingerprint failures report Java TLC-style tool messages for the tested initial and successor states. Intersections with explicit sets or intervals use Java TLC's reduction order, including for nested power sets. Other lazy-set failures can still evaluate operands in a different order, producing a different underlying error or source location.
 
 Temporal formulas used in an initial predicate, next-state action, or constraint are evaluated only when reached. Like Java TLC, tla-go reports an evaluation error when one is reached, and accepts an unused temporal `NEXT` when there are no initial states. SANY-style level checks reject Boolean operators that combine an action with a temporal formula. Other temporal level rules and error details remain incomplete.
 

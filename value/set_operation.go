@@ -1,8 +1,13 @@
 package value
 
-import "fmt"
+import (
+	"fmt"
 
-// SetOperation represents a union, intersection, or difference lazily.
+	"github.com/upamune/tla-go/syntax/parser"
+)
+
+// SetOperation reduces intersections of explicit sets or intervals and keeps
+// other set operations lazy.
 func SetOperation(operator string, left, right Value) (Value, error) {
 	if !isSet(left) || !isSet(right) {
 		return Value{}, fmt.Errorf("set operation requires two sets")
@@ -13,11 +18,76 @@ func SetOperation(operator string, left, right Value) (Value, error) {
 	if operator == "\\cup" && emptyEnumeratedSet(left) {
 		return right, nil
 	}
+	if candidate, other, ok := reducibleIntersection(operator, left, right); ok {
+		return reduceIntersection(candidate, other)
+	}
+	return lazySetOperation(operator, left, right)
+}
+
+// SetOperationWithSource records the source of a newly reduced intersection.
+func SetOperationWithSource(operator string, left, right Value, source *parser.Expression) (Value, error) {
+	result, err := SetOperation(operator, left, right)
+	if err == nil && operator == "\\cap" && result.kind == SetKind {
+		result.data.source = source
+	}
+	return result, err
+}
+
+func lazySetOperation(operator string, left, right Value) (Value, error) {
 	result := Value{kind: SetOperationKind, data: &payload{text: operator, domain: left, codomain: right}}
 	if left.kind == SetKind && right.kind == SetKind {
 		return result.finiteSet()
 	}
 	return result, nil
+}
+
+func reducibleSet(v Value) bool { return v.kind == SetKind || v.kind == IntervalKind }
+
+func reducibleIntersection(operator string, left, right Value) (Value, Value, bool) {
+	if operator == "\\cap" {
+		if reducibleSet(left) {
+			return left, right, true
+		}
+		if reducibleSet(right) {
+			return right, left, true
+		}
+	}
+	return Value{}, Value{}, false
+}
+
+func reduceIntersection(candidate, other Value) (Value, error) {
+	if candidate.kind == IntervalKind && other.kind == IntervalKind {
+		return intersectIntervals(candidate, other), nil
+	}
+	var members []Value
+	err := candidate.Each(func(item Value) (bool, error) {
+		included, err := other.Contains(item)
+		if err != nil {
+			return false, err
+		}
+		if included {
+			members = append(members, item)
+		}
+		return true, nil
+	})
+	if err != nil {
+		if candidate.kind == SetKind {
+			err = candidate.withFingerprintSource(err)
+		}
+		return Value{}, err
+	}
+	return Set(members)
+}
+
+func intersectIntervals(left, right Value) Value {
+	low := max(int64(left.number), int64(right.number))
+	high := min(int64(left.high), int64(right.high))
+	capacity := min(max(high-low+1, 0), 1024)
+	members := make([]Value, 0, int(capacity))
+	for n := low; n <= high; n++ {
+		members = append(members, Value{kind: IntegerKind, number: int32(n)})
+	}
+	return Value{kind: SetKind, data: &payload{elements: members}}
 }
 
 func validSetOperator(operator string) bool {

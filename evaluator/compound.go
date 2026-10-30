@@ -113,13 +113,20 @@ func (e *evaluator) builtinByArity(expr *parser.Expression) (value.Value, error)
 		if err != nil {
 			return value.Value{}, err
 		}
-		result, err := binary(expr.Text, left, right)
+		result, err := binaryWithSource(expr, left, right)
 		if err != nil {
 			return result, err
 		}
 		return e.orderSetResult(expr.Text, result)
 	}
 	return value.Value{}, fmt.Errorf("unknown operator %s with %d arguments", expr.Text, len(expr.Args))
+}
+
+func binaryWithSource(expr *parser.Expression, left, right value.Value) (value.Value, error) {
+	if expr.Text == "\\cap" {
+		return value.SetOperationWithSource(expr.Text, left, right, expr)
+	}
+	return binary(expr.Text, left, right)
 }
 
 func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {
@@ -254,12 +261,13 @@ func (e *evaluator) let(expr *parser.Expression) (value.Value, error) {
 	return child.eval(expr.Args[0])
 }
 
-func (e *evaluator) set(args []*parser.Expression) (value.Value, error) {
-	values, err := e.evalArgs(args)
+func (e *evaluator) set(expr *parser.Expression) (value.Value, error) {
+	values, err := e.evalArgs(expr.Args)
 	if err != nil {
 		return value.Value{}, err
 	}
-	return e.sourceSet(values)
+	v, err := value.SetUnnormalizedWithSource(values, expr)
+	return e.orderNewSet(v, values, err)
 }
 
 func (e *evaluator) tuple(args []*parser.Expression) (value.Value, error) {

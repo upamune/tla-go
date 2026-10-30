@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+
+	"github.com/upamune/tla-go/syntax/parser"
 )
 
 // ErrOutsideFunctionDomain indicates an attempted lookup outside the domain.
@@ -21,11 +23,17 @@ func Set(elements []Value) (Value, error) {
 
 // SetUnnormalized preserves TLC's comparison order for a newly evaluated set.
 func SetUnnormalized(elements []Value) (Value, error) {
+	return SetUnnormalizedWithSource(elements, nil)
+}
+
+// SetUnnormalizedWithSource retains the source of a set enumeration.
+func SetUnnormalizedWithSource(elements []Value, source *parser.Expression) (Value, error) {
 	v, err := Set(elements)
 	if err != nil {
 		return Value{}, err
 	}
 	v.data.membership = &membershipOrder{items: append([]Value(nil), elements...)}
+	v.data.source = source
 	return v, nil
 }
 

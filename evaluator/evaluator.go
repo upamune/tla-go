@@ -290,7 +290,7 @@ func (e *evaluator) evalCompound(expr *parser.Expression) (value.Value, error) {
 func (e *evaluator) evalCollection(expr *parser.Expression) (value.Value, error) {
 	switch expr.Kind {
 	case "SetEnumeration":
-		return e.set(expr.Args)
+		return e.set(expr)
 	case "Tuple":
 		return e.tuple(expr.Args)
 	case "FunctionApplication":

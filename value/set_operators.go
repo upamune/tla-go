@@ -56,8 +56,9 @@ func (v Value) containsSetOperator(element Value) (bool, error) {
 }
 
 func (v Value) containsSubset(element Value) (bool, error) {
-	if !isSet(element) {
-		return false, fmt.Errorf("SUBSET membership requires a set")
+	if !element.tlcEnumerable() {
+		message := fmt.Sprintf("Attempted to check if the non-enumerable value\n%s\nis element of\n%s", PrettyPrint(element.String()), PrettyPrint(v.String()))
+		return false, &UnexpectedError{Message: message, TLCAssert: true}
 	}
 	found := true
 	err := element.Each(func(item Value) (bool, error) {
@@ -66,6 +67,17 @@ func (v Value) containsSubset(element Value) (bool, error) {
 		return found, err
 	})
 	return found, err
+}
+
+// TLC's Enumerable interface also includes sets that cannot be enumerated for
+// every choice of their operands, such as SUBSET Nat.
+func (v Value) tlcEnumerable() bool {
+	switch v.kind {
+	case SetKind, IntervalKind, SubsetKind, FilteredSetKind, FunctionSetKind, RecordSetKind, ProductSetKind, SetOperationKind, UnionKind:
+		return true
+	default:
+		return false
+	}
 }
 
 func (v Value) containsUnion(element Value) (bool, error) {

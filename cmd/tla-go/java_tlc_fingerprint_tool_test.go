@@ -40,11 +40,7 @@ func TestJavaTLCInitialFingerprintUnexpectedToolCodes(t *testing.T) {
 		t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		java := runJavaFingerprintTool(t, jar, dir, "M")
-		want := fingerprintToolMessages(readToolMessages(java))
-		if len(want) != 2 || want[0].code != got[0].code || want[1].code != got[1].code {
-			t.Fatalf("Go: %+v\nJava: %+v", got, want)
-		}
+		compareJavaFingerprintToolMessages(t, jar, dir, "M", got)
 	}
 }
 
