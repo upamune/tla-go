@@ -59,7 +59,7 @@ CI downloads the official Java TLC 1.7.4 JAR, verifies its SHA-256, and runs sel
 TLC_JAR=/absolute/path/to/tla2tools.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
 ```
 
-Without `TLC_JAR`, the tests still run tla-go assertions but do not execute the direct Java comparisons. These selected tests cover only part of TLC. Java TLC versions can also differ; selected newer random-subset tests use `TLC_MODERN_JAR` when supplied.
+Without `TLC_JAR`, the tests still run tla-go assertions but do not execute the direct Java comparisons. These selected tests cover only part of TLC; see the [upstream test inventory](upstream-test-inventory.md) for the audit scope and its limits. Java TLC versions can also differ; selected newer random-subset tests use `TLC_MODERN_JAR` when supplied.
 
 Fixtures from Java TLC 1.7.4 are traceable to TLA+ Tools commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`. Fixture-specific provenance is recorded alongside the test data. The `OneBitMutexNoSymmetryMC.trace.json` fixture records the counterexample asserted by that version's Java test.
 
