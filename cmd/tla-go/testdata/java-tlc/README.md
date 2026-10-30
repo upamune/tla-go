@@ -54,3 +54,6 @@ reads an unassigned primed variable through an operator argument.
 `etest7` and `test201a` are unchanged models from the same suite. They test
 configuration substitution of a nonconstant expression and an unassigned
 operator constant.
+
+`testa` and `test` are unchanged models from the same suite. They test the
+error reported when an imported module declares a different name.

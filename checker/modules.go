@@ -60,7 +60,7 @@ func (r *extensionResolver) collect(module *parser.Module) error {
 		return err
 	}
 	if r.visiting[module.Name] {
-		return fmt.Errorf("cyclic module dependency involving %s", module.Name)
+		return moduleCycleError(module.Name)
 	}
 	if r.loaded[module.Name] {
 		return nil
@@ -119,13 +119,13 @@ func (r *extensionResolver) collectExtension(name string) error {
 		return nil
 	}
 	if r.visiting[name] {
-		return fmt.Errorf("cyclic module dependency involving %s", name)
+		return moduleCycleError(name)
 	}
 	if r.loaded[name] {
 		return nil
 	}
 	if r.session.active[name] {
-		return fmt.Errorf("cyclic module dependency involving %s", name)
+		return moduleCycleError(name)
 	}
 	r.session.active[name] = true
 	defer delete(r.session.active, name)
@@ -142,14 +142,14 @@ func (r *extensionResolver) load(name string) (*parser.Module, error) {
 	}
 	source, err := r.loader(r.ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("load module %s: %w", name, err)
+		return nil, moduleLoadError("module", name, err)
 	}
 	module, err := parser.ParseModule(source)
 	if err != nil {
 		return nil, &SyntaxError{Err: fmt.Errorf("module %s: %w", name, err)}
 	}
 	if module.Name != name {
-		return nil, fmt.Errorf("module %s declares itself as %s", name, module.Name)
+		return nil, moduleNameError(name, module.Name)
 	}
 	r.session.sourceUnits[name] = module
 	return module, nil

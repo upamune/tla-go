@@ -119,21 +119,21 @@ func (r *instanceResolver) instanceModule(instance parser.Instance) (*parser.Mod
 
 func (r *instanceResolver) loadInstanceModule(name string) (*parser.Module, error) {
 	if r.session.active[name] {
-		return nil, fmt.Errorf("cyclic instance dependency involving %s", name)
+		return nil, instanceCycleError(name)
 	}
 	if r.loader == nil {
 		return nil, fmt.Errorf("instance module %s requires a module loader", name)
 	}
 	source, err := r.loader(r.ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("load instance module %s: %w", name, err)
+		return nil, moduleLoadError("instance module", name, err)
 	}
 	module, err := parser.ParseModule(source)
 	if err != nil {
 		return nil, &SyntaxError{Err: fmt.Errorf("module %s: %w", name, err)}
 	}
 	if module.Name != name {
-		return nil, fmt.Errorf("module %s declares itself as %s", name, module.Name)
+		return nil, moduleNameError(name, module.Name)
 	}
 	r.session.sourceUnits[name] = module
 	return r.prepareInstanceModule(name, module)

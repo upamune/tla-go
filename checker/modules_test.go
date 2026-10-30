@@ -71,7 +71,7 @@ func TestModuleLoaderErrors(t *testing.T) {
 		name, source, contains string
 	}{
 		{"cycle", "---- MODULE A ----\nEXTENDS M\n====", "cyclic"},
-		{"wrong name", "---- MODULE B ----\n====", "declares itself"},
+		{"wrong name", "---- MODULE B ----\n====", "File name 'A' does not match the name 'B'"},
 		{"invalid syntax", "invalid", "module A"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
