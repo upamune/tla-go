@@ -42,12 +42,12 @@ func (e *evaluator) applyDefinition(d parser.Definition, arguments []*parser.Exp
 		return child.eval(d.Body)
 	}
 	if !hasOperatorParameters(d.Params) {
+		if d.Kind == "Operator" {
+			return e.operatorDefinition(d, placeholderArguments(len(arguments)), nil, defined, arguments, e.scope)
+		}
 		values, err := e.evalArgs(arguments)
 		if err != nil {
 			return value.Value{}, err
-		}
-		if d.Kind == "Operator" {
-			return e.operatorDefinition(d, values, nil, defined, arguments, e.scope)
 		}
 		return e.definition(d, values, defined)
 	}
@@ -58,7 +58,7 @@ func (e *evaluator) applyHigherOrderDefinition(d parser.Definition, arguments []
 	values := make([]value.Value, len(arguments))
 	operators := make(map[string]operatorRef)
 	for i, param := range d.Params {
-		v, op, err := e.definitionArgument(param, arguments[i])
+		v, op, err := e.definitionArgument(param, arguments[i], d.Kind == "Operator")
 		if err != nil {
 			return value.Value{}, err
 		}
@@ -82,10 +82,13 @@ func hasOperatorParameters(params []parser.Declaration) bool {
 	return false
 }
 
-func (e *evaluator) definitionArgument(param parser.Declaration, expr *parser.Expression) (value.Value, operatorRef, error) {
+func (e *evaluator) definitionArgument(param parser.Declaration, expr *parser.Expression, lazy bool) (value.Value, operatorRef, error) {
 	if param.Arity > 0 {
 		op, err := e.operatorArgument(expr, param.Arity)
 		return value.Bool(false), op, err
+	}
+	if lazy {
+		return value.Bool(false), operatorRef{}, nil
 	}
 	v, err := e.eval(expr)
 	return v, operatorRef{}, err
@@ -192,5 +195,24 @@ func (e *evaluator) invokeLambda(op operatorRef, args []value.Value) (value.Valu
 	child := *e
 	child.depth++
 	child.scope = &scope{parent: op.scope, values: values}
+	return child.eval(op.lambda.Args[0])
+}
+
+func (e *evaluator) invokeLambdaExpressions(op operatorRef, expressions []*parser.Expression) (value.Value, error) {
+	if len(expressions) != op.arity {
+		return value.Value{}, fmt.Errorf("operator expects %d arguments", op.arity)
+	}
+	if e.depth >= 4096 {
+		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
+	}
+	params := make([]parser.Declaration, len(op.lambda.Names))
+	values := make(map[string]value.Value, len(params))
+	for i, name := range op.lambda.Names {
+		params[i].Name = name
+		values[name] = value.Bool(false)
+	}
+	child := *e
+	child.depth++
+	child.scope = &scope{parent: op.scope, values: values, primeArgs: primeArgumentBindings(params, expressions, e.scope)}
 	return child.eval(op.lambda.Args[0])
 }

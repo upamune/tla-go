@@ -46,7 +46,7 @@ func (g *generator) hasLocalValue(name string, locals map[string]value.Value) bo
 }
 
 func (g *generator) evalWithLocals(expr *parser.Expression, current, next evaluator.State, locals map[string]value.Value) (value.Value, error) {
-	return g.model.program.Evaluate(expr, evaluator.Context{Current: current, Next: next, Constants: g.model.constants, Locals: locals, Lexical: g.lexical, Enabled: g.model.enabledCallback})
+	return g.model.program.Evaluate(expr, evaluator.Context{Current: current, Next: next, Constants: g.model.constants, Locals: locals, Lexical: g.lexical, Enabled: g.model.enabledCallback, UncachedArguments: g.enabled})
 }
 
 func (g *generator) holdsWithLocals(expr *parser.Expression, current, next evaluator.State, locals map[string]value.Value) (bool, error) {

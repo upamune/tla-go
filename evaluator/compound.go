@@ -22,11 +22,7 @@ func (e *evaluator) evalArgs(args []*parser.Expression) ([]value.Value, error) {
 func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
 	if e.hasOperators {
 		if op, ok := e.findOperator(expr.Text); ok {
-			args, err := e.evalArgs(expr.Args)
-			if err != nil {
-				return value.Value{}, err
-			}
-			return e.invokeOperator(op, args)
+			return e.applyOperator(op, expr.Args)
 		}
 	}
 	if expr.Text == "=>" {
@@ -36,6 +32,20 @@ func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
 		return e.applyDefinition(def, expr.Args, scope)
 	}
 	return e.builtin(expr)
+}
+
+func (e *evaluator) applyOperator(op operatorRef, expressions []*parser.Expression) (value.Value, error) {
+	if op.definition != nil {
+		return e.applyDefinition(*op.definition, expressions, op.scope)
+	}
+	if op.lambda != nil {
+		return e.invokeLambdaExpressions(op, expressions)
+	}
+	args, err := e.evalArgs(expressions)
+	if err != nil {
+		return value.Value{}, err
+	}
+	return e.invokeOperator(op, args)
 }
 
 func (e *evaluator) builtin(expr *parser.Expression) (value.Value, error) {

@@ -24,18 +24,23 @@ type Context struct {
 	Lexical       *LexicalScope
 	Enabled       EnabledCallback
 	OnPrint       func(string)
+	// UncachedArguments matches TLC's evaluation of ENABLED predicates.
+	UncachedArguments bool
 }
 type scope struct {
 	parent      *scope
 	values      map[string]value.Value
 	definitions map[string]parser.Definition
 	operators   map[string]operatorRef
-	primeArgs   map[string]primeArgument
+	primeArgs   map[string]*primeArgument
 }
 
 type primeArgument struct {
 	expression *parser.Expression
 	scope      *scope
+	cacheMu    sync.Mutex
+	cached     [2]bool
+	values     [2]value.Value
 }
 type evaluator struct {
 	context        Context
@@ -296,12 +301,8 @@ func (e *evaluator) scoped(name string) (value.Value, bool, error) {
 }
 
 func (e *evaluator) identifier(name string) (value.Value, error) {
-	if e.primeArguments {
-		if arg, ok := lookupPrimeArgument(e.scope, name); ok {
-			child := *e
-			child.scope = arg.scope
-			return child.eval(arg.expression)
-		}
+	if arg, ok := lookupPrimeArgument(e.scope, name); ok {
+		return e.evaluateArgument(arg)
 	}
 	v, ok, err := e.scoped(name)
 	if ok {
@@ -381,6 +382,9 @@ func (e *evaluator) evaluateOperatorDefinition(d parser.Definition, args []value
 	if err := validateCall(d, args); err != nil {
 		return value.Value{}, err
 	}
+	if len(expressions) > 0 && !d.Recursive {
+		return e.evaluateOperatorBody(d, args, operators, defined, expressions, caller)
+	}
 	if e.active == nil {
 		e.active = map[string]bool{}
 	}
@@ -388,14 +392,21 @@ func (e *evaluator) evaluateOperatorDefinition(d parser.Definition, args []value
 	if err != nil {
 		return value.Value{}, err
 	}
+	if len(expressions) > 0 {
+		key = lazyRecursiveCallKey(key, expressions, caller)
+	}
 	if e.active[key] {
 		return value.Value{}, fmt.Errorf("recursive call to %s with unchanged arguments and state", d.Name)
 	}
+	e.active[key] = true
+	defer delete(e.active, key)
+	return e.evaluateOperatorBody(d, args, operators, defined, expressions, caller)
+}
+
+func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope, expressions []*parser.Expression, caller *scope) (value.Value, error) {
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	e.active[key] = true
-	defer delete(e.active, key)
 	bindings, err := valueBindings(d.Params, args, operators)
 	if err != nil {
 		return value.Value{}, err

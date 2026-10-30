@@ -24,7 +24,7 @@ The CLI loads external modules named in `EXTENDS` or `INSTANCE` from `.tla` file
 
 Selected subexpression references support numbered operands, labels, bound values, operator arguments and `LET` definitions, including references through supported imported modules. More complex combinations and diagnostic details are not yet fully compatible.
 
-Operator arguments are currently evaluated eagerly. Unlike Java TLC, an unused argument or an argument used only under a prime can therefore raise an error in the current state before its definition is evaluated.
+User-defined operator arguments are evaluated lazily, including under primes and `ENABLED`. Function-definition parameters and some operator-argument paths are still evaluated eagerly, and TLC's full caching behavior is not yet reproduced.
 
 `VIEW` reduces state identity using a configured expression, including supported fairness and counterexample reconstruction. `SYMMETRY` supports finite permutations of model values, including combinations with `VIEW`, nested sets, functions, and supported liveness forms. Per-check string and model-value ordering is used for supported finite sets, records, and state exploration; the full TLC ordering across imported modules is not yet implemented.
 

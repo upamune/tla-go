@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -21,6 +23,43 @@ func TestHigherOperatorErrors(t *testing.T) {
 			t.Errorf("accepted %s", expression)
 		}
 	}
+}
+
+func TestRecursiveLazyArgumentLoopStops(t *testing.T) {
+	source := "---- MODULE M ----\nRECURSIVE F(_)\nF(a) == F(a)\nResult == F(1)\n===="
+	module, err := parser.ParseModule(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Evaluate(module, module.Definitions[len(module.Definitions)-1].Body, Context{})
+	if err == nil || !strings.Contains(err.Error(), "recursive call") {
+		t.Fatalf("expected a recursive call error, got %v", err)
+	}
+}
+
+func TestLazyOperatorArgumentInConcurrentFunction(t *testing.T) {
+	source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nMake(a) == [i \\in 1..32 |-> a + i]\nResult == Make(x + 1)\n===="
+	module, err := parser.ParseModule(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	one, _ := value.Integer(1)
+	function, err := Evaluate(module, module.Definitions[len(module.Definitions)-1].Body, Context{Current: State{"x": one}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var group sync.WaitGroup
+	for i := int64(1); i <= 32; i++ {
+		group.Go(func() {
+			key, _ := value.Integer(i)
+			got, err := function.Lookup(key)
+			n, ok := got.Int()
+			if err != nil || !ok || n != int32(i+2) {
+				t.Errorf("lookup %d: got %s, %v", i, got, err)
+			}
+		})
+	}
+	group.Wait()
 }
 
 func TestPrimedOperatorArguments(t *testing.T) {
@@ -49,5 +88,23 @@ func TestPrimedOperatorArguments(t *testing.T) {
 				t.Fatalf("got %s, %v; want %s", got, err, tc.want)
 			}
 		})
+	}
+}
+
+func BenchmarkOperatorArgument(b *testing.B) {
+	module, err := parser.ParseModule("---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nF(a) == a + a\nResult == F(x + 1)\n====")
+	if err != nil {
+		b.Fatal(err)
+	}
+	program := New(module)
+	one, _ := value.Integer(1)
+	context := Context{Current: State{"x": one}}
+	expression := module.Definitions[len(module.Definitions)-1].Body
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := program.Evaluate(expression, context); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

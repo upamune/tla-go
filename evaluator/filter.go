@@ -102,14 +102,13 @@ func snapshotScopeGraph(s *scope, seen map[*scope]*scope) *scope {
 	return clone
 }
 
-func snapshotPrimeArguments(args map[string]primeArgument, seen map[*scope]*scope) map[string]primeArgument {
+func snapshotPrimeArguments(args map[string]*primeArgument, seen map[*scope]*scope) map[string]*primeArgument {
 	if args == nil {
 		return nil
 	}
-	result := make(map[string]primeArgument, len(args))
+	result := make(map[string]*primeArgument, len(args))
 	for name, arg := range args {
-		arg.scope = snapshotScopeGraph(arg.scope, seen)
-		result[name] = arg
+		result[name] = &primeArgument{expression: arg.expression, scope: snapshotScopeGraph(arg.scope, seen)}
 	}
 	return result
 }
