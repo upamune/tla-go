@@ -199,7 +199,7 @@ func (m *model) recoverViewInitial(target string) (evaluator.State, bool, error)
 		}
 		return true, nil
 	}}
-	_, err = gen.solve(&workList{item: work{expr: init}}, evaluator.State{}, "")
+	_, err = gen.solve(&workList{item: work{expr: init}}, m.partialState(), "")
 	return result, found, err
 }
 
@@ -222,7 +222,7 @@ func (m *model) recoverViewSuccessor(current evaluator.State, target string) (Tr
 		}
 		return true, nil
 	}}
-	_, err = gen.solve(&workList{item: work{expr: next, label: true}}, evaluator.State{}, m.cfg.Next)
+	_, err = gen.solve(&workList{item: work{expr: next, label: true}}, m.partialState(), m.cfg.Next)
 	return result, found, err
 }
 

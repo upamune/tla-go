@@ -28,6 +28,11 @@ type generator struct {
 	undo []stateUndo
 }
 
+// partialState has room for every variable, which most generated states assign.
+func (m *model) partialState() evaluator.State {
+	return make(evaluator.State, len(m.names))
+}
+
 func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator.State) {
 	if g.initial {
 		return partial, nil

@@ -13,6 +13,9 @@ func (g *generator) unchanged(expr *parser.Expression, rest *workList, partial e
 	if err != nil {
 		return false, err
 	}
+	if g.undo == nil {
+		g.undo = make([]stateUndo, 0, len(g.model.names))
+	}
 	mark := len(g.undo)
 	for _, name := range names {
 		ok, err := g.copyUnchanged(name, partial)

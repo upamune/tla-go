@@ -26,7 +26,7 @@ func (m *model) enabledWithLocals(action *parser.Expression, current evaluator.S
 		found = true
 		return false, nil
 	}}
-	_, err := g.solve(&workList{item: work{expr: action, locals: locals}}, evaluator.State{}, "")
+	_, err := g.solve(&workList{item: work{expr: action, locals: locals}}, m.partialState(), "")
 	return found, err
 }
 

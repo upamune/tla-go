@@ -56,7 +56,7 @@ func (m *model) check() (Result, error) {
 	gen := generator{model: m, initial: true, emit: func(state evaluator.State, action string, source *parser.Expression) (bool, error) {
 		return s.visit(state, -1, action, source)
 	}}
-	more, err := gen.solve(&workList{item: work{expr: init}}, evaluator.State{}, "")
+	more, err := gen.solve(&workList{item: work{expr: init}}, m.partialState(), "")
 	if err != nil {
 		if incomplete, ok := errors.AsType[*incompleteState](err); ok {
 			return s.incompleteInitialFailure(incomplete), nil
@@ -196,7 +196,7 @@ func (s *search) expandRawNode(index int, next *parser.Expression) (bool, error)
 		}
 		return s.visit(state, index, action, source)
 	}}
-	more, err := gen.solve(&workList{item: work{expr: next, label: true}}, evaluator.State{}, s.model.cfg.Next)
+	more, err := gen.solve(&workList{item: work{expr: next, label: true}}, s.model.partialState(), s.model.cfg.Next)
 	if err != nil || !more {
 		addEnclosingActionSource(err, next)
 		if s.result.HasOutDegrees {
