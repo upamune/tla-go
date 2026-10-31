@@ -42,8 +42,10 @@ func (r *simulationRun) checkSimulationLeadsTo(visited int, property temporalPro
 	if constants.triggerKnown && constants.trigger {
 		return r.checkSimulationLeadsRecurrence(visited, property)
 	}
-	b := simulationLeadsBuilder{graph: newSearch(r.model), property: property, indices: map[simulationLeadsKey]int{}}
-	b.ignoreTrigger = constants.triggerKnown && !constants.trigger
+	b := simulationLeadsBuilder{
+		graph: newSearch(r.model), property: property, indices: map[simulationLeadsKey]int{},
+		ignoreTrigger: constants.triggerKnown && !constants.trigger,
+	}
 	b.ignoreTarget = b.ignoreTrigger || constants.targetKnown
 	b.graph.result = r.search.result
 	return b.check(r.search.nodes[:visited], b.ignoreTrigger || constants.targetKnown && constants.target)
