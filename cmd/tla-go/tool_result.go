@@ -13,6 +13,11 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 	if printToolInitialFailure(t, failure) {
 		return
 	}
+	if failure.TemporalViolation {
+		t.message(2116, 1, "Temporal properties were violated.\n")
+		t.message(2264, 1, "The following behavior constitutes a counter-example:\n")
+		printToolTrace(t, failure.TemporalTrace, module)
+	}
 	printToolFailureHeader(t, failure)
 	if failure.InitialState != nil && failure.FingerprintDetail == "" {
 		var body bytes.Buffer

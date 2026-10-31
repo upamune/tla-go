@@ -95,7 +95,11 @@ type Failure struct {
 	// EvaluationDetail records the expression stack for an unexpected failure.
 	EvaluationDetail string
 	// SuppressDepth matches TLC failures that report counts without search depth.
-	SuppressDepth     bool
+	SuppressDepth bool
+	// TemporalViolation reports that TLC printed the start of a liveness
+	// counterexample, whose states are TemporalTrace, before this failure.
+	TemporalViolation bool
+	TemporalTrace     []TraceStep
 	evaluationSources []*parser.Expression
 }
 type model struct {

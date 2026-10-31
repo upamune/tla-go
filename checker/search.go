@@ -18,28 +18,27 @@ type stateNode struct {
 	depth  int
 }
 type search struct {
-	model                 *model
-	nodes                 []stateNode
-	visited               map[string]bool
-	indices               map[string]int
-	edges                 [][]graphEdge
-	initial               []int
-	result                Result
-	outDegrees            [32]int
-	guarded               []guardedMonitor
-	ltlGroups             []ltlCheckGroup
-	ltlValues             map[ltlValueKey]bool
-	fairChecks            []fairCachedChecks
-	ltlSetMultiplier      int
-	ltlFingerprints       map[int]uint64
-	ltlVariableOrder      []string
-	actionSource          *parser.Expression
-	graphOrder            []string
-	graphStates           map[string]evaluator.State
-	simulationCheckStates []evaluator.State
-	candidateInModel      bool
-	failureCandidateKey   string
-	reducedTableauTrace   bool
+	model               *model
+	nodes               []stateNode
+	visited             map[string]bool
+	indices             map[string]int
+	edges               [][]graphEdge
+	initial             []int
+	result              Result
+	outDegrees          [32]int
+	guarded             []guardedMonitor
+	ltlGroups           []ltlCheckGroup
+	ltlValues           map[ltlValueKey]bool
+	fairChecks          []fairCachedChecks
+	ltlSetMultiplier    int
+	ltlFingerprints     map[int]uint64
+	ltlVariableOrder    []string
+	actionSource        *parser.Expression
+	graphOrder          []string
+	graphStates         map[string]evaluator.State
+	candidateInModel    bool
+	failureCandidateKey string
+	reducedTableauTrace bool
 }
 
 func (m *model) check() (Result, error) {

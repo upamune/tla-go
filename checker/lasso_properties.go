@@ -35,23 +35,11 @@ func (s *search) reportLassoProperties() (Result, error) {
 }
 
 func (s *search) reportLassoWithoutNames(v *Violation) (Result, error) {
-	// LiveCheck1 can evaluate a new state's predicate on its predecessor.
-	// The displayed lasso can thus satisfy the original formula on replay.
-	if s.simulationStabilityViolation(v.Name) {
-		v.Properties = []string{v.Name}
-		return s.result, nil
-	}
 	if s.lassoRuntimeMayChangeVerdict() || s.model.hasReduction() {
 		v.Name, v.Properties = "", []string{}
 		return s.result, nil
 	}
 	return Result{}, fmt.Errorf("liveness counterexample violates no property")
-}
-
-func (s *search) simulationStabilityViolation(name string) bool {
-	return s.simulationCheckStates != nil && slices.ContainsFunc(s.model.livenessOrder, func(property temporalProperty) bool {
-		return property.name == name && property.mode == eventuallyAlways
-	})
 }
 
 func validLasso(violation *Violation) bool {

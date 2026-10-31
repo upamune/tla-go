@@ -22,13 +22,12 @@ func TestSimulationRejectsUnsupportedCallbacks(t *testing.T) {
 }
 
 func TestSimulationRejectsUnsupportedLivenessOptions(t *testing.T) {
-	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\nP == <>(x=0)\nV == x\n===="
+	const source = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=0)\nQ == <>(TLCGet(\"level\") > 2)\n===="
 	for _, tc := range []struct {
 		name, cfg, message string
 		depth              int
 	}{
-		{"fairness", "SPECIFICATION Spec PROPERTY P", "simulation of temporal properties is not yet supported", 1},
-		{"view", "INIT Init NEXT Next VIEW V PROPERTY P", "simulation of temporal properties is not yet supported", 1},
+		{"runtime level", "INIT Init NEXT Next PROPERTY Q", "using TLCGet is not yet supported", 1},
 		{"zero depth", "INIT Init NEXT Next PROPERTY P", "zero-depth liveness simulation is not yet supported", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

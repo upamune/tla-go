@@ -110,7 +110,9 @@ func (m *model) prepareNonConjunctProperty(name string, expr *parser.Expression,
 	property, ok := m.classifyProperty(temporalProperty{name: name, bounds: bounds, source: expr}, expr)
 	if !ok {
 		if trivialTemporalImplication(expr) {
-			return temporalTautologyError()
+			if err := m.temporalTautology(); err != nil {
+				return err
+			}
 		}
 		property = temporalProperty{name: name, bounds: bounds, source: expr, predicate: expr, mode: generalTemporal}
 	}
@@ -285,11 +287,22 @@ func (m *model) compileGeneralProperty(instance *temporalProperty) error {
 		return err
 	}
 	if formula.kind == ltlFalse {
-		return temporalTautologyError()
+		if err := m.temporalTautology(); err != nil {
+			return err
+		}
 	}
 	compiler.retainEventualities(formula)
 	instance.general, instance.eventualities = formula, compiler.eventuality
 	return nil
+}
+
+// Model checking rejects a tautology. TLC simulation instead checks the
+// remaining solutions, of which a tautology contributes none.
+func (m *model) temporalTautology() error {
+	if m.tlcRuntime.simulation {
+		return nil
+	}
+	return temporalTautologyError()
 }
 
 func temporalTautologyError() error {
@@ -407,9 +420,6 @@ func (s *search) checkProperty(p temporalProperty) (bool, error) {
 }
 
 func (s *search) checkOtherProperty(p temporalProperty) (bool, error) {
-	if s.simulationCheckStates != nil && p.mode == often {
-		return s.checkSimulationOften(p)
-	}
 	if p.mode == oftenImpliesState || p.mode == oftenImpliesAction {
 		return s.checkOftenImplication(p)
 	}

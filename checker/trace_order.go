@@ -18,6 +18,7 @@ func (m *model) applyTraceOrder(result *Result) {
 	}
 	if result.Failure != nil {
 		applyTraceStepOrder(result.Failure.Trace, order)
+		applyTraceStepOrder(result.Failure.TemporalTrace, order)
 		if hasStateOrder(result.Failure.InitialState, order) {
 			result.Failure.InitialStateOrder = slices.Clone(order)
 		}

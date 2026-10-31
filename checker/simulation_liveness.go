@@ -1,342 +1,137 @@
 package checker
 
 import (
-	"cmp"
+	"errors"
 	"fmt"
-	"slices"
+
+	"github.com/upamune/tla-go/evaluator"
 )
 
-// Simulation supports selected pure state formulas without fairness or state
-// reduction. Other temporal forms still fail explicitly.
-func (m *model) supportsSimulationLiveness() bool {
-	if len(m.guarded) > 0 || len(m.fairness) > 0 {
-		return false
-	}
-	if len(m.livenessOrder) > 0 && m.hasReduction() {
-		return false
-	}
-	for _, property := range m.livenessOrder {
-		if !m.supportsSimulationProperty(property) {
-			return false
-		}
-	}
-	return true
+// prepareSimulationLiveness builds LiveCheck1's solutions once per run.
+func (r *simulationRun) prepareSimulationLiveness() error {
+	solutions, err := r.model.liveSolutions()
+	r.live = solutions
+	return err
 }
 
-func (m *model) supportsSimulationProperty(property temporalProperty) bool {
-	if property.mode == leadsTo {
-		return m.supportsSimulationLeadsTo(property)
-	}
-	return (property.mode == eventually || property.mode == often || property.mode == eventuallyAlways) && m.isStateExpression(property.predicate) &&
-		!m.propertyUsesTLC(property) && !m.unsafeIncrementalExpression(property.predicate)
-}
-
-func (m *model) supportsSimulationLeadsTo(property temporalProperty) bool {
-	return m.isStateExpression(property.trigger) && m.isStateExpression(property.predicate) &&
-		!m.propertyUsesTLC(property) && !m.unsafeIncrementalExpression(property.trigger) && !m.unsafeIncrementalExpression(property.predicate)
-}
-
+// checkTraceLiveness is LiveCheck1.checkTrace: TLC checks each solution on
+// the behavior graph of the sampled trace, in which every state can stutter.
 func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
-	if len(r.model.livenessOrder) == 0 {
+	if len(r.live) == 0 {
 		return nil, nil
 	}
 	if visited == 0 {
 		return nil, fmt.Errorf("zero-depth liveness simulation is not yet supported")
 	}
-	if len(r.model.livenessOrder) == 1 && r.model.livenessOrder[0].mode == leadsTo {
-		return r.checkSimulationLeadsTo(visited, r.model.livenessOrder[0])
+	states := make([]evaluator.State, visited)
+	for i, node := range r.search.nodes[:visited] {
+		states[i] = node.state
 	}
-	graph, err := r.traceGraph(visited)
-	if err != nil {
-		return nil, err
-	}
-	previous := r.model.tlcRuntime.search
-	r.model.tlcRuntime.search = &graph
-	defer func() { r.model.tlcRuntime.search = previous }()
-	return r.checkSimulationGraph(visited, &graph)
-}
-
-func (r *simulationRun) checkSimulationGraph(visited int, graph *search) (*Result, error) {
-	if r.hasSimulationLeadsTo() {
-		return r.checkSimulationMultipleLeads(visited, graph)
-	}
-	result, err := graph.checkSimulationLivenessGraph()
-	if err != nil || result.Status != Success {
-		return &result, err
+	for i := range r.live {
+		violation, err := r.checkLiveSolution(&r.live[i], states)
+		if recovery, ok := errors.AsType[*liveRecoveryError](err); ok {
+			return r.liveRecoveryFailure(recovery), nil
+		}
+		if err != nil || violation != nil {
+			return r.liveViolationResult(violation), err
+		}
 	}
 	return nil, nil
 }
 
-func (r *simulationRun) hasSimulationLeadsTo() bool {
-	for _, property := range r.model.livenessOrder {
-		if property.mode == leadsTo {
-			return true
-		}
+// TLC reports a recovery failure as an unexpected exception of the worker,
+// followed by the whole sampled behavior.
+func (r *simulationRun) liveRecoveryFailure(recovery *liveRecoveryError) *Result {
+	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a tlc2.tool.EvalException\n:"
+	result := r.search.result
+	result.Status = EvaluationFailure
+	result.Failure = &Failure{
+		Message: heading + " " + recovery.message, ToolCode: 1000, NestedToolCode: recovery.code, NestedMessage: recovery.message, ExitCode: 255,
+		Trace: r.search.trace(len(r.search.nodes) - 1), TemporalViolation: true, TemporalTrace: recovery.shown,
 	}
-	return false
+	return &result
 }
 
-func (r *simulationRun) checkSimulationMultipleLeads(visited int, graph *search) (*Result, error) {
-	properties, err := r.simulationNormalizedProperties()
+func (r *simulationRun) checkLiveSolution(solution *liveSolution, states []evaluator.State) (*Violation, error) {
+	graph, err := newLiveTraceGraph(r.model, solution, states)
 	if err != nil {
 		return nil, err
 	}
-	checkedGroup := false
-	for _, property := range properties {
-		result, checked, err := r.checkSimulationMixedProperty(visited, graph, property, properties, checkedGroup)
-		if result != nil || err != nil {
-			return result, err
-		}
-		checkedGroup = checkedGroup || checked
-	}
-	return graph.finishSimulationMixed(properties, checkedGroup)
-}
-
-func (r *simulationRun) checkSimulationMixedProperty(visited int, graph *search, property temporalProperty, properties []temporalProperty, checkedGroup bool) (*Result, bool, error) {
-	if property.mode == leadsTo {
-		result, err := r.checkSimulationLeadsTo(visited, property)
-		return result, false, err
-	}
-	found, checked, err := graph.checkSimulationMixedSolution(property, properties, checkedGroup)
-	if err != nil || !found {
-		return nil, checked, err
-	}
-	result, err := graph.reportLassoProperties()
-	return &result, checked, err
-}
-
-func (s *search) finishSimulationMixed(properties []temporalProperty, checkedGroup bool) (*Result, error) {
-	if checkedGroup {
+	scc := newLiveSCC(graph)
+	if !scc.search() {
 		return nil, nil
 	}
-	found, err := s.checkSimulationPropertyGroup(simulationNoTableauProperties(properties))
-	if err != nil || !found {
-		return nil, err
-	}
-	result, err := s.reportLassoProperties()
-	return &result, err
+	return scc.violation(r.recoverLiveStep)
 }
 
-func (r *simulationRun) simulationNormalizedProperties() ([]temporalProperty, error) {
-	if r.properties != nil {
-		return r.properties, nil
+func (r *simulationRun) liveViolationResult(violation *Violation) *Result {
+	if violation == nil {
+		return nil
 	}
-	properties := slices.Clone(r.model.livenessOrder)
-	for i := range properties {
-		property := &properties[i]
-		if property.mode != leadsTo {
-			continue
+	violation.Properties = r.liveViolationNames(violation)
+	violation.Name = violation.Properties[0]
+	result := r.search.result
+	result.Status = LivenessViolation
+	result.Violation = violation
+	return &result
+}
+
+// TLC prints no property names; name those that the lasso violates, or all
+// of them when LiveCheck1's evaluation differs from a replay of the lasso.
+func (r *simulationRun) liveViolationNames(violation *Violation) []string {
+	names, err := r.search.violatedLassoNames(violation)
+	if err == nil && len(names) > 0 {
+		return names
+	}
+	seen := map[string]bool{}
+	names = nil
+	for _, property := range r.model.livenessOrder {
+		if !seen[property.name] {
+			seen[property.name] = true
+			names = append(names, property.name)
 		}
-		known, trigger, err := r.simulationLeadsConstant(property.trigger, *property)
+	}
+	return names
+}
+
+// recoverLiveStep is Tool.getState: the first initial state or, in TLC's
+// action order, the first successor whose fingerprint matches. Like TLC, it
+// generates the states again.
+func (r *simulationRun) recoverLiveStep(previous evaluator.State, key string) (TraceStep, error) {
+	if previous == nil {
+		return r.recoverLiveInitial(key)
+	}
+	for _, action := range r.worker.actions {
+		states, err := r.worker.actionStates(action, previous)
 		if err != nil {
-			return nil, err
+			return TraceStep{}, err
 		}
-		if known && trigger {
-			property.mode = often
+		state, err := r.matchingState(states, key)
+		if err != nil || state != nil {
+			return TraceStep{Action: action.name, State: state, ActionRange: actionSourceRange(action.expr)}, err
 		}
 	}
-	r.properties = properties
-	return properties, nil
+	return TraceStep{}, &liveRecoveryError{code: 2117, message: "Failed to recover the next state from its fingerprint."}
 }
 
-func (s *search) checkSimulationMixedSolution(property temporalProperty, properties []temporalProperty, checkedGroup bool) (bool, bool, error) {
-	if property.mode == often && !checkedGroup {
-		found, err := s.checkSimulationPropertyGroup(simulationNoTableauProperties(properties))
-		return found, true, err
-	}
-	return s.checkSimulationSolution(property, true)
-}
-
-// LiveCheck1 groups recurrence and stability into one no-tableau solution.
-// Its DNF normalization moves stability to the end; each eventuality has a
-// separate tableau solution in its original position.
-func (s *search) checkSimulationLivenessGraph() (Result, error) {
-	if len(s.model.livenessOrder) <= 1 {
-		return s.checkLivenessGraph()
-	}
-	checkedGroup := false
-	for _, property := range s.model.livenessOrder {
-		found, checked, err := s.checkSimulationSolution(property, checkedGroup)
-		if err != nil {
-			return s.result, err
-		}
-		checkedGroup = checkedGroup || checked
-		if found {
-			return s.reportLassoProperties()
-		}
-	}
-	if checkedGroup {
-		return s.result, nil
-	}
-	return s.finishSimulationNoTableau()
-}
-
-func (s *search) finishSimulationNoTableau() (Result, error) {
-	found, err := s.checkSimulationPropertyGroup(s.simulationNoTableauProperties())
+func (r *simulationRun) recoverLiveInitial(key string) (TraceStep, error) {
+	states, err := r.generateInitialStates()
 	if err != nil {
-		return s.result, err
+		return TraceStep{}, err
 	}
-	if found {
-		return s.reportLassoProperties()
+	state, err := r.matchingState(states, key)
+	if err == nil && state == nil {
+		err = &liveRecoveryError{code: 2123, message: "Failed to recover the initial state from its fingerprint."}
 	}
-	return s.result, nil
+	return TraceStep{State: state}, err
 }
 
-func (s *search) checkSimulationSolution(property temporalProperty, checkedGroup bool) (bool, bool, error) {
-	if property.mode == eventually {
-		found, err := s.checkLivenessProperty(property)
-		return found, false, err
-	}
-	if property.mode == often && !checkedGroup {
-		found, err := s.checkSimulationPropertyGroup(s.simulationNoTableauProperties())
-		return found, true, err
-	}
-	return false, false, nil
-}
-
-func (s *search) simulationNoTableauProperties() []temporalProperty {
-	return simulationNoTableauProperties(s.model.livenessOrder)
-}
-
-func simulationNoTableauProperties(properties []temporalProperty) []temporalProperty {
-	var result []temporalProperty
-	for _, mode := range []temporalMode{often, eventuallyAlways} {
-		for _, property := range properties {
-			if property.mode == mode {
-				result = append(result, property)
-			}
+func (r *simulationRun) matchingState(states []evaluator.State, key string) (evaluator.State, error) {
+	for _, state := range states {
+		candidate, err := r.model.stateKey(state)
+		if err != nil || candidate == key {
+			return state, err
 		}
 	}
-	return result
-}
-
-func (s *search) checkSimulationPropertyGroup(properties []temporalProperty) (bool, error) {
-	if len(properties) == 0 {
-		return false, nil
-	}
-	ranks := s.simulationComponentRanks()
-	base := s.result
-	best := len(s.nodes)
-	var selected Result
-	for _, property := range properties {
-		s.result = base
-		rank, err := s.simulationPropertyRank(property, ranks, best)
-		if err != nil {
-			return false, err
-		}
-		if rank < best {
-			selected, best = s.result, rank
-		}
-	}
-	if best == len(s.nodes) {
-		s.result = base
-		return false, nil
-	}
-	s.result = selected
-	return true, nil
-}
-
-func (s *search) simulationPropertyRank(property temporalProperty, ranks []int, fallback int) (int, error) {
-	found, err := s.checkLivenessProperty(property)
-	if err != nil || !found {
-		return fallback, err
-	}
-	return s.simulationViolationRank(ranks)
-}
-
-func (s *search) simulationComponentRanks() []int {
-	all := make([]bool, len(s.nodes))
-	for i := range all {
-		all[i] = true
-	}
-	ranks := make([]int, len(s.nodes))
-	for rank, component := range slices.Backward(s.components(all)) {
-		for _, node := range component {
-			ranks[node] = len(s.nodes) - 1 - rank
-		}
-	}
-	return ranks
-}
-
-func (s *search) simulationViolationRank(ranks []int) (int, error) {
-	v := s.result.Violation
-	if !validLasso(v) {
-		return 0, fmt.Errorf("invalid simulation liveness counterexample")
-	}
-	key, err := s.model.unreducedStateKey(v.Trace[*v.LoopStart].State)
-	if err != nil {
-		return 0, err
-	}
-	index, ok := s.indices[key]
-	if !ok {
-		return 0, fmt.Errorf("simulation counterexample state is missing from graph")
-	}
-	return ranks[index], nil
-}
-
-// LiveCheck1 merges equal observed states and adds a stuttering transition to
-// every state, even when the sampled trace itself does not stutter.
-func (r *simulationRun) traceGraph(visited int) (search, error) {
-	graph := newSearch(r.model)
-	graph.result = r.search.result
-	graph.indices = map[string]int{}
-	previous := -1
-	for _, node := range r.search.nodes[:visited] {
-		key, err := r.model.unreducedStateKey(node.state)
-		if err != nil {
-			return graph, err
-		}
-		index, exists := graph.indices[key]
-		if !exists {
-			index = graph.addSimulationNode(node, previous)
-			graph.indices[key] = index
-		}
-		if previous < 0 {
-			graph.initial = append(graph.initial, index)
-		} else if !simulationEdgeExists(graph.edges[previous], index) {
-			graph.edges[previous] = append(graph.edges[previous], graphEdge{to: index, action: node.action, source: node.source})
-		}
-		previous = index
-	}
-	return graph, nil
-}
-
-func (s *search) addSimulationNode(node stateNode, previous int) int {
-	index := len(s.nodes)
-	node.parent = previous
-	s.nodes = append(s.nodes, node)
-	checkState := node.state
-	if previous >= 0 {
-		checkState = s.nodes[previous].state
-	}
-	s.simulationCheckStates = append(s.simulationCheckStates, checkState)
-	s.edges = append(s.edges, []graphEdge{{to: index, action: "Stuttering"}})
-	return index
-}
-
-func simulationEdgeExists(edges []graphEdge, target int) bool {
-	for _, edge := range edges {
-		if edge.to == target {
-			return true
-		}
-	}
-	return false
-}
-
-// LiveCheck1 processes the strongly connected components of the full sampled
-// graph before pruning states that satisfy a recurrence predicate.
-func (s *search) checkSimulationOften(property temporalProperty) (bool, error) {
-	f := fairSearch{search: s, property: property, bad: make([]bool, len(s.nodes)), trigger: make([]bool, len(s.nodes))}
-	if err := f.evaluateStates(); err != nil {
-		return false, err
-	}
-	bad := f.reachableStates()
-	ranks := s.simulationComponentRanks()
-	components := s.components(bad)
-	// checkComponents visits in reverse, so sort later full components first.
-	slices.SortStableFunc(components, func(a, b []int) int {
-		return cmp.Compare(ranks[b[0]], ranks[a[0]])
-	})
-	found, _, err := f.checkComponents(components)
-	return found, err
+	return nil, nil
 }

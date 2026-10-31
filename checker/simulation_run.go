@@ -19,10 +19,10 @@ type simulationRun struct {
 	options    SimulationOptions
 	traceIndex int
 	traceOrder []string
-	properties []temporalProperty
+	live       []liveSolution
 }
 
-// simulate checks bounded traces with one worker and selected liveness properties.
+// simulate checks bounded traces with one worker, like TLC's Simulator.
 func (m *model) simulate(traces, depth int, seed int64) (Result, error) {
 	return m.simulateWithOptions(SimulationOptions{Traces: traces, Depth: depth}, seed)
 }
@@ -41,6 +41,9 @@ func (m *model) simulateWithOptions(options SimulationOptions, seed int64) (Resu
 		master.AdvanceDoubles(uint64(options.Aril))
 	}
 	run.worker = newSimulationWorker(m, actions, master)
+	if err := run.prepareSimulationLiveness(); err != nil {
+		return Result{}, err
+	}
 	run.search.result.DistinctStates = -1
 	run.search.result.QueuedStates = -1
 	m.tlcRuntime.started = true
@@ -52,9 +55,6 @@ func (m *model) simulateWithOptions(options SimulationOptions, seed int64) (Resu
 }
 
 func (m *model) validateSimulation(depth int) error {
-	if !m.supportsSimulationLiveness() {
-		return fmt.Errorf("simulation of temporal properties is not yet supported")
-	}
 	if m.graph != nil || m.debug != nil {
 		return fmt.Errorf("graph and liveness debug output are not supported in simulation mode")
 	}
@@ -146,10 +146,10 @@ func simulationContinuable(result *Result) bool {
 		result.Status == LivenessViolation && result.Violation != nil && result.Violation.LoopStart == nil
 }
 
-func (r *simulationRun) initialStates() ([]evaluator.State, *Result, error) {
+func (r *simulationRun) generateInitialStates() ([]evaluator.State, error) {
 	init, err := r.model.definition(r.model.cfg.Init)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var states []evaluator.State
 	gen := generator{model: r.model, initial: true, allowIncomplete: true, emit: func(state evaluator.State, _ string, _ *parser.Expression) (bool, error) {
@@ -157,6 +157,11 @@ func (r *simulationRun) initialStates() ([]evaluator.State, *Result, error) {
 		return true, nil
 	}}
 	_, err = gen.solve([]work{{expr: init}}, evaluator.State{}, "")
+	return states, err
+}
+
+func (r *simulationRun) initialStates() ([]evaluator.State, *Result, error) {
+	states, err := r.generateInitialStates()
 	if err != nil {
 		return nil, nil, err
 	}

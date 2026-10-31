@@ -94,6 +94,32 @@ combinations of leads-to, eventuality, recurrence, and stability properties,
 including constant triggers and quantified properties, with Java TLC 1.7.4.
 The tests cover selected traces and exit codes rather than every combination.
 
+`TestJavaTLCSimulationUpstreamLiveness` runs the models of the
+`liveness/simulation` JUnit tests (`Example1Test`, `Example2Test`,
+`SimulationTest2`, `SimulationTest2a`, `LiveCheckSimulationTest2`,
+`LiveCheckSimulationTest2a`, and `StutteringTest`) and `NQSpecTest` with fixed
+seeds, and compares exit codes and tool messages, including traces, with a
+recording from Java TLC 1.7.4 or with Java TLC itself. The `LiveCheck*`
+variants of the JUnit tests select an experimental Java checker through a
+system property that the command line does not set; tla-go follows the
+command-line behavior. The successful `Test2` runs and `NQSpecTest` are
+bounded by `num=N`, and the JUnit assertions themselves are not executed.
+Three symmetry and `TLCGet("level")` models from model-checking tests are also
+run in simulation, covering states merged by symmetry and failures to recover
+a counterexample state. `TestJavaTLCSimulationFairness` compares weak, strong,
+quantified, and recurrence fairness with eventuality, recurrence, stability,
+leads-to, and nested temporal properties on selected small models;
+`TestJavaTLCSimulationTemporalForms` covers further property forms;
+`TestJavaTLCSimulationLivenessView` and
+`TestJavaTLCSimulationLivenessActionRecovery` cover views and the action
+recovered for each printed step.
+A seeded sweep of 57 upstream models with temporal properties, run in
+simulation mode with three seeds, matched Java TLC 1.7.4's exit codes and
+tool messages except for record field order and line breaks in printed
+values, the symmetry-set warning 2300, Java module overrides, progress message
+timing, and one `symmetry/NQ` walk whose sampled successors already differ
+before liveness is checked. That sweep is not part of the test suite.
+
 `TestJavaTLCSimulationAril` compares selected seeded traces, including negative
 and large arils, against Java TLC 1.7.4. A separate test checks selected seeds
 against 1.8.0. These comparisons cover selected action and liveness behavior,

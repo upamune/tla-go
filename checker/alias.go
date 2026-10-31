@@ -17,6 +17,7 @@ func (m *model) applyAlias(result *Result) {
 	}
 	if result.Failure != nil {
 		result.Failure.Trace = m.aliasTrace(result.Failure.Trace, nil)
+		result.Failure.TemporalTrace = m.aliasTrace(result.Failure.TemporalTrace, nil)
 	}
 }
 

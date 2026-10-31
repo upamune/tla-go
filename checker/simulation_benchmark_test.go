@@ -85,14 +85,24 @@ func BenchmarkSimulationRecurrenceUniqueStates(b *testing.B) {
 	}
 }
 
+// Weak and strong fairness add possible error models to TLC's solutions.
+func BenchmarkSimulationFairness(b *testing.B) {
+	benchmarkSimulationConfig(b, "Spec == Init /\\ [][Next]_x /\\ WF_x(Next) /\\ SF_x(C)\nP == (x = 1) ~> (x \\in {0, 2})", "SPECIFICATION Spec PROPERTY P")
+}
+
 func benchmarkSimulationProperty(b *testing.B, property string) {
 	b.Helper()
-	source := strings.Replace(simulationWalkSource, "====", "P == "+property+"\n====", 1)
+	benchmarkSimulationConfig(b, "P == "+property, "INIT Init NEXT Next PROPERTY P")
+}
+
+func benchmarkSimulationConfig(b *testing.B, definitions, configuration string) {
+	b.Helper()
+	source := strings.Replace(simulationWalkSource, "====", definitions+"\n====", 1)
 	module, err := parser.ParseModule(source)
 	if err != nil {
 		b.Fatal(err)
 	}
-	cfg, err := config.Parse("INIT Init NEXT Next PROPERTY P")
+	cfg, err := config.Parse(configuration)
 	if err != nil {
 		b.Fatal(err)
 	}
