@@ -86,6 +86,7 @@ type Program struct {
 	randomization   bool
 	onPrint         func(string)
 	printStyle      PrintStyle
+	onWarning       func(code int, message string)
 	tlcRuntime      TLCRuntime
 	ordering        ValueOrdering
 	readFile        func(string) (string, error)
@@ -159,6 +160,12 @@ type PrintStyle struct {
 
 // SetPrintStyle configures Print and PrintT before evaluation begins.
 func (p *Program) SetPrintStyle(style PrintStyle) { p.printStyle = style }
+
+// SetWarningHandler receives Java TLC warnings raised during evaluation,
+// such as an EXCEPT applied to a key outside a function's domain (2144).
+func (p *Program) SetWarningHandler(handler func(code int, message string)) {
+	p.onWarning = handler
+}
 
 // SetRandomSeed resets the generator used when no checker runtime is attached.
 func (p *Program) SetRandomSeed(seed int64) {

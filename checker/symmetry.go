@@ -29,10 +29,12 @@ func (m *model) prepareSymmetry() error {
 		return err
 	}
 	if def.Body.Kind == "Apply" && len(def.Body.Args) >= len(generators) {
+		m.warnSmallSymmetrySets(def.Body.Args)
 		return nil
 	}
 	m.symmetry = symmetryClosure(generators)
 	m.symmetryOrder = m.symmetryVariableOrder()
+	m.warnSmallSymmetrySets(m.unpermutedSymmetrySets(def.Body))
 	return nil
 }
 

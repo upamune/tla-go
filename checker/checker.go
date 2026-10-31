@@ -432,6 +432,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetPrintStyle(options.PrintStyle)
+	m.program.SetWarningHandler(m.evaluationWarningHandler())
 	m.sourceUnits = sourceUnits
 	runtime.model = m
 	m.enabledCallback = m.enabled

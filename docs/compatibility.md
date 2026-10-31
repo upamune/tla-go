@@ -68,7 +68,9 @@ The default seed is 0. `-seed` selects a different seed. The default random-subs
 
 Selected `TLCGet` and `TLCSet` registers and configuration, trace, and runtime values are supported. Complex forms and behavior involving effects are not fully compatible.
 
-## Command-line options
+## Command-line options and warnings
+
+Model checking and simulation report Java TLC's warning 2300 when a symmetry set has fewer than two elements, naming the set as Java does, and warning 2144 when an `EXCEPT` path is outside a function's domain, in which case that update is skipped. For lazily evaluated functions, only the first step of the path is checked. `-nowarning` suppresses both warnings.
 
 `-difftrace` follows Java TLC 1.7.4: a model-checking trace prints its last state in full unless that state is a checked successor of an initial state, while liveness and simulation traces print every later state as a difference. `-terse` renders `SUBSET`, function sets, record sets, and Cartesian products as formulas in `Print`, `PrintT`, and traces. Java TLC also leaves some functions and other lazily evaluated sets unexpanded and applies `-terse` to `ToString`, `Assert`, and error messages; tla-go does not. As in Java TLC, `-userFile` writes `PrintT` values to the file without line wrapping.
 

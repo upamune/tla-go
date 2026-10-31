@@ -389,23 +389,31 @@ func (v Value) Update(key Value, update func(Value) (Value, error)) (Value, erro
 	if v.kind == LazyFunctionKind {
 		return v.lazyUpdate(key, update)
 	}
+	updated, _, err := v.UpdateExisting(key, update)
+	return updated, err
+}
+
+// UpdateExisting replaces the value at key of an enumerated function and
+// reports whether key is in its domain; otherwise v is returned unchanged.
+// Unlike Update, it calls update before returning and does not retain it.
+func (v Value) UpdateExisting(key Value, update func(Value) (Value, error)) (Value, bool, error) {
 	if v.kind != FunctionKind {
-		return Value{}, fmt.Errorf("expected a function")
+		return Value{}, false, fmt.Errorf("expected a function")
 	}
 	for i, pair := range v.data.pairs {
 		same, err := Equal(pair.Key, key)
 		if err != nil {
-			return Value{}, err
+			return Value{}, false, err
 		}
 		if same {
 			replacement, err := update(pair.Value)
 			if err != nil {
-				return Value{}, err
+				return Value{}, true, err
 			}
 			pairs := append([]Pair(nil), v.data.pairs...)
 			pairs[i].Value = replacement
-			return Value{kind: FunctionKind, number: v.number, data: &payload{pairs: pairs, domain: v.data.domain, displayOrder: v.data.displayOrder}}, nil
+			return Value{kind: FunctionKind, number: v.number, data: &payload{pairs: pairs, domain: v.data.domain, displayOrder: v.data.displayOrder}}, true, nil
 		}
 	}
-	return v, nil
+	return v, false, nil
 }
