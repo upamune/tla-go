@@ -54,6 +54,12 @@ func (a *frameArena) pin(s *scope) {
 	}
 }
 
+func (a *frameArena) localScope(parent *scope, values map[string]value.Value) *scope {
+	frame := a.take()
+	frame.scope.parent, frame.scope.values = parent, values
+	return &frame.scope
+}
+
 func (a *frameArena) valueScope(parent *scope, name string, v value.Value) *scope {
 	frame := a.take()
 	frame.binding[0] = binding{name: name, value: v}

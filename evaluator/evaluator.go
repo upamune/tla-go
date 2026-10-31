@@ -203,10 +203,12 @@ func (p *Program) evaluate(expression *parser.Expression, context Context) (valu
 		e.scope = context.Lexical.scope
 		e.hasOperators = context.Lexical.hasOperators
 	}
+	mark := p.frames.mark()
 	if len(context.Locals) > 0 {
-		e.scope = &scope{parent: e.scope, values: context.Locals}
+		e.scope = p.frames.localScope(e.scope, context.Locals)
 	}
 	result, err := e.eval(expression)
+	p.frames.release(mark)
 	if err == nil {
 		return result, nil
 	}
