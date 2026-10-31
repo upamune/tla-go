@@ -146,6 +146,15 @@ func (s *dfidSearch) replayEnded(cause error) {
 	}
 }
 
+// nextReplayDetail is replayDetail after TLC replays doNext. Its call stack
+// is empty after a util.WrongInvocationException, as in breadth-first mode.
+func (s *dfidSearch) nextReplayDetail() string {
+	if failure, ok := asRuntimeError(s.replayCause); ok && failure.WrongInvocation {
+		return emptyCallStackDetail
+	}
+	return s.replayDetail()
+}
+
 // replayDetail is TLC's nested-expression report after a replay throws. TLC
 // prints its header even when it cannot locate the expressions.
 func (s *dfidSearch) replayDetail() string {

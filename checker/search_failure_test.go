@@ -65,7 +65,7 @@ func TestFunctionApplicationFailures(t *testing.T) {
 	for _, tc := range []struct{ expression, message string }{
 		{"<<1>>[2]", "Attempted to apply tuple\n<<1>>\nto integer 2 which is out of domain."},
 		{"[i \\in {1, 2} |-> i][0]", "In applying the function\n<<1, 2>>,\nthe first argument is:\n0\nwhich is not in its domain.\n"},
-		{"1[1]", unexpectedExceptionHeading("java.lang.RuntimeException") + " A non-function (an integer) was applied as a function.\nline 4, col 14 to line 4, col 17 of module M"},
+		{"1[1]", unexpectedExceptionMessage(runtimeExceptionClass, "A non-function (an integer) was applied as a function.\nline 4, col 14 to line 4, col 17 of module M")},
 	} {
 		t.Run(tc.expression, func(t *testing.T) {
 			source := "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nNext == x' = " + tc.expression + "\n===="

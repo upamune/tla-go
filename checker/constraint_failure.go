@@ -45,7 +45,7 @@ func (s *search) nextConstraintFailure(candidate *candidateConstraintError) (Res
 		return Result{}, candidate.cause
 	}
 	result, err := s.runtimeFailure(&evaluator.RuntimeError{
-		Message: unexpectedExceptionMessage("java.lang.RuntimeException", "util.Assert$TLCRuntimeException: "+failure.Message), ToolCode: 1000,
+		Message: unexpectedExceptionMessage(runtimeExceptionClass, "util.Assert$TLCRuntimeException: "+failure.Message), ToolCode: 1000,
 		NestedToolCode: failure.ToolCode, NestedMessage: failure.Message, Sources: failure.Sources,
 	}, nil, 75)
 	if err == nil && failure.ToolCode == 2215 {

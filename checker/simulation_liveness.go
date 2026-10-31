@@ -69,7 +69,7 @@ func (r *simulationRun) liveFailure(err error) (*Result, error) {
 func liveEvaluationFailure(failure *evaluator.RuntimeError) *Failure {
 	switch {
 	case failure.Unexpected != nil || failure.ToolCode == 0 || failure.ToolCode == 1000:
-		return &Failure{Message: unexpectedExceptionMessage("java.lang.RuntimeException", failure.Message), ToolCode: 1000, SuppressSummary: true}
+		return &Failure{Message: unexpectedExceptionMessage(runtimeExceptionClass, failure.Message), ToolCode: 1000, SuppressSummary: true}
 	case failure.Standard:
 		return liveEvalException(failure.ToolCode, failure.Message)
 	}
@@ -79,7 +79,7 @@ func liveEvaluationFailure(failure *evaluator.RuntimeError) *Failure {
 // liveEvalException is TLC's message for an EvalException, which nests the
 // TLC error.
 func liveEvalException(code int, message string) *Failure {
-	return &Failure{Message: unexpectedExceptionMessage("tlc2.tool.EvalException", message), ToolCode: 1000, NestedToolCode: code, NestedMessage: message}
+	return &Failure{Message: unexpectedExceptionMessage(evalExceptionClass, message), ToolCode: 1000, NestedToolCode: code, NestedMessage: message}
 }
 
 // liveException completes the report of an exception in the simulation

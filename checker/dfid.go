@@ -150,7 +150,7 @@ func (s *dfidSearch) finishTerminated() (Result, error) {
 		if err := s.replayExpansion(*s.replay); err != nil {
 			return Result{}, err
 		}
-		if detail := s.replayDetail(); detail != "" && s.stop.Failure != nil {
+		if detail := s.nextReplayDetail(); detail != "" && s.stop.Failure != nil {
 			s.stop.Failure.EvaluationDetail = detail
 		}
 	}

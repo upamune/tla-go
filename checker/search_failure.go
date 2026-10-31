@@ -104,26 +104,14 @@ func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeErr
 	return failure
 }
 
-// wrongInvocationMessage reports a util.WrongInvocationException, such as a
-// -maxSetSize failure, as Java TLC's unexpected exception.
-func wrongInvocationMessage(message string) string {
-	return unexpectedExceptionMessage("util.WrongInvocationException", message)
-}
-
 // nextNestedGenerationFailure reports a TLC assertion raised while generating
 // successors, such as a non-boolean action (2247) or a Java override failure
 // (2154), inside Java TLC's unexpected-exception message.
 func nextNestedGenerationFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
 	result := *failure
-	result.Message = unexpectedExceptionMessage("java.lang.RuntimeException", failure.Message)
+	result.Message = unexpectedExceptionMessage(runtimeExceptionClass, failure.Message)
 	result.NestedMessage, result.NestedToolCode, result.ToolCode = failure.Message, failure.ToolCode, 1000
 	return &result
-}
-
-// unexpectedExceptionHeading follows Java TLC's MP.ECGeneralMsg for an
-// exception class, without the space that precedes the exception message.
-func unexpectedExceptionHeading(exception string) string {
-	return "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a " + exception + "\n:"
 }
 
 func asRuntimeError(err error) (*evaluator.RuntimeError, bool) {
@@ -151,7 +139,7 @@ func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeEr
 	if failure.Unexpected.TLCAssert && failure.Fingerprint != nil {
 		cause = "util.Assert$TLCRuntimeException: " + cause
 	}
-	result.Message = unexpectedExceptionMessage("java.lang.RuntimeException", cause)
+	result.Message = unexpectedExceptionMessage(runtimeExceptionClass, cause)
 	if failure.ToolCode == 2261 {
 		result.NestedMessage = cause
 		result.NestedToolCode, result.ToolCode = failure.ToolCode, 1000
@@ -160,12 +148,6 @@ func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeEr
 		result.NestedToolCode = failure.Unexpected.ToolCode
 	}
 	return &result
-}
-
-// unexpectedExceptionMessage is MP.ECGeneralMsg, TLC's message for an
-// exception that has no TLC error code.
-func unexpectedExceptionMessage(exception, detail string) string {
-	return unexpectedExceptionHeading(exception) + " " + detail
 }
 
 func fingerprintDetail(failure *evaluator.RuntimeError) string {

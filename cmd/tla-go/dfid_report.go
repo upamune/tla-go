@@ -158,7 +158,7 @@ func printToolDepthFirstResult(t toolOutput, result checker.Result) {
 		return
 	}
 	if result.Failure != nil && result.Failure.EvaluationDetail != "" {
-		t.message(2103, 1, result.Failure.EvaluationDetail)
+		printToolDepthFirstEvaluationDetail(t, result.Failure)
 	}
 	if result.Status == checker.Success {
 		var body bytes.Buffer
@@ -169,6 +169,18 @@ func printToolDepthFirstResult(t toolOutput, result checker.Result) {
 		t.message(2206, 0, fmt.Sprintf("Progress(-1) at %s: %d states generated, %d distinct states found, -1 states left on queue.", toolTime(), result.GeneratedStates, result.DistinctStates))
 		t.message(2204, 0, depthFirstCounts(result))
 	}
+}
+
+// printToolDepthFirstEvaluationDetail prints message 2103. After replaying
+// doNext, which leaves a trace, TLC prints its call stack as in breadth-first
+// mode; after replaying doInit it prints the name of its Tool object, which
+// tla-go leaves out.
+func printToolDepthFirstEvaluationDetail(t toolOutput, failure *checker.Failure) {
+	if len(failure.Trace) > 0 {
+		printToolEvaluationDetail(t, failure)
+		return
+	}
+	t.message(2103, 1, failure.EvaluationDetail)
 }
 
 func depthFirstCounts(result checker.Result) string {
