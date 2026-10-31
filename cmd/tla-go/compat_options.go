@@ -21,9 +21,10 @@ type compatOptions struct {
 	userFile         string
 	userOutput       *bufio.Writer
 	fpmemDeprecated  bool
+	specTE           *specTE
 }
 
-const compatUsage = "Java TLC options: [-difftrace] [-terse] [-userFile file] [-cleanup] [-fpmem num] [-fpbits num] [-gzip] [-modelcheck] [-debug]"
+const compatUsage = "Java TLC options: [-difftrace] [-terse] [-userFile file] [-cleanup] [-fpmem num] [-fpbits num] [-gzip] [-modelcheck] [-debug] [-generateSpecTE [nomonolith]]"
 
 const fpmemDeprecation = "Using -fpmem with an abolute memory value has been deprecated. Please allocate memory for the TLC process via the JVM mechanisms and use -fpmem to set the fraction to be used for fingerprint storage."
 
@@ -47,6 +48,9 @@ var compatValues = map[string]func(*compatOptions, []string) (int, error){
 // parseCompatOption parses the options above and treats any other argument
 // as a model path.
 func parseCompatOption(opts *options, args []string) (int, error) {
+	if args[0] == "-generateSpecTE" {
+		return parseSpecTEOption(opts, args)
+	}
 	if set, ok := compatFlags[args[0]]; ok {
 		set(&opts.compat)
 		return 0, nil
@@ -98,27 +102,53 @@ func parseFingerprintBits(_ *compatOptions, args []string) (int, error) {
 
 // startCompatOutput performs the effects Java TLC has while reading its
 // parameters: the -fpmem notice, -cleanup removing the states directory in
-// the working directory, and creating the -userFile file. The returned
-// function flushes and closes that file.
-func startCompatOutput(opts *options, out io.Writer) (func(), error) {
+// the working directory, creating the -userFile file, and capturing output
+// for -generateSpecTE. It returns the writer for the run and a function that
+// completes these effects after the run.
+func startCompatOutput(opts *options, out io.Writer) (io.Writer, func(), error) {
 	if opts.compat.fpmemDeprecated {
 		fmt.Fprintln(out, fpmemDeprecation)
 	}
 	if opts.compat.cleanup {
 		_ = os.RemoveAll("states")
 	}
-	if opts.compat.userFile == "" {
+	closeUserFile, err := openUserFile(&opts.compat)
+	if err != nil {
+		return nil, nil, err
+	}
+	specTE, runOut := opts.compat.specTE, out
+	if specTE != nil {
+		runOut = specTE.start(out)
+	}
+	return runOut, func() {
+		closeUserFile()
+		if specTE != nil {
+			specTE.finish(out)
+		}
+	}, nil
+}
+
+func openUserFile(c *compatOptions) (func(), error) {
+	if c.userFile == "" {
 		return func() {}, nil
 	}
-	file, err := os.Create(opts.compat.userFile)
+	file, err := os.Create(c.userFile)
 	if err != nil {
 		return nil, commandLineError("Error: Failed to create user output log file.")
 	}
-	opts.compat.userOutput = bufio.NewWriter(file)
+	c.userOutput = bufio.NewWriter(file)
 	return func() {
-		_ = opts.compat.userOutput.Flush()
+		_ = c.userOutput.Flush()
 		_ = file.Close()
 	}, nil
+}
+
+// afterCheck generates SpecTE files for -generateSpecTE before the run's
+// final tool message.
+func (c compatOptions) afterCheck(t toolOutput, result checker.Result, run specTERun, simulate bool) {
+	if c.specTE != nil {
+		c.specTE.afterCheck(t, result, run, simulate)
+	}
 }
 
 // configureCompatOutput applies -terse and -userFile to Print and PrintT.
@@ -128,5 +158,11 @@ func configureCompatOutput(checkOpts *checker.Options, opts options) {
 	checkOpts.PrintStyle = evaluator.PrintStyle{Terse: opts.compat.terse, UnformattedPrintT: opts.compat.userOutput != nil}
 	if output := opts.compat.userOutput; output != nil {
 		checkOpts.OnPrint = func(line string) { fmt.Fprintln(output, line) }
+	}
+	if specTE, report := opts.compat.specTE, checkOpts.OnViolation; specTE != nil && report != nil {
+		checkOpts.OnViolation = func(result checker.Result) {
+			specTE.record(result)
+			report(result)
+		}
 	}
 }

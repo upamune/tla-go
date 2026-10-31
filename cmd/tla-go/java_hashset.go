@@ -1,6 +1,9 @@
 package main
 
-import "slices"
+import (
+	"slices"
+	"unicode/utf16"
+)
 
 // TLC's DOT writer uses Java HashSet and HashMap iteration order for ranks.
 type javaHashSet[T comparable] struct {
@@ -62,4 +65,37 @@ func (s *javaHashSet[T]) values() []T {
 		result = append(result, bucket...)
 	}
 	return result
+}
+
+// javaStringSet follows java.util.HashSet<String> iteration order.
+type javaStringSet struct{ javaHashSet[string] }
+
+// newJavaStringSet creates a set with Java's table size for a requested
+// initial capacity, as HashSet(int) and HashSet(Collection) do.
+func newJavaStringSet(capacity int) *javaStringSet {
+	size := 1
+	for size < capacity {
+		size *= 2
+	}
+	s := &javaStringSet{}
+	s.hash = func(v string) uint32 { return javaSpread(javaStringHash(v)) }
+	s.buckets = make([][]string, size)
+	return s
+}
+
+// javaStringSetOf copies values as new HashSet<>(collection) does.
+func javaStringSetOf(values []string) *javaStringSet {
+	s := newJavaStringSet(max(int(float32(len(values))/0.75)+1, 16))
+	for _, v := range values {
+		s.add(v)
+	}
+	return s
+}
+
+func javaStringHash(s string) uint32 {
+	var h uint32
+	for _, unit := range utf16.Encode([]rune(s)) {
+		h = 31*h + uint32(unit)
+	}
+	return h
 }

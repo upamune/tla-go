@@ -72,7 +72,7 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	if opts.sanyMetadata {
 		return runSANYMetadata(ctx, opts, out, errout)
 	}
-	finish, err := startCompatOutput(&opts, out)
+	runOut, finish, err := startCompatOutput(&opts, out)
 	if err != nil {
 		fmt.Fprintln(errout, err)
 		return 1
@@ -80,7 +80,7 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	defer finish()
 	reader := bufio.NewReader(input)
 	opts.onPause = func() { _, _ = reader.ReadString('\n') }
-	return runModels(ctx, opts, out, errout)
+	return runModels(ctx, opts, runOut, errout)
 }
 
 func runModel(ctx context.Context, opts options, out, errout io.Writer) (code int) {

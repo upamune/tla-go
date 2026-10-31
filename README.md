@@ -81,6 +81,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-terse` | Print `SUBSET`, function-set, record-set, and Cartesian-product values as formulas instead of enumerating them in `Print`/`PrintT` output and traces. |
 | `-userFile FILE` | Write `Print` and `PrintT` output to `FILE` instead of standard output. |
 | `-cleanup` | Remove the `states` directory in the working directory before checking. |
+| `-generateSpecTE [nomonolith]` | Enable `-tool` and, after a model-checking error with a trace, write a trace-exploration specification `SpecTE.tla` and `SpecTE.cfg` beside the specification, as Java TLC does. `nomonolith` keeps dependent modules in `EXTENDS` instead of embedding them. |
 | `-fpmem X`, `-fpbits N`, `-gzip`, `-modelcheck`, `-debug` | Accepted with Java TLC's argument checks. They configure Java TLC internals and have no effect, except that `-fpmem` above 1 prints Java's deprecation notice. |
 | `-version`, `-help` | Show the version or usage. |
 
