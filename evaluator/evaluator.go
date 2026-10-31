@@ -355,18 +355,47 @@ func (e *evaluator) scoped(name string) (value.Value, bool, error) {
 	return value.Value{}, false, nil
 }
 
+// identifier resolves name in one pass over the scopes. A lazy argument is
+// evaluated unless an operator parameter of that name is nearer, as with
+// lookupPrimeArgument followed by scoped.
 func (e *evaluator) identifier(name string) (value.Value, error) {
-	if arg, ok := lookupPrimeArgument(e.scope, name); ok {
-		return e.evaluateArgument(arg)
+	lazy := true
+	for s := e.scope; s != nil; s = s.parent {
+		if v, found, err := e.scopeIdentifier(s, name, &lazy); found {
+			return v, err
+		}
 	}
-	v, ok, err := e.scoped(name)
-	if ok {
-		return v, err
+	return e.unscopedIdentifier(name)
+}
+
+// scopeIdentifier resolves name in s alone. An operator parameter keeps lazy
+// arguments in outer scopes from being evaluated.
+func (e *evaluator) scopeIdentifier(s *scope, name string, lazy *bool) (value.Value, bool, error) {
+	if bound, ok := s.lookup(name); ok {
+		if *lazy && bound.arg != nil {
+			v, err := e.evaluateArgument(bound.arg)
+			return v, true, err
+		}
+		return bound.value, true, nil
 	}
-	if v, ok = e.context.Current[name]; ok {
+	if v, ok := s.values[name]; ok {
+		return v, true, nil
+	}
+	if d, ok := s.definitions[name]; ok {
+		v, err := e.definition(d, nil, s)
+		return v, true, err
+	}
+	if _, ok := s.operators[name]; ok {
+		*lazy = false
+	}
+	return value.Value{}, false, nil
+}
+
+func (e *evaluator) unscopedIdentifier(name string) (value.Value, error) {
+	if v, ok := e.context.Current[name]; ok {
 		return v, nil
 	}
-	if v, ok = e.context.Constants[name]; ok {
+	if v, ok := e.context.Constants[name]; ok {
 		return v, nil
 	}
 	if e.variables[name] {
