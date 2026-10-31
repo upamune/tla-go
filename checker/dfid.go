@@ -190,7 +190,7 @@ func (s *dfidSearch) insert(node *dfidNode) (int32, error) {
 	if err != nil {
 		return dfidNew, err
 	}
-	normalizeStateMembership(node.state)
+	normalizeStateMembershipFrom(node.state, nil)
 	node.key = key
 	status, added := s.states.insert(key)
 	if added && !s.fingerprintFailed {

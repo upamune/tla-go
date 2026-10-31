@@ -62,7 +62,7 @@ func (f *fairSearch) cacheEnabled(index int, fair fairnessCondition, node int) e
 	ok, cached := f.search.cachedFairEnabled(index, node)
 	var err error
 	if !cached {
-		ok, err = f.search.model.enabledWithLocals(fairAngle(fair), f.search.nodes[node].state, nil, fair.locals)
+		ok, err = f.search.model.enabledWithLocals(f.search.model.fairAngle(fair), f.search.nodes[node].state, nil, fair.locals)
 	}
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (s *search) fairEdgeFrom(index int, fair fairnessCondition, node int, membe
 }
 
 func (m *model) holdsFair(fair fairnessCondition, current, next evaluator.State) (bool, error) {
-	result, err := m.program.Evaluate(fairAngle(fair), evaluator.Context{Current: current, Next: next, Constants: m.constants, Locals: fair.locals, Enabled: m.enabledCallback})
+	result, err := m.program.Evaluate(m.fairAngle(fair), evaluator.Context{Current: current, Next: next, Constants: m.constants, Locals: fair.locals, Enabled: m.enabledCallback})
 	if err != nil {
 		return false, err
 	}

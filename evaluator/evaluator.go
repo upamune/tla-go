@@ -29,14 +29,6 @@ type Context struct {
 	// UncachedConstants evaluates configuration overrides before constant precomputation.
 	UncachedConstants bool
 }
-type scope struct {
-	parent      *scope
-	values      map[string]value.Value
-	definitions map[string]parser.Definition
-	operators   map[string]operatorRef
-	primeArgs   map[string]*primeArgument
-}
-
 type primeArgument struct {
 	expression    *parser.Expression
 	scope         *scope
@@ -63,13 +55,20 @@ type evaluator struct {
 	hasOperators   bool
 	primeArguments bool
 	keepLazy       bool
-	active         map[string][]activeCall
-	functionCache  map[functionCacheKey]value.Value
+	active         []activeCall
+	functionCache  map[functionCacheKey]functionCacheEntry
 	depth          int
+	frames         *frameArena
+}
+
+// pooledEvaluator owns the frame arena of a top-level evaluation.
+type pooledEvaluator struct {
+	evaluator evaluator
+	frames    frameArena
 }
 
 // Deferred values capture snapshots, so an evaluator can be reused after eval.
-var evaluatorPool = sync.Pool{New: func() any { return new(evaluator) }}
+var evaluatorPool = sync.Pool{New: func() any { return new(pooledEvaluator) }}
 
 // Program holds the immutable definition index for repeated evaluations.
 type Program struct {
@@ -98,6 +97,9 @@ type Program struct {
 	constantTLCEval map[*parser.Expression]bool
 	tlcEvalCache    map[*parser.Expression]value.Value
 	setBound        int
+	// literals shares the immutable values of string literals and field
+	// names. Deferred values may evaluate concurrently, so it is a sync.Map.
+	literals sync.Map
 }
 
 // New prepares the definitions in a module for repeated evaluation.
@@ -129,6 +131,14 @@ func NewWithRuntime(module *parser.Module, onPrint func(string), runtime TLCRunt
 	program := NewWithPrint(module, onPrint)
 	program.tlcRuntime = runtime
 	return program
+}
+
+func (p *Program) literal(text string) value.Value {
+	if v, ok := p.literals.Load(text); ok {
+		return v.(value.Value)
+	}
+	v, _ := p.literals.LoadOrStore(text, value.String(text))
+	return v.(value.Value)
 }
 
 func hasNaturals(extends []string) bool {
@@ -208,18 +218,20 @@ func (p *Program) evaluate(expression *parser.Expression, context Context) (valu
 	if context.OnPrint == nil {
 		context.OnPrint = p.onPrint
 	}
-	e := evaluatorPool.Get().(*evaluator)
-	*e = evaluator{context: context, program: p, scope: &p.root, variables: p.variables, finiteSets: p.finiteSets, sequences: p.sequences, naturals: p.naturals, integers: p.integers, tlc: p.tlc, tlcext: p.tlcext, bags: p.bags, json: p.json, randomization: p.randomization}
+	pooled := evaluatorPool.Get().(*pooledEvaluator)
+	e := &pooled.evaluator
+	*e = evaluator{frames: &pooled.frames, context: context, program: p, scope: &p.root, variables: p.variables, finiteSets: p.finiteSets, sequences: p.sequences, naturals: p.naturals, integers: p.integers, tlc: p.tlc, tlcext: p.tlcext, bags: p.bags, json: p.json, randomization: p.randomization}
 	defer func() {
+		pooled.frames.reset()
 		*e = evaluator{}
-		evaluatorPool.Put(e)
+		evaluatorPool.Put(pooled)
 	}()
 	if context.Lexical != nil {
 		e.scope = context.Lexical.scope
 		e.hasOperators = context.Lexical.hasOperators
 	}
 	if len(context.Locals) > 0 {
-		e.scope = &scope{parent: e.scope, values: context.Locals}
+		e.scope = e.frames.localScope(e.scope, context.Locals)
 	}
 	result, err := e.eval(expression)
 	if err == nil {
@@ -254,7 +266,7 @@ func (e *evaluator) evalExpression(expr *parser.Expression) (value.Value, error)
 	case "Number":
 		return numericLiteral(expr.Text)
 	case "String":
-		return value.String(expr.Text), nil
+		return e.program.literal(expr.Text), nil
 	case "Identifier":
 		return e.expressionIdentifier(expr)
 	case "Apply":
@@ -357,7 +369,7 @@ func numericLiteral(text string) (value.Value, error) {
 
 func (e *evaluator) scoped(name string) (value.Value, bool, error) {
 	for s := e.scope; s != nil; s = s.parent {
-		if v, ok := s.values[name]; ok {
+		if v, ok := s.value(name); ok {
 			return v, true, nil
 		}
 		if d, ok := s.definitions[name]; ok {
@@ -368,18 +380,47 @@ func (e *evaluator) scoped(name string) (value.Value, bool, error) {
 	return value.Value{}, false, nil
 }
 
+// identifier resolves name in one pass over the scopes. A lazy argument is
+// evaluated unless an operator parameter of that name is nearer, as with
+// lookupPrimeArgument followed by scoped.
 func (e *evaluator) identifier(name string) (value.Value, error) {
-	if arg, ok := lookupPrimeArgument(e.scope, name); ok {
-		return e.evaluateArgument(arg)
+	lazy := true
+	for s := e.scope; s != nil; s = s.parent {
+		if v, found, err := e.scopeIdentifier(s, name, &lazy); found {
+			return v, err
+		}
 	}
-	v, ok, err := e.scoped(name)
-	if ok {
-		return v, err
+	return e.unscopedIdentifier(name)
+}
+
+// scopeIdentifier resolves name in s alone. An operator parameter keeps lazy
+// arguments in outer scopes from being evaluated.
+func (e *evaluator) scopeIdentifier(s *scope, name string, lazy *bool) (value.Value, bool, error) {
+	if bound, ok := s.lookup(name); ok {
+		if *lazy && bound.arg != nil {
+			v, err := e.evaluateArgument(bound.arg)
+			return v, true, err
+		}
+		return bound.value, true, nil
 	}
-	if v, ok = e.context.Current[name]; ok {
+	if v, ok := s.values[name]; ok {
+		return v, true, nil
+	}
+	if d, ok := s.definitions[name]; ok {
+		v, err := e.definition(d, nil, s)
+		return v, true, err
+	}
+	if _, ok := s.operators[name]; ok {
+		*lazy = false
+	}
+	return value.Value{}, false, nil
+}
+
+func (e *evaluator) unscopedIdentifier(name string) (value.Value, error) {
+	if v, ok := e.context.Current[name]; ok {
 		return v, nil
 	}
-	if v, ok = e.context.Constants[name]; ok {
+	if v, ok := e.context.Constants[name]; ok {
 		return v, nil
 	}
 	if e.variables[name] {
@@ -476,16 +517,9 @@ func (e *evaluator) evaluateOperatorDefinition(d parser.Definition, args []value
 }
 
 func (e *evaluator) evaluateGuardedOperator(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope, expressions []*parser.Expression, caller *scope) (value.Value, error) {
-	if e.active == nil {
-		e.active = map[string][]activeCall{}
-	}
-	key, err := callArgumentsKey(d, args, defined)
+	key, err := activeCallKey(d, args, operators, defined, expressions, caller)
 	if err != nil {
 		return value.Value{}, err
-	}
-	key = appendOperatorBindings(key, d, operators)
-	if len(expressions) > 0 {
-		key = lazyRecursiveCallKey(key, expressions, caller)
 	}
 	repeated, err := e.recursiveStateSeen(key)
 	if err != nil {
@@ -495,23 +529,28 @@ func (e *evaluator) evaluateGuardedOperator(d parser.Definition, args []value.Va
 		return value.Value{}, fmt.Errorf("recursive call to %s with unchanged arguments and state", d.Name)
 	}
 	e.pushActiveCall(key)
-	defer e.popActiveCall(key)
-	return e.evaluateOperatorBody(d, args, operators, defined, expressions, caller)
+	result, err := e.evaluateOperatorBody(d, args, operators, defined, expressions, caller)
+	e.popActiveCall()
+	return result, err
 }
 
 func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope, expressions []*parser.Expression, caller *scope) (value.Value, error) {
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	bindings, err := valueBindings(d.Params, args, operators)
+	mark := e.frames.mark()
+	frame, err := e.operatorScope(defined, d.Params, args, operators, expressions, caller, e.activeEnabledScopes())
 	if err != nil {
 		return value.Value{}, err
 	}
-	child := *e
-	child.depth++
-	child.scope = &scope{parent: defined, values: bindings, operators: operators, primeArgs: primeArgumentBindings(d.Params, expressions, caller, e.activeEnabledScopes())}
-	child.hasOperators = e.hasOperators || len(operators) > 0
-	return child.eval(d.Body)
+	saved := *e
+	e.depth++
+	e.scope = frame
+	e.hasOperators = e.hasOperators || len(operators) > 0
+	result, err := e.eval(d.Body)
+	*e = saved
+	e.frames.release(mark)
+	return result, err
 }
 
 func validateCall(d parser.Definition, args []value.Value) error {
@@ -526,7 +565,7 @@ func validateCall(d parser.Definition, args []value.Value) error {
 
 func (e *evaluator) findDefinition(name string) (parser.Definition, *scope, bool) {
 	for s := e.scope; s != nil; s = s.parent {
-		if _, ok := s.values[name]; ok {
+		if s.hasValue(name) {
 			return parser.Definition{}, nil, false
 		}
 		if _, ok := s.operators[name]; ok {

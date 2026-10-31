@@ -28,7 +28,7 @@ func findScopedOperator(start *scope, name string) (operatorRef, bool) {
 		if op, ok := s.operators[name]; ok {
 			return op, true
 		}
-		if _, ok := s.values[name]; ok {
+		if s.hasValue(name) {
 			return operatorRef{}, false
 		}
 		if _, ok := s.definitions[name]; ok {
@@ -43,9 +43,7 @@ func (e *evaluator) applyDefinition(d parser.Definition, arguments []*parser.Exp
 		return value.Value{}, fmt.Errorf("operator %s expects %d arguments", d.Name, len(d.Params))
 	}
 	if d.ConfigConstant {
-		child := *e
-		child.scope = defined
-		return child.eval(d.Body)
+		return e.evalInScope(defined, d.Body)
 	}
 	if !hasOperatorParameters(d.Params) {
 		if d.Kind == "Operator" {
@@ -114,11 +112,11 @@ func capturedOperatorScopes(active, introduced []string) []string {
 	return append(append([]string(nil), active...), introduced...)
 }
 
-func valueBindings(params []parser.Declaration, args []value.Value, operators map[string]operatorRef) (map[string]value.Value, error) {
-	bindings := make(map[string]value.Value, len(args))
+func valueBindings(params []parser.Declaration, args []value.Value, operators map[string]operatorRef) ([]binding, error) {
+	bindings := make([]binding, 0, len(args))
 	for i, param := range params {
 		if param.Arity == 0 {
-			bindings[param.Name] = args[i]
+			bindings = append(bindings, binding{name: param.Name, value: args[i]})
 			continue
 		}
 		op, ok := operators[param.Name]
@@ -129,10 +127,33 @@ func valueBindings(params []parser.Declaration, args []value.Value, operators ma
 	return bindings, nil
 }
 
+// operatorScope binds value parameters. With expressions, each one is an
+// argument evaluated on demand in the caller's scope.
+func (e *evaluator) operatorScope(defined *scope, params []parser.Declaration, args []value.Value, operators map[string]operatorRef, expressions []*parser.Expression, caller *scope, enabledScopes []string) (*scope, error) {
+	if len(params) == 1 && params[0].Arity == 0 && len(expressions) == 1 {
+		return e.frames.lazyScope(defined, params[0].Name, args[0], operators, expressions[0], caller, enabledScopes), nil
+	}
+	bindings, err := valueBindings(params, args, operators)
+	if err != nil {
+		return nil, err
+	}
+	if len(expressions) > 0 {
+		bindLazyArguments(bindings, params, expressions, caller, enabledScopes)
+	}
+	return &scope{parent: defined, bound: bindings, operators: operators}, nil
+}
+
+// operatorCallKey identifies operator arguments by scope address. The key
+// outlives the call, so those scopes must not be lent again.
 func (e *evaluator) operatorCallKey(d parser.Definition, args []value.Value, ops map[string]operatorRef, defined *scope) (string, error) {
 	key, err := e.callKey(d, args, defined)
 	if err != nil {
 		return "", err
+	}
+	for _, param := range d.Params {
+		if param.Arity > 0 {
+			pin(ops[param.Name].scope)
+		}
 	}
 	return appendOperatorBindings(key, d, ops), nil
 }
@@ -215,14 +236,7 @@ func (e *evaluator) invokeLambda(op operatorRef, args []value.Value) (value.Valu
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	values := make(map[string]value.Value, len(args))
-	for i, name := range op.lambda.Names {
-		values[name] = args[i]
-	}
-	child := *e
-	child.depth++
-	child.scope = &scope{parent: op.scope, values: values}
-	return child.eval(op.lambda.Args[0])
+	return e.evalLambda(op, valueScope(op.scope, op.lambda.Names, args))
 }
 
 func (e *evaluator) invokeLambdaExpressions(op operatorRef, expressions []*parser.Expression) (value.Value, error) {
@@ -232,14 +246,14 @@ func (e *evaluator) invokeLambdaExpressions(op operatorRef, expressions []*parse
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	params := make([]parser.Declaration, len(op.lambda.Names))
-	values := make(map[string]value.Value, len(params))
-	for i, name := range op.lambda.Names {
-		params[i].Name = name
-		values[name] = value.Bool(false)
-	}
-	child := *e
-	child.depth++
-	child.scope = &scope{parent: op.scope, values: values, primeArgs: primeArgumentBindings(params, expressions, e.scope, e.activeEnabledScopes())}
-	return child.eval(op.lambda.Args[0])
+	return e.evalLambda(op, &scope{parent: op.scope, bound: lazyNameBindings(op.lambda.Names, expressions, e.scope, e.activeEnabledScopes())})
+}
+
+func (e *evaluator) evalLambda(op operatorRef, s *scope) (value.Value, error) {
+	saved := *e
+	e.depth++
+	e.scope = s
+	result, err := e.eval(op.lambda.Args[0])
+	*e = saved
+	return result, err
 }

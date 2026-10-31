@@ -1,0 +1,112 @@
+package evaluator
+
+import (
+	"github.com/upamune/tla-go/syntax/parser"
+	"github.com/upamune/tla-go/value"
+)
+
+// callFrame is a scope with one binding and, for a lazy argument, its cache.
+type callFrame struct {
+	scope    scope
+	binding  [1]binding
+	argument primeArgument
+}
+
+const frameChunk = 256
+
+// frameArena lends call frames in stack order: a frame is released when the
+// operator call or bound element that took it finishes, after any nested
+// evaluation. Each top-level evaluation owns an arena. Values that outlive a
+// call capture snapshots, which use none, instead of its scopes, so released
+// frames are unreachable and are cleared at once. The only lasting reference
+// is an operator scope address in a function cache key; pin keeps such a
+// frame from being cleared or lent again until reset, when the evaluation and
+// its function cache end. A nil arena allocates every frame.
+type frameArena struct {
+	chunks [][]callFrame
+	// top counts the frames lent; every pinned frame lies below pinned.
+	top, pinned int
+}
+
+type frameMark struct{ top int }
+
+func (a *frameArena) mark() frameMark {
+	if a == nil {
+		return frameMark{}
+	}
+	return frameMark{a.top}
+}
+
+// release clears the frames lent after m, so that free frames hold nothing.
+func (a *frameArena) release(m frameMark) {
+	if a == nil {
+		return
+	}
+	for i := m.top; i < a.top; i++ {
+		if frame := a.frame(i); !frame.scope.pinned {
+			*frame = callFrame{}
+		} else {
+			a.pinned = max(a.pinned, i+1)
+		}
+	}
+	a.top = m.top
+}
+
+// reset releases every frame and then clears the pinned ones.
+func (a *frameArena) reset() {
+	a.release(frameMark{})
+	for i := range a.pinned {
+		*a.frame(i) = callFrame{}
+	}
+	a.pinned = 0
+}
+
+func (a *frameArena) frame(i int) *callFrame {
+	return &a.chunks[i/frameChunk][i%frameChunk]
+}
+
+func (a *frameArena) take() *callFrame {
+	if a == nil {
+		return new(callFrame)
+	}
+	if a.top == len(a.chunks)*frameChunk {
+		a.chunks = append(a.chunks, make([]callFrame, frameChunk))
+	}
+	frame := a.frame(a.top)
+	a.top++
+	if frame.scope.pinned {
+		// A function cache key still names the pinned frame.
+		return new(callFrame)
+	}
+	frame.scope.lent = true
+	return frame
+}
+
+// pin marks a lent frame so that its arena does not lend it again.
+func pin(s *scope) {
+	if s != nil && s.lent {
+		s.pinned = true
+	}
+}
+
+func (a *frameArena) localScope(parent *scope, values map[string]value.Value) *scope {
+	frame := a.take()
+	frame.scope.parent, frame.scope.values = parent, values
+	return &frame.scope
+}
+
+func (a *frameArena) valueScope(parent *scope, name string, v value.Value) *scope {
+	frame := a.take()
+	frame.binding[0] = binding{name: name, value: v}
+	frame.scope.parent, frame.scope.bound = parent, frame.binding[:]
+	return &frame.scope
+}
+
+// lazyScope binds the common single lazy parameter of an operator call.
+func (a *frameArena) lazyScope(defined *scope, name string, placeholder value.Value, operators map[string]operatorRef, expression *parser.Expression, caller *scope, enabledScopes []string) *scope {
+	frame := a.take()
+	frame.argument.expression, frame.argument.scope, frame.argument.enabledScopes = expression, caller, enabledScopes
+	frame.binding[0] = binding{name: name, value: placeholder, arg: &frame.argument}
+	frame.scope.parent, frame.scope.bound, frame.scope.operators = defined, frame.binding[:], operators
+	return &frame.scope
+}

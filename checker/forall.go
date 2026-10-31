@@ -6,19 +6,20 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func (g *generator) universal(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) universal(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	var bindings []map[string]value.Value
 	err := g.collectBindings(item.expr.Bounds, partial, item.locals, &bindings)
 	if err != nil {
 		return false, err
 	}
 	reverseTail(bindings)
-	items := make([]work, 0, len(bindings)+len(rest))
-	for _, locals := range bindings {
-		items = append(items, work{expr: item.expr.Args[0], path: item.path, locals: locals})
+	items, nodes, mark := g.model.work.prepend(len(bindings), rest)
+	for i, locals := range bindings {
+		nodes[i].item = work{expr: item.expr.Args[0], path: item.path, locals: locals}
 	}
-	items = append(items, rest...)
-	return g.solve(items, partial, action)
+	more, err := g.solve(items, partial, action)
+	g.model.work.release(mark)
+	return more, err
 }
 
 // tla-ts uses the first binding followed by the remaining bindings in reverse.

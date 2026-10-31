@@ -2,26 +2,38 @@ package checker
 
 import (
 	"fmt"
-	"maps"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
 )
 
-func (g *generator) unchanged(expr *parser.Expression, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) unchanged(expr *parser.Expression, rest *workList, partial evaluator.State, action string) (bool, error) {
 	names, err := g.unchangedNames(expr.Args[0])
 	if err != nil {
 		return false, err
 	}
-	next := maps.Clone(partial)
+	if g.undo == nil {
+		g.undo = make([]stateUndo, 0, len(g.model.names))
+	}
+	mark := len(g.undo)
 	for _, name := range names {
-		ok, err := g.copyUnchanged(name, next)
+		ok, err := g.copyUnchanged(name, partial)
 		if err != nil || !ok {
+			g.restore(partial, mark)
 			return ok, err
 		}
 	}
-	return g.solve(rest, next, action)
+	more, err := g.solve(rest, partial, action)
+	g.restore(partial, mark)
+	return more, err
+}
+
+// stateUndo restores a partial-state entry overwritten by UNCHANGED.
+type stateUndo struct {
+	name     string
+	previous value.Value
+	assigned bool
 }
 
 func (g *generator) copyUnchanged(name string, next evaluator.State) (bool, error) {
@@ -29,18 +41,50 @@ func (g *generator) copyUnchanged(name string, next evaluator.State) (bool, erro
 	if !ok {
 		return false, fmt.Errorf("variable %s is unassigned", name)
 	}
-	if existing, ok := next[name]; ok {
+	existing, assigned := next[name]
+	if assigned {
 		same, err := value.Equal(existing, v)
 		if err != nil || !same {
 			return same, err
 		}
 	}
+	// An equal value can differ in presentation, so the current value replaces it.
+	g.undo = append(g.undo, stateUndo{name: name, previous: existing, assigned: assigned})
 	next[name] = v
 	return true, nil
 }
 
+func (g *generator) restore(partial evaluator.State, mark int) {
+	for i := len(g.undo) - 1; i >= mark; i-- {
+		entry := g.undo[i]
+		if entry.assigned {
+			partial[entry.name] = entry.previous
+		} else {
+			delete(partial, entry.name)
+		}
+	}
+	clear(g.undo[mark:])
+	g.undo = g.undo[:mark]
+}
+
+// unchangedNames resolves an UNCHANGED operand to variables. Without a
+// lexical scope the result depends only on the operand and module
+// definitions, so it is cached; callers must not modify it.
 func (g *generator) unchangedNames(expr *parser.Expression) ([]string, error) {
-	return g.unchangedNamesSeen(expr, map[string]bool{})
+	if g.lexical != nil {
+		return g.unchangedNamesSeen(expr, map[string]bool{})
+	}
+	if names, ok := g.model.unchangedCache[expr]; ok {
+		return names, nil
+	}
+	names, err := g.unchangedNamesSeen(expr, map[string]bool{})
+	if err == nil && len(g.model.unchangedCache) < 4096 {
+		if g.model.unchangedCache == nil {
+			g.model.unchangedCache = make(map[*parser.Expression][]string)
+		}
+		g.model.unchangedCache[expr] = names
+	}
+	return names, err
 }
 
 func (g *generator) unchangedNamesSeen(expr *parser.Expression, seen map[string]bool) ([]string, error) {

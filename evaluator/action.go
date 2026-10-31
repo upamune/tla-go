@@ -55,9 +55,7 @@ func (e *evaluator) except(expr *parser.Expression) (value.Value, error) {
 // the value unchanged and is reported as missing.
 func (e *evaluator) update(current value.Value, path []parser.PathStep, expr *parser.Expression) (value.Value, bool, error) {
 	if len(path) == 0 {
-		child := *e
-		child.scope = &scope{parent: e.scope, values: map[string]value.Value{"@": current}}
-		result, err := child.eval(expr)
+		result, err := e.evalInScope(singleValueScope(e.scope, "@", current), expr)
 		return result, false, err
 	}
 	key, err := e.pathKey(path[0])
@@ -134,7 +132,7 @@ func (e *evaluator) warnUnknownExceptField(function *parser.Expression) {
 
 func (e *evaluator) pathKey(step parser.PathStep) (value.Value, error) {
 	if step.Kind == "Field" {
-		return value.String(step.Name), nil
+		return e.program.literal(step.Name), nil
 	}
 	if step.Kind != "Index" {
 		return value.Value{}, fmt.Errorf("unsupported EXCEPT path %s", step.Kind)

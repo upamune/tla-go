@@ -7,13 +7,8 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-func (g *generator) letAction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
-	tail := append([]work(nil), rest...)
-	for i := range tail {
-		if !tail[i].path.hasLexicalScope() {
-			tail[i].path = tail[i].path.withScope(g.lexical)
-		}
-	}
+func (g *generator) letAction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
+	tail := g.scopedTail(rest)
 	scope := g.model.program.ExtendScope(g.lexical, item.expr.Definitions, item.locals)
 	body := work{expr: item.expr.Args[0], path: item.path.withScope(scope), label: item.label, locals: item.locals}
 	return g.solve(prepend(body, tail), partial, action)

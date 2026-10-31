@@ -9,7 +9,7 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func (g *generator) existential(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) existential(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	previous := g.source
 	split := false
 	if item.label && !g.initial {
@@ -35,7 +35,7 @@ func (g *generator) existential(item work, rest []work, partial evaluator.State,
 
 // witnesses evaluates the bounds of an existential before binding them, as
 // TLC's ContextEnumerator does.
-func (g *generator) witnesses(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) witnesses(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	domains, err := g.boundDomains(item.expr.Bounds, partial, item.locals)
 	if err != nil {
 		return false, err
@@ -65,7 +65,7 @@ func (g *generator) boundDomains(bounds []parser.Bound, partial evaluator.State,
 
 // enumerateWitnesses binds the bounds in ContextEnumerator order, in which the
 // first bound varies fastest.
-func (g *generator) enumerateWitnesses(item work, domains []value.Value, rest []work, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
+func (g *generator) enumerateWitnesses(item work, domains []value.Value, rest *workList, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
 	last := len(domains) - 1
 	if last < 0 {
 		return g.witness(item, rest, partial, locals, action)
@@ -84,7 +84,7 @@ func (g *generator) enumerateWitnesses(item work, domains []value.Value, rest []
 
 // witness solves the body for one binding, which TLC splits into its own
 // action when the existential is labeled.
-func (g *generator) witness(item work, rest []work, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
+func (g *generator) witness(item work, rest *workList, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
 	if more, err := g.startAction(item); err != nil || !more {
 		return more, err
 	}

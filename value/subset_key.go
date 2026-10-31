@@ -1,11 +1,9 @@
 package value
 
-import "strings"
-
 // TLC orders sets by cardinality and then by their elements. Enumerating
 // subsets in that order avoids materializing the entire power set merely to
 // produce its canonical state key.
-func (v Value) appendSubsetKey(b *strings.Builder) error {
+func (v Value) appendSubsetKey(b *keyWriter) error {
 	base, err := v.subsetBase()
 	if err != nil {
 		return v.withFingerprintSource(err)
@@ -13,7 +11,7 @@ func (v Value) appendSubsetKey(b *strings.Builder) error {
 	if err := sortValues(base); err != nil {
 		return v.withFingerprintSource(err)
 	}
-	b.WriteByte('S')
+	b.appendByte('S')
 	writeInt(b, int64(1)<<len(base))
 	for size := 0; size <= len(base); size++ {
 		if err := appendSubsetSize(b, base, size); err != nil {
@@ -23,7 +21,7 @@ func (v Value) appendSubsetKey(b *strings.Builder) error {
 	return nil
 }
 
-func appendSubsetSize(b *strings.Builder, base []Value, size int) error {
+func appendSubsetSize(b *keyWriter, base []Value, size int) error {
 	indices := make([]int, size)
 	for i := range indices {
 		indices[i] = i
@@ -38,14 +36,14 @@ func appendSubsetSize(b *strings.Builder, base []Value, size int) error {
 	}
 }
 
-func appendSubsetMembers(b *strings.Builder, base []Value, indices []int) error {
+func appendSubsetMembers(b *keyWriter, base []Value, indices []int) error {
 	if low, high, ok := contiguousSubset(base, indices); ok {
-		b.WriteByte('r')
+		b.appendByte('r')
 		writeInt(b, int64(low))
 		writeInt(b, int64(high))
 		return nil
 	}
-	b.WriteByte('S')
+	b.appendByte('S')
 	writeInt(b, int64(len(indices)))
 	for _, index := range indices {
 		if err := base[index].appendKey(b); err != nil {

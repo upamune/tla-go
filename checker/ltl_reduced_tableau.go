@@ -327,7 +327,7 @@ func (b *reducedTableauProduct) expandRegenerated(node int, state evaluator.Stat
 		}
 		return true, nil
 	}}
-	if _, err := gen.solveNext(expr); err != nil {
+	if _, err := gen.solveNext(expr, b.source.model.partialState()); err != nil {
 		return err
 	}
 	order := make([]int, len(edges))

@@ -41,3 +41,35 @@ func BenchmarkParameterizedInstanceConstant(b *testing.B) {
 		}
 	}
 }
+
+// A LAMBDA bound by a quantifier or by an action's \E gives each call of a
+// parameterized instance's function definition a new operator scope.
+func BenchmarkParameterizedInstanceOperatorFunction(b *testing.B) {
+	const dependency = "---- MODULE A ----\nEXTENDS Naturals\nCONSTANT Op(_)\nf[x \\in 1..2] == Op(x)\n====\n"
+	loader := func(_ context.Context, name string) (string, error) {
+		if name != "A" {
+			return "", fmt.Errorf("unexpected module %s", name)
+		}
+		return dependency, nil
+	}
+	const header = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLES v, w\nI(Op(_)) == INSTANCE A\nInit == v = 0 /\\ w = 0\n"
+	cases := []struct {
+		name, definitions, config string
+		distinct                  int
+	}{
+		{"quantifier", "Next == v' = (v + 1) % 1000 /\\ UNCHANGED w\nInv == \\A k \\in 1..3 : I(LAMBDA y : y + k + v)!f[1] = 1 + k + v\n", "INIT Init NEXT Next INVARIANT Inv", 1000},
+		{"action", "Next == \\E k \\in 1..2 : v' = (v + k) % 1000 /\\ w' = I(LAMBDA y : y + k)!f[1]\n", "INIT Init NEXT Next", 2001},
+	}
+	for _, c := range cases {
+		source := header + c.definitions + "====\n"
+		b.Run(c.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				result, err := CheckWithLoader(context.Background(), source, c.config, loader)
+				if err != nil || result.Status != Success || result.DistinctStates != c.distinct {
+					b.Fatalf("got %+v, %v", result, err)
+				}
+			}
+		})
+	}
+}

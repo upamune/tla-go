@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -60,7 +59,7 @@ func (m *model) check() (Result, error) {
 	gen := generator{model: m, initial: true, emit: func(state evaluator.State, action string, source *parser.Expression) (bool, error) {
 		return s.visit(state, -1, action, source)
 	}}
-	more, err := gen.solve([]work{{expr: init}}, evaluator.State{}, "")
+	more, err := gen.solve(&workList{item: work{expr: init}}, m.partialState(), "")
 	if err != nil {
 		if incomplete, ok := errors.AsType[*incompleteState](err); ok {
 			return s.incompleteInitialFailure(incomplete), nil
@@ -207,7 +206,9 @@ func (s *search) expandRawNode(index int, next *parser.Expression) (bool, error)
 		}
 		return s.visit(state, index, action, source)
 	}}
-	more, err := gen.solveNext(next)
+	partial := s.model.takePartial()
+	more, err := gen.solveNext(next, partial)
+	s.model.returnPartial(partial)
 	if err != nil || !more {
 		addEnclosingActionSource(err, gen.actionRoot(next))
 		if s.result.HasOutDegrees {
@@ -466,6 +467,9 @@ func (m *model) stateKey(state evaluator.State) (string, error) {
 	if !m.hasReduction() {
 		return m.unreducedStateKey(state)
 	}
+	if m.cfg.Symmetry != "" {
+		return m.symmetryKey(state)
+	}
 	reduced, err := m.reduceState(state)
 	if err != nil {
 		return "", err
@@ -477,15 +481,20 @@ func (m *model) unreducedStateKey(state evaluator.State) (string, error) {
 	if m.tlcFingerprint {
 		return m.fingerprintKey(state)
 	}
-	var key strings.Builder
+	// A lazy value can evaluate a definition while it is encoded, so a nested
+	// call must not share the buffers.
+	key, scratch := m.stateKeyBuffer[:0], m.valueKeyBuffer
+	m.stateKeyBuffer, m.valueKeyBuffer = nil, nil
 	for _, name := range m.names {
-		v, err := state[name].Key()
+		var err error
+		scratch, err = state[name].AppendKey(scratch[:0])
 		if err != nil {
 			return "", err
 		}
-		key.WriteString(strconv.Itoa(len(v)))
-		key.WriteByte(':')
-		key.WriteString(v)
+		key = strconv.AppendInt(key, int64(len(scratch)), 10)
+		key = append(key, ':')
+		key = append(key, scratch...)
 	}
-	return key.String(), nil
+	m.stateKeyBuffer, m.valueKeyBuffer = key, scratch
+	return string(key), nil
 }

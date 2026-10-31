@@ -29,14 +29,21 @@ func (e *evaluator) callKey(d parser.Definition, args []value.Value, defined *sc
 func callArgumentsKey(d parser.Definition, args []value.Value, defined *scope) (string, error) {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("%p:%s:", defined, d.Name))
+	if err := appendArgumentKeys(&b, args); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}
+
+func appendArgumentKeys(b *strings.Builder, args []value.Value) error {
 	for _, v := range args {
 		key, err := v.Key()
 		if err != nil {
-			return "", err
+			return err
 		}
-		appendKey(&b, key)
+		appendKey(b, key)
 	}
-	return b.String(), nil
+	return nil
 }
 
 func appendKey(b *strings.Builder, key string) {

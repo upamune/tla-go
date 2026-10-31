@@ -75,7 +75,22 @@ func (e *evaluator) applyOperator(op operatorRef, expressions []*parser.Expressi
 	return e.invokeOperator(op, args)
 }
 
+// moduleOperators names the standard-module operators that builtin checks
+// before the core operators.
+var moduleOperators = func() map[string]bool {
+	names := map[string]bool{"Cardinality": true, "IsFiniteSet": true}
+	for _, arities := range []map[string]int{randomArities, bagArities, jsonArities, tlcExtArities, tlcArities, sequenceArities} {
+		for name := range arities {
+			names[name] = true
+		}
+	}
+	return names
+}()
+
 func (e *evaluator) builtin(expr *parser.Expression) (value.Value, error) {
+	if !moduleOperators[expr.Text] {
+		return e.builtinByArity(expr)
+	}
 	if e.randomization && isRandomOperator(expr.Text) {
 		return e.randomOperator(expr)
 	}
@@ -220,14 +235,16 @@ func (e *evaluator) prime(expr *parser.Expression) (value.Value, error) {
 		}
 		return value.Value{}, fmt.Errorf("unbound primed variable %s", name)
 	}
-	child := *e
-	child.context.Current = e.context.Next
-	child.context.Next = nil
-	child.primeArguments = true
+	saved := *e
+	e.context.Current = saved.context.Next
+	e.context.Next = nil
+	e.primeArguments = true
 	if e.program.tlcRuntime != nil {
-		child.primed = &tlcPrime{source: e.context.Current}
+		e.primed = &tlcPrime{source: saved.context.Current}
 	}
-	return child.eval(expr.Args[0])
+	result, err := e.eval(expr.Args[0])
+	*e = saved
+	return result, err
 }
 
 func (e *evaluator) unchanged(expr *parser.Expression) (value.Value, error) {
@@ -285,9 +302,7 @@ func (e *evaluator) let(expr *parser.Expression) (value.Value, error) {
 	for _, d := range expr.Definitions {
 		defs[d.Name] = d
 	}
-	child := *e
-	child.scope = &scope{parent: e.scope, definitions: defs}
-	return child.eval(expr.Args[0])
+	return e.evalInScope(&scope{parent: e.scope, definitions: defs}, expr.Args[0])
 }
 
 func (e *evaluator) set(expr *parser.Expression) (value.Value, error) {
@@ -314,7 +329,7 @@ func (e *evaluator) record(expr *parser.Expression) (value.Value, error) {
 		if err != nil {
 			return value.Value{}, err
 		}
-		pairs = append(pairs, value.Pair{Key: value.String(field.Name), Value: v})
+		pairs = append(pairs, value.Pair{Key: e.program.literal(field.Name), Value: v})
 	}
 	return e.orderedRecord(pairs)
 }
@@ -324,21 +339,26 @@ func (e *evaluator) functionApplication(expr *parser.Expression) (value.Value, e
 	if err != nil {
 		return value.Value{}, err
 	}
-	args, err := e.evalArgs(expr.Args[1:])
+	key, err := e.functionArgument(expr.Args[1:])
 	if err != nil {
 		return value.Value{}, err
 	}
-	if len(args) == 0 {
+	return functionLookup(expr, fn, key, e.keepLazy)
+}
+
+// functionArgument evaluates f[a] to a and f[a, b] to <<a, b>>.
+func (e *evaluator) functionArgument(args []*parser.Expression) (value.Value, error) {
+	if len(args) == 1 {
+		return e.eval(args[0])
+	}
+	values, err := e.evalArgs(args)
+	if err != nil {
+		return value.Value{}, err
+	}
+	if len(values) == 0 {
 		return value.Value{}, fmt.Errorf("missing function argument")
 	}
-	key := args[0]
-	if len(args) > 1 {
-		key, err = value.Tuple(args)
-		if err != nil {
-			return value.Value{}, err
-		}
-	}
-	return functionLookup(expr, fn, key, e.keepLazy)
+	return value.Tuple(values)
 }
 
 func (e *evaluator) field(expr *parser.Expression) (value.Value, error) {
@@ -346,7 +366,7 @@ func (e *evaluator) field(expr *parser.Expression) (value.Value, error) {
 	if err != nil {
 		return value.Value{}, err
 	}
-	return record.Lookup(value.String(expr.Text))
+	return record.Lookup(e.program.literal(expr.Text))
 }
 
 func (e *evaluator) isTLCBuiltin(name string) bool {

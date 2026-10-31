@@ -159,7 +159,7 @@ func (r *simulationRun) initialStates() ([]evaluator.State, *Result, error) {
 		states = append(states, state)
 		return true, nil
 	}}
-	_, err = gen.solve([]work{{expr: init}}, evaluator.State{}, "")
+	_, err = gen.solve(&workList{item: work{expr: init}}, r.model.partialState(), "")
 	if err != nil {
 		return nil, nil, err
 	}

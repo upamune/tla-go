@@ -18,7 +18,7 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 		}
 		inModel, err := s.satisfiesConstraints(state, parent)
 		if err == nil {
-			normalizeStateMembership(state)
+			s.normalizeStateMembership(state, parent)
 		}
 		return key, inModel, err
 	}
@@ -28,13 +28,28 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 	}
 	key, err := s.model.stateKey(state)
 	if err == nil {
-		normalizeStateMembership(state)
+		s.normalizeStateMembership(state, parent)
 	}
 	return key, inModel, err
 }
 
-func normalizeStateMembership(state evaluator.State) {
+// normalizeStateMembership skips values shared with the parent, whose stored
+// state was normalized when it was visited.
+func (s *search) normalizeStateMembership(state evaluator.State, parent int) {
+	var previous evaluator.State
+	if parent >= 0 {
+		previous = s.nodes[parent].state
+	}
+	normalizeStateMembershipFrom(state, previous)
+}
+
+// normalizeStateMembershipFrom normalizes the values of state that it does
+// not share with previous, which may be nil.
+func normalizeStateMembershipFrom(state, previous evaluator.State) {
 	for name, v := range state {
+		if stored, ok := previous[name]; ok && stored == v {
+			continue
+		}
 		if normalized := v.DeepNormalizedMembership(); normalized != v {
 			state[name] = normalized
 		}
@@ -52,8 +67,14 @@ type reducedState struct {
 // reduceState evaluates the symmetry representative and the VIEW of a state,
 // which TLC computes once per fingerprint.
 func (m *model) reduceState(state evaluator.State) (reducedState, error) {
+	return m.reduceStateIn(state, nil)
+}
+
+// reduceStateIn builds a smaller symmetry representative in scratch when it
+// is not nil, so the result is valid only until scratch is reused.
+func (m *model) reduceStateIn(state, scratch evaluator.State) (reducedState, error) {
 	if m.cfg.Symmetry != "" {
-		representative, err := m.symmetryRepresentative(state)
+		representative, err := m.symmetryRepresentative(state, scratch)
 		if err != nil {
 			return reducedState{}, err
 		}
@@ -223,7 +244,7 @@ func (m *model) recoverViewInitial(target string) (evaluator.State, bool, error)
 		}
 		return true, nil
 	}}
-	_, err = gen.solve([]work{{expr: init}}, evaluator.State{}, "")
+	_, err = gen.solve(&workList{item: work{expr: init}}, m.partialState(), "")
 	return result, found, err
 }
 
@@ -246,7 +267,7 @@ func (m *model) recoverViewSuccessor(current evaluator.State, target string) (Tr
 		}
 		return true, nil
 	}}
-	_, err = gen.solveNext(next)
+	_, err = gen.solveNext(next, m.partialState())
 	return result, found, err
 }
 

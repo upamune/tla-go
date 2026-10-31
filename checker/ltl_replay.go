@@ -186,7 +186,7 @@ func (s *search) replayInitialState(target evaluator.State) (evaluator.State, er
 		candidates = append(candidates, TraceStep{State: state})
 		return true, nil
 	}}
-	if _, err := gen.solve([]work{{expr: init}}, evaluator.State{}, ""); err != nil {
+	if _, err := gen.solve(&workList{item: work{expr: init}}, s.model.partialState(), ""); err != nil {
 		return nil, err
 	}
 	step, found, err := s.replayFindCandidate(candidates, target)
@@ -209,7 +209,7 @@ func (s *search) replaySuccessors(current, target evaluator.State) (TraceStep, e
 		candidates = append(candidates, TraceStep{State: state, Action: action, ActionRange: actionSourceRange(source)})
 		return true, nil
 	}}
-	if _, err := gen.solveNext(next); err != nil {
+	if _, err := gen.solveNext(next, s.model.partialState()); err != nil {
 		return TraceStep{}, err
 	}
 	step, found, err := s.replayFindCandidate(candidates, target)

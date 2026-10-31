@@ -3,6 +3,7 @@ package value
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -200,20 +201,16 @@ func uniquePairs(pairs []Pair) []Pair {
 	return pairs[:n]
 }
 
+// Tuple builds the function 1..n -> elements, whose keys are already sorted.
 func Tuple(elements []Value) (Value, error) {
+	if _, err := Integer(min(int64(len(elements)), math.MaxInt32+1)); err != nil {
+		return Value{}, err
+	}
 	pairs := make([]Pair, len(elements))
 	for i, element := range elements {
-		key, err := Integer(int64(i) + 1)
-		if err != nil {
-			return Value{}, err
-		}
-		pairs[i] = Pair{key, element}
+		pairs[i] = Pair{Value{kind: IntegerKind, number: int32(i + 1)}, element}
 	}
-	result, err := FunctionWithDomain(pairs, Interval(1, int32(len(elements))))
-	if err == nil {
-		result.number = 1
-	}
-	return result, err
+	return Value{kind: FunctionKind, number: 1, data: &payload{pairs: pairs, domain: Interval(1, int32(len(elements)))}}, nil
 }
 
 func (v Value) Lookup(key Value) (Value, error) {
@@ -227,6 +224,12 @@ func (v Value) LookupWithLazyResult(key Value, keepLazy bool) (Value, error) {
 	}
 	if v.kind != FunctionKind {
 		return Value{}, fmt.Errorf("expected a function")
+	}
+	if i, ok := v.intervalIndex(key); ok {
+		if i < 0 {
+			return Value{}, ErrOutsideFunctionDomain
+		}
+		return v.data.pairs[i].Value, nil
 	}
 	for _, pair := range v.data.pairs {
 		equal, err := Equal(pair.Key, key)
@@ -400,20 +403,46 @@ func (v Value) UpdateExisting(key Value, update func(Value) (Value, error)) (Val
 	if v.kind != FunctionKind {
 		return Value{}, false, fmt.Errorf("expected a function")
 	}
+	if i, ok := v.intervalIndex(key); ok {
+		return v.updateAt(i, update)
+	}
 	for i, pair := range v.data.pairs {
 		same, err := Equal(pair.Key, key)
 		if err != nil {
 			return Value{}, false, err
 		}
 		if same {
-			replacement, err := update(pair.Value)
-			if err != nil {
-				return Value{}, true, err
-			}
-			pairs := append([]Pair(nil), v.data.pairs...)
-			pairs[i].Value = replacement
-			return Value{kind: FunctionKind, number: v.number, data: &payload{pairs: pairs, domain: v.data.domain, displayOrder: v.data.displayOrder}}, true, nil
+			return v.updateAt(i, update)
 		}
 	}
 	return v, false, nil
+}
+
+// updateAt replaces the value of the pair at index i, or reports a key
+// outside the domain when i is negative.
+func (v Value) updateAt(i int, update func(Value) (Value, error)) (Value, bool, error) {
+	if i < 0 {
+		return v, false, nil
+	}
+	replacement, err := update(v.data.pairs[i].Value)
+	if err != nil {
+		return Value{}, true, err
+	}
+	pairs := append([]Pair(nil), v.data.pairs...)
+	pairs[i].Value = replacement
+	return Value{kind: FunctionKind, number: v.number, data: &payload{pairs: pairs, domain: v.data.domain, displayOrder: v.data.displayOrder}}, true, nil
+}
+
+// intervalIndex locates an integer argument of a function whose retained
+// domain is an interval, so its sorted keys are exactly that interval. It
+// returns -1 for an integer outside the domain, as a scan would find no key.
+func (v Value) intervalIndex(key Value) (int, bool) {
+	if key.kind != IntegerKind || v.data.domain.kind != IntervalKind {
+		return 0, false
+	}
+	index := int64(key.number) - int64(v.data.domain.number)
+	if index < 0 || index >= int64(len(v.data.pairs)) {
+		return -1, true
+	}
+	return int(index), true
 }

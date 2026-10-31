@@ -43,6 +43,14 @@ without running every benchmark, use:
 mise exec -- go test ./checker -run '^$' -bench '^BenchmarkUpstreamFastMutex$' -benchmem -benchtime=1x -count=3
 ```
 
+`BenchmarkUpstreamDetlefs` checks the Java TLC `Detlefs` PlusCal model with
+two addresses: 31 variables, symmetry reduction and 10,149 distinct states,
+without liveness. It mainly measures successor generation and state keys:
+
+```sh
+mise exec -- go test ./checker -run '^$' -bench '^BenchmarkUpstreamDetlefs$' -benchmem -benchtime=1x -count=3
+```
+
 `BenchmarkParameterizedOperatorFunctionAction` explores 5,000 states through
 a parameterized instance whose function action receives an operator argument.
 It measures repeated action expansion and state exploration together:

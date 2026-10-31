@@ -8,23 +8,37 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func primeArgumentBindings(params []parser.Declaration, expressions []*parser.Expression, caller *scope, enabledScopes []string) map[string]*primeArgument {
-	if len(expressions) == 0 {
-		return nil
-	}
-	bindings := make(map[string]*primeArgument, len(expressions))
+// bindLazyArguments attaches an argument to each value binding. The bindings
+// hold the value parameters of params in order.
+func bindLazyArguments(bindings []binding, params []parser.Declaration, expressions []*parser.Expression, caller *scope, enabledScopes []string) {
+	arguments := make([]primeArgument, len(bindings))
+	next := 0
 	for i, param := range params {
-		if param.Arity == 0 {
-			bindings[param.Name] = &primeArgument{expression: expressions[i], scope: caller, enabledScopes: enabledScopes}
+		if param.Arity != 0 {
+			continue
 		}
+		argument := &arguments[next]
+		argument.expression, argument.scope, argument.enabledScopes = expressions[i], caller, enabledScopes
+		bindings[next].arg = argument
+		next++
+	}
+}
+
+func lazyNameBindings(names []string, expressions []*parser.Expression, caller *scope, enabledScopes []string) []binding {
+	bindings := make([]binding, len(names))
+	arguments := make([]primeArgument, len(names))
+	for i, name := range names {
+		argument := &arguments[i]
+		argument.expression, argument.scope, argument.enabledScopes = expressions[i], caller, enabledScopes
+		bindings[i] = binding{name: name, value: value.Bool(false), arg: argument}
 	}
 	return bindings
 }
 
 func lookupPrimeArgument(s *scope, name string) (*primeArgument, bool) {
 	for ; s != nil; s = s.parent {
-		if arg, ok := s.primeArgs[name]; ok {
-			return arg, true
+		if bound, ok := s.lookup(name); ok {
+			return bound.arg, bound.arg != nil
 		}
 		if _, ok := s.values[name]; ok {
 			return nil, false
@@ -39,7 +53,13 @@ func lookupPrimeArgument(s *scope, name string) (*primeArgument, bool) {
 	return nil, false
 }
 
+// placeholders back the read-only arguments of lazily evaluated parameters.
+var placeholders = [8]value.Value{value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false)}
+
 func placeholderArguments(count int) []value.Value {
+	if count <= len(placeholders) {
+		return placeholders[:count:count]
+	}
 	values := make([]value.Value, count)
 	for i := range values {
 		values[i] = value.Bool(false)
@@ -82,9 +102,7 @@ func (e *evaluator) evaluateArgument(arg *primeArgument) (value.Value, error) {
 			return cached, nil
 		}
 	}
-	child := *e
-	child.scope = arg.scope
-	result, err := child.eval(arg.expression)
+	result, err := e.evalInScope(arg.scope, arg.expression)
 	if err == nil && cacheable {
 		arg.cacheValue(index, result)
 	}
@@ -143,9 +161,8 @@ func resolvePrimeDefinition(s *scope, name string, depth int) (string, bool) {
 }
 
 func shadowsPrimeIdentifier(s *scope, name string) bool {
-	_, value := s.values[name]
 	_, operator := s.operators[name]
-	return value || operator
+	return s.hasValue(name) || operator
 }
 
 func resolvePrimeDefinitionBody(s *scope, definition parser.Definition, depth int) (string, bool) {

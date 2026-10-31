@@ -257,7 +257,7 @@ func checkFairLasso(t *testing.T, m *model, v *Violation) {
 			if i+1 < len(v.Trace) {
 				next = v.Trace[i+1].State
 			}
-			ok, err := m.enabledWithLocals(fairAngle(fair), current, nil, fair.locals)
+			ok, err := m.enabledWithLocals(m.fairAngle(fair), current, nil, fair.locals)
 			if err != nil {
 				t.Fatal(err)
 			}

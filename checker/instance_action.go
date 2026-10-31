@@ -23,13 +23,14 @@ func (m *model) instanceActionSource(d parser.Definition) *parser.Expression {
 	return source
 }
 
-// solveNext solves the next-state relation split into TLC's actions.
-func (g *generator) solveNext(next *parser.Expression) (bool, error) {
+// solveNext solves the next-state relation split into TLC's actions. partial
+// is empty and is empty again when solveNext returns.
+func (g *generator) solveNext(next *parser.Expression, partial evaluator.State) (bool, error) {
 	item := work{expr: next, label: true}
 	if d, ok := g.model.defs[g.model.cfg.Next]; ok && d.Body == next {
 		if source := g.model.instanceActionSource(d); source != nil {
 			item.label, g.source = false, source
 		}
 	}
-	return g.solve([]work{item}, evaluator.State{}, g.model.cfg.Next)
+	return g.solve(&workList{item: item}, partial, g.model.cfg.Next)
 }

@@ -2,7 +2,7 @@ package checker
 
 import "github.com/upamune/tla-go/evaluator"
 
-func (g *generator) lazyEnabledAction(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {
+func (g *generator) lazyEnabledAction(item work, rest *workList, partial evaluator.State, action string) (bool, bool, error) {
 	if !g.enabled || item.expr.Kind != "Identifier" {
 		return false, false, nil
 	}
@@ -13,18 +13,13 @@ func (g *generator) lazyEnabledAction(item work, rest []work, partial evaluator.
 	if !ok {
 		return false, false, nil
 	}
-	tail := append([]work(nil), rest...)
-	for i := range tail {
-		if !tail[i].path.hasLexicalScope() {
-			tail[i].path = tail[i].path.withScope(g.lexical)
-		}
-	}
+	tail := g.scopedTail(rest)
 	expanded := work{expr: expr, path: item.path.withScope(scope), label: item.label}
 	more, err := g.solve(prepend(expanded, tail), partial, action)
 	return true, more, err
 }
 
-func (g *generator) lazyEnabledOperatorAction(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {
+func (g *generator) lazyEnabledOperatorAction(item work, rest *workList, partial evaluator.State, action string) (bool, bool, error) {
 	if !g.enabled {
 		return false, false, nil
 	}
@@ -32,12 +27,7 @@ func (g *generator) lazyEnabledOperatorAction(item work, rest []work, partial ev
 	if !ok || err != nil {
 		return ok, false, err
 	}
-	tail := append([]work(nil), rest...)
-	for i := range tail {
-		if !tail[i].path.hasLexicalScope() {
-			tail[i].path = tail[i].path.withScope(g.lexical)
-		}
-	}
+	tail := g.scopedTail(rest)
 	expanded := work{expr: body, path: item.path.withScope(scope), label: item.label}
 	more, err := g.solve(prepend(expanded, tail), partial, action)
 	return true, more, err

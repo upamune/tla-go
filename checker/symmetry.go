@@ -143,10 +143,35 @@ func composePermutations(first, second permutation) permutation {
 	return result
 }
 
-func (m *model) symmetryRepresentative(state evaluator.State) (evaluator.State, error) {
+// symmetryKey only encodes the representative, so it reuses one map for it.
+// A nested key, evaluated for a VIEW or a lazy value, gets its own map.
+func (m *model) symmetryKey(state evaluator.State) (string, error) {
+	scratch := m.symmetryState
+	m.symmetryState = nil
+	if scratch == nil {
+		scratch = make(evaluator.State, len(m.names))
+	}
+	reduced, err := m.reduceStateIn(state, scratch)
+	if err != nil {
+		return "", err
+	}
+	key, err := m.reducedKey(reduced)
+	m.symmetryState = scratch
+	return key, err
+}
+
+// symmetryRepresentative returns the smallest permutation of state. A
+// smaller permutation is built in scratch when it is not nil.
+func (m *model) symmetryRepresentative(state, scratch evaluator.State) (evaluator.State, error) {
 	minimum := state
+	// Permuting a lazy value can evaluate a nested key, which must not share the prefix.
+	prefix := m.symmetryPrefix
+	m.symmetryPrefix = nil
+	if cap(prefix) < len(m.symmetryOrder) {
+		prefix = make([]value.Value, 0, len(m.symmetryOrder))
+	}
 	for _, p := range m.symmetry {
-		candidate, smaller, err := m.smallerPermutation(state, minimum, p)
+		candidate, smaller, err := m.smallerPermutation(state, minimum, p, prefix[:0], scratch)
 		if err != nil {
 			return nil, err
 		}
@@ -154,17 +179,21 @@ func (m *model) symmetryRepresentative(state evaluator.State) (evaluator.State, 
 			minimum = candidate
 		}
 	}
+	m.symmetryPrefix = prefix
 	return minimum, nil
 }
 
-func (m *model) smallerPermutation(state, minimum evaluator.State, p permutation) (evaluator.State, bool, error) {
-	candidate := make(evaluator.State, len(state))
+// smallerPermutation compares the permuted state with minimum variable by
+// variable and builds the permuted state only when it is smaller. prefix
+// holds the permuted values compared so far. Minimum may be scratch: it is
+// no longer needed once the permutation is known to be smaller.
+func (m *model) smallerPermutation(state, minimum evaluator.State, p permutation, prefix []value.Value, scratch evaluator.State) (evaluator.State, bool, error) {
 	for _, name := range m.symmetryOrder {
 		v, err := permuteValue(state[name], p)
 		if err != nil {
 			return nil, false, err
 		}
-		candidate[name] = v
+		prefix = append(prefix, v)
 		compare, err := m.compareOrderedValues(v, minimum[name])
 		if err != nil {
 			return nil, false, err
@@ -173,13 +202,21 @@ func (m *model) smallerPermutation(state, minimum evaluator.State, p permutation
 			return nil, false, nil
 		}
 		if compare < 0 {
-			return m.permuteRemaining(state, candidate, p)
+			return m.permuteRemaining(state, prefix, p, scratch)
 		}
 	}
 	return nil, false, nil
 }
 
-func (m *model) permuteRemaining(state, candidate evaluator.State, p permutation) (evaluator.State, bool, error) {
+func (m *model) permuteRemaining(state evaluator.State, prefix []value.Value, p permutation, scratch evaluator.State) (evaluator.State, bool, error) {
+	candidate := scratch
+	if candidate == nil {
+		candidate = make(evaluator.State, len(state))
+	}
+	clear(candidate)
+	for i, v := range prefix {
+		candidate[m.symmetryOrder[i]] = v
+	}
 	for _, name := range m.names {
 		if _, ok := candidate[name]; ok {
 			continue

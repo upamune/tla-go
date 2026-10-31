@@ -8,7 +8,7 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-func (g *generator) expandCall(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) expandCall(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	name := item.expr.Text
 	if item.path.contains(name) {
 		return false, fmt.Errorf("recursive action expansion: %s", name)
@@ -21,6 +21,13 @@ func (g *generator) expandCall(item work, rest []work, partial evaluator.State, 
 }
 
 func (g *generator) actionBody(call *parser.Expression) (*parser.Expression, error) {
+	// A cached body was substituted from the module definition, which the
+	// call resolves to outside a lexical scope.
+	if g.lexical == nil {
+		if body, ok := g.model.actionCache[call]; ok {
+			return body, nil
+		}
+	}
 	d, ok := g.definition(call.Text)
 	if !ok {
 		return nil, fmt.Errorf("undefined action %s", call.Text)
