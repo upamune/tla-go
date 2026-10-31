@@ -25,6 +25,7 @@ func TestSimulationOptions(t *testing.T) {
 		}
 	}
 	for _, args := range [][]string{
+		{"-continue", "M.tla"},
 		{"-simulate", "num=oops", "M.tla"},
 		{"-simulate", "file=trace", "M.tla"},
 		{"-simulate", "num=1,file=trace", "M.tla"},
@@ -34,6 +35,18 @@ func TestSimulationOptions(t *testing.T) {
 	} {
 		if _, err := parseOptions(args); err == nil {
 			t.Errorf("accepted %q", args)
+		}
+	}
+}
+
+func TestSimulationContinueOption(t *testing.T) {
+	for _, args := range [][]string{
+		{"-continue", "-simulate", "num=1", "-seed", "1", "M.tla"},
+		{"-simulate", "num=1", "-continue", "-seed", "1", "M.tla"},
+	} {
+		opts, err := parseOptions(args)
+		if err != nil || !opts.continuation || !opts.simulate {
+			t.Fatalf("parse %q: %+v, %v", args, opts, err)
 		}
 	}
 }

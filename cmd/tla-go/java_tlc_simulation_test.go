@@ -24,7 +24,9 @@ func TestJavaTLCSimulationTool(t *testing.T) {
 		{"implied initial property", "Init == x = 0\nNext == UNCHANGED x\nP == x = 1", "INIT Init\nNEXT Next\nPROPERTY P\n", 0, []int{2269, 2209}},
 		{"initial invariant", "Init == x \\in {0, 1}\nNext == UNCHANGED x\nInv == x = 0", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12, []int{2269, 2107}},
 		{"successor invariant", "Init == x = 0\nNext == x' \\in {0, 1, 2}\nInv == x # 2", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12, []int{2269, 2110, 2121, 2217, 2209, 2210}},
+		{"invariant after stuttering", "Init == x=0\nNext == UNCHANGED x\nInv == TLCGet(\"level\")=0", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12, []int{2269, 2110, 2121, 2217, 2209, 2210}},
 		{"deadlock", "Init == x = 0\nNext == /\\ x = 0 /\\ x' = 1", "INIT Init\nNEXT Next\n", 11, []int{2269, 2114, 2121, 2217, 2209, 2210}},
+		{"action evaluation after stutter", "Init == x=0\nNext == x'=1\nP == [][IF x=0 THEN TRUE ELSE 0=\"a\"]_x", "INIT Init\nNEXT Next\nPROPERTY P\n", 13, []int{2269, 2113, 2121, 2217, 2209, 2210}},
 		{"constraint", "Init == x = 0\nNext == x' \\in {0, 1, 2}\nBound == x # 2", "INIT Init\nNEXT Next\nCONSTRAINT Bound\n", 0, []int{2269, 2209}},
 	}
 	for _, tc := range cases {

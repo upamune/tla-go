@@ -30,3 +30,31 @@ func (r *tlcRuntime) sameSimulationState(a, b evaluator.State) bool {
 	}
 	return true
 }
+
+func (m *model) finishSimulationResult(result *Result) {
+	if result.Failure != nil {
+		result.Failure.Trace = m.compactSimulationTrace(result.Failure.Trace)
+	}
+	if result.Violation != nil && result.Violation.LoopStart == nil {
+		result.Violation.AfterInitial = len(result.Violation.Trace) > 1
+		result.Violation.Trace = m.compactSimulationTrace(result.Violation.Trace)
+	}
+	if m.cfg.Alias != "" {
+		m.applyAlias(result)
+	}
+	m.applyTraceOrder(result)
+	m.applyActionRanges(result)
+}
+
+func (m *model) compactSimulationTrace(trace []TraceStep) []TraceStep {
+	if len(trace) < 2 {
+		return trace
+	}
+	result := make([]TraceStep, 0, len(trace))
+	for _, step := range trace {
+		if len(result) == 0 || !m.tlcRuntime.sameSimulationState(result[len(result)-1].State, step.State) {
+			result = append(result, step)
+		}
+	}
+	return result
+}

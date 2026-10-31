@@ -25,6 +25,7 @@ const (
 	PropertyViolation      Status = "property-violation"
 	PostconditionViolation Status = "postcondition-violation"
 	EvaluationFailure      Status = "error"
+	ContinuedViolation     Status = "continued-violation"
 )
 
 type TraceStep struct {
@@ -38,6 +39,8 @@ type TraceStep struct {
 type Violation struct {
 	Name    string
 	Message string
+	// AfterInitial distinguishes later simulation errors after stuttering.
+	AfterInitial bool
 	// ToolCode identifies a nested Java TLC evaluation message when known.
 	ToolCode    int
 	Counts      string
@@ -65,6 +68,8 @@ type Result struct {
 	QueuedStates                           int
 	OutDegrees                             [32]int
 	HasOutDegrees                          bool
+	// ContinuedViolations counts simulation violations reported before completion.
+	ContinuedViolations int
 }
 
 // Failure describes an evaluation that stopped exploration.
@@ -163,6 +168,12 @@ type Options struct {
 type SimulationOptions struct {
 	Traces int
 	Depth  int
+	// Continue resumes with a new trace after a safety violation or deadlock.
+	// Initial-state violations, evaluation failures, and liveness violations stop.
+	Continue bool
+	// OnViolation receives each continued violation synchronously when Continue
+	// is true. Without a callback, ContinuedViolations still records the count.
+	OnViolation func(Result)
 }
 
 // Check parses a module and a TLC configuration and explores the model.
@@ -300,15 +311,11 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 	}
 	model.ctx = ctx
 	if options.Simulation != nil {
-		result, err := model.simulate(options.Simulation.Traces, options.Simulation.Depth, options.Seed)
+		result, err := model.simulateWithOptions(*options.Simulation, options.Seed)
 		if err != nil {
 			return result, err
 		}
-		if model.cfg.Alias != "" {
-			model.applyAlias(&result)
-		}
-		model.applyTraceOrder(&result)
-		model.applyActionRanges(&result)
+		model.finishSimulationResult(&result)
 		return result, nil
 	}
 	result, err := model.check()

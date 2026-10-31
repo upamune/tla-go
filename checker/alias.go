@@ -12,7 +12,7 @@ import (
 )
 
 func (m *model) applyAlias(result *Result) {
-	if result.Violation != nil && !(result.Status == Deadlock && len(result.Violation.Trace) == 1) {
+	if result.Violation != nil && !(result.Status == Deadlock && len(result.Violation.Trace) == 1 && !result.Violation.AfterInitial) {
 		result.Violation.Trace = m.aliasTrace(result.Violation.Trace, result.Violation.LoopStart)
 	}
 	if result.Failure != nil {

@@ -10,6 +10,9 @@ import (
 
 func parseOtherOption(opts *options, args []string) (int, error) {
 	switch args[0] {
+	case "-continue":
+		opts.continuation = true
+		return 0, nil
 	case "-simulate":
 		return parseSimulationOption(opts, args)
 	case "-depth":
@@ -56,6 +59,9 @@ func parseSimulationDepth(opts *options, args []string) (int, error) {
 
 func configureSimulation(opts *options) error {
 	if !opts.simulate {
+		if opts.continuation {
+			return fmt.Errorf("-continue is only supported in simulation mode")
+		}
 		return nil
 	}
 	if opts.dumpPath != "" {

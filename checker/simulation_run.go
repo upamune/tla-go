@@ -15,18 +15,23 @@ type simulationRun struct {
 	current    evaluator.State
 	inModel    bool
 	deadlocked bool
+	options    SimulationOptions
 }
 
 // simulate checks bounded traces with one worker and selected liveness properties.
 func (m *model) simulate(traces, depth int, seed int64) (Result, error) {
-	if err := m.validateSimulation(traces, depth); err != nil {
+	return m.simulateWithOptions(SimulationOptions{Traces: traces, Depth: depth}, seed)
+}
+
+func (m *model) simulateWithOptions(options SimulationOptions, seed int64) (Result, error) {
+	if err := m.validateSimulation(options.Traces, options.Depth); err != nil {
 		return Result{}, err
 	}
 	actions, err := m.simulationActions()
 	if err != nil {
 		return Result{}, err
 	}
-	run := simulationRun{model: m, search: newSearch(m), depth: depth}
+	run := simulationRun{model: m, search: newSearch(m), depth: options.Depth, options: options}
 	run.worker = newSimulationWorker(m, actions, evaluator.NewJavaRandom(seed))
 	run.search.result.DistinctStates = -1
 	run.search.result.QueuedStates = -1
@@ -35,7 +40,7 @@ func (m *model) simulate(traces, depth int, seed int64) (Result, error) {
 	if result, failed, err := m.checkAssumptions(); failed || err != nil {
 		return result, err
 	}
-	return run.explore(traces)
+	return run.explore(options.Traces)
 }
 
 func (m *model) validateSimulation(traces, depth int) error {
@@ -59,8 +64,15 @@ func (r *simulationRun) explore(traces int) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	return r.exploreTraces(states, traces)
+}
+
+func (r *simulationRun) exploreTraces(states []evaluator.State, traces int) (Result, error) {
 	for range traces {
 		result, err := r.trace(states)
+		if result != nil && err == nil && r.continueViolation(result) {
+			continue
+		}
 		if result != nil {
 			return *result, err
 		}
@@ -68,7 +80,29 @@ func (r *simulationRun) explore(traces int) (Result, error) {
 			return Result{}, err
 		}
 	}
+	if r.search.result.ContinuedViolations > 0 {
+		r.search.result.Status = ContinuedViolation
+	}
 	return r.search.result, nil
+}
+
+func (r *simulationRun) continueViolation(result *Result) bool {
+	if !r.options.Continue || result.Failure != nil || !simulationContinuable(result) {
+		return false
+	}
+	r.search.result.ContinuedViolations++
+	if r.options.OnViolation != nil {
+		r.model.finishSimulationResult(result)
+		r.options.OnViolation(*result)
+	}
+	r.search.result.Status = Success
+	r.search.result.Violation = nil
+	return true
+}
+
+func simulationContinuable(result *Result) bool {
+	return result.Status == InvariantViolation || result.Status == PropertyViolation || result.Status == Deadlock ||
+		result.Status == LivenessViolation && result.Violation != nil && result.Violation.LoopStart == nil
 }
 
 func (r *simulationRun) initialStates() ([]evaluator.State, *Result, error) {

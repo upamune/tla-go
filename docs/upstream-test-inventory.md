@@ -65,7 +65,11 @@ constraints, incomplete states, evaluation failures, and the `MCLivenessProp`
 eventuality with Java TLC 1.7.4.
 They check exit codes, generated-state counts when reported, and selected tool
 messages and traces; they do not establish equivalence for all output or for
-the remaining original liveness and `-continue` tests.
+the remaining original liveness and `-continue` tests. The separate
+`TestJavaTLCSimulationContinue` and `TestJavaTLCSimulationContinueUpstream`
+compare selected continuation cases against Java TLC, including five original
+`BasicMultiTrace` configurations and invariant, action, deadlock, evaluation,
+and liveness behavior. They do not execute the JUnit methods themselves.
 
 The simulation recurrence tests also compare small models for `[]<>P` and
 `<>[]P`, including branching traces and combinations of temporal properties,

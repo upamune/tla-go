@@ -47,6 +47,20 @@ func printConfiguredToolResult(t toolOutput, result checker.Result, module *pars
 	}
 }
 
+func simulationViolationOutput(opts options, module *parser.Module, out io.Writer) func(checker.Result) {
+	return func(result checker.Result) {
+		if opts.tool {
+			t := toolOutput{out: out}
+			printToolViolation(t, result, module)
+			printToolSimulationProgress(t, result.GeneratedStates)
+			t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril 0", result.GeneratedStates, opts.seed))
+			return
+		}
+		printViolation(out, result, module)
+		fmt.Fprintf(out, "Progress: %d states generated.\nThe number of states generated: %d\nSimulation using seed %d and aril 0\n", result.GeneratedStates, result.GeneratedStates, opts.seed)
+	}
+}
+
 func printToolSimulationResult(t toolOutput, result checker.Result, module *parser.Module, seed int64) {
 	if result.Failure != nil {
 		printToolSimulationFailure(t, result.Failure, module)
@@ -57,7 +71,7 @@ func printToolSimulationResult(t toolOutput, result checker.Result, module *pars
 		return
 	}
 	printToolSimulationProgress(t, result.GeneratedStates)
-	if result.Status != checker.Success {
+	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
 		t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril 0", result.GeneratedStates, seed))
 		if result.Failure == nil || result.Failure.InitialState == nil {
 			printToolSimulationProgress(t, result.GeneratedStates)
@@ -107,7 +121,7 @@ func printSimulationResult(out io.Writer, result checker.Result, module *parser.
 		return
 	}
 	fmt.Fprintf(out, "Progress: %d states generated.\n", result.GeneratedStates)
-	if result.Status != checker.Success {
+	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
 		fmt.Fprintf(out, "The number of states generated: %d\nSimulation using seed %d and aril 0\n", result.GeneratedStates, seed)
 	}
 }

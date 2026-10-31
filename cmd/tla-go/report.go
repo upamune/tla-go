@@ -98,7 +98,7 @@ func printUnwitnessed(w io.Writer, failure *checker.PossibleViolation) {
 }
 
 func initialViolation(result checker.Result) bool {
-	return result.Violation.LoopStart == nil && len(result.Violation.Trace) == 1 && (result.Status == checker.InvariantViolation || result.Status == checker.LivenessViolation)
+	return !result.Violation.AfterInitial && result.Violation.LoopStart == nil && len(result.Violation.Trace) == 1 && (result.Status == checker.InvariantViolation || result.Status == checker.LivenessViolation)
 }
 
 func printViolationHeadline(w io.Writer, result checker.Result) {
