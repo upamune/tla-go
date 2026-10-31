@@ -22,6 +22,8 @@ type fairSearch struct {
 	recurrenceKnown     []bool
 	acceptance          [][]bool
 	compactWitnesses    bool
+	// members is cleared after each component check and reused by the next.
+	members []bool
 }
 
 func (s *search) checkFairProperty(p temporalProperty) (bool, error) {
@@ -273,10 +275,27 @@ func (f *fairSearch) checkComponent(component []int) (bool, []bool, error) {
 	if !f.acceptsComponent(component) {
 		return false, nil, nil
 	}
-	members := make([]bool, len(f.search.nodes))
+	members := f.markMembers(component)
+	valid, pruned, err := f.checkMarkedComponent(component, members)
+	for _, node := range component {
+		members[node] = false
+	}
+	return valid, pruned, err
+}
+
+func (f *fairSearch) markMembers(component []int) []bool {
+	size := len(f.search.nodes)
+	if cap(f.members) < size {
+		f.members = make([]bool, size)
+	}
+	members := f.members[:size]
 	for _, node := range component {
 		members[node] = true
 	}
+	return members
+}
+
+func (f *fairSearch) checkMarkedComponent(component []int, members []bool) (bool, []bool, error) {
 	if ok, err := f.acceptsRequiredAction(component, members); err != nil || !ok {
 		return false, nil, err
 	}
