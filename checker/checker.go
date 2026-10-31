@@ -141,6 +141,8 @@ type model struct {
 
 	// stateKeyBuffer and valueKeyBuffer are reused to encode state keys.
 	stateKeyBuffer, valueKeyBuffer []byte
+	// symmetryPrefix is reused for permuted values during symmetry reduction.
+	symmetryPrefix []value.Value
 }
 
 // ModuleLoader returns the source of an external module by its declared name.

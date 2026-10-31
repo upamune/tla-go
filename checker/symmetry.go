@@ -154,8 +154,14 @@ func (m *model) symmetryKey(state evaluator.State) (string, error) {
 
 func (m *model) symmetryRepresentative(state evaluator.State) (evaluator.State, error) {
 	minimum := state
+	// Permuting a lazy value can evaluate a nested key, which must not share the prefix.
+	prefix := m.symmetryPrefix
+	m.symmetryPrefix = nil
+	if cap(prefix) < len(m.symmetryOrder) {
+		prefix = make([]value.Value, 0, len(m.symmetryOrder))
+	}
 	for _, p := range m.symmetry {
-		candidate, smaller, err := m.smallerPermutation(state, minimum, p)
+		candidate, smaller, err := m.smallerPermutation(state, minimum, p, prefix[:0])
 		if err != nil {
 			return nil, err
 		}
@@ -163,17 +169,20 @@ func (m *model) symmetryRepresentative(state evaluator.State) (evaluator.State, 
 			minimum = candidate
 		}
 	}
+	m.symmetryPrefix = prefix
 	return minimum, nil
 }
 
-func (m *model) smallerPermutation(state, minimum evaluator.State, p permutation) (evaluator.State, bool, error) {
-	candidate := make(evaluator.State, len(state))
+// smallerPermutation compares the permuted state with minimum variable by
+// variable and builds the permuted state only when it is smaller. prefix
+// holds the permuted values compared so far.
+func (m *model) smallerPermutation(state, minimum evaluator.State, p permutation, prefix []value.Value) (evaluator.State, bool, error) {
 	for _, name := range m.symmetryOrder {
 		v, err := permuteValue(state[name], p)
 		if err != nil {
 			return nil, false, err
 		}
-		candidate[name] = v
+		prefix = append(prefix, v)
 		compare, err := m.compareOrderedValues(v, minimum[name])
 		if err != nil {
 			return nil, false, err
@@ -182,13 +191,17 @@ func (m *model) smallerPermutation(state, minimum evaluator.State, p permutation
 			return nil, false, nil
 		}
 		if compare < 0 {
-			return m.permuteRemaining(state, candidate, p)
+			return m.permuteRemaining(state, prefix, p)
 		}
 	}
 	return nil, false, nil
 }
 
-func (m *model) permuteRemaining(state, candidate evaluator.State, p permutation) (evaluator.State, bool, error) {
+func (m *model) permuteRemaining(state evaluator.State, prefix []value.Value, p permutation) (evaluator.State, bool, error) {
+	candidate := make(evaluator.State, len(state))
+	for i, v := range prefix {
+		candidate[m.symmetryOrder[i]] = v
+	}
 	for _, name := range m.names {
 		if _, ok := candidate[name]; ok {
 			continue
