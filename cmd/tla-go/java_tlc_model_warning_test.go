@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -93,6 +94,37 @@ func TestJavaTLCExceptUnknownFieldWarning(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Java TLC's SpecProcessor evaluates constant definitions before computing
+// the initial states, so an EXCEPT in one warns before message 2189.
+func TestJavaTLCConstantExceptWarningOrder(t *testing.T) {
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nf == <<1, 2>>\nC == [f EXCEPT ![3] = 1]\nInit == x = C\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "M.tla"}
+	messages, code, stderr := runGoToolInDir(t, dir, args)
+	want := []int{2144, 2189, 2190}
+	if got := toolMessageCodes(messages, want); code != 0 || stderr != "" || !reflect.DeepEqual(got, want) {
+		t.Fatalf("exit %d; messages %v; stderr %s", code, got, stderr)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		if got := toolMessageCodes(readToolMessages(java), want); javaCode != code || !reflect.DeepEqual(got, want) {
+			t.Fatalf("Java exit %d, messages %v:\n%s", javaCode, got, java)
+		}
+	}
+}
+
+// toolMessageCodes lists the codes of the messages with one of the codes,
+// in output order.
+func toolMessageCodes(messages []toolMessage, codes []int) []int {
+	var result []int
+	for _, message := range messages {
+		if slices.Contains(codes, message.code) {
+			result = append(result, message.code)
+		}
+	}
+	return result
 }
 
 func toolMessageBodies(messages []toolMessage, code int) []string {

@@ -90,11 +90,27 @@ func (m *model) precomputeEffectfulDefinitions() {
 		if definition.Kind != "Operator" || len(definition.Params) != 0 || excluded[definition.Name] {
 			continue
 		}
-		if !m.cacheableEffectfulDefinition(definition.Body) {
+		if !m.cacheableEffectfulDefinition(definition.Body) && !m.warningDefinition(definition.Body) {
 			continue
 		}
 		m.precomputeEffectfulDefinition(definition.Name)
 	}
+}
+
+// warningDefinition reports whether a constant-level definition contains an
+// EXCEPT, which can raise warning 2144. Java TLC's SpecProcessor evaluates
+// every constant definition at startup, so the warning precedes the
+// computation of the initial states.
+func (m *model) warningDefinition(body *parser.Expression) bool {
+	return m.warning != nil && containsExcept(body) && !m.readsState(body, map[string]bool{}) && !m.hasAction(body, map[string]bool{})
+}
+
+func containsExcept(expr *parser.Expression) bool {
+	found := expr.Kind == "Except"
+	walkChildren(expr, func(child *parser.Expression) {
+		found = found || child != nil && containsExcept(child)
+	})
+	return found
 }
 
 func (m *model) precomputeEffectfulDefinition(name string) {
