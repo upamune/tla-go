@@ -265,15 +265,28 @@ func (g *generator) expandWork(item work, expanded *parser.Expression, rest *wor
 }
 
 func (g *generator) stateDependentActionSource(expr *parser.Expression) *parser.Expression {
-	if expr.Kind != "Apply" {
+	if expr.Kind != "Apply" || !g.model.stateDependentCall(expr) {
 		return nil
 	}
-	for _, arg := range expr.Args {
-		if g.model.readsState(arg, map[string]bool{}) || g.model.hasAction(arg, map[string]bool{}) {
-			return expr
-		}
+	return expr
+}
+
+// stateDependentCall reports whether a call passes a state or action
+// argument. That depends only on the call and the module's definitions.
+func (m *model) stateDependentCall(expr *parser.Expression) bool {
+	if dependent, ok := m.stateDependentCalls[expr]; ok {
+		return dependent
 	}
-	return nil
+	dependent := slices.ContainsFunc(expr.Args, func(arg *parser.Expression) bool {
+		return m.readsState(arg, map[string]bool{}) || m.hasAction(arg, map[string]bool{})
+	})
+	if len(m.stateDependentCalls) < 4096 {
+		if m.stateDependentCalls == nil {
+			m.stateDependentCalls = make(map[*parser.Expression]bool)
+		}
+		m.stateDependentCalls[expr] = dependent
+	}
+	return dependent
 }
 
 func (g *generator) isComplete(partial evaluator.State) bool {

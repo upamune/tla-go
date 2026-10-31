@@ -147,6 +147,8 @@ type model struct {
 	sharedPartial  evaluator.State
 	work           workArena
 	unchangedCache map[*parser.Expression][]string
+	// stateDependentCalls caches stateDependentCall by call expression.
+	stateDependentCalls map[*parser.Expression]bool
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
