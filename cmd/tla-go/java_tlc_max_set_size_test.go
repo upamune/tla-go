@@ -1,0 +1,99 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+// Java TLC checks -maxSetSize when a ValueVec of initial capacity 10 grows, so
+// {e : x \in S} and {x \in S : P} over enumerated sets fail only above
+// max(bound, 10) elements.
+func TestJavaTLCMaxSetSize(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, cfg, bound string
+		code                   int
+	}{
+		{"initial filter", "Init == x \\in {i \\in 1..20 : TRUE}\nNext == UNCHANGED x", "", "10", 75},
+		{"successor map", "Init == x = 0\nNext == x' \\in {i * 2 : i \\in 1..20}", "", "12", 75},
+		{"at bound", "Init == x = 0\nNext == x' \\in {i * 2 : i \\in 1..12}", "", "12", 0},
+		{"above bound", "Init == x = 0\nNext == x' \\in {i * 2 : i \\in 1..13}", "", "12", 75},
+		{"initial capacity", "Init == x \\in {i \\in 1..10 : TRUE}\nNext == UNCHANGED x", "", "1", 0},
+		{"above initial capacity", "Init == x \\in {i \\in 1..11 : TRUE}\nNext == UNCHANGED x", "", "1", 75},
+		{"duplicates count", "Init == x \\in {i % 2 : i \\in 1..11}\nNext == UNCHANGED x", "", "1", 75},
+		{"assumption", "ASSUME Cardinality({i : i \\in 1..20}) = 20\nInit == x = 0\nNext == UNCHANGED x", "", "15", 10},
+		{"initial invariant", "Init == x = 0\nNext == UNCHANGED x\nInv == Cardinality({i \\in 1..20 : i > x}) > 0", "INVARIANT Inv\n", "15", 75},
+		{"successor invariant", "Init == x = 0\nNext == x < 3 /\\ x' = x + 1\nInv == x < 2 \\/ Cardinality({i * x : i \\in 1..20}) > 0", "INVARIANT Inv\n", "15", 76},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, "VARIABLE x\n"+tc.body, "INIT Init\nNEXT Next\n"+tc.cfg)
+			args := []string{"-tool", "-deadlock", "-maxSetSize", tc.bound}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+			if code != tc.code || errout.Len() != 0 || (code != 0) != strings.Contains(out.String(), "Attempted to construct a set with too many elements (>"+tc.bound+").") {
+				t.Fatalf("exit %d, want %d; stdout:\n%s\nstderr:\n%s", code, tc.code, out.String(), errout.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java := runJavaToolMessages(t, jar, dir, append(args, "M.tla"), code)
+				if got := errorBehaviorMessages(readToolMessages(out.String())); !reflect.DeepEqual(got, java) {
+					t.Fatalf("messages differ\nJava: %q\nGo:   %q", java, got)
+				}
+			}
+		})
+	}
+}
+
+// The upstream TraceWithLargeSetOfInitialStatesTest checks that a bound below
+// the number of initial states still reports the correct trace.
+func TestJavaTLCUpstreamLargeInitialStates(t *testing.T) {
+	name := "TraceWithLargeSetOfInitialStatesTest"
+	dir := copyJavaTLCFixture(t, name)
+	args := []string{"-tool", "-deadlock", "-maxSetSize", "10"}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(args, filepath.Join(dir, name+".tla")), &out, &errout)
+	want := "1: <Initial predicate>\n/\\ x = 1\n/\\ y = FALSE\n"
+	if code != 12 || errout.Len() != 0 || !strings.Contains(out.String(), want) || !strings.Contains(out.String(), "/\\ x = 1\n/\\ y = TRUE\n") {
+		t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java := runJavaToolMessages(t, jar, dir, append(args, name+".tla"), code)
+		if got := errorBehaviorMessages(readToolMessages(out.String())); !reflect.DeepEqual(got, java) {
+			t.Fatalf("messages differ\nJava: %q\nGo:   %q", java, got)
+		}
+	}
+}
+
+func TestJavaTLCInvalidMaxSetSize(t *testing.T) {
+	for _, tc := range []struct {
+		args    []string
+		message string
+	}{
+		{[]string{"-maxSetSize", "0", "M.tla"}, "Error: Value in interval [0, 2147483647] for maxSetSize required. But encountered 0"},
+		{[]string{"-maxSetSize", "-3", "M.tla"}, "Error: Value in interval [0, 2147483647] for maxSetSize required. But encountered -3"},
+		{[]string{"-maxSetSize", "2147483648", "M.tla"}, "Error: An integer for maxSetSize required. But encountered 2147483648"},
+		{[]string{"M.tla", "-maxSetSize"}, "Error: maxSetSize required."},
+	} {
+		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
+			var out, errout bytes.Buffer
+			if code := run(context.Background(), tc.args, &out, &errout); code != 1 || errout.String() != tc.message+"\n" {
+				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, tc.args...)...)
+				cmd.Dir = dir
+				output, _ := cmd.CombinedOutput()
+				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 1 || !strings.Contains(string(output), tc.message) {
+					t.Fatalf("Java exit %v; output:\n%s", cmd.ProcessState, output)
+				}
+			}
+		})
+	}
+}

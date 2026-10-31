@@ -50,7 +50,7 @@ func (s *search) nextConstraintFailure(candidate *candidateConstraintError) (Res
 		NestedToolCode: failure.ToolCode, NestedMessage: failure.Message,
 	}, nil, 75)
 	if err == nil {
-		result.Failure.EvaluationDetail = "The error occurred when TLC was evaluating the nested\nexpressions at the following positions:\n    The error call stack is empty.\n"
+		result.Failure.EvaluationDetail = emptyCallStackDetail
 		result.Failure.SuppressDepth = true
 	}
 	return result, err

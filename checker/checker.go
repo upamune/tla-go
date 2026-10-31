@@ -172,6 +172,9 @@ type Options struct {
 	OnGraph func(GraphEvent) error
 	// OnSearch receives synchronous initial-state progress events when set.
 	OnSearch func(SearchEvent)
+	// MaxSetSize is Java TLC's -maxSetSize bound on sets that are built element
+	// by element. A nonpositive value selects TLC's default of 1,000,000.
+	MaxSetSize int
 	// OnWarning receives Java TLC warnings before model checking starts.
 	// Simulation does not report these warnings, matching Java TLC.
 	OnWarning func(Warning)
@@ -429,6 +432,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
+	m.program.SetBound(options.MaxSetSize)
 	m.sourceUnits = sourceUnits
 	runtime.model = m
 	m.enabledCallback = m.enabled

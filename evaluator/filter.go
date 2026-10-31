@@ -55,7 +55,7 @@ func (e *evaluator) eagerFilter(base value.Value, bound parser.Bound, predicate 
 		if include {
 			elements = append(elements, item)
 		}
-		return true, nil
+		return true, e.program.checkSetSize(len(elements))
 	})
 	if err != nil {
 		return value.Value{}, err

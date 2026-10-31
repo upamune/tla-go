@@ -86,7 +86,7 @@ func runJavaToolMessages(t *testing.T, jar, dir string, args []string, code int)
 func errorBehaviorMessages(messages []toolMessage) []string {
 	var result []string
 	for _, message := range messages {
-		if slices.Contains([]int{1000, 2103, 2121, 2132, 2199, 2210, 2217}, message.code) {
+		if slices.Contains([]int{1000, 2102, 2103, 2105, 2111, 2121, 2132, 2199, 2210, 2217}, message.code) {
 			result = append(result, fmt.Sprintf("%d:%d:%s", message.code, message.level, message.body))
 		}
 	}

@@ -24,6 +24,9 @@ type RuntimeError struct {
 	Unexpected      *value.UnexpectedError
 	Fingerprint     *value.FingerprintError
 	Sources         []*parser.Expression
+	// WrongInvocation marks a failure that Java TLC raises as a
+	// util.WrongInvocationException, without an evaluation stack.
+	WrongInvocation bool
 }
 
 // AddUnexpectedSource records an evaluation frame unless a fingerprint stack

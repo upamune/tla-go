@@ -43,6 +43,7 @@ var valueOptions = map[string]func(*options, []string) (int, error){
 	"-workers":    parseWorkersOption,
 	"-fp":         parseFingerprintOption,
 	"-checkpoint": parseCheckpointOption,
+	"-maxSetSize": parseMaxSetSizeOption,
 	"-I":          parseLibraryOption,
 	"-simulate":   parseSimulationOption,
 	"-depth":      parseSimulationDepth,
@@ -194,6 +195,22 @@ func parseCheckpointOption(_ *options, args []string) (int, error) {
 	if minutes < 0 {
 		return 0, commandLineError("Error: expect a nonnegative integer for -checkpoint option.")
 	}
+	return 1, nil
+}
+
+// parseMaxSetSizeOption accepts Java TLC's bound on enumerated set sizes.
+func parseMaxSetSizeOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, commandLineError("Error: maxSetSize required.")
+	}
+	bound, err := strconv.ParseInt(args[1], 10, 32)
+	if err != nil {
+		return 0, commandLineError("Error: An integer for maxSetSize required. But encountered " + args[1])
+	}
+	if bound < 1 {
+		return 0, commandLineError("Error: Value in interval [0, 2147483647] for maxSetSize required. But encountered " + args[1])
+	}
+	opts.maxSetSize = int(bound)
 	return 1, nil
 }
 

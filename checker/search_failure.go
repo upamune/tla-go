@@ -27,8 +27,15 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 		setInitialNestedFailure(s.result.Failure, failure)
 	}
 	setInitialCandidateFailure(s.result.Failure, failure, err)
+	if failure.WrongInvocation {
+		s.result.Failure.EvaluationDetail, s.result.Failure.SuppressDepth = emptyCallStackDetail, true
+	}
 	return s.result, nil
 }
+
+// emptyCallStackDetail is Java TLC's 2103 message when its call stack recorded
+// no expression for the failure.
+const emptyCallStackDetail = "The error occurred when TLC was evaluating the nested\nexpressions at the following positions:\n    The error call stack is empty.\n"
 
 func setInitialCandidateFailure(result *Failure, failure *evaluator.RuntimeError, err error) {
 	if candidate, ok := errors.AsType[*candidateFingerprintError](err); ok && candidate.parent < 0 {
@@ -72,7 +79,7 @@ func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 		failure.Unexpected = &value.UnexpectedError{Message: failure.Message, Sources: missing.Sources}
 	}
 	failure = normalizeNextFailure(failure)
-	if _, ok := errors.AsType[*candidateFingerprintError](err); ok {
+	if _, ok := errors.AsType[*candidateFingerprintError](err); ok || failure.WrongInvocation {
 		return s.runtimeFailure(failure, nil, actionFailureCode(failure))
 	}
 	trace, recoveryErr := s.recoverFailureTrace(index)
@@ -88,6 +95,11 @@ func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeErr
 	}
 	if failure.ToolCode == 2247 {
 		failure = nextBooleanGenerationFailure(failure)
+	}
+	if failure.WrongInvocation {
+		result := *failure
+		result.Message = unexpectedExceptionHeading("util.WrongInvocationException") + " " + failure.Message
+		failure = &result
 	}
 	return failure
 }
@@ -233,12 +245,15 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 
 func setInitialInvariantFailure(result *Failure, failure *evaluator.RuntimeError, state evaluator.State) {
 	setInitialNestedFailure(result, failure)
-	if failure.BooleanOperator || failure.ToolCode == 2215 {
+	if failure.BooleanOperator || failure.ToolCode == 2215 || failure.WrongInvocation {
 		result.ToolCode = 2102
 	}
 	if len(failure.Sources) > 0 {
 		result.evaluationSources = slices.Clone(failure.Sources)
 		result.SuppressDepth = true
+	}
+	if failure.WrongInvocation {
+		result.EvaluationDetail, result.SuppressDepth = emptyCallStackDetail, true
 	}
 	if !failure.Standard {
 		result.InitialState = state

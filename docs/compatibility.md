@@ -18,6 +18,8 @@ Simulation's `TLCGet("config")` follows Java TLC 1.8.0, including its record fie
 
 Simulation's `TLCSet("exit", TRUE)` follows Java TLC 1.8.0 for the tested single-worker cases. Java TLC 1.7.4 instead throws an exception when this value is set during simulation. Stopping and error reporting can involve concurrent workers in Java, so all combinations of side effects and errors are not yet covered.
 
+`-maxSetSize` follows Java TLC 1.7.4 for set maps (`{e : x \in S}`) and set filters over enumerated sets and intervals: as in Java TLC, a set fails only when it needs more elements than both the bound and 10, and duplicate map results count toward the limit. The error, exit code, and empty evaluation stack match Java TLC in initial states, successors, invariants, and assumptions. Other set constructions that Java TLC also limits, such as unions and enumerated function sets, are not limited yet.
+
 Selected constant configured invariants, properties, and constraints are evaluated before assumptions. `FALSE` is reported as a configuration error and `TRUE` is not reevaluated during exploration. Precomputation involving TLC runtime operations, diagnostics for non-boolean expressions, and evaluation failures can still differ from Java TLC.
 
 Selected non-boolean invariant and property failures report Java TLC's operator, value kind, source location, and exit code, including Boolean operators, conditionals, and quantifiers. Nested evaluation stacks, replayed side effects, and other contexts are not fully compatible.
