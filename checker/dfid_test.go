@@ -311,6 +311,15 @@ View == owner
 	}
 }
 
+func TestDepthFirstCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := CheckWithOptions(ctx, dfidCounter, "INIT Init\nNEXT Next\n", Options{DepthFirst: &DepthFirstOptions{MaxDepth: 10}})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error %v, want cancellation", err)
+	}
+}
+
 func TestDepthFirstWithoutVariables(t *testing.T) {
 	run, err := runDepthFirst(t, "---- MODULE C ----\nASSUME TRUE\n====", "", 10, false)
 	if err != nil || dfidOutcome(run.result) != "success 0/0" || !run.result.HasFingerprintDistance || run.result.FingerprintDistance != math.MaxInt64 {
