@@ -14,10 +14,16 @@ func cachedPermutation(v value.Value, p permutation) (value.Value, error) {
 		return cached, nil
 	}
 	result, err := computePermutedValue(v, p)
-	if err == nil && len(p.cache) < 4096 {
-		p.cache[v] = result
+	if err != nil {
+		return result, err
 	}
-	return result, err
+	// Successors share most values with their predecessor, so recent values
+	// are kept by starting over when the cache is full.
+	if len(p.cache) >= 4096 {
+		clear(p.cache)
+	}
+	p.cache[v] = result
+	return result, nil
 }
 
 func computePermutedValue(v value.Value, p permutation) (value.Value, error) {
