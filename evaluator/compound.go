@@ -75,7 +75,22 @@ func (e *evaluator) applyOperator(op operatorRef, expressions []*parser.Expressi
 	return e.invokeOperator(op, args)
 }
 
+// moduleOperators names the standard-module operators that builtin checks
+// before the core operators.
+var moduleOperators = func() map[string]bool {
+	names := map[string]bool{"Cardinality": true, "IsFiniteSet": true}
+	for _, arities := range []map[string]int{randomArities, bagArities, jsonArities, tlcExtArities, tlcArities, sequenceArities} {
+		for name := range arities {
+			names[name] = true
+		}
+	}
+	return names
+}()
+
 func (e *evaluator) builtin(expr *parser.Expression) (value.Value, error) {
+	if !moduleOperators[expr.Text] {
+		return e.builtinByArity(expr)
+	}
 	if e.randomization && isRandomOperator(expr.Text) {
 		return e.randomOperator(expr)
 	}

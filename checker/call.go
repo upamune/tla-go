@@ -21,6 +21,13 @@ func (g *generator) expandCall(item work, rest *workList, partial evaluator.Stat
 }
 
 func (g *generator) actionBody(call *parser.Expression) (*parser.Expression, error) {
+	// A cached body was substituted from the module definition, which the
+	// call resolves to outside a lexical scope.
+	if g.lexical == nil {
+		if body, ok := g.model.actionCache[call]; ok {
+			return body, nil
+		}
+	}
 	d, ok := g.definition(call.Text)
 	if !ok {
 		return nil, fmt.Errorf("undefined action %s", call.Text)
