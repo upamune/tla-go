@@ -58,6 +58,14 @@ upstream JUnit tests. The models are `AssignmentInit`, `MinimumDiameter`,
 `AssignmentNext3`, `MinimalSetOfInitStates`, `DieHardTLA`, and
 `CodePlexBug21`.
 
+The upstream `BasicMultiTrace` simulation fixture is also exercised by
+`TestJavaTLCSimulationUpstreamModels` and `TestJavaTLCSimulationUpstreamTool`.
+These tests compare selected successful runs, invariants, action properties,
+constraints, incomplete states, and evaluation failures with Java TLC 1.7.4.
+They check exit codes, generated-state counts when reported, and selected tool
+messages and traces; they do not establish equivalence for all output or for
+the original liveness and `-continue` tests.
+
 ## Audit work
 
 - Enumerate executable upstream tests, including parameterized and inherited

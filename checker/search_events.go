@@ -4,8 +4,9 @@ package checker
 type SearchEventKind string
 
 const (
-	InitialStart    SearchEventKind = "initial-start"
-	InitialComplete SearchEventKind = "initial-complete"
+	InitialStart              SearchEventKind = "initial-start"
+	InitialComplete           SearchEventKind = "initial-complete"
+	SimulationInitialComplete SearchEventKind = "simulation-initial-complete"
 )
 
 // SearchEvent describes initial-state generation for optional progress output.

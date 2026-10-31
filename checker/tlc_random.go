@@ -10,6 +10,13 @@ func (r *tlcRuntime) Random() (*evaluator.JavaRandom, error) {
 	if r.randomStartup || r.search == nil || r.traceCurrent < 0 {
 		return r.startupRandom, nil
 	}
+	if r.simulation {
+		return r.workerRandom, nil
+	}
+	return r.modelCheckingRandom()
+}
+
+func (r *tlcRuntime) modelCheckingRandom() (*evaluator.JavaRandom, error) {
 	if r.randomIndex == r.traceCurrent {
 		return r.workerRandom, nil
 	}

@@ -42,14 +42,19 @@ type tlcRuntime struct {
 	randomIndex        int
 	randomOrder        []string
 	randomStartup      bool
+	simulation         bool
 }
 
 func newTLCRuntime(cfg config.Config, options Options) *tlcRuntime {
-	startup := evaluator.NewJavaRandom(options.Seed)
-	worker := evaluator.NewJavaRandom(options.Seed)
+	seed := options.Seed
+	if options.Simulation != nil {
+		seed = 0
+	}
+	startup := evaluator.NewJavaRandom(seed)
+	worker := evaluator.NewJavaRandom(seed)
 	startup.SetModernSubsets(options.ModernRandomSubsets)
 	worker.SetModernSubsets(options.ModernRandomSubsets)
-	return &tlcRuntime{cfg: cfg, options: options, startedAt: time.Now(), traceCurrent: -1, randomIndex: -1, startupRandom: startup, workerRandom: worker}
+	return &tlcRuntime{cfg: cfg, options: options, startedAt: time.Now(), traceCurrent: -1, randomIndex: -1, startupRandom: startup, workerRandom: worker, simulation: options.Simulation != nil}
 }
 
 func (r *tlcRuntime) Get(key value.Value, context evaluator.Context, source evaluator.State, primed bool) (value.Value, error) {
@@ -138,6 +143,9 @@ func (r *tlcRuntime) setNamed(name string, key, val value.Value, context evaluat
 	switch {
 	case name == "exit":
 		if b, ok := val.Bool(); ok && b {
+			if r.simulation {
+				return tlcRuntimeError("TLCSet(exit) in simulation is not yet supported.")
+			}
 			r.stopped = true
 		}
 	case name == "pause":
@@ -167,6 +175,9 @@ func (r *tlcRuntime) setProperty(name string, val value.Value) {
 }
 
 func (r *tlcRuntime) pause(val value.Value, context evaluator.Context) {
+	if r.simulation {
+		return
+	}
 	if b, ok := val.Bool(); !ok || !b {
 		return
 	}

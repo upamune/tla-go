@@ -51,15 +51,24 @@ It measures repeated action expansion and state exploration together:
 mise exec -- go test ./checker -run '^$' -bench '^BenchmarkParameterizedOperatorFunctionAction$' -benchmem -benchtime=1x -count=3
 ```
 
-## Compare with Java TLC
-
-CI downloads the official Java TLC 1.7.4 JAR, verifies its SHA-256, and runs selected comparisons. To run them locally, install a Java Development Kit (including `java` and `javac`), point `TLC_JAR` to an absolute path to the JAR, and run:
+`BenchmarkSimulationTraces` measures 100 seeded traces of depth 20 through
+branching actions. `BenchmarkSimulationTraceConstraint` measures the same
+trace count and depth while evaluating `TLCExt.Trace` in a state constraint.
+Both report generated states as `states/op`.
 
 ```sh
-TLC_JAR=/absolute/path/to/tla2tools.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
+mise exec -- go test ./checker -run '^$' -bench '^BenchmarkSimulation(Traces|TraceConstraint)$' -benchmem -benchtime=1x -count=3
 ```
 
-Without `TLC_JAR`, the tests still run tla-go assertions but do not execute the direct Java comparisons. These selected tests cover only part of TLC; see the [upstream test inventory](upstream-test-inventory.md) for the audit scope and its limits. Java TLC versions can also differ; selected newer random-subset tests use `TLC_MODERN_JAR` when supplied.
+## Compare with Java TLC
+
+CI downloads the official Java TLC 1.7.4 and 1.8.0 JARs, verifies their SHA-256 hashes, and runs selected comparisons. To run them locally, install a Java Development Kit (including `java` and `javac`), point `TLC_JAR` to an absolute path to the JAR, and run:
+
+```sh
+TLC_JAR=/absolute/path/to/tla2tools-1.7.4.jar TLC_MODERN_JAR=/absolute/path/to/tla2tools-1.8.0.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
+```
+
+Without either JAR variable, the tests still run tla-go assertions but skip direct Java comparisons. These selected tests cover only part of TLC; see the [upstream test inventory](upstream-test-inventory.md) for the audit scope and its limits. Java TLC versions can also differ; selected newer-version comparisons use `TLC_MODERN_JAR` when supplied.
 
 Fixtures from Java TLC 1.7.4 are traceable to TLA+ Tools commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`. Fixture-specific provenance is recorded alongside the test data. The `OneBitMutexNoSymmetryMC.trace.json` fixture records the counterexample asserted by that version's Java test.
 

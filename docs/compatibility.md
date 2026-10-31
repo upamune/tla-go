@@ -4,7 +4,9 @@ The goal is compatibility with the TLA+ language and the original Java TLC model
 
 ## Model checking
 
-Java TLC simulation (`-simulate`), parallel workers, and checkpoint recovery are not implemented.
+Experimental single-worker random simulation supports bounded traces, invariants, action properties, state and action constraints, and deadlock checking for selected models. Temporal liveness and fairness, trace files, continuing after violations, `-aril`, `TLCGet("config")`, `TLCSet("exit", TRUE)`, DOT dumps, and liveness debugging in simulation mode are not supported. Error details, side effects, random operators, and traces are not fully compatible with Java TLC. Parallel workers and checkpoint recovery are not implemented.
+
+Simulation currently follows Java TLC 1.7.4 for `TLCGet("level")` and state-constraint evaluation order. In Java TLC 1.8.0, an initial invariant sees level 1 rather than 0, successor invariants see the successor level, and the tested repeated-trace model evaluates its initial constraint fewer times. These version differences are not selectable yet.
 
 Supported finite-state models include `INIT`/`NEXT`, common `SPECIFICATION` forms, invariants, state and action constraints, constants, and selected quantified and parameterized actions. The checker also supports selected temporal properties, weak and strong fairness, `VIEW`, `SYMMETRY`, counterexamples, `ALIAS`, `POSTCONDITION`, and `_POSSIBLE`.
 
@@ -44,7 +46,7 @@ The CLI reads and writes JSON paths relative to its working directory. Go caller
 
 ## Randomness and runtime values
 
-The default seed is 0. `-seed` selects a different seed. The default random-subset behavior follows the tested Java TLC 1.7.4 cases; `-modern-random-subsets` selects the newer algorithm tested against the 2026-10-28 TLC development build. Other seeded behavior and constant-level caching can still differ across versions.
+The default seed is 0. `-seed` selects a different seed. The default random-subset behavior follows the tested Java TLC 1.7.4 cases; `-modern-random-subsets` selects the newer algorithm tested against Java TLC 1.8.0 and the 2026-10-28 development build. Other seeded behavior and constant-level caching can still differ across versions.
 
 Selected `TLCGet` and `TLCSet` registers and configuration, trace, and runtime values are supported. Complex forms and behavior involving effects are not fully compatible.
 

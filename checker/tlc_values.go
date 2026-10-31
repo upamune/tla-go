@@ -76,6 +76,9 @@ func (r *tlcRuntime) configValue() (value.Value, error) {
 	if !r.started {
 		return value.Value{}, tlcRuntimeError("TLCGet(config) was undefined.")
 	}
+	if r.simulation {
+		return value.Value{}, tlcRuntimeError("TLCGet(config) in simulation is not yet supported.")
+	}
 	one, _ := value.Integer(1)
 	return makeRecord(map[string]value.Value{"mode": value.String("bfs"), "deadlock": value.Bool(r.cfg.CheckDeadlock), "worker": one, "seed": value.String(strconv.FormatInt(r.options.Seed, 10)), "fingerprint": value.String(strconv.FormatInt(r.model.fingerprintAlgorithm.Polynomial(), 10)), "install": value.String("unknown")})
 }

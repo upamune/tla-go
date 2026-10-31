@@ -144,6 +144,8 @@ type Options struct {
 	Seed      int64
 	// Fingerprint selects a Java TLC FP64 polynomial (0 through 130).
 	Fingerprint int
+	// Simulation selects bounded single-worker random simulation when non-nil.
+	Simulation *SimulationOptions
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
 	// OnDebug receives JSON lines describing liveness exploration when set.
@@ -153,6 +155,14 @@ type Options struct {
 	OnGraph func(GraphEvent) error
 	// OnSearch receives synchronous initial-state progress events when set.
 	OnSearch func(SearchEvent)
+}
+
+// SimulationOptions bounds the number and length of simulated traces. After
+// initial state generation, DistinctStates and QueuedStates are -1 and Depth is
+// not populated; GeneratedStates counts generated states, including repeats.
+type SimulationOptions struct {
+	Traces int
+	Depth  int
 }
 
 // Check parses a module and a TLC configuration and explores the model.
@@ -289,6 +299,18 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 		return Result{}, err
 	}
 	model.ctx = ctx
+	if options.Simulation != nil {
+		result, err := model.simulate(options.Simulation.Traces, options.Simulation.Depth, options.Seed)
+		if err != nil {
+			return result, err
+		}
+		if model.cfg.Alias != "" {
+			model.applyAlias(&result)
+		}
+		model.applyTraceOrder(&result)
+		model.applyActionRanges(&result)
+		return result, nil
+	}
 	result, err := model.check()
 	if err != nil {
 		return result, err

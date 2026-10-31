@@ -64,7 +64,9 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-DTLA-Library=PATHS` | Search these directories for modules, in order. Separate paths with `:` on Unix or `;` on Windows. |
 | `-metadir DIR` | Create a timestamped run directory under `DIR`; remove it on success. Checkpoint recovery is not yet supported. |
 | `-deadlock` | Disable deadlock reporting. |
-| `-seed N` | Set the random seed; the default is 0. |
+| `-seed N` | Set the random seed; model checking defaults to 0 and simulation chooses a random seed. |
+| `-simulate [num=N]` | Run experimental single-worker random simulation; omit `num=N` to run until interrupted or a violation is found. |
+| `-depth N` | Set the simulation trace length (default 100; `-1` means no limit). |
 | `-workers 1` | Select the currently supported single-worker mode. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
@@ -75,6 +77,16 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-version`, `-help` | Show the version or usage. |
 
 The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and DOT output are compared with Java TLC for representative models, but full compatibility is not yet established. Only `-workers 1` is supported; state identity and fingerprint collision behavior can still differ from Java TLC.
+
+Simulation checks a bounded set of randomly chosen behaviors; a successful run
+does not prove a model correct. Its implementation is incomplete: temporal
+liveness and fairness, trace files, continuation after violations, multiple
+workers, `-aril`, `TLCGet("config")`, `TLCSet("exit", TRUE)`, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
+messages and errors are not fully compatible with Java TLC. For example:
+
+```sh
+tla-go -simulate num=100 -depth 50 -seed 1 path/to/Model.tla
+```
 
 `-sany-metadata` emits only the metadata consumed by statechart, not the complete SANY XML semantic graph. It supports selected higher-order operator calls but rejects some constructs that Java SANY supports, including recursive definitions. Its level analysis and semantic validation are experimental; use Java SANY when complete XML or authoritative analysis is needed.
 

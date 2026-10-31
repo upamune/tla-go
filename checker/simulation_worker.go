@@ -8,9 +8,10 @@ import (
 // simulationWorker uses TLC's worker-local random stream to choose an action
 // before choosing a successor. Its callers validate every generated successor.
 type simulationWorker struct {
-	model   *model
-	actions []simulationAction
-	random  *evaluator.JavaRandom
+	model    *model
+	actions  []simulationAction
+	random   *evaluator.JavaRandom
+	selected simulationAction
 }
 
 func newSimulationWorker(m *model, actions []simulationAction, master *evaluator.JavaRandom) simulationWorker {
@@ -34,6 +35,7 @@ func (w *simulationWorker) nextStates(current evaluator.State) ([]evaluator.Stat
 		}
 		states, err := w.actionStates(w.actions[index], current)
 		if err != nil || len(states) != 0 {
+			w.selected = w.actions[index]
 			return states, err
 		}
 		index = (index + stride) % count

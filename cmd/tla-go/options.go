@@ -13,7 +13,7 @@ import (
 var errMissingLivenessStrategy = errors.New("Error: expect a strategy such as final for -lncheck option.")
 
 func parseOptions(args []string) (options, error) {
-	var opts options
+	opts := options{simulationTraces: int(^uint(0) >> 1), simulationDepth: 100}
 	for i := 0; i < len(args); i++ {
 		consumed, err := parseOption(&opts, args[i:])
 		if err != nil {
@@ -23,6 +23,9 @@ func parseOptions(args []string) (options, error) {
 	}
 	if !opts.help && !opts.version && len(opts.paths) == 0 {
 		return opts, fmt.Errorf("missing model path")
+	}
+	if err := configureSimulation(&opts); err != nil {
+		return opts, err
 	}
 	return opts, nil
 }
@@ -44,7 +47,7 @@ func parseOption(opts *options, args []string) (int, error) {
 	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp", "-metadir", "-I":
 		return parseValueOption(opts, args)
 	default:
-		return 0, parsePath(opts, args[0])
+		return parseOtherOption(opts, args)
 	}
 	return 0, nil
 }
@@ -121,6 +124,7 @@ func parseSeedOption(opts *options, args []string) (int, error) {
 		return 0, fmt.Errorf("invalid seed %s", args[1])
 	}
 	opts.seed = seed
+	opts.seedSet = true
 	return 1, nil
 }
 

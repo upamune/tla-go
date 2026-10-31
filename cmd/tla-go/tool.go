@@ -49,6 +49,10 @@ func toolTime() string { return time.Now().Format("2006-01-02 15:04:05") }
 
 func printToolSearch(out io.Writer, event checker.SearchEvent) {
 	t := toolOutput{out: out}
+	if event.Kind == checker.SimulationInitialComplete {
+		t.message(2269, 0, fmt.Sprintf("Computed %d initial states...", event.GeneratedStates))
+		return
+	}
 	if event.Kind == checker.InitialStart {
 		t.message(2189, 0, "Computing initial states...")
 		return
@@ -72,6 +76,9 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 	t := toolOutput{out: out, started: time.Now()}
 	defer t.finish()
 	t.message(2262, 0, "tla-go "+version)
+	if opts.simulate {
+		t.message(2188, 0, fmt.Sprintf("Running Random Simulation with seed %d with 1 worker.", opts.seed))
+	}
 	specPath, configPath, err := inputPaths(opts)
 	if err != nil {
 		t.message(1000, 1, err.Error())
@@ -97,7 +104,7 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 	if err != nil {
 		return toolModelError(t, err)
 	}
-	printToolResult(t, result, module)
+	printConfiguredToolResult(t, result, module, opts)
 	if result.Failure != nil {
 		return result.Failure.ExitCode
 	}

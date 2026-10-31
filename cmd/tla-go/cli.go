@@ -30,10 +30,13 @@ type options struct {
 	onPause                    func()
 	seed                       int64
 	fingerprint                int
+	simulate, seedSet          bool
+	simulationTraces           int
+	simulationDepth            int
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-workers 1] [-fp N] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-simulate [num=N]] [-depth N] [-workers 1] [-fp N] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -106,12 +109,12 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 	if opts.deadlockOff {
 		parsed.CheckDeadlock = false
 	}
-	fmt.Fprintf(out, "Checking %s with %s\n", filepath.Base(specPath), filepath.Base(configPath))
+	printChecking(out, specPath, configPath, opts)
 	result, err := checkModelWithOutput(ctx, opts, module, parsed, specPath, out, errout)
 	if err != nil {
 		return reportModelError(out, errout, err)
 	}
-	printResult(out, result, module)
+	printConfiguredResult(out, result, module, opts)
 	if result.Failure != nil {
 		return result.Failure.ExitCode
 	}
@@ -124,12 +127,13 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 		return checker.Result{}, err
 	}
 	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets}
+	if opts.simulate {
+		checkOptions.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth}
+	}
 	if graph != nil {
 		checkOptions.OnGraph = graph.event
 	}
-	if opts.tool {
-		checkOptions.OnSearch = func(event checker.SearchEvent) { printToolSearch(out, event) }
-	}
+	checkOptions.OnSearch = configuredSearchOutput(opts, out)
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}

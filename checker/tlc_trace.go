@@ -46,6 +46,9 @@ func (r *tlcRuntime) behavior(state evaluator.State) []evaluator.State {
 	if r.aliasEvaluating {
 		return r.traceOverride
 	}
+	if r.simulation && r.search != nil {
+		return r.simulationBehavior(state)
+	}
 	if r.search == nil {
 		return []evaluator.State{state}
 	}
