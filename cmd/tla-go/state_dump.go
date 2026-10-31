@@ -50,7 +50,7 @@ func (d *textDump) event(event checker.GraphEvent) error {
 	if _, err := fmt.Fprintf(d.writer, "State %d:\n", d.states); err != nil {
 		return err
 	}
-	printStateOrdered(d.writer, event.State, event.Order)
+	printTraceState(d.writer, checker.TraceStep{State: event.State, StateOrder: event.Order, View: event.View})
 	return nil
 }
 

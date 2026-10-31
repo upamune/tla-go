@@ -125,6 +125,9 @@ func (d *dotDump) actionColor(action string) int {
 }
 
 func dotState(event checker.GraphEvent) string {
+	if event.View != "" {
+		return strings.TrimSpace(event.View)
+	}
 	var result strings.Builder
 	prefix := ""
 	if len(event.Order) > 1 {

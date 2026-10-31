@@ -7,9 +7,12 @@ import (
 
 // GraphEvent describes a state or transition emitted during state exploration.
 // Initial events have no parent. New marks the first appearance of a state.
+// View is the state as TLC prints it through VIEW when Options.ViewStates is
+// set; fingerprints follow VIEW whenever one is configured.
 type GraphEvent struct {
 	State       evaluator.State
 	Order       []string
+	View        string
 	Fingerprint uint64
 	Parent      uint64
 	Action      string
@@ -28,7 +31,7 @@ func (s *search) graphStuttering(index int) error {
 	if err != nil {
 		return err
 	}
-	return s.model.graph(GraphEvent{State: state, Order: s.graphOrder, Fingerprint: fingerprint, Parent: fingerprint, Depth: s.nodes[index].depth + 1, Stuttering: true})
+	return s.model.graph(GraphEvent{State: state, Order: s.graphOrder, View: s.graphView(state), Fingerprint: fingerprint, Parent: fingerprint, Depth: s.nodes[index].depth + 1, Stuttering: true})
 }
 
 func (s *search) graphRepresentative(state evaluator.State, key string) evaluator.State {
@@ -66,7 +69,7 @@ func (s *search) graphTransition(state evaluator.State, parent int, action strin
 	if err != nil {
 		return err
 	}
-	event := GraphEvent{State: state, Order: s.graphOrder, Fingerprint: fingerprint, Action: action, Depth: s.candidateLevel(parent), Initial: parent < 0, New: isNew}
+	event := GraphEvent{State: state, Order: s.graphOrder, View: s.graphView(state), Fingerprint: fingerprint, Action: action, Depth: s.candidateLevel(parent), Initial: parent < 0, New: isNew}
 	if parent >= 0 {
 		event.Parent, err = s.graphFingerprint(s.nodes[parent].state)
 		if err != nil {
@@ -77,10 +80,37 @@ func (s *search) graphTransition(state evaluator.State, parent int, action strin
 }
 
 func (s *search) graphFingerprint(state evaluator.State) (uint64, error) {
+	values, err := s.graphFingerprintValues(state)
+	if err != nil {
+		return 0, err
+	}
+	rank := func(text string) (int, bool) { n, ok := s.model.valueRanks[text]; return n, ok }
+	return s.model.fingerprintAlgorithm.Fingerprint(values, rank, s.model.compareOrderedValues)
+}
+
+// graphFingerprintValues follows TLCStateMut.fingerPrint, which fingerprints
+// the value of VIEW instead of the variables when a VIEW is configured.
+func (s *search) graphFingerprintValues(state evaluator.State) ([]value.Value, error) {
+	if s.model.cfg.View != "" {
+		expr, err := s.model.definition(s.model.cfg.View)
+		if err != nil {
+			return nil, err
+		}
+		v, err := s.model.eval(expr, state, nil)
+		return []value.Value{v}, err
+	}
 	values := make([]value.Value, len(s.graphOrder))
 	for i, name := range s.graphOrder {
 		values[i] = state[name]
 	}
-	rank := func(text string) (int, bool) { n, ok := s.model.valueRanks[text]; return n, ok }
-	return s.model.fingerprintAlgorithm.Fingerprint(values, rank, s.model.compareOrderedValues)
+	return values, nil
+}
+
+// graphView returns the text of a state under -view, which Java TLC's
+// TLCStateMut.toString also uses for state dumps.
+func (s *search) graphView(state evaluator.State) string {
+	if !s.model.viewStates || s.model.cfg.View == "" {
+		return ""
+	}
+	return s.model.stateView(state)
 }

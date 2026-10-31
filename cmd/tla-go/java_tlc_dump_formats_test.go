@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -88,9 +89,9 @@ func dumpArguments(format, output string) []string {
 	return []string{"-dump", format, output}
 }
 
-func runDumpFormat(t *testing.T, dir, model, format, output string, code int) []byte {
+func runDumpFormat(t *testing.T, dir, model, format, output string, code int, extra ...string) []byte {
 	t.Helper()
-	args := append([]string{"-deadlock", "-workers", "1", "-fp", "0"}, dumpArguments(format, output)...)
+	args := append(append([]string{"-deadlock", "-workers", "1", "-fp", "0"}, extra...), dumpArguments(format, output)...)
 	var out, errout bytes.Buffer
 	if got := run(context.Background(), append(args, filepath.Join(dir, model+".tla")), &out, &errout); got != code || errout.Len() != 0 {
 		t.Fatalf("exit %d, want %d; stdout:\n%s\nstderr:\n%s", got, code, out.String(), errout.String())
@@ -102,10 +103,11 @@ func runDumpFormat(t *testing.T, dir, model, format, output string, code int) []
 	return data
 }
 
-func compareJavaDumpFormat(t *testing.T, jar, dir, model, format string, got []byte, code int) {
+func compareJavaDumpFormat(t *testing.T, jar, dir, model, format string, got []byte, code int, extra ...string) {
 	t.Helper()
 	output := filepath.Join(dir, "java")
-	args := append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-deadlock", "-workers", "1", "-fp", "0"}, dumpArguments(format, output)...)
+	args := append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-deadlock", "-workers", "1", "-fp", "0"}, extra...)
+	args = append(args, dumpArguments(format, output)...)
 	cmd := exec.Command("java", append(args, model+".tla")...)
 	cmd.Dir = dir
 	if out, _ := cmd.CombinedOutput(); cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
@@ -153,5 +155,36 @@ func TestJavaTLCDumpInitialFailures(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// With VIEW, Java TLC fingerprints DOT nodes by the view value, and -view
+// also prints dumped states through the view.
+func TestJavaTLCDumpView(t *testing.T) {
+	model := "VARIABLES x, y\nInit == x = 0 /\\ y = 0\nNext == x' = (x + 1) % 3 /\\ y' = (y + 1) % 2\nV == "
+	for _, tc := range []struct {
+		view, format, want string
+		extra              []string
+	}{
+		{"<<x>>", "dot", `[label="/\\ x = 0\n/\\ y = 0",style = filled]`, nil},
+		{"<<x>>", "dot", `[label="/\\ x = 0",style = filled]`, []string{"-view"}},
+		{"x % 2", "", "State 1:\n0\nState 2:\n1\n", []string{"-view"}},
+		{"<<x, y>>", "", "State 1:\n/\\ x = 0\n/\\ y = 0\n\n", []string{"-view"}},
+	} {
+		t.Run(tc.view+"/"+tc.format+strings.Join(tc.extra, ""), func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, model+tc.view, "INIT Init\nNEXT Next\nVIEW V\n")
+			output := filepath.Join(dir, "go.dump")
+			if tc.format != "" {
+				output = filepath.Join(dir, "go.dot")
+			}
+			got := runDumpFormat(t, dir, "M", tc.format, output, 0, tc.extra...)
+			if !strings.Contains(string(got), tc.want) {
+				t.Fatalf("dump missing %q:\n%s", tc.want, got)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				compareJavaDumpFormat(t, jar, dir, "M", tc.format, got, 0, tc.extra...)
+			}
+		})
 	}
 }
