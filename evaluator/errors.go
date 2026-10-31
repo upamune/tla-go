@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
@@ -24,6 +25,9 @@ type RuntimeError struct {
 	Unexpected      *value.UnexpectedError
 	Fingerprint     *value.FingerprintError
 	Sources         []*parser.Expression
+	// WrongInvocation marks a failure that Java TLC raises as a
+	// util.WrongInvocationException, without an evaluation stack.
+	WrongInvocation bool
 }
 
 // AddUnexpectedSource records an evaluation frame unless a fingerprint stack
@@ -66,6 +70,17 @@ func ValueRuntimeError(err error) (*RuntimeError, bool) {
 	}
 	fingerprint, _ := errors.AsType[*value.FingerprintError](err)
 	return &RuntimeError{Message: unexpected.Message, Unexpected: unexpected, Fingerprint: fingerprint}, true
+}
+
+// javaOverrideError reports an exception raised by a Java TLC override.
+func javaOverrideError(signature, message string) error {
+	return &RuntimeError{Message: javaOverrideMessage(signature, message), Standard: true}
+}
+
+// javaOverrideMessage is the text with which TLC's MethodValue wraps an
+// exception raised by a Java override.
+func javaOverrideMessage(signature, message string) string {
+	return fmt.Sprintf("Attempted to apply the operator overridden by the Java method\n%s,\nbut it produced the following error:\n%s", signature, message)
 }
 
 func (e *RuntimeError) Error() string {

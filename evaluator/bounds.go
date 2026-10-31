@@ -129,9 +129,8 @@ func (e *evaluator) comprehension(expr *parser.Expression) (value.Value, error) 
 		if err != nil {
 			return false, err
 		}
-
 		elements = append(elements, v)
-		return true, nil
+		return true, e.program.checkSetSize(len(elements))
 	})
 	if err != nil {
 		return value.Value{}, err

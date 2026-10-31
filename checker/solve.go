@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 
@@ -24,6 +25,10 @@ type generator struct {
 	lexical         *evaluator.LexicalScope
 	source          *parser.Expression
 	emit            func(evaluator.State, string, *parser.Expression) (bool, error)
+	// emitted is the last error returned by emit. Java TLC checks a successor
+	// after generating it, so the error carries no frames of the action; it
+	// checks an initial state within the initial predicate's continuation.
+	emitted error
 }
 
 func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator.State) {
@@ -227,14 +232,31 @@ func (g *generator) holdsScopedWork(item work, partial evaluator.State) (bool, e
 
 func (g *generator) complete(partial evaluator.State, action string) (bool, error) {
 	if g.enabled || g.allowIncomplete {
-		return g.emit(partial, action, g.source)
+		return g.emitState(partial, action)
 	}
 	for _, name := range g.model.names {
 		if _, ok := partial[name]; !ok {
 			return false, &incompleteState{state: maps.Clone(partial), action: action}
 		}
 	}
-	return g.emit(partial, action, g.source)
+	return g.emitState(partial, action)
+}
+
+func (g *generator) emitState(partial evaluator.State, action string) (bool, error) {
+	more, err := g.emit(partial, action, g.source)
+	if err != nil {
+		g.emitted = err
+	}
+	return more, err
+}
+
+// addFrame adds expr to the evaluation stack of an error raised while the
+// generator evaluated it or its continuation, as Java TLC's call stack keeps
+// it.
+func (g *generator) addFrame(err error, expr *parser.Expression) {
+	if g.initial || g.emitted == nil || !errors.Is(err, g.emitted) {
+		addConjunctErrorSource(err, expr)
+	}
 }
 
 func (g *generator) conjunction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
@@ -245,6 +267,7 @@ func (g *generator) conjunction(item work, rest []work, partial evaluator.State,
 	items = append(items, rest...)
 	more, err := g.solve(items, partial, action)
 	if err != nil {
+		g.addInlineConjunctionFrames(err, item.expr)
 		addEnclosingActionSource(err, item.expr)
 	} else if !more {
 		g.addInitialFailureSource(item.expr, false)
@@ -255,6 +278,11 @@ func (g *generator) conjunction(item work, rest []work, partial evaluator.State,
 func (g *generator) disjunction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
 	for _, branch := range item.expr.Args {
 		more, err := g.disjunctionBranch(item, branch, rest, partial, action)
+		if err != nil && (!item.label || g.initial) {
+			// Like a top-level \E, a top-level disjunction is split into
+			// actions rather than kept on Java TLC's call stack.
+			g.addFrame(err, item.expr)
+		}
 		if err != nil || !more {
 			g.addInitialFailureSource(item.expr, false)
 			return more, err
@@ -342,8 +370,8 @@ func (g *generator) assign(name, operator string, rhs *parser.Expression, items 
 	} else {
 		more, err = g.assignMembers(name, v, items[1:], partial, action)
 	}
-	if g.initial && err != nil {
-		addInitialAssignmentErrorSource(err, items[0].expr)
+	if err != nil {
+		g.addFrame(err, items[0].expr)
 	}
 	if err == nil && !more {
 		g.addInitialFailureSource(items[0].expr, true)
@@ -376,5 +404,9 @@ func (g *generator) guard(items []work, partial evaluator.State, action string) 
 	if !ok {
 		return true, nil
 	}
-	return g.solve(items[1:], partial, action)
+	more, err := g.solve(items[1:], partial, action)
+	if err != nil {
+		g.addFrame(err, items[0].expr)
+	}
+	return more, err
 }

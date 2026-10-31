@@ -26,8 +26,14 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 	if failure.FingerprintDetail != "" {
 		printToolFingerprintDetail(t, failure)
 	}
+	printToolEvaluationDetail(t, failure)
+}
+
+// printToolEvaluationDetail prints message 2103, whose text Java TLC's
+// message printer follows with a newline.
+func printToolEvaluationDetail(t toolOutput, failure *checker.Failure) {
 	if failure.EvaluationDetail != "" {
-		t.message(2103, 1, failure.EvaluationDetail)
+		t.message(2103, 1, failure.EvaluationDetail+"\n")
 	}
 }
 
@@ -43,20 +49,16 @@ func printToolInitialEvaluationFailure(t toolOutput, failure *checker.Failure) b
 	fmt.Fprintf(&body, "%s\nWhile working on the initial state:\n", failure.Message)
 	printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
 	t.message(2102, 1, body.String())
-	if failure.EvaluationDetail != "" {
-		t.message(2103, 1, failure.EvaluationDetail)
-	}
+	printToolEvaluationDetail(t, failure)
 	return true
 }
 
 func printToolInitialConstraintFailure(t toolOutput, failure *checker.Failure) bool {
-	if failure.ToolCode != 2102 || failure.InitialState == nil || failure.NestedToolCode != 2215 {
+	if failure.ToolCode != 2102 || failure.InitialState == nil || (failure.NestedToolCode != 2215 && failure.NestedToolCode != 2154) {
 		return false
 	}
-	printToolInitialNestedFailure(t, failure, 2215, failure.NestedMessage)
-	if failure.EvaluationDetail != "" {
-		t.message(2103, 1, failure.EvaluationDetail)
-	}
+	printToolInitialNestedFailure(t, failure, failure.NestedToolCode, failure.NestedMessage)
+	printToolEvaluationDetail(t, failure)
 	return true
 }
 
@@ -148,7 +150,7 @@ func printToolInitialViolation(t toolOutput, result checker.Result) {
 	}
 	var body bytes.Buffer
 	fmt.Fprintf(&body, "%s %s is violated by the initial state:\n", kind, v.Name)
-	printStateOrdered(&body, v.Trace[0].State, v.Trace[0].StateOrder)
+	printTraceState(&body, v.Trace[0])
 	t.message(code, 1, body.String())
 }
 
@@ -174,7 +176,7 @@ func printToolTrace(t toolOutput, trace []checker.TraceStep, module *parser.Modu
 	for i, step := range trace {
 		var body bytes.Buffer
 		fmt.Fprintf(&body, "%d: <%s>\n", i+1, actionLabelWithRange(module, step.Action, step.ActionRange))
-		printStateOrdered(&body, step.State, step.StateOrder)
+		printTraceState(&body, step)
 		t.message(2217, 4, body.String())
 	}
 }

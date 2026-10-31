@@ -4,7 +4,11 @@ package checker
 type SearchEventKind string
 
 const (
-	InitialStart              SearchEventKind = "initial-start"
+	InitialStart SearchEventKind = "initial-start"
+	// InitialProgress reports the initial states generated so far when the
+	// count reaches a power of two greater than one, as Java TLC's
+	// DoInitFunctor does before adding the next state.
+	InitialProgress           SearchEventKind = "initial-progress"
 	InitialComplete           SearchEventKind = "initial-complete"
 	SimulationInitialComplete SearchEventKind = "simulation-initial-complete"
 )

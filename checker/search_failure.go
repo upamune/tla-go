@@ -27,8 +27,15 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 		setInitialNestedFailure(s.result.Failure, failure)
 	}
 	setInitialCandidateFailure(s.result.Failure, failure, err)
+	if failure.WrongInvocation {
+		s.result.Failure.EvaluationDetail, s.result.Failure.SuppressDepth = emptyCallStackDetail, true
+	}
 	return s.result, nil
 }
+
+// emptyCallStackDetail is Java TLC's 2103 message when its call stack recorded
+// no expression for the failure.
+const emptyCallStackDetail = "The error occurred when TLC was evaluating the nested\nexpressions at the following positions:\n    The error call stack is empty.\n"
 
 func setInitialCandidateFailure(result *Failure, failure *evaluator.RuntimeError, err error) {
 	if candidate, ok := errors.AsType[*candidateFingerprintError](err); ok && candidate.parent < 0 {
@@ -50,7 +57,7 @@ func setFingerprintCause(result *Failure, failure *evaluator.RuntimeError) {
 }
 
 func setInitialNestedFailure(result *Failure, failure *evaluator.RuntimeError) {
-	if failure.ToolCode == 2132 || failure.ToolCode == 2266 || failure.ToolCode == 2215 || failure.ToolCode == 2247 {
+	if slices.Contains([]int{2132, 2154, 2215, 2247, 2266}, failure.ToolCode) {
 		result.NestedToolCode = failure.ToolCode
 		result.NestedMessage = failure.Message
 		result.evaluationSources = slices.Clone(failure.Sources)
@@ -72,7 +79,7 @@ func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 		failure.Unexpected = &value.UnexpectedError{Message: failure.Message, Sources: missing.Sources}
 	}
 	failure = normalizeNextFailure(failure)
-	if _, ok := errors.AsType[*candidateFingerprintError](err); ok {
+	if _, ok := errors.AsType[*candidateFingerprintError](err); ok || failure.WrongInvocation {
 		return s.runtimeFailure(failure, nil, actionFailureCode(failure))
 	}
 	trace, recoveryErr := s.recoverFailureTrace(index)
@@ -86,18 +93,37 @@ func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeErr
 	if failure.Unexpected != nil {
 		failure = nextUnexpectedFailure(failure)
 	}
-	if failure.ToolCode == 2247 {
-		failure = nextBooleanGenerationFailure(failure)
+	if failure.ToolCode == 2247 || failure.ToolCode == 2154 {
+		failure = nextNestedGenerationFailure(failure)
+	}
+	if failure.WrongInvocation {
+		result := *failure
+		result.Message = wrongInvocationMessage(failure.Message)
+		failure = &result
 	}
 	return failure
 }
 
-func nextBooleanGenerationFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
+// wrongInvocationMessage reports a util.WrongInvocationException, such as a
+// -maxSetSize failure, as Java TLC's unexpected exception.
+func wrongInvocationMessage(message string) string {
+	return unexpectedExceptionHeading("util.WrongInvocationException") + " " + message
+}
+
+// nextNestedGenerationFailure reports a TLC assertion raised while generating
+// successors, such as a non-boolean action (2247) or a Java override failure
+// (2154), inside Java TLC's unexpected-exception message.
+func nextNestedGenerationFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
 	result := *failure
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n: "
-	result.Message = heading + failure.Message
-	result.NestedMessage, result.NestedToolCode, result.ToolCode = failure.Message, 2247, 1000
+	result.Message = unexpectedExceptionHeading("java.lang.RuntimeException") + " " + failure.Message
+	result.NestedMessage, result.NestedToolCode, result.ToolCode = failure.Message, failure.ToolCode, 1000
 	return &result
+}
+
+// unexpectedExceptionHeading follows Java TLC's MP.ECGeneralMsg for an
+// exception class, without the space that precedes the exception message.
+func unexpectedExceptionHeading(exception string) string {
+	return "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a " + exception + "\n:"
 }
 
 func asRuntimeError(err error) (*evaluator.RuntimeError, bool) {
@@ -125,8 +151,7 @@ func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeEr
 	if failure.Unexpected.TLCAssert && failure.Fingerprint != nil {
 		cause = "util.Assert$TLCRuntimeException: " + cause
 	}
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n:"
-	result.Message = heading + " " + cause
+	result.Message = unexpectedExceptionHeading("java.lang.RuntimeException") + " " + cause
 	if failure.ToolCode == 2261 {
 		result.NestedMessage = cause
 		result.NestedToolCode, result.ToolCode = failure.ToolCode, 1000
@@ -154,7 +179,7 @@ func candidateFailure(err error, state evaluator.State, parent int) error {
 	if _, ok := errors.AsType[*value.FingerprintError](err); ok {
 		return &candidateFingerprintError{cause: err, state: state, parent: parent}
 	}
-	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && failure.ToolCode == 2215 {
+	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && (failure.ToolCode == 2215 || failure.ToolCode == 2154) {
 		return &candidateConstraintError{cause: err, state: state, parent: parent}
 	}
 	return err
@@ -229,12 +254,15 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 
 func setInitialInvariantFailure(result *Failure, failure *evaluator.RuntimeError, state evaluator.State) {
 	setInitialNestedFailure(result, failure)
-	if failure.BooleanOperator || failure.ToolCode == 2215 {
+	if failure.BooleanOperator || failure.ToolCode == 2215 || failure.ToolCode == 2154 || failure.WrongInvocation {
 		result.ToolCode = 2102
 	}
 	if len(failure.Sources) > 0 {
 		result.evaluationSources = slices.Clone(failure.Sources)
 		result.SuppressDepth = true
+	}
+	if failure.WrongInvocation {
+		result.EvaluationDetail, result.SuppressDepth = emptyCallStackDetail, true
 	}
 	if !failure.Standard {
 		result.InitialState = state

@@ -80,8 +80,8 @@ func (r *tlcRuntime) configValue() (value.Value, error) {
 	if r.simulation {
 		return r.simulationConfigValue()
 	}
-	one, _ := value.Integer(1)
-	return makeRecord(map[string]value.Value{"mode": value.String("bfs"), "deadlock": value.Bool(r.cfg.CheckDeadlock), "worker": one, "seed": value.String(strconv.FormatInt(r.options.Seed, 10)), "fingerprint": value.String(strconv.FormatInt(r.model.fingerprintAlgorithm.Polynomial(), 10)), "install": value.String("unknown")})
+	workers, _ := value.Integer(int64(max(r.options.Workers, 1)))
+	return makeRecord(map[string]value.Value{"mode": value.String("bfs"), "deadlock": value.Bool(r.cfg.CheckDeadlock), "worker": workers, "seed": value.String(strconv.FormatInt(r.options.Seed, 10)), "fingerprint": value.String(strconv.FormatInt(r.model.fingerprintAlgorithm.Polynomial(), 10)), "install": value.String("unknown")})
 }
 
 func (r *tlcRuntime) simulationConfigValue() (value.Value, error) {

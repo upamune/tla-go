@@ -16,10 +16,10 @@ func (e *evaluator) finiteSetsOperator(expr *parser.Expression) (value.Value, er
 	if err != nil {
 		return value.Value{}, err
 	}
-	return finiteSetsValue(expr.Text, v)
+	return e.finiteSetsValue(expr.Text, v)
 }
 
-func finiteSetsValue(name string, v value.Value) (value.Value, error) {
+func (e *evaluator) finiteSetsValue(name string, v value.Value) (value.Value, error) {
 	if name == "IsFiniteSet" {
 		finite, err := v.IsFinite()
 		return value.Bool(finite), err
@@ -29,6 +29,9 @@ func finiteSetsValue(name string, v value.Value) (value.Value, error) {
 		if overflow, ok := errors.AsType[*value.CardinalityOverflowError](err); ok {
 			return value.Value{}, cardinalityOverflow(overflow.Set, err)
 		}
+		return value.Value{}, err
+	}
+	if err := e.program.checkDeferredCardinality(v, size); err != nil {
 		return value.Value{}, err
 	}
 	return value.Integer(size)

@@ -1,19 +1,60 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/upamune/tla-go/value"
 )
 
-var errMissingLivenessStrategy = errors.New("Error: expect a strategy such as final for -lncheck option.")
+// commandLineError is a Java TLC parameter error, which exits with code 1.
+type commandLineError string
+
+func (e commandLineError) Error() string { return string(e) }
+
+const errMissingLivenessStrategy = commandLineError("Error: expect a strategy such as final for -lncheck option.")
+
+var flagOptions = map[string]func(*options){
+	"-h":                     setHelp,
+	"--help":                 setHelp,
+	"-help":                  setHelp,
+	"-version":               setVersion,
+	"--version":              setVersion,
+	"-deadlock":              func(opts *options) { opts.deadlockOff = true },
+	"-debug-liveness":        func(opts *options) { opts.debugLiveness = true },
+	"-modern-random-subsets": func(opts *options) { opts.modernRandomSubsets = true },
+	"-tool":                  func(opts *options) { opts.tool = true },
+	"-continue":              func(opts *options) { opts.continuation = true },
+	"-nowarning":             func(opts *options) { opts.noWarning = true },
+	"-view":                  func(opts *options) { opts.view = true },
+}
+
+// valueOptions parse an option and its arguments, returning the number of
+// arguments consumed after the option name.
+var valueOptions = map[string]func(*options, []string) (int, error){
+	"-config":     parsePathOption,
+	"-metadir":    parsePathOption,
+	"-seed":       parseRandomOption,
+	"-aril":       parseRandomOption,
+	"-lncheck":    parseLivenessOption,
+	"-dump":       parseDumpOption,
+	"-workers":    parseWorkersOption,
+	"-fp":         parseFingerprintOption,
+	"-checkpoint": parseCheckpointOption,
+	"-maxSetSize": parseMaxSetSizeOption,
+	"-I":          parseLibraryOption,
+	"-simulate":   parseSimulationOption,
+	"-depth":      parseSimulationDepth,
+}
+
+func setHelp(opts *options)    { opts.help = true }
+func setVersion(opts *options) { opts.version = true }
 
 func parseOptions(args []string) (options, error) {
-	opts := options{simulationUnlimited: true, simulationDepth: 100}
+	opts := options{simulationUnlimited: true, simulationDepth: 100, workers: 1}
 	for i := 0; i < len(args); i++ {
 		consumed, err := parseOption(&opts, args[i:])
 		if err != nil {
@@ -31,42 +72,82 @@ func parseOptions(args []string) (options, error) {
 }
 
 func parseOption(opts *options, args []string) (int, error) {
-	switch args[0] {
-	case "-h", "--help", "-help":
-		opts.help = true
-	case "-version", "--version":
-		opts.version = true
-	case "-deadlock":
-		opts.deadlockOff = true
-	case "-debug-liveness":
-		opts.debugLiveness = true
-	case "-modern-random-subsets":
-		opts.modernRandomSubsets = true
-	case "-tool":
-		opts.tool = true
-	case "-config", "-seed", "-aril", "-lncheck", "-dump", "-workers", "-fp", "-metadir", "-I":
-		return parseValueOption(opts, args)
-	default:
-		return parseOtherOption(opts, args)
+	if set, ok := flagOptions[args[0]]; ok {
+		set(opts)
+		return 0, nil
 	}
-	return 0, nil
+	if parse, ok := valueOptions[args[0]]; ok {
+		return parse(opts, args)
+	}
+	return 0, parsePath(opts, args[0])
 }
 
+func parsePathOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, fmt.Errorf("%s requires a path", args[0])
+	}
+	if args[0] == "-config" {
+		opts.configPath = args[1]
+	} else {
+		opts.metaRoot = args[1]
+	}
+	return 1, nil
+}
+
+func parseLivenessOption(_ *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, errMissingLivenessStrategy
+	}
+	return 1, nil
+}
+
+func parseLibraryOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, fmt.Errorf("-I requires a path")
+	}
+	opts.libraryPaths = append(opts.libraryPaths, args[1])
+	return 1, nil
+}
+
+// parseDumpOption follows TLC: an argument starting with "dot" selects a DOT
+// graph when a file name follows it; otherwise the argument names a plain
+// state dump.
 func parseDumpOption(opts *options, args []string) (int, error) {
-	if len(args) < 3 || args[2] == "" {
-		return 0, fmt.Errorf("-dump requires dot,actionlabels and an output path")
+	if len(args) > 2 && strings.HasPrefix(args[1], "dot") {
+		format, err := parseDOTFormat(args[1])
+		if err != nil {
+			return 0, err
+		}
+		opts.dumpDOT = &format
+		return 2, setDumpPath(opts, args[2], ".dot")
 	}
-	if args[1] != "dot,actionlabels" {
-		return 0, fmt.Errorf("unsupported dump format %s", args[1])
+	if len(args) < 2 {
+		return 0, commandLineError("Error: A file name for dumping states required.")
 	}
-	opts.dumpPath = args[2]
-	if !strings.HasSuffix(opts.dumpPath, ".dot") {
-		opts.dumpPath += ".dot"
-	}
-	return 2, nil
+	opts.dumpDOT = nil
+	return 1, setDumpPath(opts, args[1], ".dump")
 }
 
-func parseFixedOption(opts *options, args []string) (int, error) {
+func parseDOTFormat(text string) (dotFormat, error) {
+	text = strings.ToLower(text)
+	if strings.Contains(text, "snapshot") {
+		return dotFormat{}, fmt.Errorf("unsupported dump option snapshot")
+	}
+	return dotFormat{colorize: strings.Contains(text, "colorize"), actionLabels: strings.Contains(text, "actionlabels")}, nil
+}
+
+func setDumpPath(opts *options, path, suffix string) error {
+	if path == "" {
+		return fmt.Errorf("-dump requires an output path")
+	}
+	opts.dumpPath = path
+	if !strings.HasSuffix(path, suffix) {
+		opts.dumpPath += suffix
+	}
+	return nil
+}
+
+func parseFingerprintOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, fmt.Errorf("%s requires an integer", args[0])
 	}
@@ -74,45 +155,66 @@ func parseFixedOption(opts *options, args []string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid %s value %s", args[0], args[1])
 	}
-	if unsupportedFixedOption(args[0], parsed) {
+	if parsed < 0 || parsed >= value.TLCFingerprintPolynomialCount {
 		return 0, fmt.Errorf("unsupported %s value %s", args[0], args[1])
 	}
-	if args[0] == "-fp" {
-		opts.fingerprint = parsed
+	opts.fingerprint = parsed
+	return 1, nil
+}
+
+// parseWorkersOption accepts Java TLC's worker counts. Exploration is
+// sequential regardless of the count.
+func parseWorkersOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, commandLineError("Error: expect an integer or 'auto' for -workers option.")
+	}
+	if strings.ToLower(strings.TrimSpace(args[1])) == "auto" {
+		opts.workers = runtime.NumCPU()
+		return 1, nil
+	}
+	workers, err := strconv.ParseInt(args[1], 10, 32)
+	if err != nil {
+		return 0, commandLineError("Error: worker number or 'auto' required. But encountered " + args[1])
+	}
+	if workers < 1 {
+		return 0, commandLineError("Error: at least one worker required.")
+	}
+	opts.workers = int(workers)
+	return 1, nil
+}
+
+// parseCheckpointOption validates Java TLC's checkpoint interval in minutes.
+// tla-go does not write checkpoints.
+func parseCheckpointOption(_ *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, commandLineError("Error: checkpoint interval required.")
+	}
+	minutes, err := strconv.ParseInt(args[1], 10, 32)
+	if err != nil {
+		return 0, commandLineError("Error: An integer for checkpoint interval is required. But encountered " + args[1])
+	}
+	// Java computes the interval in milliseconds with 32-bit arithmetic and
+	// rejects intervals that wrap around to a negative value.
+	if int32(minutes)*1000*60 < 0 {
+		return 0, commandLineError("Error: expect a nonnegative integer for -checkpoint option.")
 	}
 	return 1, nil
 }
 
-func unsupportedFixedOption(option string, number int) bool {
-	if option == "-workers" {
-		return number != 1
+// parseMaxSetSizeOption accepts Java TLC's bound on enumerated set sizes.
+func parseMaxSetSizeOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, commandLineError("Error: maxSetSize required.")
 	}
-	return number < 0 || number >= value.TLCFingerprintPolynomialCount
-}
-
-func parseValueOption(opts *options, args []string) (int, error) {
-	switch args[0] {
-	case "-config", "-metadir":
-		if len(args) < 2 {
-			return 0, fmt.Errorf("%s requires a path", args[0])
-		}
-		if args[0] == "-config" {
-			opts.configPath = args[1]
-		} else {
-			opts.metaRoot = args[1]
-		}
-		return 1, nil
-	case "-seed", "-aril":
-		return parseRandomOption(opts, args)
-	case "-lncheck":
-		if len(args) < 2 {
-			return 0, errMissingLivenessStrategy
-		}
-		return 1, nil
-	case "-dump", "-workers", "-fp", "-I":
-		return parseAuxiliaryOption(opts, args)
+	bound, err := strconv.ParseInt(args[1], 10, 32)
+	if err != nil {
+		return 0, commandLineError("Error: An integer for maxSetSize required. But encountered " + args[1])
 	}
-	return 0, nil
+	if bound < 1 {
+		return 0, commandLineError("Error: Value in interval [0, 2147483647] for maxSetSize required. But encountered " + args[1])
+	}
+	opts.maxSetSize = int(bound)
+	return 1, nil
 }
 
 func parseRandomOption(opts *options, args []string) (int, error) {
@@ -130,20 +232,6 @@ func parseRandomOption(opts *options, args []string) (int, error) {
 		opts.seedSet = true
 	}
 	return 1, nil
-}
-
-func parseAuxiliaryOption(opts *options, args []string) (int, error) {
-	if args[0] == "-I" {
-		if len(args) < 2 {
-			return 0, fmt.Errorf("-I requires a path")
-		}
-		opts.libraryPaths = append(opts.libraryPaths, args[1])
-		return 1, nil
-	}
-	if args[0] == "-dump" {
-		return parseDumpOption(opts, args)
-	}
-	return parseFixedOption(opts, args)
 }
 
 func parsePath(opts *options, path string) error {

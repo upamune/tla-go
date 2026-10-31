@@ -3,6 +3,7 @@ package checker
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -74,19 +75,26 @@ func (m *model) childrenHaveAction(expr *parser.Expression, seen map[string]bool
 }
 
 func (m *model) validateStateDependence() error {
-	if len(m.names) == 0 {
-		return nil
-	}
-	for _, name := range []string{m.cfg.Init, m.cfg.Next} {
-		if name == "" {
+	for _, item := range []struct{ kind, name string }{{"initial predicate", m.cfg.Init}, {"next state action", m.cfg.Next}} {
+		if item.name == "" || m.dependsOnState(item.name) {
 			continue
 		}
-		expr, _ := m.definition(name)
-		if !m.readsState(expr, map[string]bool{}) && !m.hasTemporal(expr, map[string]bool{}) && !m.constantFalseNext(name, expr) {
-			return fmt.Errorf("%s cannot be a constant", name)
+		if !m.fromSpecification && !strings.HasPrefix(item.name, "!spec!") {
+			// Java TLC replaces constant definitions by their values, so a
+			// configured INIT or NEXT that reads no variable is a constant,
+			// even in a model without variables.
+			return &ConfigurationError{Message: fmt.Sprintf("The %s %s cannot be a constant.", item.kind, item.name), Code: 2233}
+		}
+		if len(m.names) > 0 {
+			return fmt.Errorf("%s cannot be a constant", item.name)
 		}
 	}
 	return nil
+}
+
+func (m *model) dependsOnState(name string) bool {
+	expr, _ := m.definition(name)
+	return m.readsState(expr, map[string]bool{}) || m.hasTemporal(expr, map[string]bool{}) || m.constantFalseNext(name, expr)
 }
 
 func (m *model) constantFalseNext(name string, expr *parser.Expression) bool {

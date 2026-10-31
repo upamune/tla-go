@@ -19,7 +19,7 @@ type jsonObject []jsonMember
 
 func (e *evaluator) jsonDecode(text, signature string) (value.Value, error) {
 	if strings.TrimSpace(text) == "" {
-		return value.Value{}, jsonOverrideError(signature, "Cannot convert value: unsupported JSON value null")
+		return value.Value{}, javaOverrideError(signature, "Cannot convert value: unsupported JSON value null")
 	}
 	decoder := json.NewDecoder(strings.NewReader(text))
 	decoder.UseNumber()
@@ -33,7 +33,7 @@ func (e *evaluator) jsonDecode(text, signature string) (value.Value, error) {
 			err = fmt.Errorf("unexpected trailing JSON value")
 		}
 	}
-	return value.Value{}, jsonOverrideError(signature, err.Error())
+	return value.Value{}, javaOverrideError(signature, err.Error())
 }
 
 func jsonReadNode(decoder *json.Decoder) (any, error) {
@@ -103,7 +103,7 @@ func (e *evaluator) jsonFromNode(node any, signature string) (value.Value, error
 	case jsonObject:
 		return e.jsonFromObject(item, signature)
 	default:
-		return value.Value{}, jsonOverrideError(signature, "Cannot convert value: unsupported JSON value null")
+		return value.Value{}, javaOverrideError(signature, "Cannot convert value: unsupported JSON value null")
 	}
 }
 

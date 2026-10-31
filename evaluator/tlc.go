@@ -56,6 +56,9 @@ func (e *evaluator) callTLCValue(name string, args []value.Value) (value.Value, 
 	if name == "Print" || name == "PrintT" {
 		return e.printTLC(name, args)
 	}
+	if name == "@@" {
+		return e.program.combineFunctions(args[0], args[1])
+	}
 	return tlcValue(name, args)
 }
 
@@ -117,8 +120,6 @@ func tlcValue(name string, args []value.Value) (value.Value, error) {
 	switch name {
 	case ":>":
 		return value.Function([]value.Pair{{Key: args[0], Value: args[1]}})
-	case "@@":
-		return overrideFunctions(args[0], args[1])
 	case "ToString":
 		text, err := args[0].StrictString()
 		if err != nil {
@@ -136,7 +137,9 @@ func tlcValue(name string, args []value.Value) (value.Value, error) {
 	}
 }
 
-func overrideFunctions(left, right value.Value) (value.Value, error) {
+// combineFunctions computes f @@ g. Java TLC's CombineFcn collects the
+// combined domain in a ValueVec.
+func (p *Program) combineFunctions(left, right value.Value) (value.Value, error) {
 	a, err := left.Pairs()
 	if err != nil {
 		return value.Value{}, err
@@ -145,7 +148,15 @@ func overrideFunctions(left, right value.Value) (value.Value, error) {
 	if err != nil {
 		return value.Value{}, err
 	}
-	return value.Function(append(a, b...))
+	result, err := value.Function(append(a, b...))
+	if err != nil || len(a)+len(b) <= p.setLimit() {
+		return result, err
+	}
+	pairs, err := result.Pairs()
+	if err != nil {
+		return value.Value{}, err
+	}
+	return result, p.checkMethodSetSize(combineFcnSignature, len(pairs))
 }
 
 func permutations(set value.Value) (value.Value, error) {

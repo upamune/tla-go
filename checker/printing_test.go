@@ -10,7 +10,8 @@ import (
 	"testing"
 )
 
-// Cases from printing.test.ts at the pinned tla-ts revision.
+// Cases from printing.test.ts at the pinned tla-ts revision. The empty
+// function in [{} -> {1}] follows Java TLC 1.7.4, which prints it as << >>.
 func TestUpstreamPrinting(t *testing.T) {
 	for _, tc := range []struct{ expression, output string }{
 		{"3..1", "{}"},
@@ -21,7 +22,7 @@ func TestUpstreamPrinting(t *testing.T) {
 		{"SUBSET (3..1)", "{{}}"},
 		{"[{1} -> {2, 3}]", "{<<2>>, <<3>>}"},
 		{"[1..2 -> 1..45]", "[1..2 -> 1..45]"},
-		{"[{} -> {1}]", "{<<>>}"},
+		{"[{} -> {1}]", "{<< >>}"},
 		{"[a : {1, 2}]", "{[a |-> 1], [a |-> 2]}"},
 		{"[a : 1..2000]", "[a: 1..2000]"},
 		{"{1} \\X {2, 3}", "{<<1, 2>>, <<1, 3>>}"},

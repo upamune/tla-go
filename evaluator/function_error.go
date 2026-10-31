@@ -4,17 +4,20 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
 )
 
-func functionLookup(fn, key value.Value, keepLazy bool) (value.Value, error) {
+func functionLookup(expr *parser.Expression, fn, key value.Value, keepLazy bool) (value.Value, error) {
 	result, err := fn.LookupWithLazyResult(key, keepLazy)
 	if err == nil {
 		return result, nil
 	}
 	if fn.Kind() != value.FunctionKind && fn.Kind() != value.LazyFunctionKind {
-		message := fmt.Sprintf("Attempted to apply %s, which is not a function", fn)
-		return value.Value{}, &RuntimeError{Message: message, Legacy: err.Error()}
+		// Java TLC's Tool.evalAppl reports this through Assert.fail.
+		r := expr.Location.Range
+		message := fmt.Sprintf("A non-function (%s) was applied as a function.\nline %d, col %d to line %d, col %d of module %s", fn.TLCKindDescription(), r.Start.Line, r.Start.Column, r.End.Line, r.End.Column, r.Module)
+		return value.Value{}, &value.UnexpectedError{Message: message}
 	}
 	if errors.Is(err, value.ErrOutsideFunctionDomain) {
 		return value.Value{}, &RuntimeError{Message: domainFailureMessage(fn, key), Legacy: err.Error(), TrackSource: fn.IsTuple()}

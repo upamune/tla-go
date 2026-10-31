@@ -25,12 +25,17 @@ type options struct {
 	debugLiveness              bool
 	modernRandomSubsets        bool
 	tool                       bool
+	noWarning                  bool
+	view                       bool
 	sanyMetadata               bool
 	dumpPath                   string
+	dumpDOT                    *dotFormat
 	onPause                    func()
 	seed                       int64
 	aril                       int64
 	fingerprint                int
+	workers                    int
+	maxSetSize                 int
 	simulate, seedSet          bool
 	continuation               bool
 	simulationTraces           int
@@ -41,7 +46,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers 1] [-fp N] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -50,13 +55,11 @@ func run(ctx context.Context, args []string, out, errout io.Writer) int {
 
 func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) int {
 	opts, err := parseOptions(args)
+	if err == nil {
+		err = checkDumpPath(opts.dumpPath, out)
+	}
 	if err != nil {
-		fmt.Fprintln(errout, err)
-		if errors.Is(err, errMissingLivenessStrategy) {
-			return 1
-		}
-		usage(errout)
-		return 255
+		return reportOptionError(opts, err, out, errout)
 	}
 	if opts.help {
 		usage(out)
@@ -72,6 +75,24 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	reader := bufio.NewReader(input)
 	opts.onPause = func() { _, _ = reader.ReadString('\n') }
 	return runModels(ctx, opts, out, errout)
+}
+
+// reportOptionError reports Java TLC's parameter errors as message 1102 when
+// -tool precedes them, as Java TLC does, and on standard error otherwise.
+func reportOptionError(opts options, err error, out, errout io.Writer) int {
+	if _, ok := errors.AsType[commandLineError](err); !ok {
+		fmt.Fprintln(errout, err)
+		usage(errout)
+		return 255
+	}
+	if !opts.tool {
+		fmt.Fprintln(errout, err)
+		return 1
+	}
+	t := toolOutput{out: out}
+	t.message(2262, 0, "tla-go "+version)
+	t.message(1102, 1, err.Error()+"\nUsage: java tlc2.TLC [-option] inputfile")
+	return 1
 }
 
 func runModel(ctx context.Context, opts options, out, errout io.Writer) (code int) {
@@ -127,16 +148,17 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 }
 
 func checkModelWithOutput(ctx context.Context, opts options, module *parser.Module, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
-	graph, err := openGraphDump(opts.dumpPath)
+	graph, err := openStateDump(opts.dumpPath, opts.dumpDOT)
 	if err != nil {
 		return checker.Result{}, err
 	}
-	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets}
+	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, ViewStates: opts.view}
 	configureCheckingMode(&checkOptions, opts, module, out)
 	if graph != nil {
 		checkOptions.OnGraph = graph.event
 	}
 	checkOptions.OnSearch = configuredSearchOutput(opts, out)
+	checkOptions.OnWarning = configuredWarningOutput(opts, out)
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}
@@ -149,8 +171,8 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	return result, err
 }
 
-func graphShouldFinish(result checker.Result, err error, graph *dotDump) bool {
-	return err == nil && !(result.Violation != nil && initialViolation(result)) && !(result.Failure != nil && len(graph.levels) == 0)
+func graphShouldFinish(result checker.Result, err error, graph stateDump) bool {
+	return err == nil && !(result.Violation != nil && initialViolation(result)) && !(result.Failure != nil && graph.empty())
 }
 
 func reportModelError(out, errout io.Writer, err error) int {

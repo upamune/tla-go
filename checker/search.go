@@ -44,13 +44,16 @@ type search struct {
 
 func (m *model) check() (Result, error) {
 	m.tlcRuntime.started = true
+	m.emitLivenessWarnings()
 	if result, failed, err := m.checkAssumptions(); failed || err != nil {
 		return result, err
 	}
+	m.emitSearchEvent(SearchEvent{Kind: InitialStart})
 	if m.noStateSearch() {
+		// Java TLC still reports that no initial states were generated.
+		m.emitSearchEvent(SearchEvent{Kind: InitialComplete})
 		return Result{Status: Success, Depth: 1}, nil
 	}
-	m.emitSearchEvent(SearchEvent{Kind: InitialStart})
 	init, _ := m.definition(m.cfg.Init)
 	s := newSearch(m)
 	m.tlcRuntime.search = &s
@@ -199,7 +202,7 @@ func (s *search) expandRawNode(index int, next *parser.Expression) (bool, error)
 	}}
 	more, err := gen.solve([]work{{expr: next, label: true}}, evaluator.State{}, s.model.cfg.Next)
 	if err != nil || !more {
-		addEnclosingActionSource(err, next)
+		addEnclosingActionSource(err, gen.actionRoot(next))
 		if s.result.HasOutDegrees {
 			// Java TLC samples a state's outdegree only after its expansion finishes.
 			s.result.OutDegrees = s.outDegrees
@@ -241,7 +244,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	defer func() { s.model.tlcRuntime.level = oldLevel }()
 	s.result.GeneratedStates++
 	if parent < 0 {
-		s.model.tlcRuntime.initial++
+		s.countInitialState()
 	}
 	s.result.Depth = max(s.result.Depth, 1)
 	key, inModel, err := s.candidateKeyAndConstraints(state, parent)
@@ -261,6 +264,13 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	}
 	s.addIfIncluded(state, parent, action, key, inModel)
 	return true, nil
+}
+
+func (s *search) countInitialState() {
+	if n := s.model.tlcRuntime.initial; n > 1 && n&(n-1) == 0 {
+		s.model.emitSearchEvent(SearchEvent{Kind: InitialProgress, GeneratedStates: n})
+	}
+	s.model.tlcRuntime.initial++
 }
 
 func (s *search) candidateLevel(parent int) int {

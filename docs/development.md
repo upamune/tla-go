@@ -60,6 +60,12 @@ Both report generated states as `states/op`.
 mise exec -- go test ./checker -run '^$' -bench '^BenchmarkSimulation(Traces|TraceConstraint)$' -benchmem -benchtime=1x -count=3
 ```
 
+`BenchmarkSetConstruction` measures set maps, filters, set operations, and `UNION`, which check `-maxSetSize`:
+
+```sh
+mise exec -- go test ./evaluator -run '^$' -bench '^BenchmarkSetConstruction$' -benchmem -count=5
+```
+
 ## Compare with Java TLC
 
 CI downloads the official Java TLC 1.7.4 and 1.8.0 JARs, verifies their SHA-256 hashes, and runs selected comparisons. To run them locally, install a Java Development Kit (including `java` and `javac`), point `TLC_JAR` to an absolute path to the JAR, and run:

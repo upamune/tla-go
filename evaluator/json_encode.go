@@ -89,11 +89,7 @@ func jsonKey(key value.Value) (string, error) {
 }
 
 func jsonUnsupported(signature string, v value.Value) error {
-	return jsonOverrideError(signature, fmt.Sprintf("Cannot convert value: unsupported value type tlc2.value.impl.%s", jsonJavaClass(v)))
-}
-
-func jsonOverrideError(signature, message string) error {
-	return &RuntimeError{Message: fmt.Sprintf("Attempted to apply the operator overridden by the Java method\n%s,\nbut it produced the following error:\n%s", signature, message), Standard: true}
+	return javaOverrideError(signature, fmt.Sprintf("Cannot convert value: unsupported value type tlc2.value.impl.%s", jsonJavaClass(v)))
 }
 
 func jsonJavaClass(v value.Value) string {

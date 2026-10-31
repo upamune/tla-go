@@ -95,6 +95,7 @@ type Program struct {
 	constantCache   map[string]value.Value
 	constantTLCEval map[*parser.Expression]bool
 	tlcEvalCache    map[*parser.Expression]value.Value
+	setBound        int
 }
 
 // New prepares the definitions in a module for repeated evaluation.

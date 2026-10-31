@@ -75,3 +75,15 @@ func TestSimulationTraceCallbackError(t *testing.T) {
 		t.Fatalf("got %v; want %v", err, failure)
 	}
 }
+
+func TestSimulationAssertionFailureTrace(t *testing.T) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x=0\nNext == x'=x+1 /\\ Assert(x < 2, \"stop\")\n===="
+	result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next", Options{Simulation: &SimulationOptions{Traces: 1, Depth: 10}})
+	failure := result.Failure
+	if err != nil || result.Status != EvaluationFailure || failure == nil || failure.ToolCode != 1000 || failure.NestedToolCode != 2132 || failure.ExitCode != 255 || len(failure.Trace) != 3 || failure.SuppressStatistics {
+		t.Fatalf("result %+v, failure %+v, err %v", result, failure, err)
+	}
+	if !strings.HasSuffix(failure.Message, "The exception was a tlc2.tool.EvalException\n: "+failure.NestedMessage) {
+		t.Fatalf("message %q", failure.Message)
+	}
+}

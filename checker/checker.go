@@ -35,6 +35,9 @@ type TraceStep struct {
 	ActionRange parser.Range
 	// StateOrder records the display order for state or ALIAS-generated fields.
 	StateOrder []string
+	// View is the state as TLC prints it through VIEW when Options.ViewStates
+	// is set. It is empty when the state is printed directly.
+	View string
 }
 type Violation struct {
 	Name    string
@@ -136,6 +139,8 @@ type model struct {
 	debug                func(string)
 	graph                func(GraphEvent) error
 	searchEvent          func(SearchEvent)
+	warning              func(Warning)
+	viewStates           bool
 	continueChecking     bool
 	onContinuedViolation func(Result)
 }
@@ -171,6 +176,18 @@ type Options struct {
 	OnGraph func(GraphEvent) error
 	// OnSearch receives synchronous initial-state progress events when set.
 	OnSearch func(SearchEvent)
+	// MaxSetSize is Java TLC's -maxSetSize bound on sets that are built element
+	// by element. A nonpositive value selects TLC's default of 1,000,000.
+	MaxSetSize int
+	// Workers is the -workers count that model checking reports through
+	// TLCGet("config"); exploration is sequential. A nonpositive value means 1.
+	Workers int
+	// ViewStates prints trace states through the configured VIEW, as TLC's
+	// -view option does, by setting TraceStep.View.
+	ViewStates bool
+	// OnWarning receives Java TLC warnings before model checking starts.
+	// Simulation does not report these warnings, matching Java TLC.
+	OnWarning func(Warning)
 }
 
 // SimulationOptions bounds the number and length of simulated traces. A
@@ -357,11 +374,7 @@ func (m *model) finalizeCheckResult(result Result) (Result, error) {
 			return result, err
 		}
 	}
-	if m.cfg.Alias != "" {
-		m.applyAlias(&result)
-	}
-	m.applyTraceOrder(&result)
-	m.applyActionRanges(&result)
+	m.presentTraces(&result)
 	if result.Status == AssumptionViolation || result.Status == EvaluationFailure || m.noStateSearch() {
 		return result, nil
 	}
@@ -422,9 +435,10 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: modelWarning(options), viewStates: options.ViewStates}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
+	m.program.SetBound(options.MaxSetSize)
 	m.sourceUnits = sourceUnits
 	runtime.model = m
 	m.enabledCallback = m.enabled
@@ -532,11 +546,25 @@ func (m *model) validateModel() error {
 	return m.validatePossibleAndStateDependence()
 }
 
+// modelWarning returns the callback for model checking warnings, which Java
+// TLC's simulator does not report.
+func modelWarning(options Options) func(Warning) {
+	if options.Simulation != nil {
+		return nil
+	}
+	return options.OnWarning
+}
+
 func (m *model) prepareConfiguredProperties() error {
 	if err := m.validateConstantPredicates(); err != nil {
 		return err
 	}
-	return m.prepareProperties()
+	err := m.prepareProperties()
+	if failure, ok := errors.AsType[*ModelValidationError](err); ok && failure.Code == 2253 {
+		// Java TLC's AbstractChecker warns before LiveCheck rejects a tautology.
+		m.emitLivenessWarnings()
+	}
+	return err
 }
 
 func (m *model) validatePossibleAndStateDependence() error {

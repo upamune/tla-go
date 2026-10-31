@@ -59,6 +59,17 @@ an unsatisfied CHOOSE, and comparison of incompatible function-domain values.
 `etest6` is unchanged from the same suite. It tests a next-state action that
 reads an unassigned primed variable through an operator argument.
 
+`ViewMap` is an unchanged model from the upstream `test-model` directory. Its
+upstream `ViewMapTest` runs it with `-view` and checks the printed trace.
+
+`TraceWithLargeSetOfInitialStatesTest` is an unchanged model from the upstream
+`test-model` directory. Its upstream test runs it with `-maxSetSize 10`, which
+is smaller than its number of initial states.
+
+`etest4` and `etest8` are unchanged models from the same suite. They test the
+error stack for applying a model value as a function in an initial predicate,
+and the behavior reported for a failed `Assert` during simulation.
+
 `etest7` and `test201a` are unchanged models from the same suite. They test
 configuration substitution of a nonconstant expression and an unassigned
 operator constant.
