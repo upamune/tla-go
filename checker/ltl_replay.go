@@ -209,7 +209,7 @@ func (s *search) replaySuccessors(current, target evaluator.State) (TraceStep, e
 		candidates = append(candidates, TraceStep{State: state, Action: action, ActionRange: actionSourceRange(source)})
 		return true, nil
 	}}
-	if _, err := gen.solve([]work{{expr: next, label: true}}, evaluator.State{}, s.model.cfg.Next); err != nil {
+	if _, err := gen.solveNext(next); err != nil {
 		return TraceStep{}, err
 	}
 	step, found, err := s.replayFindCandidate(candidates, target)

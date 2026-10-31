@@ -197,7 +197,7 @@ func (s *search) expandRawNode(index int, next *parser.Expression) (bool, error)
 		}
 		return s.visit(state, index, action, source)
 	}}
-	more, err := gen.solve([]work{{expr: next, label: true}}, evaluator.State{}, s.model.cfg.Next)
+	more, err := gen.solveNext(next)
 	if err != nil || !more {
 		addEnclosingActionSource(err, next)
 		if s.result.HasOutDegrees {

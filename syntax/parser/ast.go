@@ -112,6 +112,9 @@ type Definition struct {
 	// InstanceRange and InstanceParamCount preserve the source instance for TLC descriptions.
 	InstanceRange      Range `json:"-"`
 	InstanceParamCount int   `json:"-"`
+	// InstanceSubstituted marks an instantiated definition of a module that
+	// declares constants or variables, whose body SANY wraps in substitutions.
+	InstanceSubstituted bool `json:"-"`
 	// InstanceStandardModules are visible to this instantiated definition.
 	InstanceStandardModules []string `json:"-"`
 	// BuiltinInstance identifies an inherited standard-operator wrapper.

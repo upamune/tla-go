@@ -24,7 +24,11 @@ type depthFirstCase struct {
 	// and, after an error in Init, the identity of its Tool object; tla-go
 	// lists only the expressions enclosing the error.
 	skipPositions bool
+	// modules are other modules of the case, by name.
+	modules map[string]string
 }
+
+const depthFirstInner = "---- MODULE Inner ----\nEXTENDS Naturals\nVARIABLE y\nN == y' = y + 1 \\/ y' = y + 2 \\/ y' = y + 3\n===="
 
 // The upstream JUnit tests DepthFirstDieHardTest, DepthFirstErrorTraceTest,
 // and DepthFirstTerminate, followed by small models whose Java TLC output does
@@ -46,6 +50,9 @@ var depthFirstCases = []depthFirstCase{
 	{name: "constraints", body: "VARIABLE y\nInit == x \\in 0..2 /\\ y=0\nNext == (x'=x+1 /\\ y'=y) \\/ (y'=y+1 /\\ x'=x)\nC == x+y<4\nA == ~(x'=2 /\\ y'=1)", cfg: "CONSTRAINT C\nACTION_CONSTRAINT A\n", args: []string{"-deadlock", "-dfid", "20"}, code: 0, counts: "47 states generated, 9 distinct states found."},
 	{name: "continue", body: "VARIABLE y\nInit == x \\in 0..2 /\\ y=0\nNext == (x'=x+1 /\\ y'=y) \\/ (y'=y+1 /\\ x'=x)\nC == x+y<4\nInv == ~(x=1 /\\ y=2)", cfg: "CONSTRAINT C\nINVARIANT Inv\n", args: []string{"-deadlock", "-continue", "-dfid", "20"}, code: 0, counts: "49 states generated, 10 distinct states found.", states: 3},
 	{name: "invariant failure", body: "Init == x=0\nNext == x<5 /\\ x'=x+1\nInv == IF x=2 THEN 1 \\div 0 = 0 ELSE TRUE", cfg: "INVARIANT Inv\n", args: []string{"-dfid", "10"}, code: 76, counts: "5 states generated, 3 distinct states found.", states: 3},
+	{name: "multiple bounds", body: "Init == x=0\nNext == \\E i \\in 1..2, j \\in 1..2 : x' = x + 10*i + j\nInv == x \\notin {12, 21}", cfg: "INVARIANT Inv\n", args: []string{"-deadlock", "-dfid", "5"}, code: 12, counts: "3 states generated, 3 distinct states found.", states: 2},
+	{name: "repeated bound", body: "Init == x=0\nNext == \\E i, j \\in 1..2 : x' = x + 10*i + j\nInv == x # 21", cfg: "INVARIANT Inv\n", args: []string{"-deadlock", "-dfid", "5"}, code: 12, counts: "3 states generated, 3 distinct states found.", states: 2},
+	{name: "instance substitution", body: "I == INSTANCE Inner WITH y <- x\nInit == x=0\nNext == I!N\nInv == x # 2", cfg: "INVARIANT Inv\n", args: []string{"-deadlock", "-dfid", "5"}, code: 12, counts: "4 states generated, 3 distinct states found.", states: 2, modules: map[string]string{"Inner": depthFirstInner}},
 	{name: "next-state error", body: "Init == x=0\nNext == x' = IF x = 2 THEN 1 \\div 0 ELSE x + 1", args: []string{"-dfid", "10"}, code: 255, counts: "6 states generated, 3 distinct states found.", states: 3},
 	{name: "constraint error", body: "Init == x=0\nNext == x<5 /\\ x'=x+1\nC == IF x=3 THEN 1 \\div 0 = 0 ELSE TRUE", cfg: "CONSTRAINT C\n", args: []string{"-dfid", "10"}, code: 255, counts: "8 states generated, 3 distinct states found.", states: 4},
 	{name: "action constraint error", body: "Init == x=0\nNext == x<5 /\\ x'=x+1\nC == IF x'=3 THEN 1 \\div 0 = 0 ELSE TRUE", cfg: "ACTION_CONSTRAINT C\n", args: []string{"-dfid", "10"}, code: 255, counts: "8 states generated, 3 distinct states found.", states: 4},
@@ -84,6 +91,11 @@ func TestJavaTLCDepthFirst(t *testing.T) {
 func writeDepthFirstCase(t *testing.T, tc depthFirstCase) (string, string) {
 	t.Helper()
 	dir := t.TempDir()
+	for name, source := range tc.modules {
+		if err := os.WriteFile(filepath.Join(dir, name+".tla"), []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if tc.spec == "" {
 		writeDOTFixture(t, dir, "VARIABLE x\n"+tc.body, "INIT Init\nNEXT Next\n"+tc.cfg)
 		return dir, "M"

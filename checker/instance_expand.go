@@ -47,12 +47,14 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 
 func appendInstanceDefinitions(result, module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet map[string]int, variables map[string]bool, scope string) {
 	standardNames := instanceStandardNames(module)
+	substituted := len(module.Constants)+len(module.Variables) > 0
 	for _, definition := range module.Definitions {
 		if instance.Name == "" && definition.BuiltinInstance && hasBuiltinInstanceDefinition(result.Definitions, generated[definition.Name]) {
 			continue
 		}
 		markInstanceStandardDefinition(&definition, standardNames)
 		generatedDef := instanceDefinition(definition, instance, replacements, generated, generatedSet, variables, scope)
+		generatedDef.InstanceSubstituted = generatedDef.InstanceSubstituted || substituted
 		generatedDef.InstanceStandardModules = append([]string(nil), generatedDef.InstanceStandardModules...)
 		generatedDef.InstanceStandardModules = appendUniqueModules(generatedDef.InstanceStandardModules, module.Extends...)
 		generatedDef.InstanceStandardModules = appendUniqueModules(generatedDef.InstanceStandardModules, module.InstanceStandardModules...)

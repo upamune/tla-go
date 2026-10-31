@@ -11,10 +11,12 @@ import (
 )
 
 func TestJavaTLCBranchActionSources(t *testing.T) {
+	inner := "---- MODULE Inner ----\nEXTENDS Naturals\nVARIABLE y\nN == y' = y + 1 \\/ y' = y + 2 \\/ y' = y + 3\n===="
 	cases := []struct {
 		name, source, cfg string
 		exit              int
 		markers           []string
+		modules           map[string]string
 	}{
 		{
 			"Branches", `---- MODULE Branches ----
@@ -26,6 +28,7 @@ Next == \/ /\ x = 0 /\ x' = 1
 Inv == x < 2
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <Next line 5, col 12 to line 5, col 29 of module Branches>", "State 3: <Next line 6, col 12 to line 6, col 29 of module Branches>"},
+			nil,
 		},
 		{
 			"Quantified", `---- MODULE Quantified ----
@@ -36,6 +39,7 @@ Next == \E n \in {1,2} : /\ x = 0 /\ x' = n
 Inv == x < 1
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <Next line 5, col 26 to line 5, col 43 of module Quantified>"},
+			nil,
 		},
 		{
 			"IfNext", `---- MODULE IfNext ----
@@ -48,6 +52,7 @@ Next == IF x = 0 THEN A ELSE B
 Inv == x < 1
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <Next line 7, col 9 to line 7, col 30 of module IfNext>"},
+			nil,
 		},
 		{
 			"DynamicQuantified", `---- MODULE DynamicQuantified ----
@@ -59,6 +64,7 @@ Next == \E n \in {x+1,x+2} : A(n)
 Inv == x < 1
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <Next line 6, col 9 to line 6, col 33 of module DynamicQuantified>"},
+			nil,
 		},
 		{
 			"SpecBranch", `---- MODULE SpecBranch ----
@@ -68,6 +74,7 @@ Spec == /\ x = 0 /\ [][x' = 1 \/ x' = 2]_x
 Inv == x < 1
 ====`, "SPECIFICATION Spec\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <Action line 4, col 24 to line 4, col 29 of module SpecBranch>"},
+			nil,
 		},
 		{
 			"Parameterized", `---- MODULE Parameterized ----
@@ -79,6 +86,7 @@ Next == A(x+1)
 Inv == x < 1
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <A line 6, col 9 to line 6, col 14 of module Parameterized>"},
+			nil,
 		},
 		{
 			"ConstantAction", `---- MODULE ConstantAction ----
@@ -90,6 +98,7 @@ Next == A(1)
 Inv == x < 1
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <A line 5, col 9 to line 5, col 14 of module ConstantAction>"},
+			nil,
 		},
 		{
 			"DynamicSplit", `---- MODULE DynamicSplit ----
@@ -102,6 +111,7 @@ Next == A(x+1)
 Inv == x < 1
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <A line 7, col 9 to line 7, col 14 of module DynamicSplit>"},
+			nil,
 		},
 		{
 			"ConstantSplit", `---- MODULE ConstantSplit ----
@@ -114,6 +124,7 @@ Next == A(1)
 Inv == x < 1
 ====`, "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
 			[]string{"State 1: <Initial predicate>", "State 2: <A line 5, col 12 to line 5, col 17 of module ConstantSplit>"},
+			nil,
 		},
 		{
 			"M", `---- MODULE M ----
@@ -126,12 +137,31 @@ Next == \/ /\ x = "a" /\ x' \in {"b", "c"}
 P == <>[](x = "a")
 ====`, "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n", 13,
 			[]string{"State 1: <Initial predicate>", "State 2: <Next line 5, col 12 to line 5, col 42 of module M>", "State 3: <Next line 7, col 12 to line 7, col 33 of module M>", "Back to state 1: <Next line 6, col 12 to line 6, col 33 of module M>"},
+			nil,
+		},
+		// SANY wraps instantiated definitions in substitutions, and TLC does not
+		// split them into actions.
+		{
+			"Substituted", "---- MODULE Substituted ----\nEXTENDS Naturals\nVARIABLE x\nI == INSTANCE Inner WITH y <- x\nInit == x = 0\nNext == I!N\nInv == x # 2\n====",
+			"INIT Init\nNEXT Next\nINVARIANT Inv\n", 12,
+			[]string{"State 1: <Initial predicate>", "State 2: <I!N line 4, col 1 to line 4, col 31 of module Substituted>"},
+			map[string]string{"Inner": inner},
+		},
+		{
+			"Unnamed", "---- MODULE Unnamed ----\nEXTENDS Naturals\nVARIABLE y\nINSTANCE Inner\nInit == y = 0\nInv == y # 2\n====",
+			"INIT Init\nNEXT N\nINVARIANT Inv\n", 12,
+			[]string{"State 1: <Initial predicate>", "State 2: <N line 4, col 1 to line 4, col 14 of module Unnamed>"},
+			map[string]string{"Inner": inner},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			for name, content := range map[string]string{tc.name + ".tla": tc.source, tc.name + ".cfg": tc.cfg} {
+			files := map[string]string{tc.name + ".tla": tc.source, tc.name + ".cfg": tc.cfg}
+			for name, source := range tc.modules {
+				files[name+".tla"] = source
+			}
+			for name, content := range files {
 				if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
 					t.Fatal(err)
 				}

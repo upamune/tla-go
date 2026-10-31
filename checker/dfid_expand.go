@@ -30,7 +30,7 @@ func newDFIDExpansion(s *dfidSearch, node dfidNode) *dfidExpansion {
 func (e *dfidExpansion) run() (bool, error) {
 	m := e.search.model
 	gen := generator{model: m, current: e.node.state, emit: e.collect, actionStart: e.flush}
-	more, err := gen.solve([]work{{expr: e.search.next, label: true}}, evaluator.State{}, m.cfg.Next)
+	more, err := gen.solveNext(e.search.next)
 	if err != nil {
 		return e.generationFailure(err)
 	}

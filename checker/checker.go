@@ -128,6 +128,7 @@ type model struct {
 	names                []string
 	ctx                  context.Context
 	actionCache          map[*parser.Expression]*parser.Expression
+	instanceActions      map[string]*parser.Expression // Sources of substituted instance actions.
 	funcActionCache      map[*parser.Expression]parser.Definition
 	letCache             map[*parser.Expression]*parser.Expression
 	tlcFingerprint       bool

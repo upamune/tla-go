@@ -177,7 +177,7 @@ func (g *generator) expandWork(item work, expanded *parser.Expression, rest []wo
 	previous := g.source
 	if !g.initial && item.label {
 		action = item.expr.Text
-		g.source = g.stateDependentActionSource(item.expr)
+		g.source = g.unsplitActionSource(item.expr)
 	}
 	more, err := g.solve(prepend(work{expr: expanded, path: path, label: item.label && g.source == nil, locals: item.locals}, rest), partial, action)
 	g.source = previous
@@ -187,6 +187,16 @@ func (g *generator) expandWork(item work, expanded *parser.Expression, rest []wo
 		g.addInitialExpandedSource(item.expr, expanded)
 	}
 	return more, err
+}
+
+// unsplitActionSource is the source of an action call that TLC does not
+// split further: one with state-dependent arguments or a substituted instance.
+func (g *generator) unsplitActionSource(expr *parser.Expression) *parser.Expression {
+	if source := g.stateDependentActionSource(expr); source != nil {
+		return source
+	}
+	d, _ := g.definition(expr.Text)
+	return g.model.instanceActionSource(d)
 }
 
 func (g *generator) stateDependentActionSource(expr *parser.Expression) *parser.Expression {

@@ -222,7 +222,7 @@ func (m *model) recoverViewSuccessor(current evaluator.State, target string) (Tr
 		}
 		return true, nil
 	}}
-	_, err = gen.solve([]work{{expr: next, label: true}}, evaluator.State{}, m.cfg.Next)
+	_, err = gen.solveNext(next)
 	return result, found, err
 }
 
