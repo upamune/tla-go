@@ -104,6 +104,36 @@ meaning. Java TLC 1.8.0 can give different results.
 
 `-sany-metadata` emits only the metadata consumed by statechart, not the complete SANY XML semantic graph. It supports selected higher-order operator calls but rejects some constructs that Java SANY supports, including recursive definitions. Its level analysis and semantic validation are experimental; use Java SANY when complete XML or authoritative analysis is needed.
 
+## Translate PlusCal
+
+`tla-go -translate` takes the arguments of Java's `pcal.trans` and translates the PlusCal algorithm in a module to TLA+:
+
+```sh
+tla-go -translate -wf -termination path/to/Model.tla   # writes Model.tla and Model.cfg
+tla-go path/to/Model.tla                               # checks the translation
+```
+
+Like Java, it replaces the text between `\* BEGIN TRANSLATION` and `\* END TRANSLATION`, or inserts those lines after the comment containing the algorithm. It keeps the previous file as `Model.old` and writes `SPECIFICATION Spec` and the statements the options require to `Model.cfg`, preserving the lines that follow its `\* Add statements after this line.` comment. Options can also be given in the module with `PlusCal options (wf, termination)`. The exit code is 0 on success and 255 on errors, which are printed to standard output as in Java.
+
+| Option | Purpose |
+| --- | --- |
+| `-wf`, `-sf` | Conjoin weak or strong fairness of each process to `Spec`. |
+| `-wfNext` | Conjoin weak fairness of `Next` to `Spec`. |
+| `-nof` | Conjoin no fairness formula; this is the default except with `-termination`. |
+| `-termination` | Add `PROPERTY Termination` to the `.cfg` file; implies `-wf` unless another fairness option is given. |
+| `-nocfg` | Do not write the `.cfg` file. |
+| `-noDoneDisjunct` | Omit the `Terminating` disjunct of `Next`. |
+| `-label`, `-reportLabels` | Add missing labels; `-reportLabels` also prints them. |
+| `-labelRoot NAME` | Name added labels `NAME1`, `NAME2`, and so on (default `Lbl_`). |
+| `-lineWidth N` | Try to keep lines at most `N` characters wide (default 78, minimum 60). |
+| `-version V` | Translate as the given PlusCal version, for example `1.4`. |
+| `-unixEOL` | Write `\n` line ends; this is the default except on Windows. |
+| `-debug` | Include source positions in the AST, which changes the checksum. |
+| `-writeAST` | Write the parsed algorithm to `AST.tla` in the working directory instead of translating. |
+| `-help` | Show Java's help text. |
+
+`-spec`, `-myspec`, `-spec2`, and `-myspec2` make Java run TLC on PlusCal's own TLA+ specification of the translation. tla-go rejects them.
+
 ## Documentation
 
 - [Compatibility and limitations](docs/compatibility.md): supported model constructs and known differences from Java TLC.
