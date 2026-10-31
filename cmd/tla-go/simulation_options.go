@@ -60,6 +60,9 @@ func configureSimulation(opts *options) error {
 	if opts.debugLiveness {
 		return fmt.Errorf("-debug-liveness is not supported in simulation mode")
 	}
+	if opts.workers > 1 {
+		return fmt.Errorf("-workers greater than 1 is not supported in simulation mode")
+	}
 	if opts.seedSet {
 		return nil
 	}

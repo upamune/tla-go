@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -33,24 +34,25 @@ var flagOptions = map[string]func(*options){
 // valueOptions parse an option and its arguments, returning the number of
 // arguments consumed after the option name.
 var valueOptions = map[string]func(*options, []string) (int, error){
-	"-config":   parsePathOption,
-	"-metadir":  parsePathOption,
-	"-seed":     parseRandomOption,
-	"-aril":     parseRandomOption,
-	"-lncheck":  parseLivenessOption,
-	"-dump":     parseDumpOption,
-	"-workers":  parseFixedOption,
-	"-fp":       parseFixedOption,
-	"-I":        parseLibraryOption,
-	"-simulate": parseSimulationOption,
-	"-depth":    parseSimulationDepth,
+	"-config":     parsePathOption,
+	"-metadir":    parsePathOption,
+	"-seed":       parseRandomOption,
+	"-aril":       parseRandomOption,
+	"-lncheck":    parseLivenessOption,
+	"-dump":       parseDumpOption,
+	"-workers":    parseWorkersOption,
+	"-fp":         parseFingerprintOption,
+	"-checkpoint": parseCheckpointOption,
+	"-I":          parseLibraryOption,
+	"-simulate":   parseSimulationOption,
+	"-depth":      parseSimulationDepth,
 }
 
 func setHelp(opts *options)    { opts.help = true }
 func setVersion(opts *options) { opts.version = true }
 
 func parseOptions(args []string) (options, error) {
-	opts := options{simulationUnlimited: true, simulationDepth: 100}
+	opts := options{simulationUnlimited: true, simulationDepth: 100, workers: 1}
 	for i := 0; i < len(args); i++ {
 		consumed, err := parseOption(&opts, args[i:])
 		if err != nil {
@@ -119,7 +121,7 @@ func parseDumpOption(opts *options, args []string) (int, error) {
 	return 2, nil
 }
 
-func parseFixedOption(opts *options, args []string) (int, error) {
+func parseFingerprintOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, fmt.Errorf("%s requires an integer", args[0])
 	}
@@ -127,20 +129,48 @@ func parseFixedOption(opts *options, args []string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid %s value %s", args[0], args[1])
 	}
-	if unsupportedFixedOption(args[0], parsed) {
+	if parsed < 0 || parsed >= value.TLCFingerprintPolynomialCount {
 		return 0, fmt.Errorf("unsupported %s value %s", args[0], args[1])
 	}
-	if args[0] == "-fp" {
-		opts.fingerprint = parsed
-	}
+	opts.fingerprint = parsed
 	return 1, nil
 }
 
-func unsupportedFixedOption(option string, number int) bool {
-	if option == "-workers" {
-		return number != 1
+// parseWorkersOption accepts Java TLC's worker counts. Exploration is
+// sequential regardless of the count.
+func parseWorkersOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, commandLineError("Error: expect an integer or 'auto' for -workers option.")
 	}
-	return number < 0 || number >= value.TLCFingerprintPolynomialCount
+	if strings.ToLower(strings.TrimSpace(args[1])) == "auto" {
+		opts.workers = runtime.NumCPU()
+		return 1, nil
+	}
+	workers, err := strconv.ParseInt(args[1], 10, 32)
+	if err != nil {
+		return 0, commandLineError("Error: worker number or 'auto' required. But encountered " + args[1])
+	}
+	if workers < 1 {
+		return 0, commandLineError("Error: at least one worker required.")
+	}
+	opts.workers = int(workers)
+	return 1, nil
+}
+
+// parseCheckpointOption validates Java TLC's checkpoint interval in minutes.
+// tla-go does not write checkpoints.
+func parseCheckpointOption(_ *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, commandLineError("Error: checkpoint interval required.")
+	}
+	minutes, err := strconv.ParseInt(args[1], 10, 32)
+	if err != nil {
+		return 0, commandLineError("Error: An integer for checkpoint interval is required. But encountered " + args[1])
+	}
+	if minutes < 0 {
+		return 0, commandLineError("Error: expect a nonnegative integer for -checkpoint option.")
+	}
+	return 1, nil
 }
 
 func parseRandomOption(opts *options, args []string) (int, error) {

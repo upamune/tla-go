@@ -63,9 +63,10 @@ and the final statechart integration remain outstanding.
   DOT dump path, and removes the run directory on success. Java comparison tests
   cover this filesystem behavior, and the hybrid statechart test passes the
   actual option through. Checkpoint and recovery metadata are not implemented.
-  Complete the Java-compatible behavior
-  of the accepted `-workers 1` and `-fp 0` options, including fingerprint
-  collisions, and test invalid and unsupported values.
+  `-workers` accepts Java TLC's positive counts and `auto` and rejects
+  invalid values as Java TLC does, but exploration remains sequential.
+  Complete the Java-compatible behavior of `-fp 0`, including fingerprint
+  collisions.
 
 ## 3. TLC tool protocol
 
@@ -88,7 +89,7 @@ and set `STATECHART_DIR` to its `pstack/skills/statechart` directory and
 
 ## 4. DOT state graph
 
-The CLI now supports `-dump dot,actionlabels`, `-workers 1`, and `-fp N` (0–130) for
+The CLI now supports `-dump dot,actionlabels`, `-workers`, and `-fp N` (0–130) for
 single-model runs. Targeted tests compare DOT bytes with Java TLC 1.7.4 for
 branching, repeated transitions, constraints, VIEW, symmetry, Unicode,
 liveness stuttering and failure paths. The statechart integration tests also

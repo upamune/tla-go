@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"time"
 
@@ -78,6 +79,8 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 	t.message(2262, 0, "tla-go "+version)
 	if opts.simulate {
 		t.message(2188, 0, fmt.Sprintf("Running Random Simulation with seed %d with 1 worker.", opts.seed))
+	} else {
+		t.message(2187, 0, fmt.Sprintf("Running breadth-first search Model-Checking with fp %d and seed %d with %d worker%s on %d cores.", opts.fingerprint, opts.seed, opts.workers, plural(opts.workers), runtime.NumCPU()))
 	}
 	specPath, configPath, err := inputPaths(opts)
 	if err != nil {
