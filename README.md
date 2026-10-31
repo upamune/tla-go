@@ -83,11 +83,13 @@ The exit code is 0 on success, 11 for deadlock, 12 for invariant or property vio
 With `-continue`, model checking can finish with exit code 0 even after reporting violations, matching Java TLC. Check the reported messages or the Go API's violation count.
 
 Simulation samples randomly chosen behaviors; a successful run
-does not prove a model correct. Temporal properties and fairness are checked
-on each sampled trace as Java TLC 1.7.4 does, not on the whole state space.
-Properties that use `TLCGet`, multiple workers, DOT dumps, and liveness
-debugging in simulation mode are not supported. Simulation messages and
-errors are not fully compatible with Java TLC. For example:
+does not prove a model correct. Temporal properties and the `WF`, `SF`, and
+`[]<>` fairness conjuncts of a specification are checked on each sampled
+trace as Java TLC 1.7.4 does, not on the whole state space. Other temporal
+conjuncts of a specification, such as `<>P`, properties that use `TLCGet`,
+multiple workers, DOT dumps, and liveness debugging in simulation mode are not
+supported. Simulation messages and errors are not fully compatible with Java
+TLC. For example:
 
 ```sh
 tla-go -simulate num=100 -depth 50 -seed 1 path/to/Model.tla
