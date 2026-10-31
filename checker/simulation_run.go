@@ -8,16 +8,16 @@ import (
 )
 
 type simulationRun struct {
-	model   *model
-	search  search
-	worker  simulationWorker
-	depth   int
-	current evaluator.State
-	inModel bool
+	model      *model
+	search     search
+	worker     simulationWorker
+	depth      int
+	current    evaluator.State
+	inModel    bool
+	deadlocked bool
 }
 
-// simulate checks bounded traces with one worker. Liveness and external output
-// are handled separately; this internal entry point rejects liveness for now.
+// simulate checks bounded traces with one worker and selected liveness properties.
 func (m *model) simulate(traces, depth int, seed int64) (Result, error) {
 	if err := m.validateSimulation(traces, depth); err != nil {
 		return Result{}, err
@@ -39,7 +39,7 @@ func (m *model) simulate(traces, depth int, seed int64) (Result, error) {
 }
 
 func (m *model) validateSimulation(traces, depth int) error {
-	if len(m.livenessOrder) > 0 || len(m.guarded) > 0 || len(m.fairness) > 0 {
+	if !m.supportsSimulationLiveness() {
 		return fmt.Errorf("simulation of temporal properties is not yet supported")
 	}
 	if m.graph != nil || m.debug != nil {
@@ -132,20 +132,26 @@ func (r *simulationRun) trace(initial []evaluator.State) (*Result, error) {
 	r.model.tlcRuntime.level = 1
 	r.model.tlcRuntime.traceCurrent = 0
 	r.model.tlcRuntime.traceIndices = nil
+	r.deadlocked = false
 	var err error
 	r.inModel, err = r.search.constraints(r.model.cfg.Constraints, r.current, nil)
 	if err != nil {
 		return nil, err
 	}
+	visited := 0
 	for index := 0; index < r.depth; index++ {
+		visited = index + 1
 		if !r.inModel {
 			break
 		}
 		if result, err := r.step(index); err != nil || result != nil {
 			return result, err
 		}
+		if r.deadlocked {
+			break
+		}
 	}
-	return nil, nil
+	return r.checkTraceLiveness(visited)
 }
 
 func (r *simulationRun) step(index int) (*Result, error) {
@@ -178,6 +184,7 @@ func (r *simulationRun) step(index int) (*Result, error) {
 func (r *simulationRun) deadlock(index int) *Result {
 	if !r.model.cfg.CheckDeadlock {
 		r.inModel = false
+		r.deadlocked = true
 		return nil
 	}
 	r.search.result.Status = Deadlock

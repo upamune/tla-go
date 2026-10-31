@@ -25,6 +25,8 @@ func TestJavaTLCSimulationTraces(t *testing.T) {
 		{"branching", "Init == x = 0\nNext == x' \\in {0, 1, 2}", "INIT Init NEXT Next CHECK_DEADLOCK FALSE", Success, 16},
 		{"empty initial", "Init == x \\in {}\nNext == UNCHANGED x", "INIT Init NEXT Next", EvaluationFailure, 0},
 		{"implied initial property", "Init == x = 0\nNext == UNCHANGED x\nP == x = 1", "INIT Init NEXT Next PROPERTY P", Success, 6},
+		{"eventual violation", "Init == x = 0\nNext == IF x = 0 THEN x' = 1 ELSE x' = 0\nP == <>(x = 1)", "INIT Init NEXT Next PROPERTY P", LivenessViolation, 6},
+		{"eventual satisfied", "Init == x = 0\nNext == IF x = 0 THEN x' = 1 ELSE x' = 0\nP == <>(x = 0)", "INIT Init NEXT Next PROPERTY P", Success, 6},
 		{"duplicate initials", "Init == x = 0 \\/ x = 0\nNext == UNCHANGED x", "INIT Init NEXT Next CHECK_DEADLOCK FALSE", Success, 7},
 		{"initial invariant", "Init == x \\in {0, 1}\nNext == UNCHANGED x\nInv == x = 0", "INIT Init NEXT Next INVARIANT Inv", InvariantViolation, 2},
 		{"successor invariant", "Init == x = 0\nNext == x' \\in {0, 1, 2}\nInv == x # 2", "INIT Init NEXT Next INVARIANT Inv", InvariantViolation, 4},

@@ -73,7 +73,7 @@ func simulationMessages(messages []toolMessage) []string {
 	var result []string
 	for _, msg := range messages {
 		switch msg.code {
-		case 2102, 2106, 2107, 2109, 2110, 2111, 2112, 2113, 2114, 2118, 2269:
+		case 2102, 2106, 2107, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2118, 2218, 2269:
 			result = append(result, fmt.Sprintf("%d:%s", msg.code, msg.body))
 		case 2217:
 			result = append(result, fmt.Sprintf("2217:%s", msg.body))
@@ -88,7 +88,7 @@ func simulationMessages(messages []toolMessage) []string {
 
 func TestSimulationRejectsUnsupportedLiveness(t *testing.T) {
 	dir := t.TempDir()
-	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x\nProp == <>(x=1)", "INIT Init\nNEXT Next\nPROPERTY Prop\n")
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x\nProp == []<>(x=1)", "INIT Init\nNEXT Next\nPROPERTY Prop\n")
 	var out, errout bytes.Buffer
 	code := run(context.Background(), []string{"-tool", "-simulate", "num=1", "-seed", "1", filepath.Join(dir, "M.tla")}, &out, &errout)
 	if code == 0 || !strings.Contains(out.String(), "simulation of temporal properties is not yet supported") {
