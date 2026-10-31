@@ -30,6 +30,7 @@ func TestJavaTLCGenerateSpecTE(t *testing.T) {
 		{"constants", nil, 12, true},
 		{"monolith", nil, 12, true},
 		{"nomonolith", []string{"nomonolith"}, 12, true},
+		{"instance", nil, 12, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fixture, err := filepath.Abs(filepath.Join("testdata", "spec-te", tc.name))

@@ -10,5 +10,6 @@ The files are normalized: the tool output that Java TLC writes at the start of
 its own output, so it can omit trailing states; the `liveness` output was kept
 from a run that recorded the whole counterexample. The cases cover an
 invariant, a liveness loop, stuttering, deadlock, an action property, a failed
-`Assert`, model-value constants, and an extended user module with and without
-`nomonolith`.
+`Assert`, model-value constants, an extended user module with and without
+`nomonolith`, and, in `instance`, an instantiated module next to nested
+extended modules, which SANY parses after every `EXTENDS`.
