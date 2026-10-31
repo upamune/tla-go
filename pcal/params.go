@@ -2,7 +2,6 @@ package pcal
 
 import (
 	_ "embed"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -342,7 +341,7 @@ func asciiDigit(r rune) rune {
 // exists.
 func (a *argParser) inputFile(name string) argStatus {
 	name = javaFilePath(name)
-	base := filepath.Base(name)
+	base := javaFileName(name)
 	if !strings.Contains(base, ".") {
 		a.p.InputFile = name
 		if !fileExists(resolve(a.p.Dir, name+".tla")) {

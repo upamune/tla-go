@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"unicode/utf8"
 )
 
 // Exit codes of the Java translator: System.exit(-1) is reported as 255,
@@ -100,8 +101,10 @@ func runFile(p *Params, log *logger) int {
 	return writeCfg(p, log, t.hasDefaultInit)
 }
 
+// readError returns the message of fileToStringVector, which reports a
+// file it cannot open as not found.
 func readError(path string, err error) string {
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
+	if _, ok := errors.AsType[*openError](err); ok {
 		return "Input file " + path + " not found."
 	}
 	return "Error reading file " + path + "."
@@ -114,7 +117,7 @@ func writeCfg(p *Params, log *logger, hasDefaultInit bool) int {
 	cfg := []string{cfgDelimiter}
 	if fileExists(resolve(p.Dir, path)) {
 		lines, err := readJavaLines(resolve(p.Dir, path))
-		if os.IsPermission(err) {
+		if errors.Is(err, fs.ErrPermission) {
 			log.info("File " + p.InputFile + ".cfg is read only, new version not written.")
 			return ExitOK
 		}
@@ -169,6 +172,15 @@ func hasSpecification(cfg []string) bool {
 	}
 	return false
 }
+
+// javaFileName returns the part of a normalized path after its last
+// separator, as File.getName does. Unlike filepath.Base, it returns "" for
+// "" and for a root.
+func javaFileName(name string) string {
+	return name[strings.LastIndexFunc(name, isPathSeparator)+1:]
+}
+
+func isPathSeparator(r rune) bool { return r < utf8.RuneSelf && os.IsPathSeparator(byte(r)) }
 
 // javaFilePath normalizes a path like java.io.File: it removes duplicate
 // and trailing separators.

@@ -1,7 +1,9 @@
 package pcal
 
 import (
+	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -47,11 +49,34 @@ func resolve(dir, name string) string {
 }
 
 func readJavaLines(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
+	data, err := readFile(path)
 	if err != nil {
 		return nil, err
 	}
 	return javaLines(decodeJava(data)), nil
+}
+
+// openError is a failure to open a file for reading. Java's FileInputStream
+// reports each of them as a FileNotFoundException, even for a directory.
+type openError struct{ err error }
+
+func (e *openError) Error() string { return e.err.Error() }
+
+func (e *openError) Unwrap() error { return e.err }
+
+var errIsDirectory = errors.New("is a directory")
+
+// readFile reads a file and wraps the failures to open it in openError.
+func readFile(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, &openError{err}
+	}
+	defer f.Close()
+	if info, err := f.Stat(); err == nil && info.IsDir() {
+		return nil, &openError{&fs.PathError{Op: "open", Path: path, Err: errIsDirectory}}
+	}
+	return io.ReadAll(f)
 }
 
 func writeJavaLines(path string, lines []string, eol string) error {
