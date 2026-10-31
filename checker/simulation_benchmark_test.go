@@ -43,6 +43,27 @@ func BenchmarkSimulationRecurrence(b *testing.B) {
 	benchmarkSimulationProperty(b, "[]<>(x \\in {0, 1, 2})")
 }
 
+func BenchmarkSimulationLeadsTo(b *testing.B) {
+	benchmarkSimulationProperty(b, "(x = 1) ~> (x = 1)")
+}
+
+func BenchmarkSimulationLeadsToUniqueStates(b *testing.B) {
+	const source = "---- MODULE M ----\nEXTENDS Integers\nVARIABLE x\nInit == x = 0\nNext == x' = x + 1\nP == (x < 0) ~> (x = -1)\n===="
+	for _, depth := range []int{250, 500, 1000} {
+		b.Run(fmt.Sprintf("depth-%d", depth), func(b *testing.B) {
+			opts := Options{Simulation: &SimulationOptions{Traces: 1, Depth: depth}}
+			b.ReportAllocs()
+			for b.Loop() {
+				result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P", opts)
+				if err != nil || result.Status != Success {
+					b.Fatalf("simulation: %+v, %v", result, err)
+				}
+				b.ReportMetric(float64(result.GeneratedStates), "states/op")
+			}
+		})
+	}
+}
+
 func BenchmarkSimulationRecurrenceUniqueStates(b *testing.B) {
 	const source = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = x + 1\nP == []<>(x >= 0)\n===="
 	for _, depth := range []int{250, 500, 1000} {

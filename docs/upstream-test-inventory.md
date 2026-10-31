@@ -82,6 +82,13 @@ traces, zero depth, state constraints, and invariant violations with Java TLC
 1.7.4. A separate comparison records selected format and length differences in
 Java TLC 1.8.0. This does not cover all value formats or side effects.
 
+`TestJavaTLCSimulationLeadsTo` and related tests compare one leads-to property
+over selected pure state predicates with Java TLC 1.7.4, including branching
+traces, varying depths, constraints, constant predicates, and a bounded
+quantifier. They check exit codes and selected tool messages and traces, not
+all liveness formulas or error handling. A separate test records a result
+difference with Java TLC 1.8.0.
+
 `TestJavaTLCSimulationAril` compares selected seeded traces, including negative
 and large arils, against Java TLC 1.7.4. A separate test checks selected seeds
 against 1.8.0. These comparisons cover selected action and liveness behavior,

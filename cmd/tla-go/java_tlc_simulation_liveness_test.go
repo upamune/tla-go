@@ -142,10 +142,14 @@ func TestJavaTLCModernSimulationStabilityVersionDifference(t *testing.T) {
 }
 
 func compareSimulationGraphConfig(t *testing.T, jar, body, cfg, seed string) {
+	compareSimulationGraphDepth(t, jar, body, cfg, seed, "5")
+}
+
+func compareSimulationGraphDepth(t *testing.T, jar, body, cfg, seed, depth string) {
 	t.Helper()
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, body, cfg)
-	args := []string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", seed, "-depth", "5"}
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", seed, "-depth", depth}
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 	cmd.Dir = dir
 	javaOut, _ := cmd.CombinedOutput()

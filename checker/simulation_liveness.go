@@ -6,8 +6,8 @@ import (
 	"slices"
 )
 
-// The first supported simulation liveness form is a pure eventuality without
-// fairness or state reduction. Other temporal forms still fail explicitly.
+// Simulation supports selected pure state formulas without fairness or state
+// reduction. Other temporal forms still fail explicitly.
 func (m *model) supportsSimulationLiveness() bool {
 	if len(m.guarded) > 0 || len(m.fairness) > 0 {
 		return false
@@ -24,8 +24,16 @@ func (m *model) supportsSimulationLiveness() bool {
 }
 
 func (m *model) supportsSimulationProperty(property temporalProperty) bool {
+	if property.mode == leadsTo && len(m.livenessOrder) == 1 {
+		return m.supportsSimulationLeadsTo(property)
+	}
 	return (property.mode == eventually || property.mode == often || property.mode == eventuallyAlways) && m.isStateExpression(property.predicate) &&
 		!m.propertyUsesTLC(property) && !m.unsafeIncrementalExpression(property.predicate)
+}
+
+func (m *model) supportsSimulationLeadsTo(property temporalProperty) bool {
+	return m.isStateExpression(property.trigger) && m.isStateExpression(property.predicate) &&
+		!m.propertyUsesTLC(property) && !m.unsafeIncrementalExpression(property.trigger) && !m.unsafeIncrementalExpression(property.predicate)
 }
 
 func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
@@ -34,6 +42,9 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	}
 	if visited == 0 {
 		return nil, fmt.Errorf("zero-depth liveness simulation is not yet supported")
+	}
+	if len(r.model.livenessOrder) == 1 && r.model.livenessOrder[0].mode == leadsTo {
+		return r.checkSimulationLeadsTo(visited, r.model.livenessOrder[0])
 	}
 	graph, err := r.traceGraph(visited)
 	if err != nil {

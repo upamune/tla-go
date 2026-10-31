@@ -90,7 +90,7 @@ func simulationMessages(messages []toolMessage) []string {
 
 func TestSimulationRejectsUnsupportedLiveness(t *testing.T) {
 	dir := t.TempDir()
-	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x\nProp == (x=0) ~> (x=1)", "INIT Init\nNEXT Next\nPROPERTY Prop\n")
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x\nProp == []<>(x=0) \\/ <>[](x=1)", "INIT Init\nNEXT Next\nPROPERTY Prop\n")
 	var out, errout bytes.Buffer
 	code := run(context.Background(), []string{"-tool", "-simulate", "num=1", "-seed", "1", filepath.Join(dir, "M.tla")}, &out, &errout)
 	if code == 0 || !strings.Contains(out.String(), "simulation of temporal properties is not yet supported") {
