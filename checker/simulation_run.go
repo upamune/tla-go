@@ -87,8 +87,11 @@ func (r *simulationRun) explore(traces int) (Result, error) {
 
 func (r *simulationRun) exploreTraces(states []evaluator.State, traces int) (Result, error) {
 	for range traces {
+		if r.model.tlcRuntime.stopped {
+			break
+		}
 		result, err := r.trace(states)
-		if result != nil && err == nil && r.continueViolation(result) {
+		if r.continueTrace(result, err) {
 			continue
 		}
 		if result != nil {
@@ -102,6 +105,10 @@ func (r *simulationRun) exploreTraces(states []evaluator.State, traces int) (Res
 		r.search.result.Status = ContinuedViolation
 	}
 	return r.search.result, nil
+}
+
+func (r *simulationRun) continueTrace(result *Result, err error) bool {
+	return result != nil && err == nil && r.continueViolation(result)
 }
 
 func (r *simulationRun) continueViolation(result *Result) bool {
@@ -190,13 +197,21 @@ func (r *simulationRun) trace(initial []evaluator.State) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	if r.model.tlcRuntime.stopped {
+		return nil, nil
+	}
+	return r.traceSteps()
+}
+
+func (r *simulationRun) traceSteps() (*Result, error) {
 	visited := 0
 	for index := 0; index < r.depth; index++ {
 		visited = index + 1
 		if !r.inModel {
 			break
 		}
-		if result, err := r.step(index); err != nil || result != nil {
+		result, err := r.stepWithStop(index)
+		if err != nil || result != nil || r.model.tlcRuntime.stopped {
 			return result, err
 		}
 		if r.deadlocked {
@@ -204,6 +219,21 @@ func (r *simulationRun) trace(initial []evaluator.State) (*Result, error) {
 		}
 	}
 	return r.checkTraceLiveness(visited)
+}
+
+func (r *simulationRun) stepWithStop(index int) (*Result, error) {
+	result, err := r.step(index)
+	if err != nil || result != nil && result.Failure != nil {
+		return result, err
+	}
+	// TLC 1.8 discards a safety violation reported by a stopped simulation
+	// worker, while an evaluation failure still reaches the caller.
+	if r.model.tlcRuntime.stopped {
+		r.search.result.Status = Success
+		r.search.result.Violation = nil
+		return nil, nil
+	}
+	return result, nil
 }
 
 func (r *simulationRun) step(index int) (*Result, error) {

@@ -87,7 +87,7 @@ does not prove a model correct. Selected pure state eventualities (`<>P`),
 recurrence (`[]<>P`), and stability (`<>[]P`) are supported without fairness
 or state reduction. Other temporal properties,
 fairness, trace files, multiple
-workers, `TLCSet("exit", TRUE)`, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
+workers, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
 messages and errors are not fully compatible with Java TLC. For example:
 
 ```sh

@@ -219,12 +219,12 @@ func TestJavaTLCSimulationPauseDoesNotWait(t *testing.T) {
 	}
 }
 
-func TestSimulationRejectsUnsupportedExit(t *testing.T) {
+func TestSimulationStopsOnExit(t *testing.T) {
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == /\\ TLCSet(\"exit\", TRUE) /\\ UNCHANGED x", "INIT Init\nNEXT Next\n")
 	var out, errout bytes.Buffer
 	code := run(context.Background(), []string{"-tool", "-simulate", "num=1", "-seed", "1", filepath.Join(dir, "M.tla")}, &out, &errout)
-	if code == 0 || !strings.Contains(out.String(), "TLCSet(exit) in simulation is not yet supported") {
+	if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), "2 states generated") {
 		t.Fatalf("exit %d; stdout %s; stderr %s", code, out.String(), errout.String())
 	}
 }

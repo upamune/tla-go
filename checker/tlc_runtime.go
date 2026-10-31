@@ -143,9 +143,6 @@ func (r *tlcRuntime) setNamed(name string, key, val value.Value, context evaluat
 	switch {
 	case name == "exit":
 		if b, ok := val.Bool(); ok && b {
-			if r.simulation {
-				return tlcRuntimeError("TLCSet(exit) in simulation is not yet supported.")
-			}
 			r.stopped = true
 		}
 	case name == "pause":

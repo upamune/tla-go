@@ -88,6 +88,15 @@ compare selected simulation configuration values and record output with Java TLC
 1.7.4 leaves this configuration undefined. The comparisons exclude the `install`
 path, which is specific to the Java JAR.
 
+`TestJavaTLCModernSimulationExit` compares selected stop requests in assumptions,
+initial states, actions, invariants, and deadlocks with Java TLC 1.8.0.
+`TestJavaTLCModernSimulationExitConstraint` checks a stop from a state constraint.
+`TestJavaTLCModernSimulationExitLiveness` checks one stopped eventuality trace.
+`TestJavaTLCModernSimulationExitEvaluationError` exercises an evaluation error
+after a stop request; `TestJavaTLCSimulationExitVersionDifference` records the
+exception in Java TLC 1.7.4. These cases do not cover every interaction with
+simulation errors or temporal properties.
+
 `TestJavaTLCModelContinue` compares selected model-checking continuation cases
 with Java TLC 1.7.4, including initial and successor violations, constraints,
 deadlocks, and temporal properties. `TestJavaTLCModelContinueDOT` compares DOT
