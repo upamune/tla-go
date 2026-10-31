@@ -166,8 +166,8 @@ type Options struct {
 	// Simulation selects bounded single-worker random simulation when non-nil.
 	Simulation *SimulationOptions
 	// DepthFirst selects depth-first iterative deepening when non-nil and
-	// Simulation is nil. In this mode QueuedStates is -1 and Depth is the
-	// last iteration level started.
+	// Simulation is nil. In this mode QueuedStates is -1, Depth is the last
+	// iteration level started, and OnGraph and OnDebug are not called.
 	DepthFirst *DepthFirstOptions
 	// Continue explores other states after invariant and action violations.
 	// It applies to model checking; simulation uses SimulationOptions.Continue.
