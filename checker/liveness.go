@@ -19,7 +19,10 @@ type graphEdge struct {
 }
 
 type temporalProperty struct {
-	name          string
+	name string
+	// source is the property conjunct before classification. TLC simulation
+	// converts it to its own liveness normal form.
+	source        *parser.Expression
 	predicate     *parser.Expression
 	trigger       *parser.Expression
 	sequence      []*parser.Expression
@@ -104,12 +107,12 @@ func (m *model) prepareNonConjunctProperty(name string, expr *parser.Expression,
 	if handled, err := m.preparePropertyCall(name, expr, bounds, seen); handled {
 		return err
 	}
-	property, ok := m.classifyProperty(temporalProperty{name: name, bounds: bounds}, expr)
+	property, ok := m.classifyProperty(temporalProperty{name: name, bounds: bounds, source: expr}, expr)
 	if !ok {
 		if trivialTemporalImplication(expr) {
 			return temporalTautologyError()
 		}
-		property = temporalProperty{name: name, bounds: bounds, predicate: expr, mode: generalTemporal}
+		property = temporalProperty{name: name, bounds: bounds, source: expr, predicate: expr, mode: generalTemporal}
 	}
 	return m.expandProperty(property)
 }
