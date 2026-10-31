@@ -1,0 +1,258 @@
+{
+  "Example1Test": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\nx = 0",
+      "2217:2: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 1",
+      "2217:3: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 2",
+      "2217:4: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 3",
+      "2217:5: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 4",
+      "2217:6: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 5",
+      "2217:7: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 6",
+      "2217:8: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 7",
+      "2217:9: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 8",
+      "2217:10: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e\nx = 9",
+      "2122:1: Back to state: \u003cNext line 8, col 9 to line 8, col 27 of module Example1\u003e",
+      "2209:12",
+      "2209:12"
+    ]
+  },
+  "Example1ZeroDepth": {
+    "code": 255,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "1000:TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.ArrayIndexOutOfBoundsException\n: Index 0 out of bounds for length 0",
+      "2121:The behavior up to this point is:",
+      "2217:1: \u003cInitial predicate\u003e\nx = 0",
+      "2209:1",
+      "2209:1"
+    ]
+  },
+  "Example2Test": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\nx = 0",
+      "2217:2: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 1",
+      "2217:3: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 2",
+      "2217:4: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 3",
+      "2217:5: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 4",
+      "2217:6: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 5",
+      "2217:7: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 6",
+      "2217:8: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 7",
+      "2217:9: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 8",
+      "2217:10: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e\nx = 9",
+      "2122:1: Back to state: \u003cNext line 8, col 9 to line 8, col 27 of module Example2\u003e",
+      "2209:12",
+      "2209:12"
+    ]
+  },
+  "LiveCheckSimulationTest2": {
+    "code": 0,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2209:2001"
+    ]
+  },
+  "LiveCheckSimulationTest2a": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\nx = 0",
+      "2217:2: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 1",
+      "2217:3: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 2",
+      "2217:4: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 3",
+      "2217:5: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 4",
+      "2122:1: Back to state: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e",
+      "2209:11",
+      "2209:11"
+    ]
+  },
+  "NQSpecTest": {
+    "code": 0,
+    "messages": [
+      "2269:Computed 1 initial states...",
+      "2209:1001"
+    ]
+  },
+  "SimulationTest2": {
+    "code": 0,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2209:1201"
+    ]
+  },
+  "SimulationTest2a": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\nx = 0",
+      "2217:2: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 1",
+      "2217:3: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 2",
+      "2217:4: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 3",
+      "2217:5: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e\nx = 4",
+      "2122:1: Back to state: \u003cNext line 10, col 9 to line 10, col 20 of module Test2a\u003e",
+      "2209:7",
+      "2209:7"
+    ]
+  },
+  "StutteringTest": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 8 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\n/\\ b = FALSE\n/\\ x = 0",
+      "2217:2: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 1",
+      "2217:3: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 1",
+      "2217:4: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 2",
+      "2217:5: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 2",
+      "2217:6: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 3",
+      "2217:7: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 3",
+      "2217:8: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 4",
+      "2217:9: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 4",
+      "2217:10: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 5",
+      "2218:11: Stuttering",
+      "2209:17",
+      "2209:17"
+    ]
+  },
+  "StutteringTestSeed2": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 8 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\n/\\ b = FALSE\n/\\ x = 0",
+      "2217:2: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 1",
+      "2217:3: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 1",
+      "2217:4: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 2",
+      "2217:5: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 2",
+      "2217:6: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 3",
+      "2217:7: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 3",
+      "2217:8: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 4",
+      "2217:9: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 4",
+      "2217:10: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 5",
+      "2218:11: Stuttering",
+      "2209:20",
+      "2209:20"
+    ]
+  },
+  "StutteringTestSeed3": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 8 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\n/\\ b = TRUE\n/\\ x = 0",
+      "2217:2: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 0",
+      "2217:3: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 1",
+      "2217:4: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 1",
+      "2217:5: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 2",
+      "2217:6: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 2",
+      "2217:7: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 3",
+      "2217:8: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 3",
+      "2217:9: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 4",
+      "2217:10: \u003cA line 6, col 6 to line 9, col 19 of module CodeplexBug8\u003e\n/\\ b = FALSE\n/\\ x = 4",
+      "2217:11: \u003cB line 11, col 6 to line 13, col 18 of module CodeplexBug8\u003e\n/\\ b = TRUE\n/\\ x = 5",
+      "2218:12: Stuttering",
+      "2209:18",
+      "2209:18"
+    ]
+  },
+  "TLCGetLevel": {
+    "code": 255,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "1000:TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a tlc2.tool.EvalException\n: @!@!@STARTMSG 2123:0 @!@!@\nFailed to recover the initial state from its fingerprint.",
+      "2121:The behavior up to this point is:",
+      "2217:1: \u003cInitial predicate\u003e\n/\\ x = 0\n/\\ y = 0",
+      "2217:2: \u003cNext line 11, col 9 to line 13, col 31 of module TLCGetLevel\u003e\n/\\ x = 1\n/\\ y = 1",
+      "2217:3: \u003cNext line 11, col 9 to line 13, col 31 of module TLCGetLevel\u003e\n/\\ x = 2\n/\\ y = 2",
+      "2217:4: \u003cNext line 11, col 9 to line 13, col 31 of module TLCGetLevel\u003e\n/\\ x = 3\n/\\ y = 3",
+      "2209:4",
+      "2209:4"
+    ]
+  },
+  "UnsymmetricMCA": {
+    "code": 13,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 2 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\nx = a",
+      "2217:2: \u003cNextA line 17, col 13 to line 19, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2122:1: Back to state: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e",
+      "2209:47",
+      "2209:47"
+    ]
+  },
+  "UnsymmetricMCB": {
+    "code": 255,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 2 initial states...",
+      "2116:Temporal properties were violated.",
+      "2264:The following behavior constitutes a counter-example:",
+      "2217:1: \u003cInitial predicate\u003e\nx = a",
+      "1000:TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a tlc2.tool.EvalException\n: @!@!@STARTMSG 2117:0 @!@!@\nFailed to recover the next state from its fingerprint.",
+      "2121:The behavior up to this point is:",
+      "2217:1: \u003cInitial predicate\u003e\nx = a",
+      "2217:2: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 2",
+      "2217:3: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:4: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:5: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:6: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:7: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:8: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:9: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:10: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:11: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:12: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:13: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:14: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:15: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:16: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:17: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = a",
+      "2217:18: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 2",
+      "2217:19: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = a",
+      "2217:20: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 2",
+      "2217:21: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:22: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:23: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:24: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:25: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:26: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:27: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = a",
+      "2217:28: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 2",
+      "2217:29: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2217:30: \u003cNextB line 36, col 13 to line 38, col 36 of module Unsymmetric\u003e\nx = 1",
+      "2217:31: \u003cBack line 7, col 12 to line 8, col 22 of module Unsymmetric\u003e\nx = b",
+      "2209:47",
+      "2209:47"
+    ]
+  }
+}

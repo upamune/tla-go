@@ -27,6 +27,10 @@ func printResult(w io.Writer, result checker.Result, module *parser.Module) {
 }
 
 func printFailure(w io.Writer, failure *checker.Failure, module *parser.Module) {
+	if failure.TemporalViolation {
+		fmt.Fprint(w, "Error: Temporal properties were violated.\n\nError: The following behavior constitutes a counter-example:\n\n")
+		printTrace(w, failure.TemporalTrace, module)
+	}
 	fmt.Fprintf(w, "Error: %s\n", failure.Message)
 	if failure.InitialState != nil {
 		fmt.Fprintln(w, "While working on the initial state:")

@@ -58,12 +58,19 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 	}
 	if opts.simulate {
 		return func(event checker.SearchEvent) {
+			if event.Kind == checker.SimulationLiveness {
+				fmt.Fprintln(out, livenessBranches(event))
+			}
 			if event.Kind == checker.SimulationInitialComplete {
 				printHumanSearch(out, event)
 			}
 		}
 	}
 	return nil
+}
+
+func livenessBranches(event checker.SearchEvent) string {
+	return fmt.Sprintf("Implied-temporal checking--satisfiability problem has %d branches.", event.Branches)
 }
 
 func printConfiguredResult(out io.Writer, result checker.Result, module *parser.Module, opts options) {
@@ -177,15 +184,19 @@ func printToolSimulationInitialNested(t toolOutput, failure *checker.Failure) bo
 }
 
 // simulationHasSummary reports whether Java TLC's simulator prints its summary
-// after a stopped run. It omits the summary after a TLC assertion, such as a
-// non-boolean action (2247) or a failed Java override (2154), raised while
-// generating successors.
+// after a stopped run. It omits the summary after some exceptions, such as
+// those of its liveness checker (Failure.SuppressSummary), and after a TLC
+// assertion, such as a non-boolean action (2247) or a failed Java override
+// (2154), raised while generating successors.
 func simulationHasSummary(result checker.Result) bool {
 	if result.Status == checker.Success || result.Status == checker.ContinuedViolation {
 		return false
 	}
 	failure := result.Failure
-	return failure == nil || len(failure.Trace) == 0 || failure.ToolCode != 2247 && failure.ToolCode != 2154
+	if failure == nil {
+		return true
+	}
+	return !failure.SuppressSummary && (len(failure.Trace) == 0 || failure.ToolCode != 2247 && failure.ToolCode != 2154)
 }
 
 func simulationHasStatistics(result checker.Result) bool {

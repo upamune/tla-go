@@ -66,7 +66,7 @@ func (m *model) sequenceProperty(name string, expr *parser.Expression, locals ma
 	if !ok || len(sequence) == 0 {
 		return temporalProperty{}, false
 	}
-	p := temporalProperty{name: name, locals: maps.Clone(locals), sequence: sequence, predicate: sequence[0], mode: eventually}
+	p := temporalProperty{name: name, source: expr, locals: maps.Clone(locals), sequence: sequence, predicate: sequence[0], mode: eventually}
 	if len(sequence) > 1 {
 		p.trigger, p.predicate, p.mode = sequence[0], sequence[1], orderedEventually
 	}

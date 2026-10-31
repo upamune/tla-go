@@ -66,6 +66,8 @@ func searchEventMessage(event checker.SearchEvent) (int, string) {
 		return 2269, fmt.Sprintf("Computed %d initial states...", event.GeneratedStates)
 	case checker.InitialStart:
 		return 2189, "Computing initial states..."
+	case checker.SimulationLiveness:
+		return 2212, livenessBranches(event)
 	}
 	generated, distinct := event.GeneratedStates, event.DistinctStates
 	if generated == distinct {

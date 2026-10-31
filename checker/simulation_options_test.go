@@ -22,14 +22,12 @@ func TestSimulationRejectsUnsupportedCallbacks(t *testing.T) {
 }
 
 func TestSimulationRejectsUnsupportedLivenessOptions(t *testing.T) {
-	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\nP == <>(x=0)\nV == x\n===="
+	const source = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=0)\nQ == <>(TLCGet(\"level\") > 2)\n===="
 	for _, tc := range []struct {
 		name, cfg, message string
 		depth              int
 	}{
-		{"fairness", "SPECIFICATION Spec PROPERTY P", "simulation of temporal properties is not yet supported", 1},
-		{"view", "INIT Init NEXT Next VIEW V PROPERTY P", "simulation of temporal properties is not yet supported", 1},
-		{"zero depth", "INIT Init NEXT Next PROPERTY P", "zero-depth liveness simulation is not yet supported", 0},
+		{"runtime level", "INIT Init NEXT Next PROPERTY Q", "using TLCGet is not yet supported", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := CheckWithOptions(context.Background(), source, tc.cfg, Options{Simulation: &SimulationOptions{Traces: 1, Depth: tc.depth}})
@@ -85,5 +83,18 @@ func TestSimulationAssertionFailureTrace(t *testing.T) {
 	}
 	if !strings.HasSuffix(failure.Message, "The exception was a tlc2.tool.EvalException\n: "+failure.NestedMessage) {
 		t.Fatalf("message %q", failure.Message)
+	}
+}
+
+// TLC's LiveCheck1 fails on the empty trace of a zero-depth simulation and
+// reports the sampled initial state.
+func TestSimulationZeroDepthLiveness(t *testing.T) {
+	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=0)\n===="
+	got, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P", Options{Simulation: &SimulationOptions{Traces: 1, Depth: 0}})
+	if err != nil || got.Status != EvaluationFailure || got.Failure == nil || got.Failure.ToolCode != 1000 || len(got.Failure.Trace) != 1 {
+		t.Fatalf("got %+v, %v; want TLC's unexpected exception after the initial state", got, err)
+	}
+	if !strings.HasSuffix(got.Failure.Message, "java.lang.ArrayIndexOutOfBoundsException\n: Index 0 out of bounds for length 0") || got.Failure.ExitCode != 255 {
+		t.Fatalf("got failure %+v", got.Failure)
 	}
 }

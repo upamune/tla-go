@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -45,8 +46,8 @@ func TestJavaTLCSimulationLiveness(t *testing.T) {
 				t.Fatalf("Go exit %d; stdout %s; stderr %s", code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				got := simulationMessages(readToolMessages(out.String()))
-				want := simulationMessages(javaSimulationTool(t, jar, dir, code))
+				got := livenessMessages(readToolMessages(out.String()))
+				want := livenessMessages(javaSimulationTool(t, jar, dir, code))
 				if !reflect.DeepEqual(got, want) {
 					t.Fatalf("Go messages %q\nJava messages %q", got, want)
 				}
@@ -157,7 +158,7 @@ func compareSimulationGraphParameters(t *testing.T, jar, body, cfg, seed, depth,
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 	cmd.Dir = dir
 	javaOut, _ := cmd.CombinedOutput()
-	if cmd.ProcessState == nil || (cmd.ProcessState.ExitCode() != 0 && cmd.ProcessState.ExitCode() != 13) {
+	if cmd.ProcessState == nil || !slices.Contains([]int{0, 13, 255}, cmd.ProcessState.ExitCode()) {
 		t.Fatalf("Java TLC failed: %s", javaOut)
 	}
 	var out, errout bytes.Buffer
@@ -165,8 +166,7 @@ func compareSimulationGraphParameters(t *testing.T, jar, body, cfg, seed, depth,
 	if code != cmd.ProcessState.ExitCode() || errout.Len() != 0 {
 		t.Fatalf("Go exit %d, Java exit %d; stdout %s; stderr %s", code, cmd.ProcessState.ExitCode(), out.String(), errout.String())
 	}
-	got := simulationMessages(readToolMessages(out.String()))
-	want := simulationMessages(readToolMessages(string(javaOut)))
+	got, want := comparableProgress(livenessMessages(readToolMessages(out.String())), livenessMessages(readToolMessages(string(javaOut))))
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Go messages %q\nJava messages %q", got, want)
 	}

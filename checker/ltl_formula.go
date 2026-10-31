@@ -32,6 +32,9 @@ type ltlFormula struct {
 	fairness    bool
 	fairEnabled bool
 	baseLevel   bool
+	// leaf identifies an atom regardless of its polarity, like the shared
+	// LiveExprNode of a TLC IF guard.
+	leaf int
 }
 
 type ltlKey struct {
@@ -45,6 +48,7 @@ type ltlKey struct {
 type ltlCompiler struct {
 	model       *model
 	formulas    map[ltlKey]*ltlFormula
+	leaves      map[ltlKey]int
 	eventuality []*ltlFormula
 	nextID      int
 	locals      map[string]value.Value
@@ -56,7 +60,7 @@ type ltlCompiler struct {
 }
 
 func newLTLCompiler(m *model, locals map[string]value.Value) *ltlCompiler {
-	return &ltlCompiler{model: m, formulas: map[ltlKey]*ltlFormula{}, locals: maps.Clone(locals), renamer: alphaRenamer{prefix: "ltl", sequential: true}}
+	return &ltlCompiler{model: m, formulas: map[ltlKey]*ltlFormula{}, leaves: map[ltlKey]int{}, locals: maps.Clone(locals), renamer: alphaRenamer{prefix: "ltl", sequential: true}}
 }
 
 func (c *ltlCompiler) intern(kind ltlKind, left, right *ltlFormula, atom *parser.Expression, negative bool) *ltlFormula {
@@ -112,12 +116,23 @@ func (c *ltlCompiler) newFormula(key ltlKey, left, right *ltlFormula) *ltlFormul
 	if key.kind == ltlAtom || key.kind == ltlAction {
 		formula.locals = maps.Clone(c.locals)
 		formula.atom = c.wrapLexical(formula.atom)
+		formula.leaf = c.leafID(key)
 	}
 	c.formulas[key] = formula
 	if key.kind == ltlEventually {
 		c.eventuality = append(c.eventuality, formula)
 	}
 	return formula
+}
+
+func (c *ltlCompiler) leafID(key ltlKey) int {
+	key.negative = false
+	if id, ok := c.leaves[key]; ok {
+		return id
+	}
+	id := len(c.leaves) + 1
+	c.leaves[key] = id
+	return id
 }
 
 func (c *ltlCompiler) compile(expr *parser.Expression, negative bool, seen map[string]bool) (*ltlFormula, error) {

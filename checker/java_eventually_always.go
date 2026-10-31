@@ -30,11 +30,7 @@ func (s *search) javaStabilityStates(property temporalProperty) ([]bool, bool, e
 		if err := s.model.ctx.Err(); err != nil {
 			return nil, false, err
 		}
-		state := s.nodes[node].state
-		if s.simulationCheckStates != nil {
-			state = s.simulationCheckStates[node]
-		}
-		holds, err := s.model.holdsProperty(property.predicate, state, property.locals)
+		holds, err := s.model.holdsProperty(property.predicate, s.nodes[node].state, property.locals)
 		if err != nil {
 			return nil, false, err
 		}

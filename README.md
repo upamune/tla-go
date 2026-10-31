@@ -97,13 +97,13 @@ With `-continue`, model checking can finish with exit code 0 even after reportin
 With `-dfid N`, each iteration restarts from the initial states and searches one level deeper, so the generated-state count includes repeated states. As in Java TLC, a check that reaches depth N before the search ends exits with code 0 but does not report `No error has been found`, and liveness properties are rejected. See [compatibility](docs/compatibility.md) for other differences.
 
 Simulation samples randomly chosen behaviors; a successful run
-does not prove a model correct. Selected pure state eventualities (`<>P`),
-recurrence (`[]<>P`), and stability (`<>[]P`) are supported without fairness
-or state reduction. Leads-to properties (`P ~> Q`) with pure state predicates
-can be combined with those forms. Other temporal properties,
-fairness, multiple
-workers, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
-messages and errors are not fully compatible with Java TLC. For example:
+does not prove a model correct. Temporal properties and the `WF`, `SF`, and
+`[]<>` fairness conjuncts of a specification are checked on each sampled
+trace as Java TLC 1.7.4 does, not on the whole state space. Other temporal
+conjuncts of a specification, such as `<>P`, properties that use `TLCGet`,
+multiple workers, state dumps, and liveness debugging in simulation mode are not
+supported. Simulation messages and errors are not fully compatible with Java
+TLC. For example:
 
 ```sh
 tla-go -simulate num=100 -depth 50 -seed 1 path/to/Model.tla
@@ -112,8 +112,8 @@ tla-go -simulate num=10,file=trace -depth 50 -seed 1 path/to/Model.tla
 
 Trace files follow the tested Java TLC 1.7.4 format. Java TLC 1.8.0 writes
 different trace lengths and action comments in some cases.
-For leads-to simulation, tla-go follows Java TLC 1.7.4's sampled-graph
-behavior, including cases where it disagrees with the formula's logical
+For temporal properties, tla-go follows Java TLC 1.7.4's sampled-trace
+graph, including cases where it disagrees with the formula's logical
 meaning. Java TLC 1.8.0 can give different results.
 
 `-sany-metadata` emits only the metadata consumed by statechart, not the complete SANY XML semantic graph. It supports selected higher-order operator calls but rejects some constructs that Java SANY supports, including recursive definitions. Its level analysis and semantic validation are experimental; use Java SANY when complete XML or authoritative analysis is needed.

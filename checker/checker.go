@@ -99,6 +99,9 @@ type Failure struct {
 	NestedMessage string
 	// SuppressStatistics indicates that TLC stops before reporting search statistics.
 	SuppressStatistics bool
+	// SuppressSummary indicates that TLC's simulator reports its final
+	// progress but not its summary.
+	SuppressSummary bool
 	// FingerprintDetail records TLC's source stack and underlying cause, if any.
 	FingerprintDetail string
 	// FingerprintCause and FingerprintCauseCode describe a nested TLC message.
@@ -107,7 +110,11 @@ type Failure struct {
 	// EvaluationDetail records the expression stack for an unexpected failure.
 	EvaluationDetail string
 	// SuppressDepth matches TLC failures that report counts without search depth.
-	SuppressDepth     bool
+	SuppressDepth bool
+	// TemporalViolation reports that TLC printed the start of a liveness
+	// counterexample, whose states are TemporalTrace, before this failure.
+	TemporalViolation bool
+	TemporalTrace     []TraceStep
 	evaluationSources []*parser.Expression
 }
 type model struct {
@@ -141,6 +148,9 @@ type model struct {
 	enabledCallback      evaluator.EnabledCallback
 	properties           []temporalProperty
 	livenessOrder        []temporalProperty
+	// propertyCalls counts the parameterized operators being expanded in a
+	// property; TLC does not split a property below such a call.
+	propertyCalls        int
 	safety               []temporalProperty
 	guarded              []temporalProperty
 	fairness             []fairnessCondition

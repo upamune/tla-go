@@ -10,6 +10,7 @@ func (m *model) applyActionRanges(result *Result) {
 	}
 	if result.Failure != nil {
 		m.applyStepActionRanges(result.Failure.Trace)
+		m.applyStepActionRanges(result.Failure.TemporalTrace)
 	}
 }
 

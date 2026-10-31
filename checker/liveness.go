@@ -19,7 +19,10 @@ type graphEdge struct {
 }
 
 type temporalProperty struct {
-	name          string
+	name string
+	// source is the property conjunct before classification. TLC simulation
+	// converts it to its own liveness normal form.
+	source        *parser.Expression
 	predicate     *parser.Expression
 	trigger       *parser.Expression
 	sequence      []*parser.Expression
@@ -104,14 +107,31 @@ func (m *model) prepareNonConjunctProperty(name string, expr *parser.Expression,
 	if handled, err := m.preparePropertyCall(name, expr, bounds, seen); handled {
 		return err
 	}
-	property, ok := m.classifyProperty(temporalProperty{name: name, bounds: bounds}, expr)
-	if !ok {
-		if trivialTemporalImplication(expr) {
-			return temporalTautologyError()
-		}
-		property = temporalProperty{name: name, bounds: bounds, predicate: expr, mode: generalTemporal}
+	property, err := m.classifyPropertyConjunct(temporalProperty{name: name, bounds: bounds, source: expr})
+	if err != nil {
+		return err
 	}
 	return m.expandProperty(property)
+}
+
+func (m *model) classifyPropertyConjunct(p temporalProperty) (temporalProperty, error) {
+	property, ok := m.classifyProperty(p, p.source)
+	if ok && m.simulationTemporalSafety(property) {
+		if property.mode == actionAlways {
+			return property, liveActionFormatError()
+		}
+		ok = false
+	}
+	if ok {
+		return property, nil
+	}
+	if trivialTemporalImplication(p.source) {
+		if err := m.temporalTautology(); err != nil {
+			return property, err
+		}
+	}
+	p.predicate, p.mode = p.source, generalTemporal
+	return p, nil
 }
 
 func trivialTemporalImplication(expr *parser.Expression) bool {
@@ -155,7 +175,21 @@ func (m *model) expandPropertyCall(name string, call *parser.Expression, bounds 
 	}
 	seen[call.Text] = true
 	defer delete(seen, call.Text)
+	if len(call.Args) > 0 {
+		m.propertyCalls++
+		defer func() { m.propertyCalls-- }()
+	}
 	return m.preparePropertyExpression(name, expanded, bounds, seen)
+}
+
+// TLC splits a property only at conjunctions and zero-arity definitions. A
+// safety formula under a quantifier or a parameterized operator thus remains
+// a temporal formula, which TLC simulation checks on each trace.
+func (m *model) simulationTemporalSafety(property temporalProperty) bool {
+	if !m.tlcRuntime.simulation || property.mode != stateAlways && property.mode != actionAlways {
+		return false
+	}
+	return len(property.bounds) > 0 || m.propertyCalls > 0
 }
 
 func (m *model) classifyProperty(p temporalProperty, expr *parser.Expression) (temporalProperty, bool) {
@@ -282,11 +316,22 @@ func (m *model) compileGeneralProperty(instance *temporalProperty) error {
 		return err
 	}
 	if formula.kind == ltlFalse {
-		return temporalTautologyError()
+		if err := m.temporalTautology(); err != nil {
+			return err
+		}
 	}
 	compiler.retainEventualities(formula)
 	instance.general, instance.eventualities = formula, compiler.eventuality
 	return nil
+}
+
+// Model checking rejects a tautology. TLC simulation instead checks the
+// remaining solutions, of which a tautology contributes none.
+func (m *model) temporalTautology() error {
+	if m.tlcRuntime.simulation {
+		return nil
+	}
+	return temporalTautologyError()
 }
 
 func temporalTautologyError() error {
@@ -404,9 +449,6 @@ func (s *search) checkProperty(p temporalProperty) (bool, error) {
 }
 
 func (s *search) checkOtherProperty(p temporalProperty) (bool, error) {
-	if s.simulationCheckStates != nil && p.mode == often {
-		return s.checkSimulationOften(p)
-	}
 	if p.mode == oftenImpliesState || p.mode == oftenImpliesAction {
 		return s.checkOftenImplication(p)
 	}

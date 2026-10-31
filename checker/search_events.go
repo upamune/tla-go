@@ -13,6 +13,9 @@ const (
 	SimulationInitialComplete SearchEventKind = "simulation-initial-complete"
 	// DepthFirstLevel starts an iteration of depth-first iterative deepening.
 	DepthFirstLevel SearchEventKind = "depth-first-level"
+	// SimulationLiveness reports the number of solutions of TLC's liveness
+	// normal form before simulation computes the initial states.
+	SimulationLiveness SearchEventKind = "simulation-liveness"
 )
 
 // SearchEvent describes initial-state generation and depth-first iterations
@@ -22,6 +25,8 @@ type SearchEvent struct {
 	GeneratedStates, DistinctStates int
 	// Level is the depth of a DepthFirstLevel iteration.
 	Level int
+	// Branches is the solution count of a SimulationLiveness event.
+	Branches int
 }
 
 func (m *model) emitSearchEvent(event SearchEvent) {

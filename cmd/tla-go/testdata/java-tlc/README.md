@@ -56,6 +56,15 @@ They test wrong operator argument counts and an undefined qualified name.
 exercise errors while evaluating assumptions, including cardinality overflow,
 an unsatisfied CHOOSE, and comparison of incompatible function-domain values.
 
+The files in `simulation-liveness` are unchanged copies of upstream test
+models from the same release. `simulation` holds `simulation/Example1` and
+`Example2`; `test-model` holds `Test2`, `Test2a`, and `TLCGetLevel` from the
+test-model root; `CodePlexBug08` holds that directory's `MC` and
+`CodeplexBug8`; `NQSpec` holds `simulation/NQSpec`; and `symmetry` holds
+`Unsymmetric`, `UnsymmetricMCA`, and `UnsymmetricMCB`.
+`TestJavaTLCSimulationUpstreamLiveness` runs them in simulation mode, and
+`expected.json` records the corresponding Java TLC 1.7.4 messages.
+
 `etest6` is unchanged from the same suite. It tests a next-state action that
 reads an unassigned primed variable through an operator argument.
 
