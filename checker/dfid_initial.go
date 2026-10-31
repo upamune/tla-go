@@ -127,8 +127,9 @@ func (s *dfidSearch) initialFailure(err error, state evaluator.State) (Result, b
 		return Result{}, true, nil
 	}
 	result := &Failure{Message: failure.Message, ToolCode: 2102, InitialState: state}
+	nestJavaMessage(result, failure)
 	if state == nil {
-		result = &Failure{Message: dfidGeneralMessage("computing initial states", failure.Message), ToolCode: 1000}
+		result = generalFailure("computing initial states", failure)
 	}
 	s.publish(Result{Status: EvaluationFailure, Failure: result})
 	if err := s.replayInitial(); err != nil {

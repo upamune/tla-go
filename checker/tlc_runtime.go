@@ -156,14 +156,15 @@ func (r *tlcRuntime) setNamed(name string, key, val value.Value, context evaluat
 	return nil
 }
 
-// stop handles TLCSet("exit", TRUE). TLC's depth-first checker cannot stop,
-// so the call fails there.
+// stop handles TLCSet("exit", TRUE). TLC's depth-first checker cannot stop:
+// its UnsupportedOperationException reaches TLC's Java operator override.
 func (r *tlcRuntime) stop(val value.Value) error {
 	if b, ok := val.Bool(); !ok || !b {
 		return nil
 	}
 	if r.depthFirst != nil {
-		return &evaluator.RuntimeError{Message: "stop not implemented"}
+		message := "Attempted to apply the operator overridden by the Java method\npublic static tlc2.value.impl.Value tlc2.module.TLC.TLCSet(tlc2.value.impl.Value,tlc2.value.impl.Value),\nbut it produced the following error:\nstop not implemented"
+		return &evaluator.RuntimeError{Message: message, ToolCode: 2154, TrackSource: true}
 	}
 	r.stopped = true
 	return nil

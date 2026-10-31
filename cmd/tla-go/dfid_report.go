@@ -99,14 +99,24 @@ func printToolDepthFirstError(t toolOutput, result checker.Result) {
 }
 
 func printToolDepthFirstFailure(t toolOutput, failure *checker.Failure) {
-	if failure.Message == "" || printToolInitialStateFailure(t, failure) {
+	if failure.Message == "" || printToolDepthFirstInitialFailure(t, failure) {
 		return
 	}
-	t.message(failure.ToolCode, 1, failure.Message)
+	printToolFailureHeader(t, failure)
 	if len(failure.Trace) > 0 {
 		t.message(2121, 1, "The behavior up to this point is:")
 		printToolDepthFirstTrace(t, failure.Trace)
 	}
+}
+
+// printToolDepthFirstInitialFailure prints TLC_INITIAL_STATE, which nests the
+// tool envelope of a coded exception message.
+func printToolDepthFirstInitialFailure(t toolOutput, failure *checker.Failure) bool {
+	if failure.ToolCode == 2102 && failure.InitialState != nil && failure.NestedToolCode != 0 {
+		printToolInitialNestedFailure(t, failure, failure.NestedToolCode, failure.NestedMessage)
+		return true
+	}
+	return printToolInitialStateFailure(t, failure)
 }
 
 func printToolDepthFirstTrace(t toolOutput, trace []checker.TraceStep) {

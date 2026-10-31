@@ -29,6 +29,8 @@ Stats == PrintT(<<TLCGet("level"), TLCGet("diameter"), TLCGet("distinct"), TLCGe
 Exit == IF x = 2 THEN TLCSet("exit", TRUE) ELSE TRUE
 ActErr == [][IF x' = 2 THEN 1 \div 0 = 0 ELSE TRUE]_x
 Choose == x' = IF x < 2 THEN x + 1 ELSE CHOOSE y \in {} : TRUE
+Div == x' = IF x < 2 THEN x + 1 ELSE 1 \div 0
+ExitNext == x < 5 /\ x' = x + 1 /\ (x = 2 => TLCSet("exit", TRUE))
 Post == TLCGet("generated") > 0
 ====`
 
@@ -264,6 +266,26 @@ func TestDepthFirstEvaluationFailures(t *testing.T) {
 				t.Errorf("reported %d errors", len(run.errors))
 			}
 		})
+	}
+}
+
+// TLC names the Java exception behind an error in the next-state relation and
+// nests a coded message in tool output.
+func TestDepthFirstExceptionMessages(t *testing.T) {
+	for _, tc := range []struct{ next, class, nested string }{
+		{"Choose", "java.lang.RuntimeException\n: Attempted to compute the value of an expression of form\nCHOOSE x \\in S: P, but no element of S satisfied P.", ""},
+		{"Div", "tlc2.tool.EvalException\n: The second argument of \\div is 0.", "2179 The second argument of \\div is 0."},
+		{"ExitNext", "java.lang.RuntimeException\n: Attempted to apply the operator overridden by the Java method\npublic static tlc2.value.impl.Value tlc2.module.TLC.TLCSet(", "2154 Attempted to apply the operator overridden by the Java method"},
+	} {
+		run, err := runDepthFirst(t, dfidCounter, "INIT Init\nNEXT "+tc.next+"\n", 10, false)
+		if err != nil || run.result.Failure == nil {
+			t.Fatalf("%s: %+v, %v", tc.next, run.result, err)
+		}
+		failure := run.result.Failure
+		nested := fmt.Sprintf("%d %s", failure.NestedToolCode, failure.NestedMessage)
+		if !strings.Contains(failure.Message, "The error occurred when TLC was computing the set of next states.\nThe exception was a "+tc.class) || !strings.HasPrefix(nested, tc.nested) || (tc.nested == "") != (failure.NestedToolCode == 0) {
+			t.Errorf("%s: message %q, nested %q", tc.next, failure.Message, nested)
+		}
 	}
 }
 

@@ -41,11 +41,6 @@ func actionPropertyFailure(name string) *Failure {
 	return &Failure{Message: fmt.Sprintf("Evaluating action property %s failed.", name), ToolCode: 2113, ExitCode: 13}
 }
 
-// dfidGeneralMessage is MP.ECGeneralMsg for an exception with a message.
-func dfidGeneralMessage(activity, message string) string {
-	return "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nThe error occurred when TLC was " + activity + ".\nThe exception was a java.lang.RuntimeException\n: " + message
-}
-
 // violation reports a violated invariant or action property. With -continue,
 // TLC reports it and skips the remaining checks of the successor.
 func (e *dfidExpansion) violation(succ *dfidNode, result Result) (bool, bool, error) {
@@ -76,9 +71,9 @@ func (e *dfidExpansion) evaluationFailure(err error, succ *dfidNode) (bool, erro
 	if !ok {
 		return false, err
 	}
-	message := dfidGeneralMessage("computing the set of next states", failure.Message)
-	result := Result{Status: EvaluationFailure, Failure: &Failure{Message: message, ToolCode: 1000, ExitCode: 255, Trace: e.traceTo(succ)}}
-	e.report(result, true, err)
+	result := generalFailure("computing the set of next states", failure)
+	result.ExitCode, result.Trace = 255, e.traceTo(succ)
+	e.report(Result{Status: EvaluationFailure, Failure: result}, true, err)
 	e.aborted = true
 	return false, nil
 }

@@ -19,6 +19,11 @@ type depthFirstCase struct {
 	code                  int
 	counts                string
 	states                int
+	// skipPositions leaves out the expressions listed by TLC's 2103 message.
+	// TLC lists every conjunct still on its continuation-passing call stack
+	// and, after an error in Init, the identity of its Tool object; tla-go
+	// lists only the expressions enclosing the error.
+	skipPositions bool
 }
 
 // The upstream JUnit tests DepthFirstDieHardTest, DepthFirstErrorTraceTest,
@@ -41,6 +46,14 @@ var depthFirstCases = []depthFirstCase{
 	{name: "constraints", body: "VARIABLE y\nInit == x \\in 0..2 /\\ y=0\nNext == (x'=x+1 /\\ y'=y) \\/ (y'=y+1 /\\ x'=x)\nC == x+y<4\nA == ~(x'=2 /\\ y'=1)", cfg: "CONSTRAINT C\nACTION_CONSTRAINT A\n", args: []string{"-deadlock", "-dfid", "20"}, code: 0, counts: "47 states generated, 9 distinct states found."},
 	{name: "continue", body: "VARIABLE y\nInit == x \\in 0..2 /\\ y=0\nNext == (x'=x+1 /\\ y'=y) \\/ (y'=y+1 /\\ x'=x)\nC == x+y<4\nInv == ~(x=1 /\\ y=2)", cfg: "CONSTRAINT C\nINVARIANT Inv\n", args: []string{"-deadlock", "-continue", "-dfid", "20"}, code: 0, counts: "49 states generated, 10 distinct states found.", states: 3},
 	{name: "invariant failure", body: "Init == x=0\nNext == x<5 /\\ x'=x+1\nInv == IF x=2 THEN 1 \\div 0 = 0 ELSE TRUE", cfg: "INVARIANT Inv\n", args: []string{"-dfid", "10"}, code: 76, counts: "5 states generated, 3 distinct states found.", states: 3},
+	{name: "next-state error", body: "Init == x=0\nNext == x' = IF x = 2 THEN 1 \\div 0 ELSE x + 1", args: []string{"-dfid", "10"}, code: 255, counts: "6 states generated, 3 distinct states found.", states: 3},
+	{name: "constraint error", body: "Init == x=0\nNext == x<5 /\\ x'=x+1\nC == IF x=3 THEN 1 \\div 0 = 0 ELSE TRUE", cfg: "CONSTRAINT C\n", args: []string{"-dfid", "10"}, code: 255, counts: "8 states generated, 3 distinct states found.", states: 4},
+	{name: "action constraint error", body: "Init == x=0\nNext == x<5 /\\ x'=x+1\nC == IF x'=3 THEN 1 \\div 0 = 0 ELSE TRUE", cfg: "ACTION_CONSTRAINT C\n", args: []string{"-dfid", "10"}, code: 255, counts: "8 states generated, 3 distinct states found.", states: 4},
+	{name: "assert", body: "Init == x=0\nNext == x<5 /\\ x'=x+1 /\\ Assert(x#2, \"boom\")", args: []string{"-dfid", "10"}, code: 255, counts: "6 states generated, 3 distinct states found.", states: 3, skipPositions: true},
+	{name: "non-boolean next", body: "Init == x=0\nNext == x<5 /\\ x'=x+1 /\\ (IF x=2 THEN 7 ELSE TRUE)", args: []string{"-dfid", "10"}, code: 255, counts: "6 states generated, 3 distinct states found.", states: 3, skipPositions: true},
+	{name: "exit", body: "Init == x=0\nNext == x<5 /\\ x'=x+1 /\\ (x=2 => TLCSet(\"exit\", TRUE))", args: []string{"-dfid", "10"}, code: 255, counts: "6 states generated, 3 distinct states found.", states: 3, skipPositions: true},
+	{name: "initial error", body: "Init == x = 1 \\div 0\nNext == x'=x", args: []string{"-dfid", "10"}, code: 75, counts: "0 states generated, 0 distinct states found.", skipPositions: true},
+	{name: "initial invariant error", body: "Init == x \\in {0, 1}\nNext == UNCHANGED x\nInv == 1 \\div x = 1", cfg: "INVARIANT Inv\n", args: []string{"-dfid", "10"}, code: 0, counts: "2 states generated, 2 distinct states found."},
 	{name: "liveness", body: "Init == x=0\nNext == x'=(x+1)%4\nP == <>(x=3)", cfg: "PROPERTY P\n", args: []string{"-dfid", "10"}, code: 255},
 }
 
@@ -51,7 +64,7 @@ func TestJavaTLCDepthFirst(t *testing.T) {
 			args := append([]string{"-tool", "-workers", "1", "-fp", "0"}, tc.args...)
 			var out, errout bytes.Buffer
 			code := run(context.Background(), append(args, filepath.Join(dir, spec+".tla")), &out, &errout)
-			got := depthFirstMessages(readToolMessages(out.String()))
+			got := depthFirstMessages(readToolMessages(out.String()), tc.skipPositions)
 			if code != tc.code || errout.Len() != 0 || !strings.Contains(out.String(), tc.counts) {
 				t.Fatalf("exit %d, want %d; stdout %s; stderr %s", code, tc.code, out.String(), errout.String())
 			}
@@ -59,7 +72,7 @@ func TestJavaTLCDepthFirst(t *testing.T) {
 				t.Fatalf("%d trace states, want %d: %s", states, tc.states, out.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				want := javaDepthFirstMessages(t, jar, dir, append(args, spec+".tla"), tc.code)
+				want := javaDepthFirstMessages(t, jar, dir, append(args, spec+".tla"), tc)
 				if !reflect.DeepEqual(got, want) {
 					t.Fatalf("Go messages %q\nJava messages %q", got, want)
 				}
@@ -91,7 +104,7 @@ var depthFirstProgressTime = regexp.MustCompile(`^Progress\(-1\) at [^:]+:\d\d:\
 
 // depthFirstMessages drops the banner, SANY, timing, and JVM messages that
 // differ between implementations.
-func depthFirstMessages(messages []toolMessage) []string {
+func depthFirstMessages(messages []toolMessage, skipPositions bool) []string {
 	var result []string
 	for _, message := range messages {
 		switch message.code {
@@ -99,20 +112,23 @@ func depthFirstMessages(messages []toolMessage) []string {
 			continue
 		}
 		body := depthFirstProgressTime.ReplaceAllString(message.body, "Progress(-1): ")
+		if message.code == 2103 && skipPositions {
+			body, _, _ = strings.Cut(body, "positions:\n")
+		}
 		result = append(result, fmt.Sprintf("%d:%d:%s", message.code, message.level, body))
 	}
 	return result
 }
 
-func javaDepthFirstMessages(t *testing.T, jar, dir string, args []string, code int) []string {
+func javaDepthFirstMessages(t *testing.T, jar, dir string, args []string, tc depthFirstCase) []string {
 	t.Helper()
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar}, args...)...)
 	cmd.Dir = dir
 	output, _ := cmd.CombinedOutput()
-	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 		t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 	}
-	return depthFirstMessages(readToolMessages(string(output)))
+	return depthFirstMessages(readToolMessages(string(output)), tc.skipPositions)
 }
 
 func TestDepthFirstTextOutput(t *testing.T) {
