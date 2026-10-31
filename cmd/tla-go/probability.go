@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -97,6 +98,26 @@ func roundProbabilityDigits(digits string) string {
 		return roundProbabilityDigits(front) + "0"
 	}
 	return front + string(last+1)
+}
+
+// observedProbability is 1/distance rounded half up to two significant
+// digits, as TLC computes it with BigDecimal before printing it.
+func observedProbability(distance int64) float64 {
+	if distance <= 0 {
+		return 0
+	}
+	divisor := big.NewInt(distance)
+	scale, exponent := big.NewInt(10), 1
+	for new(big.Int).Quo(scale, divisor).Cmp(big.NewInt(10)) < 0 {
+		scale.Mul(scale, big.NewInt(10))
+		exponent++
+	}
+	quotient, remainder := new(big.Int).QuoRem(scale, divisor, new(big.Int))
+	if remainder.Lsh(remainder, 1).Cmp(divisor) >= 0 {
+		quotient.Add(quotient, big.NewInt(1))
+	}
+	value, _ := strconv.ParseFloat(quotient.String()+"e-"+strconv.Itoa(exponent), 64)
+	return value
 }
 
 func javaFloat(value float64) string {

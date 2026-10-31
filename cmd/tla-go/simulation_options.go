@@ -17,6 +17,8 @@ func parseOtherOption(opts *options, args []string) (int, error) {
 		return parseSimulationOption(opts, args)
 	case "-depth":
 		return parseSimulationDepth(opts, args)
+	case "-dfid":
+		return parseDepthFirstOption(opts, args)
 	default:
 		return 0, parsePath(opts, args[0])
 	}

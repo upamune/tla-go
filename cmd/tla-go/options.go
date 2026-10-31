@@ -27,6 +27,9 @@ func parseOptions(args []string) (options, error) {
 	if err := configureSimulation(&opts); err != nil {
 		return opts, err
 	}
+	if err := configureDepthFirst(&opts); err != nil {
+		return opts, err
+	}
 	return opts, nil
 }
 

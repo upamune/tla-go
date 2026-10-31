@@ -71,13 +71,7 @@ func printViolation(w io.Writer, result checker.Result, module *parser.Module) b
 		return true
 	}
 	if initialViolation(result) {
-		kind := "Invariant"
-		if result.Status == checker.LivenessViolation {
-			kind = "Property"
-		}
-		fmt.Fprintf(w, "Error: %s %s is violated by the initial state:\n", kind, violation.Name)
-		printStateOrdered(w, violation.Trace[0].State, violation.Trace[0].StateOrder)
-		printUnwitnessed(w, violation.Unwitnessed)
+		printInitialViolation(w, result)
 		return true
 	}
 	printViolationHeadline(w, result)
@@ -85,6 +79,17 @@ func printViolation(w io.Writer, result checker.Result, module *parser.Module) b
 	printLoop(w, violation, module)
 	printUnwitnessed(w, violation.Unwitnessed)
 	return false
+}
+
+func printInitialViolation(w io.Writer, result checker.Result) {
+	violation := result.Violation
+	kind := "Invariant"
+	if result.Status == checker.LivenessViolation {
+		kind = "Property"
+	}
+	fmt.Fprintf(w, "Error: %s %s is violated by the initial state:\n", kind, violation.Name)
+	printStateOrdered(w, violation.Trace[0].State, violation.Trace[0].StateOrder)
+	printUnwitnessed(w, violation.Unwitnessed)
 }
 
 func printUnwitnessed(w io.Writer, failure *checker.PossibleViolation) {
