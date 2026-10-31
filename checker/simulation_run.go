@@ -24,14 +24,14 @@ func (m *model) simulate(traces, depth int, seed int64) (Result, error) {
 }
 
 func (m *model) simulateWithOptions(options SimulationOptions, seed int64) (Result, error) {
-	if err := m.validateSimulation(options.Traces, options.Depth); err != nil {
+	if err := m.validateSimulation(options.Depth); err != nil {
 		return Result{}, err
 	}
 	actions, err := m.simulationActions()
 	if err != nil {
 		return Result{}, err
 	}
-	run := simulationRun{model: m, search: newSearch(m), depth: options.Depth, options: options}
+	run := simulationRun{model: m, search: newSearch(m), depth: simulationDepth(options.Depth), options: options}
 	master := evaluator.NewJavaRandom(seed)
 	if options.Aril > 0 {
 		master.AdvanceDoubles(uint64(options.Aril))
@@ -44,20 +44,34 @@ func (m *model) simulateWithOptions(options SimulationOptions, seed int64) (Resu
 	if result, failed, err := m.checkAssumptions(); failed || err != nil {
 		return result, err
 	}
-	return run.explore(options.Traces)
+	return run.explore(simulationTraces(options))
 }
 
-func (m *model) validateSimulation(traces, depth int) error {
+func (m *model) validateSimulation(depth int) error {
 	if !m.supportsSimulationLiveness() {
 		return fmt.Errorf("simulation of temporal properties is not yet supported")
 	}
 	if m.graph != nil || m.debug != nil {
 		return fmt.Errorf("graph and liveness debug output are not supported in simulation mode")
 	}
-	if traces <= 0 || depth < 0 {
-		return fmt.Errorf("simulation requires a positive trace count and nonnegative depth")
+	if depth < -1 {
+		return fmt.Errorf("simulation depth must be -1 or nonnegative")
 	}
 	return nil
+}
+
+func simulationDepth(depth int) int {
+	if depth == -1 {
+		return int(^uint(0) >> 1)
+	}
+	return depth
+}
+
+func simulationTraces(options SimulationOptions) int {
+	if options.UnlimitedTraces {
+		return int(^uint(0) >> 1)
+	}
+	return max(1, options.Traces)
 }
 
 func (r *simulationRun) explore(traces int) (Result, error) {

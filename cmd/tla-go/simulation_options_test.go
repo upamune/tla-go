@@ -13,14 +13,15 @@ func TestSimulationOptions(t *testing.T) {
 		args          []string
 		traces, depth int
 		seed          int64
+		unlimited     bool
 	}{
-		{[]string{"-simulate", "num=2", "-depth", "0", "-seed", "7", "M.tla"}, 2, 0, 7},
-		{[]string{"-depth", "5", "-seed", "-1", "-simulate", "num=0", "M.tla"}, 1, 5, -1},
-		{[]string{"-simulate", "num=-2", "-seed", "0", "M.tla"}, 1, 100, 0},
-		{[]string{"-simulate", "-depth", "-1", "-seed", "0", "M.tla"}, int(^uint(0) >> 1), int(^uint(0) >> 1), 0},
+		{[]string{"-simulate", "num=2", "-depth", "0", "-seed", "7", "M.tla"}, 2, 0, 7, false},
+		{[]string{"-depth", "5", "-seed", "-1", "-simulate", "num=0", "M.tla"}, 0, 5, -1, false},
+		{[]string{"-simulate", "num=-2", "-seed", "0", "M.tla"}, -2, 100, 0, false},
+		{[]string{"-simulate", "-depth", "-1", "-seed", "0", "M.tla"}, 0, -1, 0, true},
 	} {
 		opts, err := parseOptions(tc.args)
-		if err != nil || !opts.simulate || opts.simulationTraces != tc.traces || opts.simulationDepth != tc.depth || opts.seed != tc.seed {
+		if err != nil || !opts.simulate || opts.simulationTraces != tc.traces || opts.simulationDepth != tc.depth || opts.seed != tc.seed || opts.simulationUnlimited != tc.unlimited {
 			t.Errorf("parse %q: %+v, %v", tc.args, opts, err)
 		}
 	}
@@ -103,12 +104,12 @@ func TestSimulationZeroDepthAndCount(t *testing.T) {
 	}
 }
 
-func TestSimulationRejectsUnsupportedRuntimeConfig(t *testing.T) {
+func TestSimulationRuntimeConfig(t *testing.T) {
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == /\\ UNCHANGED x /\\ TLCGet(\"config\").mode = \"simulate\"", "INIT Init\nNEXT Next\n")
 	var out, errout bytes.Buffer
 	code := run(context.Background(), []string{"-tool", "-simulate", "num=1", "-seed", "1", filepath.Join(dir, "M.tla")}, &out, &errout)
-	if code == 0 || !strings.Contains(out.String(), "TLCGet(config) in simulation is not yet supported") {
+	if code != 0 || errout.Len() != 0 {
 		t.Fatalf("exit %d, stdout %s, stderr %s", code, out.String(), errout.String())
 	}
 }

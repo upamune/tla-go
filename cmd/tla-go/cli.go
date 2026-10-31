@@ -35,6 +35,7 @@ type options struct {
 	continuation               bool
 	simulationTraces           int
 	simulationDepth            int
+	simulationUnlimited        bool
 }
 
 func usage(w io.Writer) {

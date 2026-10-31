@@ -82,12 +82,12 @@ The exit code is 0 on success, 11 for deadlock, 12 for invariant or property vio
 
 With `-continue`, model checking can finish with exit code 0 even after reporting violations, matching Java TLC. Check the reported messages or the Go API's violation count.
 
-Simulation checks a bounded set of randomly chosen behaviors; a successful run
+Simulation samples randomly chosen behaviors; a successful run
 does not prove a model correct. Selected pure state eventualities (`<>P`),
 recurrence (`[]<>P`), and stability (`<>[]P`) are supported without fairness
 or state reduction. Other temporal properties,
 fairness, trace files, multiple
-workers, `-aril`, `TLCGet("config")`, `TLCSet("exit", TRUE)`, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
+workers, `TLCSet("exit", TRUE)`, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
 messages and errors are not fully compatible with Java TLC. For example:
 
 ```sh

@@ -82,6 +82,12 @@ and large arils, against Java TLC 1.7.4. A separate test checks selected seeds
 against 1.8.0. These comparisons cover selected action and liveness behavior,
 not the full simulation test suite.
 
+`TestJavaTLCModernSimulationConfig` and `TestJavaTLCModernSimulationConfigRecord`
+compare selected simulation configuration values and record output with Java TLC
+1.8.0. `TestJavaTLCSimulationConfigVersionDifference` records that Java TLC
+1.7.4 leaves this configuration undefined. The comparisons exclude the `install`
+path, which is specific to the Java JAR.
+
 `TestJavaTLCModelContinue` compares selected model-checking continuation cases
 with Java TLC 1.7.4, including initial and successor violations, constraints,
 deadlocks, and temporal properties. `TestJavaTLCModelContinueDOT` compares DOT

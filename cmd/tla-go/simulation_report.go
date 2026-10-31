@@ -19,7 +19,7 @@ func printChecking(out io.Writer, specPath, configPath string, opts options) {
 
 func configureCheckingMode(checkOpts *checker.Options, opts options, module *parser.Module, out io.Writer) {
 	if opts.simulate {
-		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, Aril: opts.aril, Continue: opts.continuation}
+		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, UnlimitedTraces: opts.simulationUnlimited, Aril: opts.aril, Continue: opts.continuation}
 		if opts.continuation {
 			checkOpts.Simulation.OnViolation = simulationViolationOutput(opts, module, out)
 		}

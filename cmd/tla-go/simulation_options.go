@@ -36,7 +36,8 @@ func parseSimulationOption(opts *options, args []string) (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("invalid simulation trace count %s", text)
 		}
-		opts.simulationTraces = max(1, int(count))
+		opts.simulationTraces = int(count)
+		opts.simulationUnlimited = false
 	}
 	return 1, nil
 }
@@ -49,11 +50,7 @@ func parseSimulationDepth(opts *options, args []string) (int, error) {
 	if err != nil || depth < -1 {
 		return 0, fmt.Errorf("invalid simulation depth %s", args[1])
 	}
-	if depth == -1 {
-		opts.simulationDepth = int(^uint(0) >> 1)
-	} else {
-		opts.simulationDepth = int(depth)
-	}
+	opts.simulationDepth = int(depth)
 	return 1, nil
 }
 

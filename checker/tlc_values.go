@@ -2,6 +2,7 @@ package checker
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -77,10 +78,43 @@ func (r *tlcRuntime) configValue() (value.Value, error) {
 		return value.Value{}, tlcRuntimeError("TLCGet(config) was undefined.")
 	}
 	if r.simulation {
-		return value.Value{}, tlcRuntimeError("TLCGet(config) in simulation is not yet supported.")
+		return r.simulationConfigValue()
 	}
 	one, _ := value.Integer(1)
 	return makeRecord(map[string]value.Value{"mode": value.String("bfs"), "deadlock": value.Bool(r.cfg.CheckDeadlock), "worker": one, "seed": value.String(strconv.FormatInt(r.options.Seed, 10)), "fingerprint": value.String(strconv.FormatInt(r.model.fingerprintAlgorithm.Polynomial(), 10)), "install": value.String("unknown")})
+}
+
+func (r *tlcRuntime) simulationConfigValue() (value.Value, error) {
+	opts := r.options.Simulation
+	traces := opts.Traces
+	if opts.UnlimitedTraces {
+		traces = -1
+	}
+	traceValue, err := value.Integer(int64(traces))
+	if err != nil {
+		return value.Value{}, err
+	}
+	depth := opts.Depth
+	if depth >= math.MaxInt32 {
+		depth = -1
+	}
+	depthValue, err := value.Integer(int64(depth))
+	if err != nil {
+		return value.Value{}, err
+	}
+	one, _ := value.Integer(1)
+	pairs := []value.Pair{
+		{Key: value.String("install"), Value: value.String("unknown")},
+		{Key: value.String("mode"), Value: value.String("simulate")},
+		{Key: value.String("deadlock"), Value: value.Bool(r.cfg.CheckDeadlock)},
+		{Key: value.String("seed"), Value: value.String(strconv.FormatInt(r.options.Seed, 10))},
+		{Key: value.String("worker"), Value: one},
+		{Key: value.String("traces"), Value: traceValue},
+		{Key: value.String("depth"), Value: depthValue},
+		{Key: value.String("aril"), Value: value.String("0")},
+		{Key: value.String("sched"), Value: value.String("random")},
+	}
+	return value.FunctionWithFieldOrder(pairs, []string{"install", "mode", "deadlock", "seed", "worker", "traces", "depth", "aril", "sched"})
 }
 
 func (r *tlcRuntime) revisionValue() (value.Value, error) {

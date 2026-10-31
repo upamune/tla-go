@@ -170,12 +170,15 @@ type Options struct {
 	OnSearch func(SearchEvent)
 }
 
-// SimulationOptions bounds the number and length of simulated traces. After
-// initial state generation, DistinctStates and QueuedStates are -1 and Depth is
-// not populated; GeneratedStates counts generated states, including repeats.
+// SimulationOptions bounds the number and length of simulated traces. A
+// nonpositive Traces value runs one trace, and Depth -1 has no limit.
+// After initial state generation, DistinctStates and QueuedStates are -1 and
+// Depth is not populated; GeneratedStates counts states including repeats.
 type SimulationOptions struct {
 	Traces int
 	Depth  int
+	// UnlimitedTraces removes the trace-count limit and reports -1 to TLCGet.
+	UnlimitedTraces bool
 	// Aril advances the master random stream by this many double draws.
 	// Negative values have the same effect as zero, matching Java TLC.
 	Aril int64
