@@ -18,7 +18,7 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 		}
 		inModel, err := s.satisfiesConstraints(state, parent)
 		if err == nil {
-			normalizeStateMembership(state)
+			s.normalizeStateMembership(state, parent)
 		}
 		return key, inModel, err
 	}
@@ -28,13 +28,22 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 	}
 	key, err := s.model.stateKey(state)
 	if err == nil {
-		normalizeStateMembership(state)
+		s.normalizeStateMembership(state, parent)
 	}
 	return key, inModel, err
 }
 
-func normalizeStateMembership(state evaluator.State) {
+// normalizeStateMembership skips values shared with the parent, whose stored
+// state was normalized when it was visited.
+func (s *search) normalizeStateMembership(state evaluator.State, parent int) {
+	var previous evaluator.State
+	if parent >= 0 {
+		previous = s.nodes[parent].state
+	}
 	for name, v := range state {
+		if stored, ok := previous[name]; ok && stored == v {
+			continue
+		}
 		if normalized := v.DeepNormalizedMembership(); normalized != v {
 			state[name] = normalized
 		}
