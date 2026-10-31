@@ -77,6 +77,11 @@ against Java TLC 1.7.4. They cover selected results and tool traces, not all
 temporal formulas. A separate regression test records a known difference in
 simulation stability results between TLC 1.7.4 and 1.8.0.
 
+`TestJavaTLCSimulationTraceFiles` compares generated trace files for normal
+traces, zero depth, state constraints, and invariant violations with Java TLC
+1.7.4. A separate comparison records selected format and length differences in
+Java TLC 1.8.0. This does not cover all value formats or side effects.
+
 `TestJavaTLCSimulationAril` compares selected seeded traces, including negative
 and large arils, against Java TLC 1.7.4. A separate test checks selected seeds
 against 1.8.0. These comparisons cover selected action and liveness behavior,

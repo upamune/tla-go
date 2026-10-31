@@ -28,18 +28,28 @@ func parseSimulationOption(opts *options, args []string) (int, error) {
 		return 0, nil
 	}
 	for part := range strings.SplitSeq(args[1], ",") {
-		key, text, ok := strings.Cut(part, "=")
-		if !ok || key != "num" {
-			return 0, fmt.Errorf("unsupported simulation option %s", part)
+		if err := parseSimulationArgument(opts, part); err != nil {
+			return 0, err
 		}
-		count, err := strconv.ParseInt(text, 10, 32)
-		if err != nil {
-			return 0, fmt.Errorf("invalid simulation trace count %s", text)
-		}
-		opts.simulationTraces = int(count)
-		opts.simulationUnlimited = false
 	}
 	return 1, nil
+}
+
+func parseSimulationArgument(opts *options, part string) error {
+	key, text, ok := strings.Cut(part, "=")
+	if ok && key == "file" {
+		opts.simulationFile, opts.simulationFileSet = text, true
+		return nil
+	}
+	if !ok || key != "num" {
+		return fmt.Errorf("unsupported simulation option %s", part)
+	}
+	count, err := strconv.ParseInt(text, 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid simulation trace count %s", text)
+	}
+	opts.simulationTraces, opts.simulationUnlimited = int(count), false
+	return nil
 }
 
 func parseSimulationDepth(opts *options, args []string) (int, error) {

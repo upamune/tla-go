@@ -17,6 +17,8 @@ type simulationRun struct {
 	inModel    bool
 	deadlocked bool
 	options    SimulationOptions
+	traceIndex int
+	traceOrder []string
 }
 
 // simulate checks bounded traces with one worker and selected liveness properties.
@@ -98,10 +100,11 @@ func (r *simulationRun) initialGenerationFailure(err error) (Result, error) {
 }
 
 func (r *simulationRun) exploreTraces(states []evaluator.State, traces int) (Result, error) {
-	for range traces {
+	for index := range traces {
 		if r.model.tlcRuntime.stopped {
 			break
 		}
+		r.traceIndex = index
 		result, err := r.trace(states)
 		if r.continueTrace(result, err) {
 			continue
@@ -230,7 +233,30 @@ func (r *simulationRun) traceSteps() (*Result, error) {
 			break
 		}
 	}
-	return r.checkTraceLiveness(visited)
+	return r.finishTrace(visited)
+}
+
+func (r *simulationRun) finishTrace(visited int) (*Result, error) {
+	result, err := r.checkTraceLiveness(visited)
+	if result != nil || err != nil || r.options.OnTrace == nil {
+		return result, err
+	}
+	var trace []TraceStep
+	if visited > 0 {
+		trace = r.search.trace(visited - 1)
+	}
+	r.orderTrace(trace)
+	return nil, r.options.OnTrace(r.traceIndex, trace)
+}
+
+func (r *simulationRun) orderTrace(trace []TraceStep) {
+	if len(trace) == 0 || len(r.model.names) < 2 {
+		return
+	}
+	if r.traceOrder == nil {
+		r.traceOrder = r.model.symmetryVariableOrder()
+	}
+	applyTraceStepOrder(trace, r.traceOrder)
 }
 
 func (r *simulationRun) stepWithStop(index int) (*Result, error) {

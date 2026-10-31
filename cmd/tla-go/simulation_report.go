@@ -23,6 +23,9 @@ func configureCheckingMode(checkOpts *checker.Options, opts options, module *par
 		if opts.continuation {
 			checkOpts.Simulation.OnViolation = simulationViolationOutput(opts, module, out)
 		}
+		if opts.simulationFileSet {
+			checkOpts.Simulation.OnTrace = simulationTraceFile(opts.simulationFile)
+		}
 	} else if opts.continuation {
 		checkOpts.Continue = true
 		checkOpts.OnViolation = modelViolationOutput(opts, module, out)

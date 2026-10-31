@@ -192,6 +192,10 @@ type SimulationOptions struct {
 	// is true. Trace states are read-only and must be copied before modification.
 	// Without a callback, ContinuedViolations still records the count.
 	OnViolation func(Result)
+	// OnTrace receives each completed, nonviolating trace synchronously. The
+	// index counts all attempted traces, including those with violations.
+	// States are read-only and must be copied by callers that retain them.
+	OnTrace func(index int, trace []TraceStep) error
 }
 
 // Check parses a module and a TLC configuration and explores the model.

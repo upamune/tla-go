@@ -27,14 +27,21 @@ func TestSimulationOptions(t *testing.T) {
 	}
 	for _, args := range [][]string{
 		{"-simulate", "num=oops", "M.tla"},
-		{"-simulate", "file=trace", "M.tla"},
-		{"-simulate", "num=1,file=trace", "M.tla"},
 		{"-simulate", "-depth", "-2", "M.tla"},
 		{"-simulate", "-dump", "dot,actionlabels", "out.dot", "M.tla"},
 		{"-simulate", "-debug-liveness", "M.tla"},
 	} {
 		if _, err := parseOptions(args); err == nil {
 			t.Errorf("accepted %q", args)
+		}
+	}
+}
+
+func TestSimulationFileOption(t *testing.T) {
+	for _, argument := range []string{"file=trace", "num=1,file=trace", "file=trace,num=1"} {
+		opts, err := parseOptions([]string{"-simulate", argument, "-seed", "1", "M.tla"})
+		if err != nil || !opts.simulationFileSet || opts.simulationFile != "trace" {
+			t.Errorf("parse %q: %+v, %v", argument, opts, err)
 		}
 	}
 }

@@ -66,7 +66,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-deadlock` | Disable deadlock reporting. |
 | `-seed N` | Set the random seed; model checking defaults to 0 and simulation chooses a random seed. |
 | `-aril N` | Advance the simulation's random stream by N double draws when `-seed` is supplied. |
-| `-simulate [num=N]` | Run experimental single-worker random simulation; omit `num=N` to run until interrupted or a violation is found. |
+| `-simulate [num=N,file=PREFIX]` | Run experimental single-worker random simulation; omit `num=N` to run until interrupted or a violation is found. `file=PREFIX` writes completed traces as `PREFIX_0_0`, `PREFIX_0_1`, and so on. |
 | `-continue` | Continue model checking after invariant or action violations, or simulation after safety violations and deadlocks. |
 | `-depth N` | Set the simulation trace length (default 100; `-1` means no limit). |
 | `-workers 1` | Select the currently supported single-worker mode. |
@@ -86,13 +86,17 @@ Simulation samples randomly chosen behaviors; a successful run
 does not prove a model correct. Selected pure state eventualities (`<>P`),
 recurrence (`[]<>P`), and stability (`<>[]P`) are supported without fairness
 or state reduction. Other temporal properties,
-fairness, trace files, multiple
+fairness, multiple
 workers, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
 messages and errors are not fully compatible with Java TLC. For example:
 
 ```sh
 tla-go -simulate num=100 -depth 50 -seed 1 path/to/Model.tla
+tla-go -simulate num=10,file=trace -depth 50 -seed 1 path/to/Model.tla
 ```
+
+Trace files follow the tested Java TLC 1.7.4 format. Java TLC 1.8.0 writes
+different trace lengths and action comments in some cases.
 
 `-sany-metadata` emits only the metadata consumed by statechart, not the complete SANY XML semantic graph. It supports selected higher-order operator calls but rejects some constructs that Java SANY supports, including recursive definitions. Its level analysis and semantic validation are experimental; use Java SANY when complete XML or authoritative analysis is needed.
 

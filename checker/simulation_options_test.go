@@ -2,6 +2,8 @@ package checker
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -35,5 +37,41 @@ func TestSimulationRejectsUnsupportedLivenessOptions(t *testing.T) {
 				t.Fatalf("got %v; want %s", err, tc.message)
 			}
 		})
+	}
+}
+
+func TestSimulationCompletedTraceCallback(t *testing.T) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x=0\nNext == x'=x+1\nC == x < 2\n===="
+	var indices []int
+	var states [][]int32
+	opts := Options{Simulation: &SimulationOptions{Traces: 2, Depth: 6, OnTrace: func(index int, trace []TraceStep) error {
+		indices = append(indices, index)
+		var traceStates []int32
+		for i, step := range trace {
+			n, ok := step.State["x"].Int()
+			if !ok {
+				t.Fatal("trace state is not an integer")
+			}
+			if i > 0 && step.Action == "" {
+				t.Fatal("trace is missing its action")
+			}
+			traceStates = append(traceStates, n)
+		}
+		states = append(states, traceStates)
+		return nil
+	}}}
+	result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next CONSTRAINT C CHECK_DEADLOCK FALSE", opts)
+	if err != nil || result.Status != Success || !reflect.DeepEqual(indices, []int{0, 1}) || !reflect.DeepEqual(states, [][]int32{{0, 1, 2}, {0, 1, 2}}) {
+		t.Fatalf("result %+v, err %v, indices %v, states %v", result, err, indices, states)
+	}
+}
+
+func TestSimulationTraceCallbackError(t *testing.T) {
+	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\n===="
+	failure := errors.New("trace output failed")
+	opts := Options{Simulation: &SimulationOptions{Traces: 2, Depth: 1, OnTrace: func(int, []TraceStep) error { return failure }}}
+	_, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next", opts)
+	if !errors.Is(err, failure) {
+		t.Fatalf("got %v; want %v", err, failure)
 	}
 }
