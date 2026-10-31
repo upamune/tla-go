@@ -142,3 +142,44 @@ func TestJavaTLCSimulationTraceFileStyles(t *testing.T) {
 		})
 	}
 }
+
+// LiveCheck1 prints the counterexample it recovers before an exception with
+// StatePrinter, so -view, -terse, and -difftrace apply to it as well.
+func TestJavaTLCSimulationTemporalTraceStyles(t *testing.T) {
+	model := "VARIABLES x, y\nInit == x = 0 /\\ y = SUBSET {1, 2}\n" +
+		"Next == /\\ \\/ TLCGet(\"level\") < 5 /\\ x' = (x + 1) % 6\n           \\/ TLCGet(\"level\") >= 5 /\\ x' = (x + 3) % 6\n        /\\ UNCHANGED y\n" +
+		"Spec == Init /\\ [][Next]_<<x, y>>\nP == <>[](x = 0)\nV == <<x>>"
+	for _, tc := range []struct {
+		name  string
+		extra []string
+		want  string
+	}{
+		{"difftrace terse", []string{"-difftrace", "-terse"}, "1: <Initial predicate>\n/\\ x = 0\n/\\ y = SUBSET {1, 2}|2: <Next line 5, col 9 to line 7, col 22 of module M>\n/\\ x = 1|"},
+		{"view", []string{"-view"}, "1: <Initial predicate>\n/\\ x = 0|2: <Next line 5, col 9 to line 7, col 22 of module M>\n/\\ x = 1|"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, model, "SPECIFICATION Spec\nPROPERTY P\nVIEW V\n")
+			args := append(append([]string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "1", "-depth", "10"}, tc.extra...), "M.tla")
+			messages, code, stderr := runGoToolInDir(t, dir, args)
+			if prefix := temporalPrefix(messages); code != 255 || stderr != "" || prefix != tc.want {
+				t.Fatalf("exit %d; temporal prefix %q, want %q; stderr %s", code, prefix, tc.want, stderr)
+			}
+			compareJavaTraceStates(t, dir, args, messages, code)
+		})
+	}
+}
+
+// temporalPrefix joins the trace states printed before the first exception.
+func temporalPrefix(messages []toolMessage) string {
+	var prefix strings.Builder
+	for _, message := range messages {
+		if message.code == 1000 {
+			break
+		}
+		if message.code == 2217 {
+			prefix.WriteString(message.body + "|")
+		}
+	}
+	return prefix.String()
+}

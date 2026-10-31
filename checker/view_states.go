@@ -28,6 +28,7 @@ func (m *model) applyViewStates(result *Result) {
 		m.viewTrace(result.Violation.Trace)
 	}
 	if result.Failure != nil {
+		m.viewTrace(result.Failure.TemporalTrace)
 		m.viewTrace(result.Failure.Trace)
 	}
 }

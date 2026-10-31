@@ -32,6 +32,9 @@ func (s traceStyle) apply(result checker.Result) checker.Result {
 	}
 	if result.Failure != nil {
 		failure := *result.Failure
+		// LiveCheck1 prints each state of a temporal counterexample after the
+		// first as a difference, also when an exception interrupts it.
+		failure.TemporalTrace = s.trace(failure.TemporalTrace, false)
 		failure.Trace = s.trace(failure.Trace, fullLast)
 		failure.InitialState = s.state(failure.InitialState)
 		result.Failure = &failure
