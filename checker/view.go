@@ -41,19 +41,43 @@ func normalizeStateMembership(state evaluator.State) {
 	}
 }
 
-func (m *model) viewKey(state evaluator.State) (string, error) {
+// reducedState is a state after TLC's symmetry reduction, with its VIEW
+// value when the model has one.
+type reducedState struct {
+	state   evaluator.State
+	view    value.Value
+	hasView bool
+}
+
+// reduceState evaluates the symmetry representative and the VIEW of a state,
+// which TLC computes once per fingerprint.
+func (m *model) reduceState(state evaluator.State) (reducedState, error) {
+	if m.cfg.Symmetry != "" {
+		representative, err := m.symmetryRepresentative(state)
+		if err != nil {
+			return reducedState{}, err
+		}
+		state = representative
+	}
+	if m.cfg.View == "" {
+		return reducedState{state: state}, nil
+	}
 	expr, err := m.definition(m.cfg.View)
 	if err != nil {
-		return "", err
+		return reducedState{}, err
 	}
 	v, err := m.eval(expr, state, nil)
-	if err != nil {
-		return "", err
+	return reducedState{state: state, view: v, hasView: true}, err
+}
+
+func (m *model) reducedKey(reduced reducedState) (string, error) {
+	if !reduced.hasView {
+		return m.unreducedStateKey(reduced.state)
 	}
 	if !m.tlcFingerprint {
-		return v.Key()
+		return reduced.view.Key()
 	}
-	fingerprint, err := m.fingerprintAlgorithm.Fingerprint([]value.Value{v}, nil, nil)
+	fingerprint, err := m.fingerprintAlgorithm.Fingerprint([]value.Value{reduced.view}, nil, nil)
 	if err != nil {
 		return "", err
 	}

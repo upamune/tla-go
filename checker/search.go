@@ -453,13 +453,14 @@ func (s *search) trace(index int) []TraceStep {
 }
 
 func (m *model) stateKey(state evaluator.State) (string, error) {
-	if m.cfg.Symmetry != "" {
-		return m.symmetryKey(state)
+	if !m.hasReduction() {
+		return m.unreducedStateKey(state)
 	}
-	if m.cfg.View != "" {
-		return m.viewKey(state)
+	reduced, err := m.reduceState(state)
+	if err != nil {
+		return "", err
 	}
-	return m.unreducedStateKey(state)
+	return m.reducedKey(reduced)
 }
 
 func (m *model) unreducedStateKey(state evaluator.State) (string, error) {

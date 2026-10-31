@@ -338,6 +338,16 @@ View == owner
 	}
 }
 
+// Like TLC, the checker evaluates the VIEW once for each generated state,
+// including the states it records.
+func TestDepthFirstEvaluatesViewOnce(t *testing.T) {
+	spec := "---- MODULE V ----\nEXTENDS Naturals, TLC\nVARIABLES x, y\nInit == x = 0 /\\ y = 0\nNext == x < 3 /\\ x' = x + 1 /\\ y' = y\nV == IF PrintT(x) THEN x ELSE x\n===="
+	run, err := runDepthFirst(t, spec, "INIT Init\nNEXT Next\nVIEW V\nCHECK_DEADLOCK FALSE\n", 10, false)
+	if err != nil || dfidOutcome(run.result) != "success 10/4" || len(run.printed) != 10 {
+		t.Fatalf("result %q, printed %q, %v", dfidOutcome(run.result), run.printed, err)
+	}
+}
+
 func TestDepthFirstCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

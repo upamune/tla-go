@@ -173,33 +173,21 @@ func (m *model) fingerprintKey(state evaluator.State) (string, error) {
 // javaFingerprint follows TLCStateMut.fingerPrint: it fingerprints the
 // symmetry representative, or its VIEW value, with variables in order.
 func (m *model) javaFingerprint(state evaluator.State, order []string) (uint64, error) {
-	values, err := m.javaFingerprintValues(state, order)
+	reduced, err := m.reduceState(state)
 	if err != nil {
 		return 0, err
 	}
-	rank := func(text string) (int, bool) { n, ok := m.valueRanks[text]; return n, ok }
-	return m.fingerprintAlgorithm.Fingerprint(values, rank, m.compareOrderedValues)
+	return m.reducedJavaFingerprint(reduced, order)
 }
 
-func (m *model) javaFingerprintValues(state evaluator.State, order []string) ([]value.Value, error) {
-	if m.cfg.Symmetry != "" {
-		var err error
-		state, err = m.symmetryRepresentative(state)
-		if err != nil {
-			return nil, err
+func (m *model) reducedJavaFingerprint(reduced reducedState, order []string) (uint64, error) {
+	values := []value.Value{reduced.view}
+	if !reduced.hasView {
+		values = make([]value.Value, len(order))
+		for i, name := range order {
+			values[i] = reduced.state[name]
 		}
 	}
-	if m.cfg.View != "" {
-		expr, err := m.definition(m.cfg.View)
-		if err != nil {
-			return nil, err
-		}
-		v, err := m.eval(expr, state, nil)
-		return []value.Value{v}, err
-	}
-	values := make([]value.Value, len(order))
-	for i, name := range order {
-		values[i] = state[name]
-	}
-	return values, nil
+	rank := func(text string) (int, bool) { n, ok := m.valueRanks[text]; return n, ok }
+	return m.fingerprintAlgorithm.Fingerprint(values, rank, m.compareOrderedValues)
 }

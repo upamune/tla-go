@@ -176,9 +176,14 @@ func (s *dfidSearch) counts(result Result) Result {
 }
 
 // insert records a state in the fingerprint set and keeps its TLC fingerprint
-// for the observed collision probability.
+// for the observed collision probability. Like TLC, it evaluates the
+// symmetry representative and VIEW once per state.
 func (s *dfidSearch) insert(node *dfidNode) (int32, error) {
-	key, err := s.model.stateKey(node.state)
+	reduced, err := s.model.reduceState(node.state)
+	if err != nil {
+		return dfidNew, err
+	}
+	key, err := s.model.reducedKey(reduced)
 	if err != nil {
 		return dfidNew, err
 	}
@@ -186,7 +191,7 @@ func (s *dfidSearch) insert(node *dfidNode) (int32, error) {
 	node.key = key
 	status, added := s.states.insert(key)
 	if added && !s.fingerprintFailed {
-		fingerprint, err := s.model.javaFingerprint(node.state, s.order)
+		fingerprint, err := s.model.reducedJavaFingerprint(reduced, s.order)
 		s.fingerprintFailed = err != nil
 		s.states.fingerprints = append(s.states.fingerprints, fingerprint)
 	}
