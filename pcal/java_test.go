@@ -21,7 +21,10 @@ type corpusCase struct {
 	Name  string   `json:"name"`
 	Dir   string   `json:"dir"`
 	Files []string `json:"files"`
-	Args  []string `json:"args"`
+	// Dirs lists empty directories to create, for names of files that
+	// cannot be read.
+	Dirs []string `json:"dirs,omitempty"`
+	Args []string `json:"args"`
 	// Strip removes an existing translation, so that the translator
 	// inserts a new one with checksums.
 	Strip bool `json:"strip,omitempty"`
@@ -31,12 +34,14 @@ type corpusCase struct {
 
 // outcome is what a run prints and leaves in its directory. Files holds
 // the contents of the files that differ from the input file of the same
-// name; Same lists the files that equal an input file.
+// name; Same lists the files that equal an input file, and Dirs the
+// directories.
 type outcome struct {
 	Exit   int               `json:"exit"`
 	Stdout string            `json:"stdout"`
 	Files  map[string]string `json:"files,omitempty"`
 	Same   map[string]string `json:"same,omitempty"`
+	Dirs   []string          `json:"dirs,omitempty"`
 }
 
 const goldenPath = "testdata/golden.json.gz"
@@ -130,6 +135,11 @@ func prepare(t *testing.T, c corpusCase) (string, map[string]string) {
 			t.Fatal(err)
 		}
 	}
+	for _, name := range c.Dirs {
+		if err := os.Mkdir(filepath.Join(dir, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return dir, inputs
 }
 
@@ -142,6 +152,10 @@ func collect(t *testing.T, dir string, inputs map[string]string, exit int, stdou
 		t.Fatal(err)
 	}
 	for _, e := range entries {
+		if e.IsDir() {
+			o.Dirs = append(o.Dirs, e.Name())
+			continue
+		}
 		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil {
 			t.Fatal(err)
@@ -207,6 +221,9 @@ func compareOutcome(t *testing.T, what string, got, want outcome) {
 	}
 	if !maps.Equal(got.Same, want.Same) {
 		t.Errorf("%s: unchanged files %v, want %v", what, got.Same, want.Same)
+	}
+	if !slices.Equal(got.Dirs, want.Dirs) {
+		t.Errorf("%s: directories %v, want %v", what, got.Dirs, want.Dirs)
 	}
 	for _, name := range slices.Sorted(maps.Keys(want.Files)) {
 		if got.Files[name] != want.Files[name] {
