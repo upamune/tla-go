@@ -17,12 +17,14 @@ Inv == a + b + c >= 0
 ====`
 
 // BenchmarkDepthFirst measures iterative deepening, which regenerates the
-// states of every earlier level in each iteration.
+// states of every earlier level in each iteration. Like Java TLC, the check
+// finds 729 distinct states and ends after starting level 26, as the state
+// graph has diameter 25; it generates 33157 states.
 func BenchmarkDepthFirst(b *testing.B) {
 	options := Options{DepthFirst: &DepthFirstOptions{MaxDepth: 100}}
 	for b.Loop() {
 		result, err := CheckWithOptions(context.Background(), dfidBenchmarkSpec, "INIT Init\nNEXT Next\nINVARIANT Inv\nCHECK_DEADLOCK FALSE\n", options)
-		if err != nil || result.Status != Success || result.DistinctStates != 729 {
+		if err != nil || result.Status != Success || result.DistinctStates != 729 || result.Depth != 26 || result.GeneratedStates != 33157 {
 			b.Fatalf("result = %+v, %v", result, err)
 		}
 	}
