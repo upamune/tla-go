@@ -152,8 +152,10 @@ func (t *tokenizer) startNewLine() {
 	t.col = 0
 }
 
+// fail reports an error at the current token. A token that ends in the
+// middle of a surrogate pair is quoted as Java prints it.
 func (t *tokenizer) fail(msg string) {
-	fail(msg + " `" + t.text() + "' found at\n    line " + strconv.Itoa(t.r.lineNumber()+1) +
+	fail(msg + " `" + encodedText(t.tok) + "' found at\n    line " + strconv.Itoa(t.r.lineNumber()+1) +
 		", column " + strconv.Itoa(t.col+1))
 }
 

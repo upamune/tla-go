@@ -14,6 +14,33 @@ func toUnits(s string) []uint16 { return utf16.Encode([]rune(s)) }
 
 func fromUnits(u []uint16) string { return string(utf16.Decode(u)) }
 
+// encodedText returns the text that Java's UTF-8 encoder writes for u. Like
+// fromUnits, it decodes surrogate pairs, but it writes an unpaired surrogate
+// as '?' rather than U+FFFD. The tokenizer reads one unit at a time, so its
+// error messages can quote half of a pair.
+func encodedText(u []uint16) string {
+	var sb strings.Builder
+	for i := 0; i < len(u); i++ {
+		r := rune(u[i])
+		if utf16.IsSurrogate(r) {
+			r, i = surrogatePair(u, i)
+		}
+		sb.WriteRune(r)
+	}
+	return sb.String()
+}
+
+// surrogatePair decodes the pair that starts at u[i] and returns the index
+// of its second unit. For an unpaired surrogate it returns '?' and i.
+func surrogatePair(u []uint16, i int) (rune, int) {
+	if i+1 < len(u) {
+		if r := utf16.DecodeRune(rune(u[i]), rune(u[i+1])); r != utf8.RuneError {
+			return r, i + 1
+		}
+	}
+	return '?', i
+}
+
 // jlen returns the length of s as Java's String.length would.
 func jlen(s string) int {
 	n := 0

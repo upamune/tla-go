@@ -17,7 +17,8 @@ concatenated as Java does, and the dynamic module names of `DivergenceTest`
 and `OptionalSemicolonTest` were replaced by the file name.
 
 `extra/` holds inputs written for tla-go. They cover options, error messages,
-non-ASCII text, tabs, CRLF line ends, and existing `.cfg` files.
+non-ASCII text, including characters outside the Basic Multilingual Plane,
+tabs, CRLF line ends, and existing `.cfg` files.
 
 `mutations/` holds copies of upstream files with one or two tokens of the
 algorithm deleted, inserted, or replaced at random, keeping one input for
