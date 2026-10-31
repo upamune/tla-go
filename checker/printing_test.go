@@ -10,13 +10,15 @@ import (
 	"testing"
 )
 
-// Cases from printing.test.ts at the pinned tla-ts revision.
+// Cases from printing.test.ts at the pinned tla-ts revision. Where tla-ts
+// and Java TLC 1.8.0 print SUBSET (1..7), Java TLC 1.7.4 prints SUBSET 1..7,
+// which is expected here.
 func TestUpstreamPrinting(t *testing.T) {
 	for _, tc := range []struct{ expression, output string }{
 		{"3..1", "{}"},
 		{"<<3..1>>", "<<{}>>"},
 		{"SUBSET {1}", "{{}, {1}}"},
-		{"SUBSET (1..7)", "SUBSET (1..7)"},
+		{"SUBSET (1..7)", "SUBSET 1..7"},
 		{"SUBSET SUBSET (1..3)", "SUBSET {{}, {1}, {2}, {3}, {1, 2}, {1, 3}, {2, 3}, {1, 2, 3}}"},
 		{"SUBSET (3..1)", "{{}}"},
 		{"[{1} -> {2, 3}]", "{<<2>>, <<3>>}"},
@@ -27,7 +29,7 @@ func TestUpstreamPrinting(t *testing.T) {
 		{"{1} \\X {2, 3}", "{<<1, 2>>, <<1, 3>>}"},
 		{"(1..40) \\X (1..50)", "(1..40 \\X 1..50)"},
 		{"{} \\X Nat", "{}"},
-		{"<<SUBSET (1..7)>>", "<<SUBSET (1..7)>>"},
+		{"<<SUBSET (1..7)>>", "<<SUBSET 1..7>>"},
 		{"{} \\cup (0..0)", "0..0"},
 		{"(0..1) \\cup {}", "{0, 1}"},
 		{"DOMAIN [i \\in 0..1 |-> 0]", "0..1"},
@@ -35,7 +37,7 @@ func TestUpstreamPrinting(t *testing.T) {
 		{"DOMAIN ((1 :> 1) @@ (2 :> 2))", "{1, 2}"},
 		{"DOMAIN [[i \\in 0..1 |-> 0] EXCEPT ![0] = 1]", "0..1"},
 		{"{DOMAIN f : f \\in [0..1 -> {0, 1}]}", "{0..1}"},
-		{"ToString(SUBSET (1..7))", `"SUBSET (1..7)"`},
+		{"ToString(SUBSET (1..7))", `"SUBSET 1..7"`},
 	} {
 		t.Run(tc.expression, func(t *testing.T) {
 			source := "---- MODULE M ----\nEXTENDS Integers, TLC\nASSUME PrintT(" + tc.expression + ")\n===="

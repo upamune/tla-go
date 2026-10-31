@@ -27,11 +27,16 @@ func TestTerseString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	intervalSubset, err := Subsets(Interval(1, 2))
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		value        Value
 		terse, plain string
 	}{
 		{subset, "SUBSET {1, 2}", "{{}, {1}, {2}, {1, 2}}"},
+		{intervalSubset, "SUBSET 1..2", "{{}, {1}, {2}, {1, 2}}"},
 		{tuple, "<<SUBSET {1, 2}, [{1, 2} -> {1, 2}], [a: {1, 2}], ({1, 2} \\X {3}), {1, 2}>>", ""},
 	} {
 		got, err := tc.value.TerseString()

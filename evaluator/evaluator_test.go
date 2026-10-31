@@ -11,6 +11,13 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
+// javaTLCExpressionResults replaces tla-ts results that differ from Java
+// TLC 1.7.4, whose IntervalValue.toString adds no parentheses; Java TLC
+// 1.8.0 prints SUBSET (1..7) as tla-ts does.
+var javaTLCExpressionResults = map[string]string{
+	"ToString(SUBSET (1..7))": `"SUBSET 1..7"`,
+}
+
 func TestUpstreamExpressionResults(t *testing.T) {
 	f, err := os.Open("testdata/upstream-expressions.jsonl")
 	if err != nil {
@@ -23,6 +30,9 @@ func TestUpstreamExpressionResults(t *testing.T) {
 		var sample struct{ Expr, Want string }
 		if err = json.Unmarshal(scanner.Bytes(), &sample); err != nil {
 			t.Fatal(err)
+		}
+		if want, ok := javaTLCExpressionResults[sample.Expr]; ok {
+			sample.Want = want
 		}
 		count++
 		t.Run(sample.Expr, func(t *testing.T) {
