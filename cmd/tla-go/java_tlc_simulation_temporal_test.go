@@ -110,3 +110,32 @@ func TestJavaTLCSimulationLivenessRecoveryLevel(t *testing.T) {
 		})
 	}
 }
+
+// TLC's simulator prints an exception of LiveCheck1, then the whole sampled
+// behavior. Only an EvalException is followed by the summary.
+func TestJavaTLCSimulationLivenessErrors(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	const next = "Next == x' = (x + 1) % 4\n"
+	for _, tc := range []struct{ name, body, cfg string }{
+		{"tuple", "Init == x = 0\n" + next + "P == <>(<<1, 2>>[x] = 7)", ""},
+		{"non-boolean", "Init == x = 0\n" + next + "P == <>(x + 1)", ""},
+		{"division", "Init == x = 0\n" + next + "P == <>(10 \\div x = 1)", ""},
+		{"argument", "Init == x = 0\n" + next + "P == <>(x < \"a\")", ""},
+		{"assert", "Init == x = 0\n" + next + "P == <>(Assert(x > 5, \"boom\"))", ""},
+		{"conjunction", "Init == x = 0\n" + next + "P == <>(x /\\ TRUE)", ""},
+		{"tuple action", "Init == x = 0\n" + next + "P == <>[][x' = <<1>>[x]]_x", ""},
+		{"fairness", "Init == x = 0\n" + next + "Bad == x' = <<5>>[x]\nSpec == Init /\\ [][Next]_x /\\ WF_x(Bad)\nP == []<>(x = 0)", "SPECIFICATION Spec PROPERTY P"},
+		{"recovery", "Init == x = 0 /\\ (TLCGet(\"level\") > 5 => <<1>>[3] = 1)\n" + next + "P == []<>(x = 5)", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := tc.cfg
+			if cfg == "" {
+				cfg = "INIT Init NEXT Next PROPERTY P"
+			}
+			compareSimulationGraphParameters(t, jar, "VARIABLE x\n"+tc.body, cfg, "1", "10", "2")
+		})
+	}
+}

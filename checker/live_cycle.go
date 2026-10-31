@@ -218,22 +218,31 @@ type liveTraceBuilder struct {
 }
 
 // liveRecoveryError is TLC's EvalException for a state that cannot be
-// recovered from its fingerprint. TLC has then printed shown states.
+// recovered from its fingerprint.
 type liveRecoveryError struct {
 	code    int
 	message string
-	shown   []TraceStep
 }
 
 func (e *liveRecoveryError) Error() string { return e.message }
 
+// livePrintError is an exception that TLC throws while it prints the
+// counterexample, after it has printed shown states.
+type livePrintError struct {
+	cause error
+	shown []TraceStep
+}
+
+func (e *livePrintError) Error() string { return e.cause.Error() }
+func (e *livePrintError) Unwrap() error { return e.cause }
+
 // fail records the states that TLC printed before the failure: the prefix is
 // printed only once all of its states are recovered.
 func (b *liveTraceBuilder) fail(err error) error {
-	if recovery, ok := errors.AsType[*liveRecoveryError](err); ok {
-		recovery.shown = slices.Clone(b.trace[:b.shown])
+	if err == nil {
+		return nil
 	}
-	return err
+	return &livePrintError{cause: err, shown: slices.Clone(b.trace[:b.shown])}
 }
 
 // liveRecovery returns the state that follows the printed steps: the first

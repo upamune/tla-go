@@ -2,6 +2,7 @@ package checker
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -37,5 +38,39 @@ func TestSimulationLivenessInitialRecoveryLevel(t *testing.T) {
 		if err != nil || got.Status != want || want == EvaluationFailure && got.Failure.NestedToolCode != 2123 {
 			t.Fatalf("level %s: got %+v, %v; want %v", level, got, err, want)
 		}
+	}
+}
+
+// TLC's simulator prints an exception of LiveCheck1 and the whole sampled
+// behavior. It prints the summary only after an EvalException.
+func TestSimulationLivenessEvaluationErrors(t *testing.T) {
+	const header = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nNext == x' = (x + 1) % 4\n"
+	cases := []struct {
+		name, body, cfg string
+		code, nested    int
+		summary         bool
+		message         string
+	}{
+		{"tuple", "Init == x = 0\nP == <>(<<1, 2>>[x] = 7)", "INIT Init NEXT Next PROPERTY P", 1000, 0, false, "java.lang.RuntimeException\n: Attempted to apply tuple"},
+		{"non-boolean", "Init == x = 0\nP == <>(x + 1)", "INIT Init NEXT Next PROPERTY P", 2250, 0, false, "A state predicate was evaluated to a non-boolean value."},
+		{"division", "Init == x = 0\nP == <>(10 \\div x = 1)", "INIT Init NEXT Next PROPERTY P", 1000, 2179, true, "tlc2.tool.EvalException\n: The second argument of \\div is 0."},
+		{"fairness", "Init == x = 0\nBad == x' = <<5>>[x]\nSpec == Init /\\ [][Next]_x /\\ WF_x(Bad)\nP == []<>(x = 0)", "SPECIFICATION Spec PROPERTY P", 1000, 0, false, "Attempted to apply tuple"},
+	}
+	opts := Options{Seed: 1, Simulation: &SimulationOptions{Traces: 2, Depth: 10}}
+	for _, tc := range cases {
+		got, err := CheckWithOptions(context.Background(), header+tc.body+"\n====", tc.cfg, opts)
+		if err != nil || got.Status != EvaluationFailure {
+			t.Fatalf("%s: got %+v, %v; want an evaluation failure", tc.name, got, err)
+		}
+		f := got.Failure
+		if f.ToolCode != tc.code || f.NestedToolCode != tc.nested || f.SuppressSummary == tc.summary || f.ExitCode != 255 || len(f.Trace) != 11 || f.TemporalViolation || !strings.Contains(f.Message, tc.message) {
+			t.Fatalf("%s: got failure %+v", tc.name, f)
+		}
+	}
+	// An exception while TLC prints the counterexample follows its header.
+	source := header + "Init == x = 0 /\\ (TLCGet(\"level\") > 5 => <<1>>[3] = 1)\nP == []<>(x = 5)\n===="
+	got, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P", opts)
+	if err != nil || got.Status != EvaluationFailure || !got.Failure.TemporalViolation || len(got.Failure.TemporalTrace) != 0 || got.Failure.ToolCode != 1000 {
+		t.Fatalf("got %+v, %v; want TLC's exception while it recovers the initial state", got, err)
 	}
 }

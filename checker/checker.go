@@ -87,6 +87,9 @@ type Failure struct {
 	NestedMessage string
 	// SuppressStatistics indicates that TLC stops before reporting search statistics.
 	SuppressStatistics bool
+	// SuppressSummary indicates that TLC's simulator reports its final
+	// progress but not its summary.
+	SuppressSummary bool
 	// FingerprintDetail records TLC's source stack and underlying cause, if any.
 	FingerprintDetail string
 	// FingerprintCause and FingerprintCauseCode describe a nested TLC message.

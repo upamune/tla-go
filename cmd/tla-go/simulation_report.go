@@ -103,7 +103,7 @@ func printToolSimulationResult(t toolOutput, result checker.Result, module *pars
 		return
 	}
 	printToolSimulationProgress(t, result.GeneratedStates)
-	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
+	if simulationHasSummary(result) {
 		t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril %d", result.GeneratedStates, seed, max(aril, 0)))
 		if result.Failure == nil || result.Failure.InitialState == nil {
 			printToolSimulationProgress(t, result.GeneratedStates)
@@ -154,6 +154,15 @@ func simulationHasStatistics(result checker.Result) bool {
 	return result.Violation == nil || result.Status != checker.AssumptionViolation && !initialViolation(result)
 }
 
+// TLC's simulator prints its summary after a violation or an error, except
+// after some exceptions.
+func simulationHasSummary(result checker.Result) bool {
+	if result.Failure != nil && result.Failure.SuppressSummary {
+		return false
+	}
+	return result.Status != checker.Success && result.Status != checker.ContinuedViolation
+}
+
 func printSimulationResult(out io.Writer, result checker.Result, module *parser.Module, seed, aril int64) {
 	if result.Failure != nil {
 		printFailure(out, result.Failure, module)
@@ -164,7 +173,7 @@ func printSimulationResult(out io.Writer, result checker.Result, module *parser.
 		return
 	}
 	fmt.Fprintf(out, "Progress: %d states generated.\n", result.GeneratedStates)
-	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
+	if simulationHasSummary(result) {
 		fmt.Fprintf(out, "The number of states generated: %d\nSimulation using seed %d and aril %d\n", result.GeneratedStates, seed, max(aril, 0))
 	}
 }

@@ -24,7 +24,7 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	}
 	if visited == 0 {
 		// TLC's LiveCheck1 reads the first state of the empty trace.
-		return r.liveException("java.lang.ArrayIndexOutOfBoundsException", "Index 0 out of bounds for length 0", nil), nil
+		return r.liveException(&Failure{Message: unexpectedExceptionMessage("java.lang.ArrayIndexOutOfBoundsException", "Index 0 out of bounds for length 0"), ToolCode: 1000}, nil), nil
 	}
 	states := make([]evaluator.State, visited)
 	for i, node := range r.search.nodes[:visited] {
@@ -32,30 +32,62 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	}
 	for i := range r.live {
 		violation, err := r.checkLiveSolution(&r.live[i], states)
-		if recovery, ok := errors.AsType[*liveRecoveryError](err); ok {
-			return r.liveException("tlc2.tool.EvalException", "", recovery), nil
+		if err != nil {
+			return r.liveFailure(err)
 		}
-		if err != nil || violation != nil {
-			return r.liveViolationResult(violation), err
+		if violation != nil {
+			return r.liveViolationResult(violation), nil
 		}
 	}
 	return nil, nil
 }
 
-// liveException reports an exception that TLC's LiveCheck1 throws in the
-// simulation worker: TLC prints it, then the whole sampled behavior. A
-// recovery failure follows the part of the counterexample printed before it.
-func (r *simulationRun) liveException(exception, detail string, recovery *liveRecoveryError) *Result {
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a " + exception + "\n:"
+// liveFailure reports an exception that TLC's LiveCheck1 throws, as TLC's
+// simulator does. An exception while TLC prints the counterexample follows
+// the part printed before it.
+func (r *simulationRun) liveFailure(err error) (*Result, error) {
+	var failure *Failure
+	if recovery, ok := errors.AsType[*liveRecoveryError](err); ok {
+		failure = liveEvalException(recovery.code, recovery.message)
+	} else if runtime, ok := asRuntimeError(err); ok {
+		failure = liveEvaluationFailure(runtime)
+	} else {
+		return nil, err
+	}
+	printing, _ := errors.AsType[*livePrintError](err)
+	return r.liveException(failure, printing), nil
+}
+
+// liveEvaluationFailure follows Simulator: TLC prints an EvalException, which
+// standard modules throw, as an unexpected exception and then the statistics.
+// It prints other TLC errors with their code and general errors as runtime
+// exceptions, followed only by the final progress.
+func liveEvaluationFailure(failure *evaluator.RuntimeError) *Failure {
+	switch {
+	case failure.Unexpected != nil || failure.ToolCode == 0 || failure.ToolCode == 1000:
+		return &Failure{Message: unexpectedExceptionMessage("java.lang.RuntimeException", failure.Message), ToolCode: 1000, SuppressSummary: true}
+	case failure.Standard:
+		return liveEvalException(failure.ToolCode, failure.Message)
+	}
+	return &Failure{Message: failure.Message, ToolCode: failure.ToolCode, SuppressSummary: true}
+}
+
+// liveEvalException is TLC's message for an EvalException, which nests the
+// TLC error.
+func liveEvalException(code int, message string) *Failure {
+	return &Failure{Message: unexpectedExceptionMessage("tlc2.tool.EvalException", message), ToolCode: 1000, NestedToolCode: code, NestedMessage: message}
+}
+
+// liveException completes the report of an exception in the simulation
+// worker: TLC prints it, then the whole sampled behavior.
+func (r *simulationRun) liveException(failure *Failure, printing *livePrintError) *Result {
+	failure.ExitCode, failure.Trace = 255, r.search.trace(len(r.search.nodes)-1)
+	if printing != nil {
+		failure.TemporalViolation, failure.TemporalTrace = true, printing.shown
+	}
 	result := r.search.result
 	result.Status = EvaluationFailure
-	result.Failure = &Failure{Message: heading + " " + detail, ToolCode: 1000, ExitCode: 255, Trace: r.search.trace(len(r.search.nodes) - 1)}
-	if recovery != nil {
-		f := result.Failure
-		f.Message += recovery.message
-		f.NestedToolCode, f.NestedMessage = recovery.code, recovery.message
-		f.TemporalViolation, f.TemporalTrace = true, recovery.shown
-	}
+	result.Failure = failure
 	return &result
 }
 

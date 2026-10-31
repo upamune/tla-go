@@ -265,12 +265,34 @@ func (c *liveConverter) atom(formula *ltlFormula) (*liveNode, error) {
 	return node, nil
 }
 
+// formulaEvaluator evaluates the body of an LNStateAST or LNAction leaf.
+// TLC's liveness checker reports a non-boolean value with its own error.
 func (c *liveConverter) formulaEvaluator(formula *ltlFormula) func(current, next evaluator.State) (bool, error) {
-	positive := *formula
-	positive.negative = false
+	m, action := c.model, formula.kind == ltlAction
 	return func(current, next evaluator.State) (bool, error) {
-		return c.model.holdsLTLAtom(&positive, current, next, positive.locals)
+		context := evaluator.Context{Current: current, Constants: m.constants, Locals: formula.locals, Enabled: m.enabledCallback}
+		if action {
+			context.Next = next
+		}
+		v, err := m.program.Evaluate(formula.atom, context)
+		if err != nil {
+			return false, err
+		}
+		result, ok := v.Bool()
+		if !ok {
+			return false, liveNonBoolean(action)
+		}
+		return result, nil
 	}
+}
+
+// liveNonBoolean is the error of TLC's liveness checker for a leaf whose
+// value is not a Boolean.
+func liveNonBoolean(action bool) error {
+	if action {
+		return &evaluator.RuntimeError{Message: "Encountered an action predicate that's not a boolean.", ToolCode: 2252}
+	}
+	return &evaluator.RuntimeError{Message: "A state predicate was evaluated to a non-boolean value.", ToolCode: 2250}
 }
 
 func (c *liveConverter) newLeaf(eval func(current, next evaluator.State) (bool, error)) *liveLeaf {
