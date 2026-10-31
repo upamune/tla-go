@@ -249,7 +249,7 @@ func (t *translation) writeAST(ast node) {
 		astString(ast, t.p.Debug, t.p.inputVersion < version15),
 		"==========================",
 	}
-	if err := writeJavaLines("AST.tla", lines, t.p.eol()); err != nil {
+	if err := writeJavaLines(resolve(t.p.Dir, "AST.tla"), lines, t.p.eol()); err != nil {
 		t.log.error("Could not write file AST.tla")
 		return
 	}

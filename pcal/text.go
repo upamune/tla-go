@@ -3,6 +3,7 @@ package pcal
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -34,6 +35,15 @@ func javaLines(text string) []string {
 		text = text[i+1:]
 	}
 	return lines
+}
+
+// resolve returns the path of a file name relative to the directory dir;
+// an empty dir stands for the current directory.
+func resolve(dir, name string) string {
+	if dir == "" || filepath.IsAbs(name) {
+		return name
+	}
+	return filepath.Join(dir, name)
 }
 
 func readJavaLines(path string) ([]string, error) {

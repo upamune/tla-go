@@ -29,7 +29,12 @@ func (p *Params) eol() string {
 // Run runs the translator with pcal.trans command-line arguments. It
 // rewrites File.tla, keeps the previous version as File.old, and writes
 // File.cfg unless -nocfg is given. Messages go to stdout as in Java.
-func Run(args []string, stdout, stderr io.Writer) (code int) {
+func Run(args []string, stdout, stderr io.Writer) int {
+	return RunDir("", args, stdout, stderr)
+}
+
+// RunDir is like Run but resolves relative file names against dir.
+func RunDir(dir string, args []string, stdout, stderr io.Writer) (code int) {
 	log := &logger{w: stdout}
 	defer func() {
 		if r := recover(); r != nil {
@@ -38,6 +43,7 @@ func Run(args []string, stdout, stderr io.Writer) (code int) {
 	}()
 	log.info("pcal.trans Version " + Version + " of " + ModDate)
 	p := NewParams()
+	p.Dir = dir
 	switch p.parseArgs(args, log) {
 	case statusExitOK:
 		return ExitOK
@@ -66,7 +72,7 @@ func reportCrash(r any, log *logger, stderr io.Writer) int {
 
 func runFile(p *Params, log *logger) int {
 	tlaPath := p.InputFile + ".tla"
-	input, err := readJavaLines(tlaPath)
+	input, err := readJavaLines(resolve(p.Dir, tlaPath))
 	if err != nil {
 		log.error(readError(tlaPath, err))
 		return ExitError
@@ -76,9 +82,10 @@ func runFile(p *Params, log *logger) int {
 	if !ok {
 		return ExitError
 	}
-	_ = os.Remove(p.InputFile + ".old")
-	_ = os.Rename(tlaPath, p.InputFile+".old")
-	if err := writeJavaLines(tlaPath, output, p.eol()); err != nil {
+	old := resolve(p.Dir, p.InputFile+".old")
+	_ = os.Remove(old)
+	_ = os.Rename(resolve(p.Dir, tlaPath), old)
+	if err := writeJavaLines(resolve(p.Dir, tlaPath), output, p.eol()); err != nil {
 		log.error("Could not write file " + tlaPath)
 		return ExitError
 	}
@@ -101,8 +108,8 @@ func readError(path string, err error) string {
 func writeCfg(p *Params, log *logger, hasDefaultInit bool) int {
 	path := p.InputFile + ".cfg"
 	cfg := []string{cfgDelimiter}
-	if fileExists(path) {
-		lines, err := readJavaLines(path)
+	if fileExists(resolve(p.Dir, path)) {
+		lines, err := readJavaLines(resolve(p.Dir, path))
 		if os.IsPermission(err) {
 			log.info("File " + p.InputFile + ".cfg is read only, new version not written.")
 			return ExitOK
@@ -119,7 +126,7 @@ func writeCfg(p *Params, log *logger, hasDefaultInit bool) int {
 	} else {
 		cfg = append([]string{"SPECIFICATION Spec"}, cfg...)
 	}
-	if err := writeJavaLines(path, cfg, p.eol()); err != nil {
+	if err := writeJavaLines(resolve(p.Dir, path), cfg, p.eol()); err != nil {
 		log.error("Could not write file " + path)
 		return ExitError
 	}

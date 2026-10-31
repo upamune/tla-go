@@ -36,6 +36,9 @@ type Params struct {
 	SSWrapColumn     int
 	// InputFile is the input path without its .tla extension.
 	InputFile string
+	// Dir is the directory against which relative file names are resolved;
+	// empty means the current directory.
+	Dir string
 
 	specOption, myspecOption, spec2Option, myspec2Option bool
 	specFile                                             string
@@ -319,7 +322,7 @@ func (a *argParser) inputFile(name string) argStatus {
 	base := filepath.Base(name)
 	if !strings.Contains(base, ".") {
 		a.p.InputFile = name
-		if !fileExists(name + ".tla") {
+		if !fileExists(resolve(a.p.Dir, name+".tla")) {
 			return a.commandLineError("Input file " + name + ".pcal and " + name + ".tla.tla not found")
 		}
 		return statusOK
@@ -328,7 +331,7 @@ func (a *argParser) inputFile(name string) argStatus {
 		return a.commandLineError("Input file has extension other than tla")
 	}
 	a.p.InputFile = name[:strings.LastIndex(name, ".")]
-	if !fileExists(name) {
+	if !fileExists(resolve(a.p.Dir, name)) {
 		return a.commandLineError("Input file " + name + " does not exist.")
 	}
 	return statusOK
