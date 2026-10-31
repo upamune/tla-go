@@ -108,9 +108,10 @@ func TestDotOutputErrors(t *testing.T) {
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
 	var out, errout bytes.Buffer
-	code := run(context.Background(), []string{"-dump", "dot,actionlabels", filepath.Join(dir, "missing", "out.dot"), filepath.Join(dir, "M.tla")}, &out, &errout)
-	if code != 255 || !strings.Contains(errout.String(), "create DOT dump") {
-		t.Fatalf("exit %d, stderr %q", code, errout.String())
+	path := filepath.Join(dir, "missing", "out.dot")
+	code := run(context.Background(), []string{"-dump", "dot,actionlabels", path, filepath.Join(dir, "M.tla")}, &out, &errout)
+	if code != 1 || out.String() != "Error: Unable to write to file "+path+"\n" || errout.String() != "Error: Given file name "+path+" for dumping states invalid.\n" {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, out.String(), errout.String())
 	}
 }
 
