@@ -70,7 +70,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-continue` | Continue model checking after invariant or action violations, or simulation after safety violations and deadlocks. |
 | `-depth N` | Set the simulation trace length (default 100; `-1` means no limit). |
 | `-workers N` | Accept a positive worker count or `auto`, as Java TLC does. Exploration is currently sequential regardless of the count; simulation accepts only one worker. |
-| `-maxSetSize N` | Limit sets built element by element, such as `{e : x \in S}`, as Java TLC does (default 1,000,000). |
+| `-maxSetSize N` | Limit the sets and other values that Java TLC builds element by element, such as `{e : x \in S}` and `(1..n) \cup S` (default 1,000,000). Deferred sets stored in states are not limited yet. |
 | `-checkpoint MINUTES` | Accept Java TLC's checkpoint interval; checkpoints are not written. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |

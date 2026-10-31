@@ -25,19 +25,27 @@ func (e *evaluator) selectSequence(args []*parser.Expression) (value.Value, erro
 	}
 	selected := make([]value.Value, 0, len(items))
 	for _, item := range items {
-		result, err := e.invokeOperator(op, []value.Value{item})
+		keep, err := e.selects(op, item)
 		if err != nil {
 			return value.Value{}, err
 		}
-		keep, err := boolean(result)
-		if err != nil {
-			return value.Value{}, err
+		if !keep {
+			continue
 		}
-		if keep {
-			selected = append(selected, item)
+		selected = append(selected, item)
+		if err := e.program.checkMethodSetSize(selectSeqSignature, len(selected)); err != nil {
+			return value.Value{}, err
 		}
 	}
 	return value.Tuple(selected)
+}
+
+func (e *evaluator) selects(op operatorRef, item value.Value) (bool, error) {
+	result, err := e.invokeOperator(op, []value.Value{item})
+	if err != nil {
+		return false, err
+	}
+	return boolean(result)
 }
 
 func (e *evaluator) sortSequence(args []*parser.Expression) (value.Value, error) {

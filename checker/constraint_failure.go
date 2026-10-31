@@ -47,9 +47,9 @@ func (s *search) nextConstraintFailure(candidate *candidateConstraintError) (Res
 	heading := unexpectedExceptionHeading("java.lang.RuntimeException") + " util.Assert$TLCRuntimeException: "
 	result, err := s.runtimeFailure(&evaluator.RuntimeError{
 		Message: heading + failure.Message, ToolCode: 1000,
-		NestedToolCode: failure.ToolCode, NestedMessage: failure.Message,
+		NestedToolCode: failure.ToolCode, NestedMessage: failure.Message, Sources: failure.Sources,
 	}, nil, 75)
-	if err == nil {
+	if err == nil && failure.ToolCode == 2215 {
 		result.Failure.EvaluationDetail = emptyCallStackDetail
 		result.Failure.SuppressDepth = true
 	}

@@ -50,10 +50,10 @@ func printToolInitialEvaluationFailure(t toolOutput, failure *checker.Failure) b
 }
 
 func printToolInitialConstraintFailure(t toolOutput, failure *checker.Failure) bool {
-	if failure.ToolCode != 2102 || failure.InitialState == nil || failure.NestedToolCode != 2215 {
+	if failure.ToolCode != 2102 || failure.InitialState == nil || (failure.NestedToolCode != 2215 && failure.NestedToolCode != 2154) {
 		return false
 	}
-	printToolInitialNestedFailure(t, failure, 2215, failure.NestedMessage)
+	printToolInitialNestedFailure(t, failure, failure.NestedToolCode, failure.NestedMessage)
 	if failure.EvaluationDetail != "" {
 		t.message(2103, 1, failure.EvaluationDetail)
 	}

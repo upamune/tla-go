@@ -12,9 +12,10 @@ import (
 )
 
 // Java TLC checks -maxSetSize when a ValueVec of initial capacity 10 grows, so
-// {e : x \in S} and {x \in S : P} over enumerated sets fail only above
-// max(bound, 10) elements.
+// the sets it builds element by element fail only above max(bound, 10)
+// elements. Set operations on deferred sets stay lazy.
 func TestJavaTLCMaxSetSize(t *testing.T) {
+	const selectAll = "SelectSeq([i \\in 1..20 |-> i], LAMBDA e : TRUE)"
 	for _, tc := range []struct {
 		name, body, cfg, bound string
 		code                   int
@@ -29,10 +30,31 @@ func TestJavaTLCMaxSetSize(t *testing.T) {
 		{"assumption", "ASSUME Cardinality({i : i \\in 1..20}) = 20\nInit == x = 0\nNext == UNCHANGED x", "", "15", 10},
 		{"initial invariant", "Init == x = 0\nNext == UNCHANGED x\nInv == Cardinality({i \\in 1..20 : i > x}) > 0", "INVARIANT Inv\n", "15", 75},
 		{"successor invariant", "Init == x = 0\nNext == x < 3 /\\ x' = x + 1\nInv == x < 2 \\/ Cardinality({i * x : i \\in 1..20}) > 0", "INVARIANT Inv\n", "15", 76},
+		{"union", "Init == x \\in (1..20) \\cup {0}\nNext == UNCHANGED x", "", "10", 75},
+		{"interval union", "Init == x \\in (1..6) \\cup (7..11)\nNext == UNCHANGED x", "", "10", 75},
+		{"union membership error", "Init == x = Cardinality((1..20) \\cup {\"a\"})\nNext == UNCHANGED x", "", "10", 75},
+		{"successor union", "Init == x = 0\nNext == x' \\in (1..20) \\cup {0}", "", "10", 75},
+		{"difference", "Init == x \\in (1..20) \\ {0}\nNext == UNCHANGED x", "", "10", 75},
+		{"intersection", "Init == x \\in (1..20) \\cap (0..30)\nNext == UNCHANGED x", "", "10", 75},
+		{"deferred union", "Init == x \\in [1..1 -> 1..6] \\cup [1..1 -> 7..11]\nNext == UNCHANGED x", "", "10", 0},
+		{"enumerated UNION", "Init == x \\in UNION {{1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11}}\nNext == UNCHANGED x", "", "10", 75},
+		{"powerset", "Init == x = SUBSET (1..5)\nNext == UNCHANGED x", "", "10", 0},
+		{"SelectSeq", "Init == x = SelectSeq([i \\in 1..20 |-> i], LAMBDA e : TRUE)\nNext == UNCHANGED x", "", "10", 75},
+		{"function override", "Init == x = [i \\in 1..8 |-> i] @@ [j \\in 9..12 |-> j]\nNext == UNCHANGED x", "", "10", 75},
+		{"BagUnion", "Init == x = BagUnion({[i \\in 1..8 |-> 1], [j \\in 9..12 |-> 1]})\nNext == UNCHANGED x", "", "10", 75},
+		{"BagOfAll", "Init == x = BagOfAll(LAMBDA e : e, [i \\in 1..12 |-> 1])\nNext == UNCHANGED x", "", "10", 75},
+		{"deferred cardinality", "Init == x = Cardinality(UNION {1..10, 11..20})\nNext == UNCHANGED x", "", "10", 75},
+		{"function set cardinality", "Init == x = Cardinality([1..2 -> 1..5])\nNext == UNCHANGED x", "", "10", 0},
+		{"SelectSeq successor", "Init == x = 0\nNext == x' = Len(" + selectAll + ")", "", "10", 75},
+		{"SelectSeq initial invariant", "Init == x = 0\nNext == UNCHANGED x\nInv == " + selectAll + " # <<>>", "INVARIANT Inv\n", "10", 75},
+		{"SelectSeq successor invariant", "Init == x = 0\nNext == x < 2 /\\ x' = x + 1\nInv == x < 1 \\/ " + selectAll + " # <<>>", "INVARIANT Inv\n", "10", 76},
+		{"SelectSeq assumption", "ASSUME " + selectAll + " # <<>>\nInit == x = 0\nNext == UNCHANGED x", "", "10", 10},
+		{"SelectSeq initial constraint", "Init == x = 0\nNext == x < 2 /\\ x' = x + 1\nC == " + selectAll + " # <<>>", "CONSTRAINT C\n", "10", 75},
+		{"SelectSeq successor constraint", "Init == x = 0\nNext == x < 2 /\\ x' = x + 1\nC == x < 1 \\/ " + selectAll + " # <<>>", "CONSTRAINT C\n", "10", 75},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			writeDOTFixture(t, dir, "VARIABLE x\n"+tc.body, "INIT Init\nNEXT Next\n"+tc.cfg)
+			writeMaxSetSizeFixture(t, dir, "VARIABLE x\n"+tc.body, "INIT Init\nNEXT Next\n"+tc.cfg)
 			args := []string{"-tool", "-deadlock", "-maxSetSize", tc.bound}
 			var out, errout bytes.Buffer
 			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
@@ -46,6 +68,15 @@ func TestJavaTLCMaxSetSize(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func writeMaxSetSizeFixture(t *testing.T, dir, body, cfg string) {
+	t.Helper()
+	for name, content := range map[string]string{"M.tla": "---- MODULE M ----\nEXTENDS Naturals, Sequences, FiniteSets, Bags, TLC\n" + body + "\n====\n", "M.cfg": cfg} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

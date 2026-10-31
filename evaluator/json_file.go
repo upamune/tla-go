@@ -11,7 +11,7 @@ import (
 func (e *evaluator) jsonFileValue(name, signature string, args []value.Value) (value.Value, error) {
 	path, ok := args[0].Text()
 	if !ok || args[0].Kind() != value.StringKind {
-		return value.Value{}, jsonOverrideError(signature, "Cannot cast tlc2.value.impl."+jsonJavaClass(args[0])+" to tlc2.value.impl.StringValue")
+		return value.Value{}, javaOverrideError(signature, "Cannot cast tlc2.value.impl."+jsonJavaClass(args[0])+" to tlc2.value.impl.StringValue")
 	}
 	if strings.HasSuffix(name, "Deserialize") {
 		return e.jsonRead(name, signature, path)
@@ -21,14 +21,14 @@ func (e *evaluator) jsonFileValue(name, signature string, args []value.Value) (v
 
 func (e *evaluator) jsonRead(name, signature, path string) (value.Value, error) {
 	if e.program.readFile == nil {
-		return value.Value{}, jsonOverrideError(signature, path+" (No such file or directory)")
+		return value.Value{}, javaOverrideError(signature, path+" (No such file or directory)")
 	}
 	text, err := e.program.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return value.Value{}, jsonOverrideError(signature, path+" (No such file or directory)")
+			return value.Value{}, javaOverrideError(signature, path+" (No such file or directory)")
 		}
-		return value.Value{}, jsonOverrideError(signature, err.Error())
+		return value.Value{}, javaOverrideError(signature, err.Error())
 	}
 	if name == "ndJsonDeserialize" {
 		return e.jsonReadLines(text, signature)
@@ -67,7 +67,7 @@ func (e *evaluator) jsonWrite(name, signature, path string, v value.Value) (valu
 	}
 	if e.program.writeFile != nil {
 		if err = e.program.writeFile(path, text); err != nil {
-			return value.Value{}, jsonOverrideError(signature, err.Error())
+			return value.Value{}, javaOverrideError(signature, err.Error())
 		}
 	}
 	return value.Bool(true), nil

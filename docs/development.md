@@ -60,7 +60,7 @@ Both report generated states as `states/op`.
 mise exec -- go test ./checker -run '^$' -bench '^BenchmarkSimulation(Traces|TraceConstraint)$' -benchmem -benchtime=1x -count=3
 ```
 
-`BenchmarkSetConstruction` measures set maps and filters, which check `-maxSetSize` as elements are added:
+`BenchmarkSetConstruction` measures set maps, filters, set operations, and `UNION`, which check `-maxSetSize`:
 
 ```sh
 mise exec -- go test ./evaluator -run '^$' -bench '^BenchmarkSetConstruction$' -benchmem -count=5

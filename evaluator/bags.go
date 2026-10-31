@@ -26,10 +26,10 @@ func (e *evaluator) bagOperator(expr *parser.Expression) (value.Value, error) {
 	if err != nil {
 		return value.Value{}, err
 	}
-	return bagValue(expr.Text, args)
+	return e.program.bagValue(expr.Text, args)
 }
 
-func bagValue(name string, args []value.Value) (value.Value, error) {
+func (p *Program) bagValue(name string, args []value.Value) (value.Value, error) {
 	switch name {
 	case "IsABag":
 		pairs, err := args[0].Pairs()
@@ -41,7 +41,7 @@ func bagValue(name string, args []value.Value) (value.Value, error) {
 	case "\\oplus", "\\ominus", "\\sqsubseteq":
 		return bagBinary(name, args[0], args[1])
 	default:
-		return bagCollection(name, args[0])
+		return p.bagCollection(name, args[0])
 	}
 }
 

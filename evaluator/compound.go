@@ -115,8 +115,11 @@ func (e *evaluator) builtinByArity(expr *parser.Expression) (value.Value, error)
 			return value.Value{}, err
 		}
 		result, err := e.binaryWithSource(expr, left, right)
+		if err == nil {
+			err = e.program.checkSetOperation(expr.Text, left, right, result)
+		}
 		if err != nil {
-			return result, err
+			return value.Value{}, err
 		}
 		return e.orderSetResult(expr.Text, result)
 	}
@@ -146,6 +149,9 @@ func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {
 		return value.SubsetsWithSource(v, expr)
 	}
 	result, err := unary(expr.Text, v)
+	if err == nil && expr.Text == "UNION" {
+		err = e.program.checkUnion(v, result)
+	}
 	if err != nil && expr.Text == "~" {
 		message := fmt.Sprintf("Attempted to apply the operator ~ to a non-boolean\n(%s)", v.TLCKindDescription())
 		return value.Value{}, booleanRuntimeError(message, expr, nil)

@@ -57,7 +57,7 @@ func setFingerprintCause(result *Failure, failure *evaluator.RuntimeError) {
 }
 
 func setInitialNestedFailure(result *Failure, failure *evaluator.RuntimeError) {
-	if failure.ToolCode == 2132 || failure.ToolCode == 2266 || failure.ToolCode == 2215 || failure.ToolCode == 2247 {
+	if slices.Contains([]int{2132, 2154, 2215, 2247, 2266}, failure.ToolCode) {
 		result.NestedToolCode = failure.ToolCode
 		result.NestedMessage = failure.Message
 		result.evaluationSources = slices.Clone(failure.Sources)
@@ -93,8 +93,8 @@ func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeErr
 	if failure.Unexpected != nil {
 		failure = nextUnexpectedFailure(failure)
 	}
-	if failure.ToolCode == 2247 {
-		failure = nextBooleanGenerationFailure(failure)
+	if failure.ToolCode == 2247 || failure.ToolCode == 2154 {
+		failure = nextNestedGenerationFailure(failure)
 	}
 	if failure.WrongInvocation {
 		result := *failure
@@ -104,10 +104,13 @@ func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeErr
 	return failure
 }
 
-func nextBooleanGenerationFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
+// nextNestedGenerationFailure reports a TLC assertion raised while generating
+// successors, such as a non-boolean action (2247) or a Java override failure
+// (2154), inside Java TLC's unexpected-exception message.
+func nextNestedGenerationFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
 	result := *failure
 	result.Message = unexpectedExceptionHeading("java.lang.RuntimeException") + " " + failure.Message
-	result.NestedMessage, result.NestedToolCode, result.ToolCode = failure.Message, 2247, 1000
+	result.NestedMessage, result.NestedToolCode, result.ToolCode = failure.Message, failure.ToolCode, 1000
 	return &result
 }
 
@@ -170,7 +173,7 @@ func candidateFailure(err error, state evaluator.State, parent int) error {
 	if _, ok := errors.AsType[*value.FingerprintError](err); ok {
 		return &candidateFingerprintError{cause: err, state: state, parent: parent}
 	}
-	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && failure.ToolCode == 2215 {
+	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && (failure.ToolCode == 2215 || failure.ToolCode == 2154) {
 		return &candidateConstraintError{cause: err, state: state, parent: parent}
 	}
 	return err
@@ -245,7 +248,7 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 
 func setInitialInvariantFailure(result *Failure, failure *evaluator.RuntimeError, state evaluator.State) {
 	setInitialNestedFailure(result, failure)
-	if failure.BooleanOperator || failure.ToolCode == 2215 || failure.WrongInvocation {
+	if failure.BooleanOperator || failure.ToolCode == 2215 || failure.ToolCode == 2154 || failure.WrongInvocation {
 		result.ToolCode = 2102
 	}
 	if len(failure.Sources) > 0 {

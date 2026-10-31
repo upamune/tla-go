@@ -73,7 +73,7 @@ func (e *evaluator) invokeBuiltin(name string, args []value.Value) (value.Value,
 		return e.randomValue(name, args)
 	}
 	if e.bags && isBagOperator(name) {
-		return bagValue(name, args)
+		return e.program.bagValue(name, args)
 	}
 	if e.json && isJSONOperator(name) {
 		return e.jsonValue(name, args)
@@ -89,19 +89,26 @@ func (e *evaluator) invokeOtherBuiltin(name string, args []value.Value) (value.V
 		return sequenceValue(name, args)
 	}
 	if e.finiteSets && (name == "Cardinality" || name == "IsFiniteSet") {
-		return finiteSetsValue(name, args[0])
+		return e.finiteSetsValue(name, args[0])
 	}
 	return e.invokeCoreBuiltin(name, args)
 }
 
 func (e *evaluator) invokeCoreBuiltin(name string, args []value.Value) (value.Value, error) {
-	if len(args) == 1 {
-		return unary(name, args[0])
+	var result value.Value
+	var err error
+	switch len(args) {
+	case 1:
+		result, err = unary(name, args[0])
+	case 2:
+		result, err = operatorBinary(name, args[0], args[1], e.naturals && !e.integers)
+	default:
+		return value.Value{}, fmt.Errorf("unsupported operator %s", name)
 	}
-	if len(args) == 2 {
-		return operatorBinary(name, args[0], args[1], e.naturals && !e.integers)
+	if err != nil {
+		return value.Value{}, err
 	}
-	return value.Value{}, fmt.Errorf("unsupported operator %s", name)
+	return result, e.program.checkBuiltinSetSize(name, args, result)
 }
 
 func operatorBinary(name string, left, right value.Value, naturalOnly bool) (value.Value, error) {

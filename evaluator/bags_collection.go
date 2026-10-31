@@ -7,7 +7,7 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func bagCollection(name string, arg value.Value) (value.Value, error) {
+func (p *Program) bagCollection(name string, arg value.Value) (value.Value, error) {
 	switch name {
 	case "BagToSet":
 		pairs, err := bagFunction(name, arg)
@@ -18,7 +18,7 @@ func bagCollection(name string, arg value.Value) (value.Value, error) {
 	case "SetToBag":
 		return setToBag(arg)
 	case "BagUnion":
-		return bagUnion(arg)
+		return bagUnion(arg, methodBound{p, bagUnionSignature})
 	case "SubBag":
 		return subBags(arg)
 	default:
@@ -47,7 +47,7 @@ func setToBag(set value.Value) (value.Value, error) {
 	return value.Function(pairs)
 }
 
-func bagUnion(set value.Value) (value.Value, error) {
+func bagUnion(set value.Value, bound methodBound) (value.Value, error) {
 	elements, err := set.Elements()
 	if err != nil {
 		return value.Value{}, bagError(fmt.Sprintf("Applying BagUnion to the following value,\nwhich is not a finite enumerable set:\n%s", set))
@@ -66,7 +66,7 @@ func bagUnion(set value.Value) (value.Value, error) {
 		}
 		bags = append(bags, pairs)
 	}
-	return mergeBags(bags, "BagUnion")
+	return mergeBags(bags, "BagUnion", bound)
 }
 
 func (e *evaluator) bagOfAll(args []*parser.Expression) (value.Value, error) {
@@ -97,7 +97,7 @@ func (e *evaluator) bagOfAll(args []*parser.Expression) (value.Value, error) {
 		}
 		mapped = append(mapped, []value.Pair{{Key: key, Value: pair.Value}})
 	}
-	return mergeBags(mapped, "BagOfAll")
+	return mergeBags(mapped, "BagOfAll", methodBound{e.program, bagOfAllSignature})
 }
 
 func bagOperatorLiteral(op operatorRef) *parser.Expression {

@@ -13,7 +13,7 @@ func bagBinary(name string, left, right value.Value) (value.Value, error) {
 	}
 	switch name {
 	case "\\oplus":
-		return mergeBags([][]value.Pair{a, b}, "BagCup")
+		return mergeBags([][]value.Pair{a, b}, "BagCup", methodBound{})
 	case "\\ominus":
 		return subtractBags(a, b, false)
 	default:
@@ -47,12 +47,17 @@ func bagArgument(name, position string, v value.Value, validate bool) ([]value.P
 	return pairs, nil
 }
 
-func mergeBags(bags [][]value.Pair, method string) (value.Value, error) {
+// mergeBags adds bags as Java TLC's Bags module does. bound limits the merged
+// domain when TLC collects it in a ValueVec.
+func mergeBags(bags [][]value.Pair, method string, bound methodBound) (value.Value, error) {
 	result := make([]value.Pair, 0)
 	indices := map[string]int{}
 	for _, bag := range bags {
 		for _, pair := range bag {
 			if err := mergeBagPair(&result, indices, pair, method); err != nil {
+				return value.Value{}, err
+			}
+			if err := bound.check(len(result)); err != nil {
 				return value.Value{}, err
 			}
 		}
