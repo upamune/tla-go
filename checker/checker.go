@@ -26,6 +26,10 @@ const (
 	PostconditionViolation Status = "postcondition-violation"
 	EvaluationFailure      Status = "error"
 	ContinuedViolation     Status = "continued-violation"
+	// DepthLimit reports that depth-first iterative deepening reached its
+	// maximum depth without an error before TLC reported success. Like TLC,
+	// it is also the result when the last iteration found no new states.
+	DepthLimit Status = "depth-limit"
 )
 
 type TraceStep struct {
@@ -70,6 +74,11 @@ type Result struct {
 	HasOutDegrees                          bool
 	// ContinuedViolations counts violations reported while exploration continued.
 	ContinuedViolations int
+	// FingerprintDistance is the smallest distance between state
+	// fingerprints that TLC's depth-first mode reports as the observed
+	// collision probability on success, when HasFingerprintDistance is set.
+	FingerprintDistance    int64
+	HasFingerprintDistance bool
 }
 
 // Failure describes an evaluation that stopped exploration.
@@ -156,6 +165,10 @@ type Options struct {
 	Fingerprint int
 	// Simulation selects bounded single-worker random simulation when non-nil.
 	Simulation *SimulationOptions
+	// DepthFirst selects depth-first iterative deepening when non-nil and
+	// Simulation is nil. In this mode QueuedStates is -1 and Depth is the
+	// last iteration level started.
+	DepthFirst *DepthFirstOptions
 	// Continue explores other states after invariant and action violations.
 	// It applies to model checking; simulation uses SimulationOptions.Continue.
 	Continue bool
@@ -339,6 +352,9 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 		}
 		model.finishSimulationResult(&result)
 		return result, nil
+	}
+	if options.DepthFirst != nil {
+		return model.checkDepthFirst(*options.DepthFirst)
 	}
 	result, err := model.check()
 	if err != nil {

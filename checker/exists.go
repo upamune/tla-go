@@ -28,7 +28,7 @@ func (g *generator) existential(item work, rest []work, partial evaluator.State,
 
 func (g *generator) witnesses(item work, bounds []parser.Bound, rest []work, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
 	if len(bounds) == 0 {
-		return g.solve(prepend(work{expr: item.expr.Args[0], path: item.path, label: item.label, locals: locals}, rest), partial, action)
+		return g.witness(item, rest, partial, locals, action)
 	}
 	bound := bounds[0]
 	if bound.Set == nil {
@@ -52,6 +52,15 @@ func (g *generator) witnesses(item work, bounds []parser.Bound, rest []work, par
 		g.incompleteAction(err, action, item.expr.Args[0].Location.Range, simpleDomainMultiple(domain))
 	}
 	return more, err
+}
+
+// witness solves the body for one binding, which TLC splits into its own
+// action when the existential is labeled.
+func (g *generator) witness(item work, rest []work, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
+	if more, err := g.startAction(item); err != nil || !more {
+		return more, err
+	}
+	return g.solve(prepend(work{expr: item.expr.Args[0], path: item.path, label: item.label, locals: locals}, rest), partial, action)
 }
 
 func (g *generator) constantExistentialBound(expr *parser.Expression) bool {

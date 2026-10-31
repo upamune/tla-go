@@ -35,6 +35,10 @@ func (r *tlcRuntime) statisticsValue(name string) (value.Value, error) {
 
 func (r *tlcRuntime) counts() tlcCounts {
 	counts := tlcCounts{initial: r.initial, diameter: 1}
+	if r.depthFirst != nil {
+		// TLC's depth-first checker does not track these statistics.
+		return tlcCounts{generated: r.depthFirst.generated, distinct: -1, queue: -1, diameter: -1, initial: r.initial}
+	}
 	if r.search != nil {
 		result := r.search.result
 		counts.generated, counts.distinct, counts.queue, counts.diameter = result.GeneratedStates, result.DistinctStates, result.QueuedStates, max(result.Depth, 1)

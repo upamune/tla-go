@@ -24,6 +24,16 @@ type generator struct {
 	lexical         *evaluator.LexicalScope
 	source          *parser.Expression
 	emit            func(evaluator.State, string, *parser.Expression) (bool, error)
+	// actionStart, when set, runs before each disjunct or witness that TLC
+	// splits into a separate next-state action.
+	actionStart func() (bool, error)
+}
+
+func (g *generator) startAction(item work) (bool, error) {
+	if g.actionStart == nil || !item.label || g.initial {
+		return true, nil
+	}
+	return g.actionStart()
 }
 
 func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator.State) {
@@ -264,6 +274,9 @@ func (g *generator) disjunction(item work, rest []work, partial evaluator.State,
 }
 
 func (g *generator) disjunctionBranch(item work, branch *parser.Expression, rest []work, partial evaluator.State, action string) (bool, error) {
+	if more, err := g.startAction(item); err != nil || !more {
+		return more, err
+	}
 	previous := g.source
 	if item.label && !g.initial && branch.Location.Range.Start.Line > 0 {
 		g.source = branch

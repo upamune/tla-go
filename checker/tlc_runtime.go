@@ -20,6 +20,7 @@ type tlcRuntime struct {
 	startedAt          time.Time
 	started, stopped   bool
 	search             *search
+	depthFirst         *dfidSearch
 	traceCurrent       int
 	traceCandidate     evaluator.State
 	traceIndices       map[uintptr]int
@@ -142,9 +143,7 @@ func (r *tlcRuntime) Set(key, val value.Value, context evaluator.Context) error 
 func (r *tlcRuntime) setNamed(name string, key, val value.Value, context evaluator.Context) error {
 	switch {
 	case name == "exit":
-		if b, ok := val.Bool(); ok && b {
-			r.stopped = true
-		}
+		return r.stop(val)
 	case name == "pause":
 		r.pause(val, context)
 	case strings.HasPrefix(name, "s:"):
@@ -154,6 +153,19 @@ func (r *tlcRuntime) setNamed(name string, key, val value.Value, context evaluat
 	default:
 		return tlcSetKeyError(key)
 	}
+	return nil
+}
+
+// stop handles TLCSet("exit", TRUE). TLC's depth-first checker cannot stop,
+// so the call fails there.
+func (r *tlcRuntime) stop(val value.Value) error {
+	if b, ok := val.Bool(); !ok || !b {
+		return nil
+	}
+	if r.depthFirst != nil {
+		return &evaluator.RuntimeError{Message: "stop not implemented"}
+	}
+	r.stopped = true
 	return nil
 }
 
@@ -172,7 +184,7 @@ func (r *tlcRuntime) setProperty(name string, val value.Value) {
 }
 
 func (r *tlcRuntime) pause(val value.Value, context evaluator.Context) {
-	if r.simulation {
+	if r.simulation || r.depthFirst != nil {
 		return
 	}
 	if b, ok := val.Bool(); !ok || !b {

@@ -23,6 +23,11 @@ type levelGraphBuilder struct {
 }
 
 func (r *tlcRuntime) contextLevel(ctx evaluator.Context, source evaluator.State, primed bool) int {
+	if r.depthFirst != nil {
+		// TLC's depth-first worker never sets the current state, so
+		// TLCGet("level") is always the level before the initial states.
+		return 0
+	}
 	if r.aliasEvaluating {
 		return r.level
 	}
