@@ -193,7 +193,9 @@ func parseCheckpointOption(_ *options, args []string) (int, error) {
 	if err != nil {
 		return 0, commandLineError("Error: An integer for checkpoint interval is required. But encountered " + args[1])
 	}
-	if minutes < 0 {
+	// Java computes the interval in milliseconds with 32-bit arithmetic and
+	// rejects intervals that wrap around to a negative value.
+	if int32(minutes)*1000*60 < 0 {
 		return 0, commandLineError("Error: expect a nonnegative integer for -checkpoint option.")
 	}
 	return 1, nil

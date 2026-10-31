@@ -3,10 +3,27 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/upamune/tla-go/checker"
 )
+
+// checkDumpPath creates the dump file while options are processed, as Java
+// TLC does, so that an unwritable path is a command-line error. A path in the
+// metadata directory is created once that directory exists.
+func checkDumpPath(path string, out io.Writer) error {
+	if path == "" || strings.HasPrefix(path, "${metadir}") {
+		return nil
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		fmt.Fprintf(out, "Error: Unable to write to file %s\n", path)
+		return commandLineError(fmt.Sprintf("Error: Given file name %s for dumping states invalid.", path))
+	}
+	return file.Close()
+}
 
 // textDump follows Java TLC's StateWriter, which numbers each new state. Like
 // Java TLC, it also writes a state again for each stuttering step reported

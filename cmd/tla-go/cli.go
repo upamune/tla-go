@@ -55,13 +55,11 @@ func run(ctx context.Context, args []string, out, errout io.Writer) int {
 
 func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) int {
 	opts, err := parseOptions(args)
+	if err == nil {
+		err = checkDumpPath(opts.dumpPath, out)
+	}
 	if err != nil {
-		fmt.Fprintln(errout, err)
-		if _, ok := errors.AsType[commandLineError](err); ok {
-			return 1
-		}
-		usage(errout)
-		return 255
+		return reportOptionError(opts, err, out, errout)
 	}
 	if opts.help {
 		usage(out)
@@ -77,6 +75,24 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	reader := bufio.NewReader(input)
 	opts.onPause = func() { _, _ = reader.ReadString('\n') }
 	return runModels(ctx, opts, out, errout)
+}
+
+// reportOptionError reports Java TLC's parameter errors as message 1102 when
+// -tool precedes them, as Java TLC does, and on standard error otherwise.
+func reportOptionError(opts options, err error, out, errout io.Writer) int {
+	if _, ok := errors.AsType[commandLineError](err); !ok {
+		fmt.Fprintln(errout, err)
+		usage(errout)
+		return 255
+	}
+	if !opts.tool {
+		fmt.Fprintln(errout, err)
+		return 1
+	}
+	t := toolOutput{out: out}
+	t.message(2262, 0, "tla-go "+version)
+	t.message(1102, 1, err.Error()+"\nUsage: java tlc2.TLC [-option] inputfile")
+	return 1
 }
 
 func runModel(ctx context.Context, opts options, out, errout io.Writer) (code int) {
