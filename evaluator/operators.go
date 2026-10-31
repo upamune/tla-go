@@ -129,9 +129,9 @@ func valueBindings(params []parser.Declaration, args []value.Value, operators ma
 
 // operatorScope binds value parameters. With expressions, each one is an
 // argument evaluated on demand in the caller's scope.
-func operatorScope(defined *scope, params []parser.Declaration, args []value.Value, operators map[string]operatorRef, expressions []*parser.Expression, caller *scope, enabledScopes []string) (*scope, error) {
+func (e *evaluator) operatorScope(defined *scope, params []parser.Declaration, args []value.Value, operators map[string]operatorRef, expressions []*parser.Expression, caller *scope, enabledScopes []string) (*scope, error) {
 	if len(params) == 1 && params[0].Arity == 0 && len(expressions) == 1 {
-		return unaryLazyScope(defined, params[0].Name, args[0], operators, expressions[0], caller, enabledScopes), nil
+		return e.program.frames.lazyScope(defined, params[0].Name, args[0], operators, expressions[0], caller, enabledScopes), nil
 	}
 	bindings, err := valueBindings(params, args, operators)
 	if err != nil {
@@ -143,23 +143,17 @@ func operatorScope(defined *scope, params []parser.Declaration, args []value.Val
 	return &scope{parent: defined, bound: bindings, operators: operators}, nil
 }
 
-// unaryLazyScope allocates the common one-parameter call frame at once.
-func unaryLazyScope(defined *scope, name string, placeholder value.Value, operators map[string]operatorRef, expression *parser.Expression, caller *scope, enabledScopes []string) *scope {
-	frame := &struct {
-		scope    scope
-		binding  [1]binding
-		argument primeArgument
-	}{}
-	frame.argument.expression, frame.argument.scope, frame.argument.enabledScopes = expression, caller, enabledScopes
-	frame.binding[0] = binding{name: name, value: placeholder, arg: &frame.argument}
-	frame.scope = scope{parent: defined, bound: frame.binding[:], operators: operators}
-	return &frame.scope
-}
-
+// operatorCallKey identifies operator arguments by scope address. The key
+// outlives the call, so those scopes must not be lent again.
 func (e *evaluator) operatorCallKey(d parser.Definition, args []value.Value, ops map[string]operatorRef, defined *scope) (string, error) {
 	key, err := e.callKey(d, args, defined)
 	if err != nil {
 		return "", err
+	}
+	for _, param := range d.Params {
+		if param.Arity > 0 {
+			e.program.frames.pin(ops[param.Name].scope)
+		}
 	}
 	return appendOperatorBindings(key, d, ops), nil
 }

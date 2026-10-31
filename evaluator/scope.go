@@ -13,6 +13,8 @@ type scope struct {
 	values      map[string]value.Value
 	definitions map[string]parser.Definition
 	operators   map[string]operatorRef
+	// chunk is one more than the frameArena chunk holding the scope, or zero.
+	chunk int
 }
 
 // binding names a value. An operator argument evaluated on demand has arg set

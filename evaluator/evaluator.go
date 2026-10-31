@@ -89,6 +89,7 @@ type Program struct {
 	tlcEvalCache    map[*parser.Expression]value.Value
 	// literals shares the immutable values of string literals and field names.
 	literals map[string]value.Value
+	frames   frameArena
 }
 
 // New prepares the definitions in a module for repeated evaluation.
@@ -481,7 +482,8 @@ func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	frame, err := operatorScope(defined, d.Params, args, operators, expressions, caller, e.activeEnabledScopes())
+	mark := e.program.frames.mark()
+	frame, err := e.operatorScope(defined, d.Params, args, operators, expressions, caller, e.activeEnabledScopes())
 	if err != nil {
 		return value.Value{}, err
 	}
@@ -491,6 +493,7 @@ func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value
 	e.hasOperators = e.hasOperators || len(operators) > 0
 	result, err := e.eval(d.Body)
 	*e = saved
+	e.program.frames.release(mark)
 	return result, err
 }
 
