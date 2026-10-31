@@ -89,7 +89,7 @@ and set `STATECHART_DIR` to its `pstack/skills/statechart` directory and
 
 ## 4. DOT state graph
 
-The CLI now supports `-dump dot,actionlabels`, `-workers`, and `-fp N` (0–130) for
+The CLI now supports `-dump` in Java TLC's text and DOT formats, `-workers`, and `-fp N` (0–130) for
 single-model runs. Targeted tests compare DOT bytes with Java TLC 1.7.4 for
 branching, repeated transitions, constraints, VIEW, symmetry, Unicode,
 liveness stuttering and failure paths. The statechart integration tests also

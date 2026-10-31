@@ -1,6 +1,9 @@
 package main
 
-import "slices"
+import (
+	"slices"
+	"unicode/utf16"
+)
 
 // TLC's DOT writer uses Java HashSet and HashMap iteration order for ranks.
 type javaHashSet[T comparable] struct {
@@ -10,8 +13,9 @@ type javaHashSet[T comparable] struct {
 }
 
 type (
-	javaLongSet struct{ javaHashSet[uint64] }
-	javaIntSet  struct{ javaHashSet[int] }
+	javaLongSet   struct{ javaHashSet[uint64] }
+	javaIntSet    struct{ javaHashSet[int] }
+	javaStringSet struct{ javaHashSet[string] }
 )
 
 func (s *javaLongSet) add(value uint64) {
@@ -26,6 +30,22 @@ func (s *javaIntSet) add(value int) {
 		s.hash = func(v int) uint32 { return javaSpread(uint32(v)) }
 	}
 	s.javaHashSet.add(value)
+}
+
+func (s *javaStringSet) add(value string) {
+	if s.hash == nil {
+		s.hash = func(v string) uint32 { return javaSpread(javaStringHash(v)) }
+	}
+	s.javaHashSet.add(value)
+}
+
+// javaStringHash is Java's String.hashCode over UTF-16 code units.
+func javaStringHash(text string) uint32 {
+	var hash uint32
+	for _, unit := range utf16.Encode([]rune(text)) {
+		hash = 31*hash + uint32(unit)
+	}
+	return hash
 }
 
 func javaSpread(hash uint32) uint32 { return hash ^ hash>>16 }

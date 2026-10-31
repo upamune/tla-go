@@ -28,6 +28,7 @@ type options struct {
 	noWarning                  bool
 	sanyMetadata               bool
 	dumpPath                   string
+	dumpDOT                    *dotFormat
 	onPause                    func()
 	seed                       int64
 	aril                       int64
@@ -43,7 +44,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-fp N] [-tool] [-nowarning] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-fp N] [-tool] [-nowarning] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -129,7 +130,7 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 }
 
 func checkModelWithOutput(ctx context.Context, opts options, module *parser.Module, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
-	graph, err := openGraphDump(opts.dumpPath)
+	graph, err := openStateDump(opts.dumpPath, opts.dumpDOT)
 	if err != nil {
 		return checker.Result{}, err
 	}
@@ -152,8 +153,8 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	return result, err
 }
 
-func graphShouldFinish(result checker.Result, err error, graph *dotDump) bool {
-	return err == nil && !(result.Violation != nil && initialViolation(result)) && !(result.Failure != nil && len(graph.levels) == 0)
+func graphShouldFinish(result checker.Result, err error, graph stateDump) bool {
+	return err == nil && !(result.Violation != nil && initialViolation(result)) && !(result.Failure != nil && graph.empty())
 }
 
 func reportModelError(out, errout io.Writer, err error) int {

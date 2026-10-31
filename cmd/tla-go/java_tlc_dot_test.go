@@ -91,7 +91,8 @@ func TestDotOptionErrors(t *testing.T) {
 		{"-dump"},
 		{"-dump", "dot,actionlabels"},
 		{"-dump", "dot,actionlabels", "", "M.tla"},
-		{"-dump", "dot", "out.dot", "M.tla"},
+		{"-dump", "dot,snapshot", "out.dot", "M.tla"},
+		{"-dump", "", "M.tla"},
 		{"-workers", "0", "M.tla"},
 		{"-workers", "oops", "M.tla"},
 		{"-fp", "-1", "M.tla"},
@@ -116,7 +117,13 @@ func TestDotOutputErrors(t *testing.T) {
 func TestDotOutputSuffix(t *testing.T) {
 	for input, want := range map[string]string{"graph": "graph.dot", "graph.dot": "graph.dot", "graph.foo": "graph.foo.dot", "graph.DOT": "graph.DOT.dot"} {
 		opts, err := parseOptions([]string{"-dump", "dot,actionlabels", input, "M.tla"})
-		if err != nil || opts.dumpPath != want {
+		if err != nil || opts.dumpPath != want || opts.dumpDOT == nil || !opts.dumpDOT.actionLabels {
+			t.Errorf("dump %q: got %q, error %v; want %q", input, opts.dumpPath, err, want)
+		}
+	}
+	for input, want := range map[string]string{"states": "states.dump", "states.dump": "states.dump", "graph.dot": "graph.dot.dump"} {
+		opts, err := parseOptions([]string{"-dump", input, "M.tla"})
+		if err != nil || opts.dumpPath != want || opts.dumpDOT != nil {
 			t.Errorf("dump %q: got %q, error %v; want %q", input, opts.dumpPath, err, want)
 		}
 	}

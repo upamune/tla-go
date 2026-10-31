@@ -107,18 +107,42 @@ func parseLibraryOption(opts *options, args []string) (int, error) {
 	return 1, nil
 }
 
+// parseDumpOption follows TLC: an argument starting with "dot" selects a DOT
+// graph when a file name follows it; otherwise the argument names a plain
+// state dump.
 func parseDumpOption(opts *options, args []string) (int, error) {
-	if len(args) < 3 || args[2] == "" {
-		return 0, fmt.Errorf("-dump requires dot,actionlabels and an output path")
+	if len(args) > 2 && strings.HasPrefix(args[1], "dot") {
+		format, err := parseDOTFormat(args[1])
+		if err != nil {
+			return 0, err
+		}
+		opts.dumpDOT = &format
+		return 2, setDumpPath(opts, args[2], ".dot")
 	}
-	if args[1] != "dot,actionlabels" {
-		return 0, fmt.Errorf("unsupported dump format %s", args[1])
+	if len(args) < 2 {
+		return 0, commandLineError("Error: A file name for dumping states required.")
 	}
-	opts.dumpPath = args[2]
-	if !strings.HasSuffix(opts.dumpPath, ".dot") {
-		opts.dumpPath += ".dot"
+	opts.dumpDOT = nil
+	return 1, setDumpPath(opts, args[1], ".dump")
+}
+
+func parseDOTFormat(text string) (dotFormat, error) {
+	text = strings.ToLower(text)
+	if strings.Contains(text, "snapshot") {
+		return dotFormat{}, fmt.Errorf("unsupported dump option snapshot")
 	}
-	return 2, nil
+	return dotFormat{colorize: strings.Contains(text, "colorize"), actionLabels: strings.Contains(text, "actionlabels")}, nil
+}
+
+func setDumpPath(opts *options, path, suffix string) error {
+	if path == "" {
+		return fmt.Errorf("-dump requires an output path")
+	}
+	opts.dumpPath = path
+	if !strings.HasSuffix(path, suffix) {
+		opts.dumpPath += suffix
+	}
+	return nil
 }
 
 func parseFingerprintOption(opts *options, args []string) (int, error) {

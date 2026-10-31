@@ -74,13 +74,14 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
 | `-nowarning` | Suppress TLC warnings, such as those for symmetry or constraints with liveness checking. |
-| `-dump dot,actionlabels FILE` | Write an action-labeled DOT graph during exploration; `.dot` is appended if absent. |
+| `-dump FILE` | Write each new state in Java TLC's text format; `.dump` is appended if absent. |
+| `-dump dot[,colorize][,actionlabels] FILE` | Write a DOT state graph during exploration, optionally with colored edges and action labels; `.dot` is appended if absent. The `snapshot` option is not supported. |
 | `-sany-metadata [-I DIR] FILE` | Emit experimental SANY-shaped XML containing variable order and definition levels, without checking a model. |
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |
 | `-modern-random-subsets` | Use the newer TLC random-subset algorithm. |
 | `-version`, `-help` | Show the version or usage. |
 
-The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and DOT output are compared with Java TLC for representative models, but full compatibility is not yet established. Model checking explores states sequentially even when `-workers` requests more than one worker. A complete search reports the same state counts as Java TLC, but the statistics and counterexample reported at a violation can differ from a parallel Java TLC run. State identity and fingerprint collision behavior can still differ from Java TLC.
+The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and state dumps are compared with Java TLC for representative models, but full compatibility is not yet established. Model checking explores states sequentially even when `-workers` requests more than one worker. A complete search reports the same state counts as Java TLC, but the statistics and counterexample reported at a violation can differ from a parallel Java TLC run. State identity and fingerprint collision behavior can still differ from Java TLC.
 
 With `-continue`, model checking can finish with exit code 0 even after reporting violations, matching Java TLC. Check the reported messages or the Go API's violation count.
 
