@@ -8,7 +8,7 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-func (g *generator) expandCall(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) expandCall(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	name := item.expr.Text
 	if item.path.contains(name) {
 		return false, fmt.Errorf("recursive action expansion: %s", name)

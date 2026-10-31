@@ -9,7 +9,7 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func (g *generator) functionAction(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {
+func (g *generator) functionAction(item work, rest *workList, partial evaluator.State, action string) (bool, bool, error) {
 	expr := item.expr
 	if len(expr.Args) < 2 || (expr.Args[0].Kind != "Identifier" && expr.Args[0].Kind != "Apply") {
 		return false, false, nil
@@ -26,7 +26,7 @@ func (g *generator) functionAction(item work, rest []work, partial evaluator.Sta
 	return true, more, err
 }
 
-func (g *generator) checkedFunctionAction(item work, definition parser.Definition, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) checkedFunctionAction(item work, definition parser.Definition, rest *workList, partial evaluator.State, action string) (bool, error) {
 	if len(definition.Params) != len(item.expr.Args[0].Args) {
 		return false, fmt.Errorf("unsupported function action arguments for %s", definition.Name)
 	}
@@ -38,7 +38,7 @@ func (g *generator) checkedFunctionAction(item work, definition parser.Definitio
 	return g.expandFunctionAction(item, definition, rest, partial, action)
 }
 
-func (g *generator) expandFunctionAction(item work, definition parser.Definition, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) expandFunctionAction(item work, definition parser.Definition, rest *workList, partial evaluator.State, action string) (bool, error) {
 	if item.path.functionLimitReached() {
 		return false, fmt.Errorf("recursive action expansion: %s", definition.Name)
 	}

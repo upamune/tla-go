@@ -327,7 +327,7 @@ func (b *reducedTableauProduct) expandRegenerated(node int, state evaluator.Stat
 		}
 		return true, nil
 	}}
-	if _, err := gen.solve([]work{{expr: expr, label: true}}, evaluator.State{}, b.source.model.cfg.Next); err != nil {
+	if _, err := gen.solve(&workList{item: work{expr: expr, label: true}}, evaluator.State{}, b.source.model.cfg.Next); err != nil {
 		return err
 	}
 	order := make([]int, len(edges))

@@ -7,7 +7,7 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-func (g *generator) conditional(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) conditional(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	current, next := g.context(partial)
 	condition, err := g.holdsWithLocals(item.expr.Args[0], current, next, item.locals)
 	if err != nil {
@@ -20,7 +20,7 @@ func (g *generator) conditional(item work, rest []work, partial evaluator.State,
 	return g.solve(prepend(work{expr: item.expr.Args[branch], path: item.path, locals: item.locals}, rest), partial, action)
 }
 
-func (g *generator) implication(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) implication(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	current, next := g.context(partial)
 	condition, err := g.holdsWithLocals(item.expr.Args[0], current, next, item.locals)
 	if err != nil {
@@ -32,7 +32,7 @@ func (g *generator) implication(item work, rest []work, partial evaluator.State,
 	return g.solve(prepend(work{expr: item.expr.Args[1], path: item.path, locals: item.locals}, rest), partial, action)
 }
 
-func (g *generator) stutteringAction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) stutteringAction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	subscript := item.expr.Args[1]
 	unchanged := &parser.Expression{Kind: "Unchanged", Args: []*parser.Expression{subscript}}
 	if item.expr.Kind == "BoxAction" {
@@ -45,7 +45,7 @@ func (g *generator) stutteringAction(item work, rest []work, partial evaluator.S
 	return g.solve(prepend(work{expr: item.expr.Args[0], path: item.path, label: item.label, locals: item.locals}, rest), partial, action)
 }
 
-func (g *generator) caseAction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) caseAction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	current, next := g.context(partial)
 	for _, arm := range item.expr.Arms {
 		condition, err := g.holdsWithLocals(arm.Condition, current, next, item.locals)

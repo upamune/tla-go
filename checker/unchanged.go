@@ -8,7 +8,7 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func (g *generator) unchanged(expr *parser.Expression, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) unchanged(expr *parser.Expression, rest *workList, partial evaluator.State, action string) (bool, error) {
 	names, err := g.unchangedNames(expr.Args[0])
 	if err != nil {
 		return false, err

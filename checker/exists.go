@@ -9,7 +9,7 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-func (g *generator) existential(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) existential(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	previous := g.source
 	if item.label && !g.initial {
 		if g.actionExistentialCanSplit(item.expr) {
@@ -26,7 +26,7 @@ func (g *generator) existential(item work, rest []work, partial evaluator.State,
 	return more, err
 }
 
-func (g *generator) witnesses(item work, bounds []parser.Bound, rest []work, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
+func (g *generator) witnesses(item work, bounds []parser.Bound, rest *workList, partial evaluator.State, locals map[string]value.Value, action string) (bool, error) {
 	if len(bounds) == 0 {
 		return g.solve(prepend(work{expr: item.expr.Args[0], path: item.path, label: item.label, locals: locals}, rest), partial, action)
 	}

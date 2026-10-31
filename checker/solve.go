@@ -35,10 +35,10 @@ func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator
 	return g.current, partial
 }
 
-func (g *generator) solve(items []work, partial evaluator.State, action string) (bool, error) {
-	if len(items) > 0 && items[0].path.hasLexicalScope() {
+func (g *generator) solve(items *workList, partial evaluator.State, action string) (bool, error) {
+	if items != nil && items.item.path.hasLexicalScope() {
 		previous := g.lexical
-		g.lexical = items[0].path.scope
+		g.lexical = items.item.path.scope
 		more, err := g.solveInScope(items, partial, action)
 		g.lexical = previous
 		return more, err
@@ -46,36 +46,36 @@ func (g *generator) solve(items []work, partial evaluator.State, action string) 
 	return g.solveInScope(items, partial, action)
 }
 
-func (g *generator) solveInScope(items []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) solveInScope(items *workList, partial evaluator.State, action string) (bool, error) {
 	if err := g.model.ctx.Err(); err != nil {
 		return false, err
 	}
-	if len(items) == 0 {
+	if items == nil {
 		return g.complete(partial, action)
 	}
 	if !g.enabled && (g.initial || len(partial) > 0) && g.isComplete(partial) {
 		return g.finishAssigned(items, partial, action)
 	}
-	item, rest := items[0], items[1:]
+	item, rest := items.item, items.next
 	if handled, more, err := g.structural(item, rest, partial, action); handled {
 		return more, err
 	}
 	return g.atomic(items, partial, action)
 }
 
-func (g *generator) atomic(items []work, partial evaluator.State, action string) (bool, error) {
-	expr := items[0].expr
-	rest := items[1:]
+func (g *generator) atomic(items *workList, partial evaluator.State, action string) (bool, error) {
+	expr := items.item.expr
+	rest := items.next
 	if expr.Kind == "Unchanged" && !g.initial {
 		return g.unchanged(expr, rest, partial, action)
 	}
-	if name, operator, ok := g.assignment(expr, items[0].locals); ok {
+	if name, operator, ok := g.assignment(expr, items.item.locals); ok {
 		return g.assign(name, operator, expr.Args[1], items, partial, action)
 	}
 	return g.guard(items, partial, action)
 }
 
-func (g *generator) structural(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {
+func (g *generator) structural(item work, rest *workList, partial evaluator.State, action string) (bool, bool, error) {
 	if item.expr.Kind == "And" {
 		more, err := g.conjunction(item, rest, partial, action)
 		return true, more, err
@@ -102,7 +102,7 @@ func (g *generator) structural(item work, rest []work, partial evaluator.State, 
 	return false, false, nil
 }
 
-func (g *generator) scopedAction(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {
+func (g *generator) scopedAction(item work, rest *workList, partial evaluator.State, action string) (bool, bool, error) {
 	switch item.expr.Kind {
 	case "Identifier":
 		return g.lazyEnabledAction(item, rest, partial, action)
@@ -129,7 +129,7 @@ func (g *generator) scopedAction(item work, rest []work, partial evaluator.State
 	}
 }
 
-func (g *generator) otherScopedAction(item work, rest []work, partial evaluator.State, action string) (bool, bool, error) {
+func (g *generator) otherScopedAction(item work, rest *workList, partial evaluator.State, action string) (bool, bool, error) {
 	switch item.expr.Kind {
 	case "FunctionApplication":
 		return g.functionAction(item, rest, partial, action)
@@ -155,13 +155,48 @@ func (g *generator) isActionCall(expr *parser.Expression) bool {
 	return ok
 }
 
-func prepend(item work, rest []work) []work {
-	result := make([]work, 0, len(rest)+1)
-	result = append(result, item)
-	return append(result, rest...)
+// workList is an immutable list of pending conjuncts; prepending shares the rest.
+type workList struct {
+	item work
+	next *workList
 }
 
-func (g *generator) expandWork(item work, expanded *parser.Expression, rest []work, partial evaluator.State, action string) (bool, error) {
+func prepend(item work, rest *workList) *workList {
+	return &workList{item: item, next: rest}
+}
+
+// prependMany returns n blank items, which the caller fills, followed by rest.
+func prependMany(n int, rest *workList) (*workList, []workList) {
+	if n == 0 {
+		return rest, nil
+	}
+	nodes := make([]workList, n)
+	for i := range n - 1 {
+		nodes[i].next = &nodes[i+1]
+	}
+	nodes[n-1].next = rest
+	return &nodes[0], nodes
+}
+
+// scopedTail copies items and gives those without a lexical boundary the
+// current one, so they keep it after a LET or operator argument.
+func (g *generator) scopedTail(items *workList) *workList {
+	n := 0
+	for current := items; current != nil; current = current.next {
+		n++
+	}
+	head, nodes := prependMany(n, nil)
+	for i := range nodes {
+		nodes[i].item = items.item
+		if !items.item.path.hasLexicalScope() {
+			nodes[i].item.path = items.item.path.withScope(g.lexical)
+		}
+		items = items.next
+	}
+	return head
+}
+
+func (g *generator) expandWork(item work, expanded *parser.Expression, rest *workList, partial evaluator.State, action string) (bool, error) {
 	if item.path.contains(item.expr.Text) {
 		return false, fmt.Errorf("recursive action expansion: %s", item.expr.Text)
 	}
@@ -202,9 +237,9 @@ func (g *generator) isComplete(partial evaluator.State) bool {
 	return true
 }
 
-func (g *generator) finishAssigned(items []work, partial evaluator.State, action string) (bool, error) {
-	for _, item := range items {
-		ok, err := g.holdsScopedWork(item, partial)
+func (g *generator) finishAssigned(items *workList, partial evaluator.State, action string) (bool, error) {
+	for ; items != nil; items = items.next {
+		ok, err := g.holdsScopedWork(items.item, partial)
 		if err != nil {
 			return false, err
 		}
@@ -243,12 +278,11 @@ func (g *generator) complete(partial evaluator.State, action string) (bool, erro
 	return g.emit(maps.Clone(partial), action, g.source)
 }
 
-func (g *generator) conjunction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
-	items := make([]work, 0, len(item.expr.Args)+len(rest))
-	for _, arg := range item.expr.Args {
-		items = append(items, work{expr: arg, path: item.path, locals: item.locals})
+func (g *generator) conjunction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
+	items, nodes := prependMany(len(item.expr.Args), rest)
+	for i, arg := range item.expr.Args {
+		nodes[i].item = work{expr: arg, path: item.path, locals: item.locals}
 	}
-	items = append(items, rest...)
 	more, err := g.solve(items, partial, action)
 	if err != nil {
 		addEnclosingActionSource(err, item.expr)
@@ -258,7 +292,7 @@ func (g *generator) conjunction(item work, rest []work, partial evaluator.State,
 	return more, err
 }
 
-func (g *generator) disjunction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) disjunction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
 	for _, branch := range item.expr.Args {
 		more, err := g.disjunctionBranch(item, branch, rest, partial, action)
 		if err != nil || !more {
@@ -269,7 +303,7 @@ func (g *generator) disjunction(item work, rest []work, partial evaluator.State,
 	return true, nil
 }
 
-func (g *generator) disjunctionBranch(item work, branch *parser.Expression, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) disjunctionBranch(item work, branch *parser.Expression, rest *workList, partial evaluator.State, action string) (bool, error) {
 	previous := g.source
 	if item.label && !g.initial && branch.Location.Range.Start.Line > 0 {
 		g.source = branch
@@ -332,40 +366,40 @@ func (g *generator) assignable(expr *parser.Expression, seen map[string]bool) (s
 	return g.assignable(def.Body, seen)
 }
 
-func (g *generator) assign(name, operator string, rhs *parser.Expression, items []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) assign(name, operator string, rhs *parser.Expression, items *workList, partial evaluator.State, action string) (bool, error) {
 	if _, ok := partial[name]; ok {
 		return g.guard(items, partial, action)
 	}
 	current, next := g.context(partial)
-	v, err := g.evalWithLocals(rhs, current, next, items[0].locals)
+	v, err := g.evalWithLocals(rhs, current, next, items.item.locals)
 	if err != nil {
-		evaluator.AddUnexpectedSource(err, items[0].expr)
+		evaluator.AddUnexpectedSource(err, items.item.expr)
 		return false, err
 	}
 	var more bool
 	if operator == "=" {
-		more, err = g.assignOne(name, v, items[1:], partial, action)
+		more, err = g.assignOne(name, v, items.next, partial, action)
 	} else {
-		more, err = g.assignMembers(name, v, items[1:], partial, action)
+		more, err = g.assignMembers(name, v, items.next, partial, action)
 	}
 	if g.initial && err != nil {
-		addInitialAssignmentErrorSource(err, items[0].expr)
+		addInitialAssignmentErrorSource(err, items.item.expr)
 	}
 	if err == nil && !more {
-		g.addInitialFailureSource(items[0].expr, true)
+		g.addInitialFailureSource(items.item.expr, true)
 	}
 	return more, err
 }
 
 // assign only reaches assignOne for a variable missing from partial.
-func (g *generator) assignOne(name string, v value.Value, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) assignOne(name string, v value.Value, rest *workList, partial evaluator.State, action string) (bool, error) {
 	partial[name] = v
 	more, err := g.solve(rest, partial, action)
 	delete(partial, name)
 	return more, err
 }
 
-func (g *generator) assignMembers(name string, set value.Value, rest []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) assignMembers(name string, set value.Value, rest *workList, partial evaluator.State, action string) (bool, error) {
 	more := true
 	err := set.Each(func(element value.Value) (bool, error) {
 		var e error
@@ -375,14 +409,14 @@ func (g *generator) assignMembers(name string, set value.Value, rest []work, par
 	return more, err
 }
 
-func (g *generator) guard(items []work, partial evaluator.State, action string) (bool, error) {
+func (g *generator) guard(items *workList, partial evaluator.State, action string) (bool, error) {
 	current, next := g.context(partial)
-	ok, err := g.holdsWithLocals(items[0].expr, current, next, items[0].locals)
+	ok, err := g.holdsWithLocals(items.item.expr, current, next, items.item.locals)
 	if err != nil {
 		return false, err
 	}
 	if !ok {
 		return true, nil
 	}
-	return g.solve(items[1:], partial, action)
+	return g.solve(items.next, partial, action)
 }

@@ -49,6 +49,6 @@ func (w *simulationWorker) actionStates(action simulationAction, current evaluat
 		states = append(states, state)
 		return true, nil
 	}}
-	_, err := gen.solve([]work{{expr: action.expr, locals: action.locals}}, evaluator.State{}, action.name)
+	_, err := gen.solve(&workList{item: work{expr: action.expr, locals: action.locals}}, evaluator.State{}, action.name)
 	return states, err
 }
