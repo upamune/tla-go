@@ -96,7 +96,7 @@ func printToolSimulationResult(t toolOutput, result checker.Result, module *pars
 		return
 	}
 	printToolSimulationProgress(t, result.GeneratedStates)
-	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
+	if simulationHasSummary(result) {
 		t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril %d", result.GeneratedStates, seed, max(aril, 0)))
 		if result.Failure == nil || result.Failure.InitialState == nil {
 			printToolSimulationProgress(t, result.GeneratedStates)
@@ -140,6 +140,18 @@ func printToolSimulationInitialNested(t toolOutput, failure *checker.Failure) bo
 	return true
 }
 
+// simulationHasSummary reports whether Java TLC's simulator prints its summary
+// after a stopped run. It omits the summary after a TLC assertion, such as a
+// non-boolean action (2247) or a failed Java override (2154), raised while
+// generating successors.
+func simulationHasSummary(result checker.Result) bool {
+	if result.Status == checker.Success || result.Status == checker.ContinuedViolation {
+		return false
+	}
+	failure := result.Failure
+	return failure == nil || len(failure.Trace) == 0 || failure.ToolCode != 2247 && failure.ToolCode != 2154
+}
+
 func simulationHasStatistics(result checker.Result) bool {
 	if result.Failure != nil {
 		return !result.Failure.SuppressStatistics
@@ -157,7 +169,7 @@ func printSimulationResult(out io.Writer, result checker.Result, module *parser.
 		return
 	}
 	fmt.Fprintf(out, "Progress: %d states generated.\n", result.GeneratedStates)
-	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
+	if simulationHasSummary(result) {
 		fmt.Fprintf(out, "The number of states generated: %d\nSimulation using seed %d and aril %d\n", result.GeneratedStates, seed, max(aril, 0))
 	}
 }

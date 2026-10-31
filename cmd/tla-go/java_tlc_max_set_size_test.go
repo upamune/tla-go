@@ -71,6 +71,34 @@ func TestJavaTLCMaxSetSize(t *testing.T) {
 	}
 }
 
+// Java TLC's simulator reports a -maxSetSize failure as an unexpected
+// exception, and a failed override as message 2154 without its summary.
+func TestJavaTLCMaxSetSizeSimulation(t *testing.T) {
+	for _, tc := range []struct{ name, body, message string }{
+		{"initial filter", "Init == x \\in {i \\in 1..20 : TRUE}\nNext == x' = x", "The exception was a util.WrongInvocationException\n: Attempted to construct a set with too many elements (>10)."},
+		{"successor filter", "Init == x = 0\nNext == x' \\in {i \\in 1..20 : TRUE}", "The exception was a util.WrongInvocationException\n: Attempted to construct a set with too many elements (>10)."},
+		{"successor SelectSeq", "Init == x = 0\nNext == x' = Len(SelectSeq([i \\in 1..20 |-> i], LAMBDA e : TRUE))", "@!@!@STARTMSG 2154:1 @!@!@\nAttempted to apply the operator overridden by the Java method"},
+		{"successor non-boolean", "Init == x = 0\nNext == x' = 1 /\\ 5", "@!@!@STARTMSG 2247:1 @!@!@\nIn computing next states, TLC expected a boolean expression,"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeMaxSetSizeFixture(t, dir, "VARIABLE x\n"+tc.body, "INIT Init\nNEXT Next\n")
+			args := []string{"-tool", "-maxSetSize", "10", "-simulate", "num=1", "-depth", "3", "-seed", "1"}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+			if code != 255 || errout.Len() != 0 || !strings.Contains(out.String(), tc.message) {
+				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java := runJavaToolMessages(t, jar, dir, append(args, "M.tla"), code)
+				if got := errorBehaviorMessages(readToolMessages(out.String())); !reflect.DeepEqual(got, java) {
+					t.Fatalf("messages differ\nJava: %q\nGo:   %q", java, got)
+				}
+			}
+		})
+	}
+}
+
 func writeMaxSetSizeFixture(t *testing.T, dir, body, cfg string) {
 	t.Helper()
 	for name, content := range map[string]string{"M.tla": "---- MODULE M ----\nEXTENDS Naturals, Sequences, FiniteSets, Bags, TLC\n" + body + "\n====\n", "M.cfg": cfg} {

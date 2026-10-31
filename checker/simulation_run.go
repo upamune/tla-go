@@ -91,12 +91,15 @@ func (r *simulationRun) explore(traces int) (Result, error) {
 
 func (r *simulationRun) initialGenerationFailure(err error) (Result, error) {
 	failure, ok := errors.AsType[*evaluator.RuntimeError](err)
-	if !ok || failure.ToolCode != 2247 {
+	if !ok || failure.ToolCode != 2247 && !failure.WrongInvocation {
 		return Result{}, err
 	}
 	result := r.search.result
 	result.Status = EvaluationFailure
 	result.Failure = &Failure{Message: failure.Message, ToolCode: 2247, ExitCode: 255, SuppressStatistics: true}
+	if failure.WrongInvocation {
+		result.Failure.Message, result.Failure.ToolCode = wrongInvocationMessage(failure.Message), 1000
+	}
 	return result, nil
 }
 
@@ -304,19 +307,37 @@ func (r *simulationRun) step(index int) (*Result, error) {
 
 func (r *simulationRun) nextGenerationFailure(err error, index int) (*Result, error) {
 	failure, ok := errors.AsType[*evaluator.RuntimeError](err)
-	if !ok || failure.ToolCode != 2247 && failure.ToolCode != 2132 {
+	if !ok {
 		return nil, err
 	}
+	reported, ok := simulationGenerationFailure(failure)
+	if !ok {
+		return nil, err
+	}
+	reported.ExitCode, reported.Trace = 255, r.search.trace(index)
 	result := r.search.result
 	result.Status = EvaluationFailure
-	result.Failure = &Failure{Message: failure.Message, ToolCode: 2247, ExitCode: 255, Trace: r.search.trace(index)}
-	if failure.ToolCode == 2132 {
-		// Java TLC's simulator reports the EvalException thrown by Assert as an
-		// unexpected exception, followed by the behavior and statistics.
-		result.Failure.Message = unexpectedExceptionHeading("tlc2.tool.EvalException") + " " + failure.Message
-		result.Failure.ToolCode, result.Failure.NestedToolCode, result.Failure.NestedMessage = 1000, 2132, failure.Message
-	}
+	result.Failure = reported
 	return &result, nil
+}
+
+// simulationGenerationFailure reports a successor failure as Java TLC's
+// simulator does: TLC assertions, such as a non-boolean action (2247) or a
+// failed Java override (2154), directly, and other exceptions, including the
+// EvalException thrown by Assert, as unexpected exceptions followed by the
+// behavior and statistics.
+func simulationGenerationFailure(failure *evaluator.RuntimeError) (*Failure, bool) {
+	switch {
+	case failure.ToolCode == 2247 || failure.ToolCode == 2154:
+		return &Failure{Message: failure.Message, ToolCode: failure.ToolCode}, true
+	case failure.ToolCode == 2132:
+		message := unexpectedExceptionHeading("tlc2.tool.EvalException") + " " + failure.Message
+		return &Failure{Message: message, ToolCode: 1000, NestedToolCode: 2132, NestedMessage: failure.Message}, true
+	case failure.WrongInvocation:
+		return &Failure{Message: wrongInvocationMessage(failure.Message), ToolCode: 1000}, true
+	default:
+		return nil, false
+	}
 }
 
 func (r *simulationRun) deadlock(index int) *Result {

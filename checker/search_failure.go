@@ -98,10 +98,16 @@ func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeErr
 	}
 	if failure.WrongInvocation {
 		result := *failure
-		result.Message = unexpectedExceptionHeading("util.WrongInvocationException") + " " + failure.Message
+		result.Message = wrongInvocationMessage(failure.Message)
 		failure = &result
 	}
 	return failure
+}
+
+// wrongInvocationMessage reports a util.WrongInvocationException, such as a
+// -maxSetSize failure, as Java TLC's unexpected exception.
+func wrongInvocationMessage(message string) string {
+	return unexpectedExceptionHeading("util.WrongInvocationException") + " " + message
 }
 
 // nextNestedGenerationFailure reports a TLC assertion raised while generating
