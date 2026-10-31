@@ -75,5 +75,7 @@ func configureSimulation(opts *options) error {
 		return fmt.Errorf("generate simulation seed: %w", err)
 	}
 	opts.seed = int64(binary.BigEndian.Uint64(seed[:]))
+	// Java TLC ignores -aril when it chooses the simulation seed itself.
+	opts.aril = 0
 	return nil
 }

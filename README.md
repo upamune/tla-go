@@ -65,6 +65,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-metadir DIR` | Create a timestamped run directory under `DIR`; remove it on success. Checkpoint recovery is not yet supported. |
 | `-deadlock` | Disable deadlock reporting. |
 | `-seed N` | Set the random seed; model checking defaults to 0 and simulation chooses a random seed. |
+| `-aril N` | Advance the simulation's random stream by N double draws when `-seed` is supplied. |
 | `-simulate [num=N]` | Run experimental single-worker random simulation; omit `num=N` to run until interrupted or a violation is found. |
 | `-continue` | Continue model checking after invariant or action violations, or simulation after safety violations and deadlocks. |
 | `-depth N` | Set the simulation trace length (default 100; `-1` means no limit). |

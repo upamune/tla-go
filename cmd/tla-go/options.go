@@ -44,7 +44,7 @@ func parseOption(opts *options, args []string) (int, error) {
 		opts.modernRandomSubsets = true
 	case "-tool":
 		opts.tool = true
-	case "-config", "-seed", "-lncheck", "-dump", "-workers", "-fp", "-metadir", "-I":
+	case "-config", "-seed", "-aril", "-lncheck", "-dump", "-workers", "-fp", "-metadir", "-I":
 		return parseValueOption(opts, args)
 	default:
 		return parseOtherOption(opts, args)
@@ -102,8 +102,8 @@ func parseValueOption(opts *options, args []string) (int, error) {
 			opts.metaRoot = args[1]
 		}
 		return 1, nil
-	case "-seed":
-		return parseSeedOption(opts, args)
+	case "-seed", "-aril":
+		return parseRandomOption(opts, args)
 	case "-lncheck":
 		if len(args) < 2 {
 			return 0, errMissingLivenessStrategy
@@ -115,16 +115,20 @@ func parseValueOption(opts *options, args []string) (int, error) {
 	return 0, nil
 }
 
-func parseSeedOption(opts *options, args []string) (int, error) {
+func parseRandomOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
-		return 0, fmt.Errorf("-seed requires an integer")
+		return 0, fmt.Errorf("%s requires an integer", args[0])
 	}
-	seed, err := strconv.ParseInt(args[1], 10, 64)
+	number, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("invalid seed %s", args[1])
+		return 0, fmt.Errorf("invalid %s %s", strings.TrimPrefix(args[0], "-"), args[1])
 	}
-	opts.seed = seed
-	opts.seedSet = true
+	if args[0] == "-aril" {
+		opts.aril = number
+	} else {
+		opts.seed = number
+		opts.seedSet = true
+	}
 	return 1, nil
 }
 

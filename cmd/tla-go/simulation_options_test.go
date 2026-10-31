@@ -57,6 +57,38 @@ func TestModelContinueOption(t *testing.T) {
 	}
 }
 
+func TestSimulationArilOption(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		aril int64
+	}{
+		{[]string{"-simulate", "-seed", "3", "-aril", "7", "M.tla"}, 7},
+		{[]string{"-aril", "-2", "-simulate", "-seed", "3", "M.tla"}, -2},
+		{[]string{"-simulate", "-aril", "7", "M.tla"}, 0},
+		{[]string{"-aril", "7", "M.tla"}, 7},
+	} {
+		opts, err := parseOptions(tc.args)
+		if err != nil || opts.aril != tc.aril {
+			t.Errorf("parse %q: %+v, %v", tc.args, opts, err)
+		}
+	}
+	for _, args := range [][]string{{"-aril"}, {"-aril", "nope", "M.tla"}, {"-aril", "9223372036854775808", "M.tla"}} {
+		if _, err := parseOptions(args); err == nil {
+			t.Errorf("accepted %q", args)
+		}
+	}
+}
+
+func TestSimulationArilWithoutSeed(t *testing.T) {
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == x'=1\nInv == x=0", "INIT Init\nNEXT Next\nINVARIANT Inv\n")
+	var out, errout bytes.Buffer
+	code := run(context.Background(), []string{"-tool", "-simulate", "num=1", "-aril", "17", "-depth", "1", filepath.Join(dir, "M.tla")}, &out, &errout)
+	if code != 12 || errout.Len() != 0 || !strings.Contains(out.String(), "and aril 0") {
+		t.Fatalf("exit %d, stderr %s, stdout %s", code, errout.String(), out.String())
+	}
+}
+
 func TestSimulationZeroDepthAndCount(t *testing.T) {
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")

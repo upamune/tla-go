@@ -25,6 +25,21 @@ func (r *JavaRandom) SetSeed(seed int64) {
 	r.state = (uint64(seed) ^ javaMultiplier) & javaSeedMask
 }
 
+// AdvanceDoubles advances the generator as if count Float64 calls were made.
+// Java's 48-bit generator is affine, so repeated squaring avoids a linear scan.
+func (r *JavaRandom) AdvanceDoubles(count uint64) {
+	steps := count * 2
+	multiplier, increment := javaMultiplier, uint64(11)
+	for steps != 0 {
+		if steps&1 != 0 {
+			r.state = (r.state*multiplier + increment) & javaSeedMask
+		}
+		increment = increment * (multiplier + 1) & javaSeedMask
+		multiplier = multiplier * multiplier & javaSeedMask
+		steps >>= 1
+	}
+}
+
 func (r *JavaRandom) next(bits uint) uint32 {
 	r.state = (r.state*javaMultiplier + 11) & javaSeedMask
 	return uint32(r.state >> (48 - bits))

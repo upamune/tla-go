@@ -77,6 +77,11 @@ against Java TLC 1.7.4. They cover selected results and tool traces, not all
 temporal formulas. A separate regression test records a known difference in
 simulation stability results between TLC 1.7.4 and 1.8.0.
 
+`TestJavaTLCSimulationAril` compares selected seeded traces, including negative
+and large arils, against Java TLC 1.7.4. A separate test checks selected seeds
+against 1.8.0. These comparisons cover selected action and liveness behavior,
+not the full simulation test suite.
+
 `TestJavaTLCModelContinue` compares selected model-checking continuation cases
 with Java TLC 1.7.4, including initial and successor violations, constraints,
 deadlocks, and temporal properties. `TestJavaTLCModelContinueDOT` compares DOT

@@ -176,6 +176,9 @@ type Options struct {
 type SimulationOptions struct {
 	Traces int
 	Depth  int
+	// Aril advances the master random stream by this many double draws.
+	// Negative values have the same effect as zero, matching Java TLC.
+	Aril int64
 	// Continue resumes with a new trace after a safety violation or deadlock.
 	// Initial-state violations, evaluation failures, and liveness violations stop.
 	Continue bool

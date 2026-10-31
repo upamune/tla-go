@@ -19,7 +19,7 @@ func printChecking(out io.Writer, specPath, configPath string, opts options) {
 
 func configureCheckingMode(checkOpts *checker.Options, opts options, module *parser.Module, out io.Writer) {
 	if opts.simulate {
-		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, Continue: opts.continuation}
+		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, Aril: opts.aril, Continue: opts.continuation}
 		if opts.continuation {
 			checkOpts.Simulation.OnViolation = simulationViolationOutput(opts, module, out)
 		}
@@ -45,7 +45,7 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 
 func printConfiguredResult(out io.Writer, result checker.Result, module *parser.Module, opts options) {
 	if opts.simulate {
-		printSimulationResult(out, result, module, opts.seed)
+		printSimulationResult(out, result, module, opts.seed, opts.aril)
 	} else {
 		printResult(out, result, module)
 	}
@@ -53,7 +53,7 @@ func printConfiguredResult(out io.Writer, result checker.Result, module *parser.
 
 func printConfiguredToolResult(t toolOutput, result checker.Result, module *parser.Module, opts options) {
 	if opts.simulate {
-		printToolSimulationResult(t, result, module, opts.seed)
+		printToolSimulationResult(t, result, module, opts.seed, opts.aril)
 	} else {
 		printToolResult(t, result, module)
 	}
@@ -65,11 +65,11 @@ func simulationViolationOutput(opts options, module *parser.Module, out io.Write
 			t := toolOutput{out: out}
 			printToolViolation(t, result, module)
 			printToolSimulationProgress(t, result.GeneratedStates)
-			t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril 0", result.GeneratedStates, opts.seed))
+			t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril %d", result.GeneratedStates, opts.seed, max(opts.aril, 0)))
 			return
 		}
 		printViolation(out, result, module)
-		fmt.Fprintf(out, "Progress: %d states generated.\nThe number of states generated: %d\nSimulation using seed %d and aril 0\n", result.GeneratedStates, result.GeneratedStates, opts.seed)
+		fmt.Fprintf(out, "Progress: %d states generated.\nThe number of states generated: %d\nSimulation using seed %d and aril %d\n", result.GeneratedStates, result.GeneratedStates, opts.seed, max(opts.aril, 0))
 	}
 }
 
@@ -83,7 +83,7 @@ func modelViolationOutput(opts options, module *parser.Module, out io.Writer) fu
 	}
 }
 
-func printToolSimulationResult(t toolOutput, result checker.Result, module *parser.Module, seed int64) {
+func printToolSimulationResult(t toolOutput, result checker.Result, module *parser.Module, seed, aril int64) {
 	if result.Failure != nil {
 		printToolSimulationFailure(t, result.Failure, module)
 	} else if result.Violation != nil {
@@ -94,7 +94,7 @@ func printToolSimulationResult(t toolOutput, result checker.Result, module *pars
 	}
 	printToolSimulationProgress(t, result.GeneratedStates)
 	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
-		t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril 0", result.GeneratedStates, seed))
+		t.message(2210, 0, fmt.Sprintf("The number of states generated: %d\nSimulation using seed %d and aril %d", result.GeneratedStates, seed, max(aril, 0)))
 		if result.Failure == nil || result.Failure.InitialState == nil {
 			printToolSimulationProgress(t, result.GeneratedStates)
 		}
@@ -133,7 +133,7 @@ func simulationHasStatistics(result checker.Result) bool {
 	return result.Violation == nil || result.Status != checker.AssumptionViolation && !initialViolation(result)
 }
 
-func printSimulationResult(out io.Writer, result checker.Result, module *parser.Module, seed int64) {
+func printSimulationResult(out io.Writer, result checker.Result, module *parser.Module, seed, aril int64) {
 	if result.Failure != nil {
 		printFailure(out, result.Failure, module)
 	} else if result.Violation != nil {
@@ -144,6 +144,6 @@ func printSimulationResult(out io.Writer, result checker.Result, module *parser.
 	}
 	fmt.Fprintf(out, "Progress: %d states generated.\n", result.GeneratedStates)
 	if result.Status != checker.Success && result.Status != checker.ContinuedViolation {
-		fmt.Fprintf(out, "The number of states generated: %d\nSimulation using seed %d and aril 0\n", result.GeneratedStates, seed)
+		fmt.Fprintf(out, "The number of states generated: %d\nSimulation using seed %d and aril %d\n", result.GeneratedStates, seed, max(aril, 0))
 	}
 }

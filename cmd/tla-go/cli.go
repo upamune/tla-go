@@ -29,6 +29,7 @@ type options struct {
 	dumpPath                   string
 	onPause                    func()
 	seed                       int64
+	aril                       int64
 	fingerprint                int
 	simulate, seedSet          bool
 	continuation               bool
@@ -37,7 +38,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-simulate [num=N]] [-continue] [-depth N] [-workers 1] [-fp N] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N]] [-continue] [-depth N] [-workers 1] [-fp N] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {

@@ -32,7 +32,11 @@ func (m *model) simulateWithOptions(options SimulationOptions, seed int64) (Resu
 		return Result{}, err
 	}
 	run := simulationRun{model: m, search: newSearch(m), depth: options.Depth, options: options}
-	run.worker = newSimulationWorker(m, actions, evaluator.NewJavaRandom(seed))
+	master := evaluator.NewJavaRandom(seed)
+	if options.Aril > 0 {
+		master.AdvanceDoubles(uint64(options.Aril))
+	}
+	run.worker = newSimulationWorker(m, actions, master)
 	run.search.result.DistinctStates = -1
 	run.search.result.QueuedStates = -1
 	m.tlcRuntime.started = true

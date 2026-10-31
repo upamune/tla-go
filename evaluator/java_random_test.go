@@ -38,6 +38,39 @@ func TestJavaRandomMatchesUpstream(t *testing.T) {
 	}
 }
 
+func TestJavaRandomAdvanceDoubles(t *testing.T) {
+	for _, seed := range []int64{0, 1, -42, 1<<62 - 1} {
+		for _, count := range []uint64{0, 1, 2, 7, 1000, 123456} {
+			want := NewJavaRandom(seed)
+			for range count {
+				want.Float64()
+			}
+			got := NewJavaRandom(seed)
+			got.AdvanceDoubles(count)
+			if a, b := got.Long(), want.Long(); a != b {
+				t.Errorf("seed %d, advance %d: got %d, want %d", seed, count, a, b)
+			}
+		}
+	}
+}
+
+func TestJavaRandomAdvanceDoublesPeriod(t *testing.T) {
+	baseline := NewJavaRandom(42)
+	baseline.AdvanceDoubles(12345)
+	advanced := NewJavaRandom(42)
+	advanced.AdvanceDoubles((uint64(1) << 47) + 12345)
+	if got, want := advanced.Long(), baseline.Long(); got != want {
+		t.Fatalf("advanced generator produced %d; want %d", got, want)
+	}
+	large := NewJavaRandom(-1)
+	large.AdvanceDoubles(1<<63 - 1)
+	periodic := NewJavaRandom(-1)
+	periodic.AdvanceDoubles(1<<47 - 1)
+	if got, want := large.Long(), periodic.Long(); got != want {
+		t.Fatalf("large advance produced %d; want %d", got, want)
+	}
+}
+
 func TestStandaloneRandomSeed(t *testing.T) {
 	module, err := parser.ParseModule("---- MODULE M ----\nEXTENDS Naturals, TLC\nDraw == RandomElement(1..100)\n====")
 	if err != nil {
