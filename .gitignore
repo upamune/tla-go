@@ -23,6 +23,8 @@
 
 # go test -c のバイナリ
 *.test
+# Upstream PlusCal fixtures live in a directory whose name ends in .test.
+!/pcal/testdata/upstream/toolbox/org.lamport.tla.toolbox.tool.tlc.ui.test/
 
 # coverage（go test -coverprofile など）
 *.out
