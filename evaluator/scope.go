@@ -13,8 +13,8 @@ type scope struct {
 	values      map[string]value.Value
 	definitions map[string]parser.Definition
 	operators   map[string]operatorRef
-	// chunk is one more than the frameArena chunk holding the scope, or zero.
-	chunk int
+	// lent marks a frame from a frameArena; pinned keeps it from being lent again.
+	lent, pinned bool
 }
 
 // binding names a value. An operator argument evaluated on demand has arg set

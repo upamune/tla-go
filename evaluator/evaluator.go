@@ -58,10 +58,17 @@ type evaluator struct {
 	active         []activeCall
 	functionCache  map[functionCacheKey]value.Value
 	depth          int
+	frames         *frameArena
+}
+
+// pooledEvaluator owns the frame arena of a top-level evaluation.
+type pooledEvaluator struct {
+	evaluator evaluator
+	frames    frameArena
 }
 
 // Deferred values capture snapshots, so an evaluator can be reused after eval.
-var evaluatorPool = sync.Pool{New: func() any { return new(evaluator) }}
+var evaluatorPool = sync.Pool{New: func() any { return new(pooledEvaluator) }}
 
 // Program holds the immutable definition index for repeated evaluations.
 type Program struct {
@@ -87,9 +94,9 @@ type Program struct {
 	constantCache   map[string]value.Value
 	constantTLCEval map[*parser.Expression]bool
 	tlcEvalCache    map[*parser.Expression]value.Value
-	// literals shares the immutable values of string literals and field names.
-	literals map[string]value.Value
-	frames   frameArena
+	// literals shares the immutable values of string literals and field
+	// names. Deferred values may evaluate concurrently, so it is a sync.Map.
+	literals sync.Map
 }
 
 // New prepares the definitions in a module for repeated evaluation.
@@ -124,15 +131,11 @@ func NewWithRuntime(module *parser.Module, onPrint func(string), runtime TLCRunt
 }
 
 func (p *Program) literal(text string) value.Value {
-	if v, ok := p.literals[text]; ok {
-		return v
+	if v, ok := p.literals.Load(text); ok {
+		return v.(value.Value)
 	}
-	if p.literals == nil {
-		p.literals = make(map[string]value.Value)
-	}
-	v := value.String(text)
-	p.literals[text] = v
-	return v
+	v, _ := p.literals.LoadOrStore(text, value.String(text))
+	return v.(value.Value)
 }
 
 func hasNaturals(extends []string) bool {
@@ -193,22 +196,22 @@ func (p *Program) evaluate(expression *parser.Expression, context Context) (valu
 	if context.OnPrint == nil {
 		context.OnPrint = p.onPrint
 	}
-	e := evaluatorPool.Get().(*evaluator)
-	*e = evaluator{context: context, program: p, scope: &p.root, variables: p.variables, finiteSets: p.finiteSets, sequences: p.sequences, naturals: p.naturals, integers: p.integers, tlc: p.tlc, tlcext: p.tlcext, bags: p.bags, json: p.json, randomization: p.randomization}
+	pooled := evaluatorPool.Get().(*pooledEvaluator)
+	e := &pooled.evaluator
+	*e = evaluator{frames: &pooled.frames, context: context, program: p, scope: &p.root, variables: p.variables, finiteSets: p.finiteSets, sequences: p.sequences, naturals: p.naturals, integers: p.integers, tlc: p.tlc, tlcext: p.tlcext, bags: p.bags, json: p.json, randomization: p.randomization}
 	defer func() {
 		*e = evaluator{}
-		evaluatorPool.Put(e)
+		evaluatorPool.Put(pooled)
 	}()
 	if context.Lexical != nil {
 		e.scope = context.Lexical.scope
 		e.hasOperators = context.Lexical.hasOperators
 	}
-	mark := p.frames.mark()
 	if len(context.Locals) > 0 {
-		e.scope = p.frames.localScope(e.scope, context.Locals)
+		e.scope = e.frames.localScope(e.scope, context.Locals)
 	}
 	result, err := e.eval(expression)
-	p.frames.release(mark)
+	e.frames.release(frameMark{})
 	if err == nil {
 		return result, nil
 	}
@@ -513,7 +516,7 @@ func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	mark := e.program.frames.mark()
+	mark := e.frames.mark()
 	frame, err := e.operatorScope(defined, d.Params, args, operators, expressions, caller, e.activeEnabledScopes())
 	if err != nil {
 		return value.Value{}, err
@@ -524,7 +527,7 @@ func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value
 	e.hasOperators = e.hasOperators || len(operators) > 0
 	result, err := e.eval(d.Body)
 	*e = saved
-	e.program.frames.release(mark)
+	e.frames.release(mark)
 	return result, err
 }
 

@@ -28,7 +28,7 @@ func TestFrameArenaPinnedFramesAreNotReused(t *testing.T) {
 	var arena frameArena
 	mark := arena.mark()
 	pinned := arena.valueScope(nil, "x", value.Bool(true))
-	arena.pin(pinned)
+	pin(pinned)
 	arena.release(mark)
 	next := arena.valueScope(nil, "y", value.Bool(false))
 	if next == pinned {
@@ -61,16 +61,26 @@ func TestFrameArenaSpansChunks(t *testing.T) {
 // Function definitions with operator parameters cache their values by the
 // operator's scope address, so a LAMBDA's frame must not be lent again.
 func TestOperatorScopesInFunctionKeysArePinned(t *testing.T) {
-	e := evaluator{program: &Program{}}
-	frame := e.program.frames.valueScope(nil, "k", value.Bool(true))
+	e := evaluator{program: &Program{}, frames: &frameArena{}}
+	frame := e.frames.valueScope(nil, "k", value.Bool(true))
 	d := parser.Definition{Kind: "Function", Name: "f", Params: []parser.Declaration{{Name: "Op", Arity: 1}}}
 	ops := map[string]operatorRef{"Op": {arity: 1, lambda: &parser.Expression{Kind: "Lambda"}, scope: frame}}
 	if _, err := e.operatorCallKey(d, nil, ops, nil); err != nil {
 		t.Fatal(err)
 	}
-	e.program.frames.release(frameMark{})
-	if next := e.program.frames.valueScope(nil, "k", value.Bool(false)); next == frame {
+	e.frames.release(frameMark{})
+	if next := e.frames.valueScope(nil, "k", value.Bool(false)); next == frame {
 		t.Fatal("operator scope in a function key was reused")
+	}
+}
+
+func TestNilFrameArenaAllocatesFrames(t *testing.T) {
+	var arena *frameArena
+	mark := arena.mark()
+	first := arena.valueScope(nil, "x", value.Bool(true))
+	arena.release(mark)
+	if second := arena.valueScope(nil, "x", value.Bool(true)); first == second || first.lent {
+		t.Fatal("a nil arena lent a frame")
 	}
 }
 

@@ -73,6 +73,7 @@ func (e *evaluator) snapshot() evaluator {
 	result := *e
 	result.active = nil
 	result.functionCache = nil
+	result.frames = nil
 	result.scope = snapshotScope(e.scope)
 	result.context.Current = maps.Clone(e.context.Current)
 	result.context.Next = maps.Clone(e.context.Next)

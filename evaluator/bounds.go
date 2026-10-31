@@ -58,7 +58,7 @@ func (e *evaluator) walk(w *boundWalk, bounds []parser.Bound) error {
 		return err
 	}
 	return domain.Each(func(item value.Value) (bool, error) {
-		mark := e.program.frames.mark()
+		mark := e.frames.mark()
 		frame, err := e.boundFrame(bound, item)
 		if err != nil {
 			return false, err
@@ -69,7 +69,7 @@ func (e *evaluator) walk(w *boundWalk, bounds []parser.Bound) error {
 		err = e.walk(w, bounds[1:])
 		w.selected = w.selected[:len(w.selected)-1]
 		*e = saved
-		e.program.frames.release(mark)
+		e.frames.release(mark)
 		return !w.stopped, err
 	})
 }
@@ -86,7 +86,7 @@ func (e *evaluator) bind(bound parser.Bound, item value.Value) (*evaluator, erro
 
 func (e *evaluator) boundFrame(bound parser.Bound, item value.Value) (*scope, error) {
 	if !bound.Tuple && len(bound.Names) == 1 {
-		return e.program.frames.valueScope(e.scope, bound.Names[0], item), nil
+		return e.frames.valueScope(e.scope, bound.Names[0], item), nil
 	}
 	return boundScope(e.scope, bound, item)
 }

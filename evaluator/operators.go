@@ -131,7 +131,7 @@ func valueBindings(params []parser.Declaration, args []value.Value, operators ma
 // argument evaluated on demand in the caller's scope.
 func (e *evaluator) operatorScope(defined *scope, params []parser.Declaration, args []value.Value, operators map[string]operatorRef, expressions []*parser.Expression, caller *scope, enabledScopes []string) (*scope, error) {
 	if len(params) == 1 && params[0].Arity == 0 && len(expressions) == 1 {
-		return e.program.frames.lazyScope(defined, params[0].Name, args[0], operators, expressions[0], caller, enabledScopes), nil
+		return e.frames.lazyScope(defined, params[0].Name, args[0], operators, expressions[0], caller, enabledScopes), nil
 	}
 	bindings, err := valueBindings(params, args, operators)
 	if err != nil {
@@ -152,7 +152,7 @@ func (e *evaluator) operatorCallKey(d parser.Definition, args []value.Value, ops
 	}
 	for _, param := range d.Params {
 		if param.Arity > 0 {
-			e.program.frames.pin(ops[param.Name].scope)
+			pin(ops[param.Name].scope)
 		}
 	}
 	return appendOperatorBindings(key, d, ops), nil

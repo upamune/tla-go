@@ -16,10 +16,11 @@ const frameChunk = 256
 
 // frameArena lends call frames in stack order: a frame is released when the
 // operator call or bound element that took it finishes, after any nested
-// evaluation. Values that outlive a call capture snapshots instead of its
-// scopes, and evaluations nest only through calls, so released frames are
-// unreachable. The only lasting reference is an operator scope address in a
-// function cache key; pin keeps such a frame from being reused.
+// evaluation. Each top-level evaluation owns an arena. Values that outlive a
+// call capture snapshots, which use none, instead of its scopes, so released
+// frames are unreachable. The only lasting reference is an operator scope
+// address in a function cache key; pin keeps such a frame from being reused.
+// A nil arena allocates every frame.
 type frameArena struct {
 	chunks      [][]callFrame
 	chunk, used int
@@ -27,11 +28,23 @@ type frameArena struct {
 
 type frameMark struct{ chunk, used int }
 
-func (a *frameArena) mark() frameMark { return frameMark{a.chunk, a.used} }
+func (a *frameArena) mark() frameMark {
+	if a == nil {
+		return frameMark{}
+	}
+	return frameMark{a.chunk, a.used}
+}
 
-func (a *frameArena) release(m frameMark) { a.chunk, a.used = m.chunk, m.used }
+func (a *frameArena) release(m frameMark) {
+	if a != nil {
+		a.chunk, a.used = m.chunk, m.used
+	}
+}
 
 func (a *frameArena) take() *callFrame {
+	if a == nil {
+		return new(callFrame)
+	}
 	if a.chunk < len(a.chunks) && a.used == frameChunk {
 		a.chunk++
 		a.used = 0
@@ -39,18 +52,21 @@ func (a *frameArena) take() *callFrame {
 	if a.chunk == len(a.chunks) {
 		a.chunks = append(a.chunks, make([]callFrame, frameChunk))
 	}
+	if a.chunks[a.chunk][a.used].scope.pinned {
+		// The pinned frame keeps its chunk; frames still in use there stay valid.
+		a.chunks[a.chunk] = make([]callFrame, frameChunk)
+	}
 	frame := &a.chunks[a.chunk][a.used]
 	a.used++
 	*frame = callFrame{}
-	frame.scope.chunk = a.chunk + 1
+	frame.scope.lent = true
 	return frame
 }
 
-// pin leaves the chunk holding s to the references that remain and lends
-// later frames from a new chunk.
-func (a *frameArena) pin(s *scope) {
-	if s != nil && s.chunk > 0 {
-		a.chunks[s.chunk-1] = make([]callFrame, frameChunk)
+// pin marks a lent frame so that its arena does not lend it again.
+func pin(s *scope) {
+	if s != nil && s.lent {
+		s.pinned = true
 	}
 }
 
