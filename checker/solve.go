@@ -16,13 +16,14 @@ type work struct {
 	locals map[string]value.Value
 }
 type generator struct {
-	model   *model
-	current evaluator.State
-	initial bool
-	enabled bool
-	lexical *evaluator.LexicalScope
-	source  *parser.Expression
-	emit    func(evaluator.State, string, *parser.Expression) (bool, error)
+	model           *model
+	current         evaluator.State
+	initial         bool
+	enabled         bool
+	allowIncomplete bool
+	lexical         *evaluator.LexicalScope
+	source          *parser.Expression
+	emit            func(evaluator.State, string, *parser.Expression) (bool, error)
 }
 
 func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator.State) {
@@ -225,7 +226,7 @@ func (g *generator) holdsScopedWork(item work, partial evaluator.State) (bool, e
 }
 
 func (g *generator) complete(partial evaluator.State, action string) (bool, error) {
-	if g.enabled {
+	if g.enabled || g.allowIncomplete {
 		return g.emit(partial, action, g.source)
 	}
 	for _, name := range g.model.names {
