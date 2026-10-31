@@ -179,6 +179,9 @@ type Options struct {
 	// MaxSetSize is Java TLC's -maxSetSize bound on sets that are built element
 	// by element. A nonpositive value selects TLC's default of 1,000,000.
 	MaxSetSize int
+	// Workers is the -workers count that model checking reports through
+	// TLCGet("config"); exploration is sequential. A nonpositive value means 1.
+	Workers int
 	// ViewStates prints trace states through the configured VIEW, as TLC's
 	// -view option does, by setting TraceStep.View.
 	ViewStates bool

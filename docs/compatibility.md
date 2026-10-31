@@ -14,7 +14,7 @@ For selected models, model checking with `-continue` reports invariant and actio
 
 Simulation currently follows Java TLC 1.7.4 for `TLCGet("level")` and state-constraint evaluation order. In Java TLC 1.8.0, an initial invariant sees level 1 rather than 0, successor invariants see the successor level, and the tested repeated-trace model evaluates its initial constraint fewer times. These version differences are not selectable yet.
 
-Simulation's `TLCGet("config")` follows Java TLC 1.8.0, including its record field order; Java TLC 1.7.4 treats this key as undefined during simulation. Its `install` field is `"unknown"` in tla-go rather than the path to the Java JAR.
+Simulation's `TLCGet("config")` follows Java TLC 1.8.0, including its record field order; Java TLC 1.7.4 treats this key as undefined during simulation. Model checking's record also follows Java TLC 1.8.0 and reports the requested `-workers` count, although exploration is sequential; Java TLC 1.7.4 treats the key as undefined there as well. Its `install` field is `"unknown"` in tla-go rather than the path to the Java JAR.
 
 Simulation's `TLCSet("exit", TRUE)` follows Java TLC 1.8.0 for the tested single-worker cases. Java TLC 1.7.4 instead throws an exception when this value is set during simulation. Stopping and error reporting can involve concurrent workers in Java, so all combinations of side effects and errors are not yet covered.
 
