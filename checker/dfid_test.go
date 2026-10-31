@@ -304,6 +304,11 @@ func TestDepthFirstRuntimeValues(t *testing.T) {
 	if !errors.As(err, &validation) || validation.Code != 1000 || validation.ExitCode != 255 || !strings.Contains(validation.Message, "does not support checking liveness") {
 		t.Fatalf("liveness error %v", err)
 	}
+	// TLC rejects several workers before liveness properties.
+	_, err = CheckWithOptions(context.Background(), dfidCounter, "INIT Init\nNEXT Wrap\nPROPERTY Live\n", Options{DepthFirst: &DepthFirstOptions{MaxDepth: 10, Workers: 2}})
+	if !errors.As(err, &validation) || validation.ExitCode != 255 || !strings.Contains(validation.Message, "does not support multiple workers") {
+		t.Fatalf("workers error %v", err)
+	}
 	_, err = runDepthFirst(t, dfidCounter, "INIT Init\nNEXT Next\nPOSTCONDITION Post\n", 10, false)
 	if err == nil || !strings.Contains(err.Error(), "not supported in depth-first mode") {
 		t.Fatalf("postcondition error %v", err)

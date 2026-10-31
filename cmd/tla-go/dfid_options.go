@@ -26,8 +26,14 @@ func parseDepthFirstOption(opts *options, args []string) (int, error) {
 	return 1, nil
 }
 
+// configureDepthFirst rejects options that the depth-first mode lacks. TLC's
+// depth-first checker rejects several workers itself, so only that mode
+// accepts them here.
 func configureDepthFirst(opts *options) error {
-	if !opts.dfid || opts.simulate {
+	if !depthFirstMode(*opts) {
+		if opts.workers != 1 {
+			return fmt.Errorf("unsupported -workers value %d", opts.workers)
+		}
 		return nil
 	}
 	if opts.dumpPath != "" {

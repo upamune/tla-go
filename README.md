@@ -70,7 +70,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-dfid N` | Check safety with experimental depth-first iterative deepening up to depth N, like Java TLC's `-dfid`. Successors are taken in generation order, not at random. |
 | `-continue` | Continue model checking after invariant or action violations, or simulation after safety violations and deadlocks. |
 | `-depth N` | Set the simulation trace length (default 100; `-1` means no limit). |
-| `-workers 1` | Select the currently supported single-worker mode. |
+| `-workers 1` | Select the currently supported single-worker mode. With `-dfid`, more workers are rejected with Java TLC's error and exit code 255. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
 | `-dump dot,actionlabels FILE` | Write an action-labeled DOT graph during exploration; `.dot` is appended if absent. |

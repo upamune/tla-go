@@ -20,7 +20,7 @@ func depthFirstBanner(opts options) string {
 // reports them, because exploration can continue and print afterwards.
 func configureDepthFirstMode(checkOpts *checker.Options, opts options, out io.Writer) {
 	report := func(result checker.Result) { printDepthFirstError(out, result, opts.tool) }
-	checkOpts.DepthFirst = &checker.DepthFirstOptions{MaxDepth: opts.dfidDepth, OnError: report}
+	checkOpts.DepthFirst = &checker.DepthFirstOptions{MaxDepth: opts.dfidDepth, Workers: opts.workers, OnError: report}
 	if opts.continuation {
 		checkOpts.Continue, checkOpts.OnViolation = true, report
 	}

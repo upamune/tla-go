@@ -18,6 +18,9 @@ type DepthFirstOptions struct {
 	// checking stops after the initial states with an EvaluationFailure that
 	// has no message, as Java TLC exits with status 255 without one.
 	MaxDepth int
+	// Workers is TLC's worker count. TLC's depth-first mode rejects more than
+	// one worker; tla-go searches with one worker.
+	Workers int
 	// OnError, when set, receives each violation or evaluation failure when
 	// TLC reports it. TLC finishes the search below the current initial state
 	// before it stops, so output from later states follows the report. The
@@ -25,6 +28,8 @@ type DepthFirstOptions struct {
 	// are read-only and must be copied before modification.
 	OnError func(Result)
 }
+
+const dfidWorkersMessage = "Depth-First Iterative Deepening mode does not support multiple workers (https://github.com/tlaplus/tlaplus/issues/548).  Please run TLC with a single worker."
 
 const dfidLivenessMessage = "Depth-First Iterative Deepening mode does not support checking liveness properties (https://github.com/tlaplus/tlaplus/issues/548).  Please check liveness properties in Breadth-First-Search mode."
 
@@ -60,7 +65,7 @@ type dfidSearch struct {
 }
 
 func (m *model) checkDepthFirst(options DepthFirstOptions) (Result, error) {
-	if err := m.validateDepthFirst(); err != nil {
+	if err := m.validateDepthFirst(options); err != nil {
 		return Result{}, err
 	}
 	m.tlcRuntime.started = true
@@ -91,8 +96,12 @@ func (s *dfidSearch) start() (Result, bool, error) {
 	return Result{}, false, nil
 }
 
-// validateDepthFirst rejects checks that TLC's depth-first mode lacks.
-func (m *model) validateDepthFirst() error {
+// validateDepthFirst rejects checks that TLC's depth-first mode lacks, in
+// the order of DFIDModelChecker's assertions.
+func (m *model) validateDepthFirst(options DepthFirstOptions) error {
+	if options.Workers > 1 {
+		return &ModelValidationError{Message: dfidWorkersMessage, Code: 1000, ExitCode: 255}
+	}
 	if len(m.livenessOrder) > 0 {
 		return &ModelValidationError{Message: dfidLivenessMessage, Code: 1000, ExitCode: 255}
 	}

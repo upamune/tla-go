@@ -40,6 +40,7 @@ type options struct {
 	simulationFileSet          bool
 	dfid                       bool
 	dfidDepth                  int
+	workers                    int
 }
 
 func usage(w io.Writer) {

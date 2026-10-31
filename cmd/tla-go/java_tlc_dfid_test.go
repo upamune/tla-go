@@ -37,6 +37,7 @@ var depthFirstCases = []depthFirstCase{
 	{name: "DepthFirstDieHardTest", spec: "DieHard", args: []string{"-deadlock", "-dfid", "7"}, code: 12, counts: "876 states generated, 68 distinct states found.", states: 7},
 	{name: "DepthFirstErrorTraceTest", spec: "DepthFirstErrorTrace", args: []string{"-deadlock", "-dfid", "9"}, code: 12, counts: "29 states generated, 8 distinct states found.", states: 8},
 	{name: "DepthFirstTerminate", spec: "DepthFirstTerminate", args: []string{"-deadlock", "-dfid", "50"}, code: 0, counts: "12514 states generated, 349 distinct states found."},
+	{name: "multiple workers", spec: "DepthFirstTerminate", args: []string{"-deadlock", "-workers", "4", "-dfid", "50"}, code: 255},
 	{name: "deadlock", body: "Init == x=0\nNext == x<5 /\\ x'=x+1", args: []string{"-dfid", "10"}, code: 11, counts: "21 states generated, 6 distinct states found.", states: 6},
 	{name: "depth limit", body: "Init == x=0\nNext == x<5 /\\ x'=x+1", args: []string{"-dfid", "6"}, code: 0, counts: "16 states generated, 6 distinct states found."},
 	{name: "depth below two", body: "Init == x=0\nNext == x<5 /\\ x'=x+1", args: []string{"-dfid", "1"}, code: 255, counts: "1 states generated, 1 distinct states found."},

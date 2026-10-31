@@ -13,7 +13,7 @@ import (
 var errMissingLivenessStrategy = errors.New("Error: expect a strategy such as final for -lncheck option.")
 
 func parseOptions(args []string) (options, error) {
-	opts := options{simulationUnlimited: true, simulationDepth: 100}
+	opts := options{simulationUnlimited: true, simulationDepth: 100, workers: 1}
 	for i := 0; i < len(args); i++ {
 		consumed, err := parseOption(&opts, args[i:])
 		if err != nil {
@@ -82,13 +82,15 @@ func parseFixedOption(opts *options, args []string) (int, error) {
 	}
 	if args[0] == "-fp" {
 		opts.fingerprint = parsed
+	} else {
+		opts.workers = parsed
 	}
 	return 1, nil
 }
 
 func unsupportedFixedOption(option string, number int) bool {
 	if option == "-workers" {
-		return number != 1
+		return number < 1
 	}
 	return number < 0 || number >= value.TLCFingerprintPolynomialCount
 }
