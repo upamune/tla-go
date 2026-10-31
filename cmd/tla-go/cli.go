@@ -45,6 +45,9 @@ func usage(w io.Writer) {
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
+	if code, ok := runTranslator(args, out, errout); ok {
+		return code
+	}
 	return runWithInput(ctx, args, os.Stdin, out, errout)
 }
 
