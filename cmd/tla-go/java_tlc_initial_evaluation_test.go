@@ -102,3 +102,28 @@ func TestJavaTLCNonBooleanSuccessorConstraint(t *testing.T) {
 		}
 	}
 }
+
+// Java TLC reports zero initial states for models without variables, as in the
+// upstream BagsTest, CodePlexBug21Test, and Github391Test models.
+func TestJavaTLCVariableFreeInitialStates(t *testing.T) {
+	for _, tc := range []struct{ name, body, cfg string }{
+		{"empty configuration", "ASSUME {1, 2} = {2, 1}", ""},
+		{"specification without initial predicate", "Spec == [][TRUE]_<<>>", "SPECIFICATION Spec\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, tc.body, tc.cfg)
+			var out, errout bytes.Buffer
+			code := run(context.Background(), []string{"-tool", "-deadlock", filepath.Join(dir, "M.tla")}, &out, &errout)
+			messages := readToolMessages(out.String())
+			want := "@!@!@STARTMSG 2189:0 @!@!@\nComputing initial states...\n@!@!@ENDMSG 2189 @!@!@\n" +
+				"@!@!@STARTMSG 2190:0 @!@!@\nFinished computing initial states: 0 distinct states generated at "
+			if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), want) || !hasToolMessage(messages, 2193) {
+				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				compareJavaToolMessages(t, jar, dir, code, messages)
+			}
+		})
+	}
+}

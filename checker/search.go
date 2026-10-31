@@ -48,10 +48,12 @@ func (m *model) check() (Result, error) {
 	if result, failed, err := m.checkAssumptions(); failed || err != nil {
 		return result, err
 	}
+	m.emitSearchEvent(SearchEvent{Kind: InitialStart})
 	if m.noStateSearch() {
+		// Java TLC still reports that no initial states were generated.
+		m.emitSearchEvent(SearchEvent{Kind: InitialComplete})
 		return Result{Status: Success, Depth: 1}, nil
 	}
-	m.emitSearchEvent(SearchEvent{Kind: InitialStart})
 	init, _ := m.definition(m.cfg.Init)
 	s := newSearch(m)
 	m.tlcRuntime.search = &s
