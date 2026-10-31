@@ -14,6 +14,8 @@ Simulation's `TLCGet("config")` follows Java TLC 1.8.0, including its record fie
 
 Simulation's `TLCSet("exit", TRUE)` follows Java TLC 1.8.0 for the tested single-worker cases. Java TLC 1.7.4 instead throws an exception when this value is set during simulation. Stopping and error reporting can involve concurrent workers in Java, so all combinations of side effects and errors are not yet covered.
 
+Selected constant configured invariants, properties, and constraints are evaluated before assumptions. `FALSE` is reported as a configuration error and `TRUE` is not reevaluated during exploration. Precomputation involving TLC runtime operations, diagnostics for non-boolean expressions, and evaluation failures can still differ from Java TLC.
+
 Supported finite-state models include `INIT`/`NEXT`, common `SPECIFICATION` forms, invariants, state and action constraints, constants, and selected quantified and parameterized actions. The checker also supports selected temporal properties, weak and strong fairness, `VIEW`, `SYMMETRY`, counterexamples, `ALIAS`, `POSTCONDITION`, and `_POSSIBLE`.
 
 Support is partial. Complex temporal formulas, action predicates, fairness combined with state reductions, and some recursive or effectful expressions can fail or differ from Java TLC. Counterexample selection, state ordering, fingerprinting, error messages, printed values, and exit codes are not fully compatible. TLC runtime values, side effects, random choices, and duration-dependent checks can also produce different results.

@@ -61,6 +61,9 @@ func (s *search) emitContinuedViolation() {
 
 func (s *search) checkInitialInvariantsContinuing(state evaluator.State, action string) (bool, error) {
 	for _, name := range s.model.cfg.Invariants {
+		if s.model.trueConfigured[name] {
+			continue
+		}
 		expr, _ := s.model.definition(name)
 		ok, err := s.model.holds(expr, state, nil)
 		if err != nil {

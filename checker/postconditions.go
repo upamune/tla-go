@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/upamune/tla-go/evaluator"
+	"github.com/upamune/tla-go/syntax/parser"
 )
 
 func (m *model) checkPostconditions(result Result) (Result, error) {
@@ -14,7 +15,7 @@ func (m *model) checkPostconditions(result Result) (Result, error) {
 		return possibleResult(result, unwitnessed), nil
 	}
 	for _, name := range m.cfg.Postconditions {
-		expr, _ := m.definition(name)
+		expr := &parser.Expression{Kind: "Identifier", Text: name}
 		holds, err := m.holds(expr, nil, nil)
 		if err != nil {
 			failure, ok := errors.AsType[*evaluator.RuntimeError](err)

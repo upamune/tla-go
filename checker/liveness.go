@@ -57,6 +57,9 @@ const (
 // need a tableau.
 func (m *model) prepareProperties() error {
 	for _, name := range m.cfg.Properties {
+		if m.trueConfigured[name] {
+			continue
+		}
 		expr, err := m.definition(name)
 		if err != nil {
 			return err

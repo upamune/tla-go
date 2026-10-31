@@ -107,6 +107,9 @@ type model struct {
 	defs                 map[string]parser.Definition
 	variables            map[string]bool
 	constants            map[string]value.Value
+	trueConfigured       map[string]bool // Configured predicates already evaluated as constant TRUE.
+	startupAttempts      map[string]bool
+	startupFailures      map[string]bool
 	symmetry             []permutation
 	symmetryOrder        []string
 	valueRanks           map[string]int
@@ -453,6 +456,7 @@ func (m *model) bindAndValidate() error {
 	if err := m.prepareSymmetry(); err != nil {
 		return err
 	}
+	m.precomputeEffectfulDefinitions()
 	return m.validateModel()
 }
 
@@ -515,23 +519,27 @@ func (m *model) validateModel() error {
 	if err := m.prepareFairness(); err != nil {
 		return err
 	}
-	if err := m.prepareProperties(); err != nil {
+	if err := m.prepareConfiguredProperties(); err != nil {
 		return err
 	}
 	if err := m.validateNextRequiredForChecks(); err != nil {
 		return err
 	}
-	return m.validatePossibleAndConstants()
+	return m.validatePossibleAndStateDependence()
 }
 
-func (m *model) validatePossibleAndConstants() error {
+func (m *model) prepareConfiguredProperties() error {
+	if err := m.validateConstantPredicates(); err != nil {
+		return err
+	}
+	return m.prepareProperties()
+}
+
+func (m *model) validatePossibleAndStateDependence() error {
 	if err := m.preparePossible(); err != nil {
 		return err
 	}
-	if err := m.validateStateDependence(); err != nil {
-		return err
-	}
-	return m.validateConstantPredicates()
+	return m.validateStateDependence()
 }
 
 func (m *model) bindModel() error {

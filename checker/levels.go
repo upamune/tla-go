@@ -1,7 +1,6 @@
 package checker
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 
@@ -141,33 +140,51 @@ func (m *model) holdsWithoutOutput(expr *parser.Expression) (bool, error) {
 }
 
 func (m *model) validateConstantPredicates() error {
-	names := append([]string(nil), m.cfg.Invariants...)
-	names = append(names, m.cfg.Constraints...)
-	names = append(names, m.cfg.ActionConstraints...)
-	for _, name := range names {
-		if err := m.validateConstantPredicate(name); err != nil {
-			return err
+	// TLC evaluates the configured constants before reporting the first FALSE.
+	type checked struct {
+		kind, name string
+		truth      bool
+	}
+	var results []checked
+	for _, group := range []struct {
+		kind  string
+		names []string
+	}{{"invariant", m.cfg.Invariants}, {"property", m.cfg.Properties}, {"constraint", m.cfg.Constraints}, {"action constraint", m.cfg.ActionConstraints}} {
+		for _, name := range group.names {
+			if truth, valid := m.evaluateConstantPredicate(name); valid {
+				results = append(results, checked{group.kind, name, truth})
+			}
 		}
+	}
+	for _, result := range results {
+		if !result.truth {
+			return &ConfigurationError{Message: fmt.Sprintf("The %s of %s is equal to FALSE", result.kind, result.name), Code: 2230}
+		}
+		m.rememberTrueConfigured(result.name)
 	}
 	return nil
 }
 
-func (m *model) validateConstantPredicate(name string) error {
+func (m *model) rememberTrueConfigured(name string) {
+	if m.trueConfigured == nil {
+		m.trueConfigured = make(map[string]bool)
+	}
+	m.trueConfigured[name] = true
+}
+
+func (m *model) evaluateConstantPredicate(name string) (bool, bool) {
+	if m.startupFailures[name] {
+		return false, false
+	}
 	expr, _ := m.definition(name)
 	if m.readsState(expr, map[string]bool{}) || m.hasAction(expr, map[string]bool{}) {
-		return nil
+		return false, false
 	}
-	ok, err := m.holdsWithoutOutput(expr)
+	v, err := m.eval(&parser.Expression{Kind: "Identifier", Text: name}, nil, nil)
 	if err != nil {
-		if _, runtime := errors.AsType[*evaluator.RuntimeError](err); runtime && slices.Contains(m.cfg.Invariants, name) {
-			return nil
-		}
-		return err
+		return false, false
 	}
-	if !ok {
-		return fmt.Errorf("configured predicate %s is false", name)
-	}
-	return nil
+	return v.Bool()
 }
 
 func (m *model) isTLCDefer(expr *parser.Expression) bool {

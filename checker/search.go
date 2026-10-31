@@ -388,6 +388,9 @@ func (s *search) satisfiesConstraints(state evaluator.State, parent int) (bool, 
 
 func (s *search) constraints(names []string, current, next evaluator.State) (bool, error) {
 	for _, name := range names {
+		if s.model.trueConfigured[name] {
+			continue
+		}
 		expr, _ := s.model.definition(name)
 		ok, err := s.model.constraintHolds(expr, current, next)
 		if err != nil || !ok {
@@ -399,6 +402,9 @@ func (s *search) constraints(names []string, current, next evaluator.State) (boo
 
 func (s *search) violation(state evaluator.State) (string, error) {
 	for _, name := range s.model.cfg.Invariants {
+		if s.model.trueConfigured[name] {
+			continue
+		}
 		expr, _ := s.model.definition(name)
 		ok, err := s.model.holds(expr, state, nil)
 		if err != nil {

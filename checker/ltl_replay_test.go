@@ -162,7 +162,7 @@ func TestLassoReplayConstantDefinitions(t *testing.T) {
 		printed []string
 	}{
 		{"x=0 /\\ Foo", []string{`"hello"`}},
-		{"x=0 /\\ PrintT(\"hello\")", []string{`"hello"`, `"hello"`}},
+		{"x=0 /\\ PrintT(\"hello\")", []string{`"hello"`, `"hello"`, `"hello"`}},
 	} {
 		source := "---- MODULE M ----\nEXTENDS TLC\nVARIABLE x\nFoo == PrintT(\"hello\")\nInit == " + tc.init + "\nNext == UNCHANGED x\nP == <>(x=1)\n===="
 		var printed []string

@@ -78,13 +78,14 @@ func (m *model) validateConstantSubstitutions() error {
 		}
 	}
 	if visited {
-		m.precomputeEffectfulConfigDefinitions()
+		m.precomputeEffectfulDefinitions()
 	}
 	return nil
 }
 
-func (m *model) precomputeEffectfulConfigDefinitions() {
+func (m *model) precomputeEffectfulDefinitions() {
 	excluded := m.configSubstitutionCacheExclusions()
+	// Java TLC precomputes eligible definitions in module declaration order.
 	for _, definition := range m.module.Definitions {
 		if definition.Kind != "Operator" || len(definition.Params) != 0 || excluded[definition.Name] {
 			continue
@@ -92,7 +93,23 @@ func (m *model) precomputeEffectfulConfigDefinitions() {
 		if !m.cacheableEffectfulDefinition(definition.Body) {
 			continue
 		}
-		_, _ = m.eval(&parser.Expression{Kind: "Identifier", Text: definition.Name}, nil, nil)
+		m.precomputeEffectfulDefinition(definition.Name)
+	}
+}
+
+func (m *model) precomputeEffectfulDefinition(name string) {
+	if m.startupAttempts[name] {
+		return
+	}
+	if m.startupAttempts == nil {
+		m.startupAttempts = make(map[string]bool)
+	}
+	m.startupAttempts[name] = true
+	if _, err := m.eval(&parser.Expression{Kind: "Identifier", Text: name}, nil, nil); err != nil {
+		if m.startupFailures == nil {
+			m.startupFailures = make(map[string]bool)
+		}
+		m.startupFailures[name] = true
 	}
 }
 

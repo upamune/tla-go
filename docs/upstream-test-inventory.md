@@ -97,6 +97,16 @@ after a stop request; `TestJavaTLCSimulationExitVersionDifference` records the
 exception in Java TLC 1.7.4. These cases do not cover every interaction with
 simulation errors or temporal properties.
 
+`TestJavaTLCConstantPredicates` and `TestJavaTLCConstantPredicateOrder` compare
+selected constant invariants, properties, and state and action constraints
+with Java TLC 1.7.4 and 1.8.0. They cover `TRUE`, `FALSE`, evaluation order,
+unused constant definitions, and `PrintT` side effects.
+`TestJavaTLCConstantAssignmentPrecomputation` checks the ordering before a
+configured constant is rejected.
+`TestJavaTLCModernConstantPostcondition` checks the cached value of a constant
+postcondition with Java TLC 1.8.0. Non-boolean expressions and all evaluation
+errors are not covered by these comparisons.
+
 `TestJavaTLCModelContinue` compares selected model-checking continuation cases
 with Java TLC 1.7.4, including initial and successor violations, constraints,
 deadlocks, and temporal properties. `TestJavaTLCModelContinueDOT` compares DOT
