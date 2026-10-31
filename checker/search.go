@@ -244,7 +244,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	defer func() { s.model.tlcRuntime.level = oldLevel }()
 	s.result.GeneratedStates++
 	if parent < 0 {
-		s.model.tlcRuntime.initial++
+		s.countInitialState()
 	}
 	s.result.Depth = max(s.result.Depth, 1)
 	key, inModel, err := s.candidateKeyAndConstraints(state, parent)
@@ -264,6 +264,13 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	}
 	s.addIfIncluded(state, parent, action, key, inModel)
 	return true, nil
+}
+
+func (s *search) countInitialState() {
+	if n := s.model.tlcRuntime.initial; n > 1 && n&(n-1) == 0 {
+		s.model.emitSearchEvent(SearchEvent{Kind: InitialProgress, GeneratedStates: n})
+	}
+	s.model.tlcRuntime.initial++
 }
 
 func (s *search) candidateLevel(parent int) int {

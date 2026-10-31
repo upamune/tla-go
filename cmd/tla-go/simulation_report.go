@@ -39,7 +39,7 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 	if opts.simulate {
 		return func(event checker.SearchEvent) {
 			if event.Kind == checker.SimulationInitialComplete {
-				fmt.Fprintf(out, "Computed %d initial states...\n", event.GeneratedStates)
+				printHumanSearch(out, event)
 			}
 		}
 	}

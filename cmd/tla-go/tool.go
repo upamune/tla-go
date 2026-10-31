@@ -50,20 +50,28 @@ func toolTime() string { return time.Now().Format("2006-01-02 15:04:05") }
 
 func printToolSearch(out io.Writer, event checker.SearchEvent) {
 	t := toolOutput{out: out}
-	if event.Kind == checker.SimulationInitialComplete {
-		t.message(2269, 0, fmt.Sprintf("Computed %d initial states...", event.GeneratedStates))
-		return
-	}
-	if event.Kind == checker.InitialStart {
-		t.message(2189, 0, "Computing initial states...")
-		return
+	code, text := searchEventMessage(event)
+	t.message(code, 0, text)
+}
+
+// printHumanSearch prints an initial-state message without the tool envelope.
+func printHumanSearch(out io.Writer, event checker.SearchEvent) {
+	_, text := searchEventMessage(event)
+	fmt.Fprintln(out, text)
+}
+
+func searchEventMessage(event checker.SearchEvent) (int, string) {
+	switch event.Kind {
+	case checker.SimulationInitialComplete, checker.InitialProgress:
+		return 2269, fmt.Sprintf("Computed %d initial states...", event.GeneratedStates)
+	case checker.InitialStart:
+		return 2189, "Computing initial states..."
 	}
 	generated, distinct := event.GeneratedStates, event.DistinctStates
 	if generated == distinct {
-		t.message(2190, 0, fmt.Sprintf("Finished computing initial states: %d distinct state%s generated at %s.", distinct, plural(distinct), toolTime()))
-	} else {
-		t.message(2191, 0, fmt.Sprintf("Finished computing initial states: %d state%s generated, with %d of them distinct at %s.", generated, plural(generated), distinct, toolTime()))
+		return 2190, fmt.Sprintf("Finished computing initial states: %d distinct state%s generated at %s.", distinct, plural(distinct), toolTime())
 	}
+	return 2191, fmt.Sprintf("Finished computing initial states: %d state%s generated, with %d of them distinct at %s.", generated, plural(generated), distinct, toolTime())
 }
 
 func plural(n int) string {

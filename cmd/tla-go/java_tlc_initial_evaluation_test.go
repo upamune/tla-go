@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -126,4 +127,36 @@ func TestJavaTLCVariableFreeInitialStates(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Java TLC's DoInitFunctor reports progress before adding the third, fifth,
+// ninth, ... initial state.
+func TestJavaTLCInitialProgress(t *testing.T) {
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x \\in 1..11\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0"}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+	got := progressMessages(out.String())
+	if want := "Computed 2 initial states...|Computed 4 initial states...|Computed 8 initial states..."; code != 0 || got != want {
+		t.Fatalf("exit %d, progress %q; stdout:\n%s\nstderr:\n%s", code, got, out.String(), errout.String())
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, append(args, "M.tla")...)...)
+		cmd.Dir = dir
+		output, _ := cmd.Output()
+		if java := progressMessages(string(output)); java != got {
+			t.Fatalf("progress differs\nJava: %q\nGo:   %q", java, got)
+		}
+	}
+}
+
+func progressMessages(output string) string {
+	var bodies []string
+	for _, message := range readToolMessages(output) {
+		if message.code == 2269 {
+			bodies = append(bodies, message.body)
+		}
+	}
+	return strings.Join(bodies, "|")
 }

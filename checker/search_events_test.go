@@ -17,6 +17,13 @@ func TestSearchInitialEvents(t *testing.T) {
 		{"assumption failure", "ASSUME FALSE\nInit == x=0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n", nil},
 		{"no variables", "ASSUME TRUE", "", []SearchEvent{{Kind: InitialStart}, {Kind: InitialComplete}}},
 		{"no variables or initial predicate", "Spec == [][TRUE]_<<>>", "SPECIFICATION Spec\n", []SearchEvent{{Kind: InitialStart}, {Kind: InitialComplete}}},
+		{"initial progress", "Init == x \\in {1, 2, 3, 4, 5, 6, 7, 8, 9}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n", []SearchEvent{
+			{Kind: InitialStart},
+			{Kind: InitialProgress, GeneratedStates: 2},
+			{Kind: InitialProgress, GeneratedStates: 4},
+			{Kind: InitialProgress, GeneratedStates: 8},
+			{Kind: InitialComplete, GeneratedStates: 9, DistinctStates: 9},
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
