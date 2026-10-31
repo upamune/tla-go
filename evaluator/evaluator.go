@@ -29,14 +29,6 @@ type Context struct {
 	// UncachedConstants evaluates configuration overrides before constant precomputation.
 	UncachedConstants bool
 }
-type scope struct {
-	parent      *scope
-	values      map[string]value.Value
-	definitions map[string]parser.Definition
-	operators   map[string]operatorRef
-	primeArgs   map[string]*primeArgument
-}
-
 type primeArgument struct {
 	expression    *parser.Expression
 	scope         *scope
@@ -335,7 +327,7 @@ func numericLiteral(text string) (value.Value, error) {
 
 func (e *evaluator) scoped(name string) (value.Value, bool, error) {
 	for s := e.scope; s != nil; s = s.parent {
-		if v, ok := s.values[name]; ok {
+		if v, ok := s.value(name); ok {
 			return v, true, nil
 		}
 		if d, ok := s.definitions[name]; ok {
@@ -481,15 +473,17 @@ func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	bindings, err := valueBindings(d.Params, args, operators)
+	bindings, err := operatorBindings(d.Params, args, operators, expressions, caller, e.activeEnabledScopes())
 	if err != nil {
 		return value.Value{}, err
 	}
-	child := *e
-	child.depth++
-	child.scope = &scope{parent: defined, values: bindings, operators: operators, primeArgs: primeArgumentBindings(d.Params, expressions, caller, e.activeEnabledScopes())}
-	child.hasOperators = e.hasOperators || len(operators) > 0
-	return child.eval(d.Body)
+	saved := *e
+	e.depth++
+	e.scope = &scope{parent: defined, bound: bindings, operators: operators}
+	e.hasOperators = e.hasOperators || len(operators) > 0
+	result, err := e.eval(d.Body)
+	*e = saved
+	return result, err
 }
 
 func validateCall(d parser.Definition, args []value.Value) error {
@@ -504,7 +498,7 @@ func validateCall(d parser.Definition, args []value.Value) error {
 
 func (e *evaluator) findDefinition(name string) (parser.Definition, *scope, bool) {
 	for s := e.scope; s != nil; s = s.parent {
-		if _, ok := s.values[name]; ok {
+		if s.hasValue(name) {
 			return parser.Definition{}, nil, false
 		}
 		if _, ok := s.operators[name]; ok {

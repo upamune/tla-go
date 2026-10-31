@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
@@ -44,11 +45,14 @@ func (e *evaluator) filter(expr *parser.Expression) (value.Value, error) {
 func (e *evaluator) eagerFilter(base value.Value, bound parser.Bound, predicate *parser.Expression) (value.Value, error) {
 	var elements []value.Value
 	err := base.Each(func(item value.Value) (bool, error) {
-		child, err := e.bind(bound, item)
+		frame, err := boundScope(e.scope, bound, item)
 		if err != nil {
 			return false, err
 		}
-		include, err := child.condition(predicate)
+		saved := *e
+		e.scope = frame
+		include, err := e.condition(predicate)
+		*e = saved
 		if err != nil {
 			return false, err
 		}
@@ -91,7 +95,7 @@ func snapshotScopeGraph(s *scope, seen map[*scope]*scope) *scope {
 	clone := &scope{values: maps.Clone(s.values), definitions: s.definitions}
 	seen[s] = clone
 	clone.parent = snapshotScopeGraph(s.parent, seen)
-	clone.primeArgs = snapshotPrimeArguments(s.primeArgs, seen)
+	clone.bound = snapshotBindings(s.bound, seen)
 	if s.operators != nil {
 		clone.operators = make(map[string]operatorRef, len(s.operators))
 		for name, op := range s.operators {
@@ -102,13 +106,16 @@ func snapshotScopeGraph(s *scope, seen map[*scope]*scope) *scope {
 	return clone
 }
 
-func snapshotPrimeArguments(args map[string]*primeArgument, seen map[*scope]*scope) map[string]*primeArgument {
-	if args == nil {
+// A snapshot gives each lazy argument its own empty cache.
+func snapshotBindings(bindings []binding, seen map[*scope]*scope) []binding {
+	if bindings == nil {
 		return nil
 	}
-	result := make(map[string]*primeArgument, len(args))
-	for name, arg := range args {
-		result[name] = &primeArgument{expression: arg.expression, scope: snapshotScopeGraph(arg.scope, seen)}
+	result := slices.Clone(bindings)
+	for i, bound := range result {
+		if bound.arg != nil {
+			result[i].arg = &primeArgument{expression: bound.arg.expression, scope: snapshotScopeGraph(bound.arg.scope, seen)}
+		}
 	}
 	return result
 }

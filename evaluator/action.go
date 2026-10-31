@@ -48,9 +48,7 @@ func (e *evaluator) except(expr *parser.Expression) (value.Value, error) {
 
 func (e *evaluator) update(current value.Value, path []parser.PathStep, expr *parser.Expression) (value.Value, error) {
 	if len(path) == 0 {
-		child := *e
-		child.scope = &scope{parent: e.scope, values: map[string]value.Value{"@": current}}
-		return child.eval(expr)
+		return e.evalInScope(singleValueScope(e.scope, "@", current), expr)
 	}
 	key, err := e.pathKey(path[0])
 	if err != nil {

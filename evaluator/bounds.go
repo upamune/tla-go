@@ -27,11 +27,26 @@ func (e *evaluator) evalBound(expr *parser.Expression) (value.Value, error) {
 	return value.Value{}, fmt.Errorf("unsupported expression kind %s", expr.Kind)
 }
 
+// A boundVisitor must not retain the selected values after it returns.
 type boundVisitor func(*evaluator, []value.Value) (bool, error)
 
+// boundWalk enumerates nested bounds in the receiver, binding each element in
+// place and restoring the receiver after it.
+type boundWalk struct {
+	visit    boundVisitor
+	selected []value.Value
+	stopped  bool
+}
+
 func (e *evaluator) walkBounds(bounds []parser.Bound, selected []value.Value, visit boundVisitor) error {
+	walk := boundWalk{visit: visit, selected: selected}
+	return e.walk(&walk, bounds)
+}
+
+func (e *evaluator) walk(w *boundWalk, bounds []parser.Bound) error {
 	if len(bounds) == 0 {
-		_, err := visit(e, selected)
+		more, err := w.visit(e, w.selected)
+		w.stopped = !more
 		return err
 	}
 	bound := bounds[0]
@@ -43,23 +58,34 @@ func (e *evaluator) walkBounds(bounds []parser.Bound, selected []value.Value, vi
 		return err
 	}
 	return domain.Each(func(item value.Value) (bool, error) {
-		child, err := e.bind(bound, item)
+		frame, err := boundScope(e.scope, bound, item)
 		if err != nil {
 			return false, err
 		}
-		stop := false
-		err = child.walkBounds(bounds[1:], append(selected, item), func(next *evaluator, values []value.Value) (bool, error) {
-			more, err := visit(next, values)
-			if !more {
-				stop = true
-			}
-			return more, err
-		})
-		return !stop, err
+		saved := *e
+		e.scope = frame
+		w.selected = append(w.selected, item)
+		err = e.walk(w, bounds[1:])
+		w.selected = w.selected[:len(w.selected)-1]
+		*e = saved
+		return !w.stopped, err
 	})
 }
 
 func (e *evaluator) bind(bound parser.Bound, item value.Value) (*evaluator, error) {
+	frame, err := boundScope(e.scope, bound, item)
+	if err != nil {
+		return nil, err
+	}
+	child := *e
+	child.scope = frame
+	return &child, nil
+}
+
+func boundScope(parent *scope, bound parser.Bound, item value.Value) (*scope, error) {
+	if !bound.Tuple && len(bound.Names) == 1 {
+		return singleValueScope(parent, bound.Names[0], item), nil
+	}
 	vals := []value.Value{item}
 	if bound.Tuple {
 		var err error
@@ -71,13 +97,7 @@ func (e *evaluator) bind(bound parser.Bound, item value.Value) (*evaluator, erro
 	if len(vals) != len(bound.Names) {
 		return nil, fmt.Errorf("tuple binding has wrong arity")
 	}
-	bindings := make(map[string]value.Value, len(vals))
-	for i, name := range bound.Names {
-		bindings[name] = vals[i]
-	}
-	child := *e
-	child.scope = &scope{parent: e.scope, values: bindings}
-	return &child, nil
+	return valueScope(parent, bound.Names, vals), nil
 }
 
 func (e *evaluator) quantifier(expr *parser.Expression) (value.Value, error) {

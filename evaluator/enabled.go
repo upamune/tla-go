@@ -88,28 +88,25 @@ func (s *LexicalScope) BindActionOperator(name string, args []*parser.Expression
 	if !ok || op.definition == nil && op.lambda == nil {
 		return nil, nil, false, nil
 	}
-	params, body := actionOperatorBody(op)
-	if len(params) != len(args) {
-		return nil, nil, true, fmt.Errorf("operator %s expects %d arguments", name, len(params))
+	names, body := actionOperatorBody(op)
+	if len(names) != len(args) {
+		return nil, nil, true, fmt.Errorf("operator %s expects %d arguments", name, len(names))
 	}
-	values := make(map[string]value.Value, len(params))
-	for _, param := range params {
-		values[param.Name] = value.Bool(false)
-	}
-	bound := &scope{parent: op.scope, values: values, primeArgs: primeArgumentBindings(params, args, s.scope, s.enabledScopes)}
+	bound := &scope{parent: op.scope, bound: lazyNameBindings(names, args, s.scope, s.enabledScopes)}
 	lexical := &LexicalScope{scope: bound, hasOperators: s.hasOperators, enabledScopes: op.enabledScopes}
 	return body, lexical, true, nil
 }
 
-func actionOperatorBody(op operatorRef) ([]parser.Declaration, *parser.Expression) {
-	if op.definition != nil {
-		return op.definition.Params, op.definition.Body
+// Operator arguments never take operator parameters; see definitionOperator.
+func actionOperatorBody(op operatorRef) ([]string, *parser.Expression) {
+	if op.definition == nil {
+		return op.lambda.Names, op.lambda.Args[0]
 	}
-	params := make([]parser.Declaration, len(op.lambda.Names))
-	for i, name := range op.lambda.Names {
-		params[i].Name = name
+	names := make([]string, len(op.definition.Params))
+	for i, param := range op.definition.Params {
+		names[i] = param.Name
 	}
-	return params, op.lambda.Args[0]
+	return names, op.definition.Body
 }
 
 func (e *evaluator) activeEnabledScopes() []string {
@@ -125,7 +122,7 @@ func (s *LexicalScope) Definition(name string) (parser.Definition, bool) {
 		return parser.Definition{}, false
 	}
 	for current := s.scope; current != nil; current = current.parent {
-		if _, ok := current.values[name]; ok {
+		if current.hasValue(name) {
 			return parser.Definition{}, false
 		}
 		if _, ok := current.operators[name]; ok {
@@ -144,7 +141,7 @@ func (s *LexicalScope) HasValue(name string) bool {
 		return false
 	}
 	for current := s.scope; current != nil; current = current.parent {
-		if _, ok := current.values[name]; ok {
+		if current.hasValue(name) {
 			return true
 		}
 		if _, ok := current.operators[name]; ok {

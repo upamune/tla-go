@@ -57,7 +57,7 @@ func (e *evaluator) functionScope(d parser.Definition, args []value.Value, opera
 	if err != nil {
 		return nil, err
 	}
-	child.scope = &scope{parent: defined, values: bindings, operators: operators}
+	child.scope = &scope{parent: defined, bound: bindings, operators: operators}
 	child.hasOperators = child.hasOperators || len(operators) > 0
 	return &child, nil
 }
@@ -105,7 +105,7 @@ func (e *evaluator) lazyFunctionOnDomain(domain value.Value, bounds []parser.Bou
 		instance := captured
 		instance.keepLazy = keepLazy
 		if name != "" {
-			instance.scope = &scope{parent: instance.scope, values: map[string]value.Value{name: self}}
+			instance.scope = singleValueScope(instance.scope, name, self)
 		}
 		child, err := instance.bindFunctionArgument(bounds, argument)
 		if err != nil {
@@ -137,7 +137,9 @@ func (e *evaluator) bindFunctionArgument(bounds []parser.Bound, argument value.V
 }
 
 func (e *evaluator) functionOperand(expr *parser.Expression) (value.Value, error) {
-	child := *e
-	child.keepLazy = true
-	return child.eval(expr)
+	saved := *e
+	e.keepLazy = true
+	result, err := e.eval(expr)
+	*e = saved
+	return result, err
 }

@@ -214,14 +214,16 @@ func (e *evaluator) prime(expr *parser.Expression) (value.Value, error) {
 		}
 		return value.Value{}, fmt.Errorf("unbound primed variable %s", name)
 	}
-	child := *e
-	child.context.Current = e.context.Next
-	child.context.Next = nil
-	child.primeArguments = true
+	saved := *e
+	e.context.Current = saved.context.Next
+	e.context.Next = nil
+	e.primeArguments = true
 	if e.program.tlcRuntime != nil {
-		child.primed = &tlcPrime{source: e.context.Current}
+		e.primed = &tlcPrime{source: saved.context.Current}
 	}
-	return child.eval(expr.Args[0])
+	result, err := e.eval(expr.Args[0])
+	*e = saved
+	return result, err
 }
 
 func (e *evaluator) unchanged(expr *parser.Expression) (value.Value, error) {
@@ -279,9 +281,7 @@ func (e *evaluator) let(expr *parser.Expression) (value.Value, error) {
 	for _, d := range expr.Definitions {
 		defs[d.Name] = d
 	}
-	child := *e
-	child.scope = &scope{parent: e.scope, definitions: defs}
-	return child.eval(expr.Args[0])
+	return e.evalInScope(&scope{parent: e.scope, definitions: defs}, expr.Args[0])
 }
 
 func (e *evaluator) set(expr *parser.Expression) (value.Value, error) {
