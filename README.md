@@ -106,14 +106,14 @@ meaning. Java TLC 1.8.0 can give different results.
 
 ## Translate PlusCal
 
-`tla-go -translate` takes the arguments of Java's `pcal.trans` and translates the PlusCal algorithm in a module to TLA+:
+`tla-go -translate` takes the arguments of Java's `pcal.trans` and translates the PlusCal algorithm in a module to TLA+. `-translate` must be the first argument:
 
 ```sh
 tla-go -translate -wf -termination path/to/Model.tla   # writes Model.tla and Model.cfg
 tla-go path/to/Model.tla                               # checks the translation
 ```
 
-Like Java, it replaces the text between `\* BEGIN TRANSLATION` and `\* END TRANSLATION`, or inserts those lines after the comment containing the algorithm. It keeps the previous file as `Model.old` and writes `SPECIFICATION Spec` and the statements the options require to `Model.cfg`, preserving the lines that follow its `\* Add statements after this line.` comment. Options can also be given in the module with `PlusCal options (wf, termination)`. The exit code is 0 on success and 255 on errors, which are printed to standard output as in Java.
+Like Java, it replaces the text between `\* BEGIN TRANSLATION` and `\* END TRANSLATION`, or inserts those lines after the comment containing the algorithm. It keeps the previous file as `Model.old` and writes `SPECIFICATION Spec` and the statements the options require to `Model.cfg`, preserving the lines that follow its `\* Add statements after this line.` comment. Options can also be given in the module with `PlusCal options (wf, termination)`. As in Java, errors are printed to standard output, and the exit code is 0 after a translation or `-help`, 255 after an error or `-writeAST`, and 1 after an internal failure.
 
 | Option | Purpose |
 | --- | --- |

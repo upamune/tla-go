@@ -52,3 +52,15 @@ func TestTranslateRejectsSpecOptions(t *testing.T) {
 		}
 	}
 }
+
+// TestUsageMentionsTranslate checks that the usage text shows how to start
+// the translator, including after an option that only the translator takes.
+func TestUsageMentionsTranslate(t *testing.T) {
+	for _, args := range [][]string{{"-help"}, {"-unixEOL", "-translate", "M.tla"}} {
+		var out, errout bytes.Buffer
+		run(context.Background(), args, &out, &errout)
+		if text := out.String() + errout.String(); !strings.Contains(text, "tla-go -translate [pcal.trans options] file.tla") {
+			t.Errorf("%v: usage does not mention -translate:\n%s", args, text)
+		}
+	}
+}
