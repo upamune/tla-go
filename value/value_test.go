@@ -165,6 +165,18 @@ func TestKeyDistinguishesNestedValues(t *testing.T) {
 	}
 }
 
+// Key returns its buffer as the string, so like AppendKey it allocates only
+// as that buffer grows.
+func TestKeyAllocatesOnlyItsBuffer(t *testing.T) {
+	for _, v := range []Value{number(t, 7), set(t, number(t, 1), number(t, 3), number(t, 5))} {
+		key := testing.AllocsPerRun(100, func() { _, _ = v.Key() })
+		appended := testing.AllocsPerRun(100, func() { _, _ = v.AppendKey(nil) })
+		if key != appended {
+			t.Fatalf("Key of %s allocated %v times, AppendKey %v", v, key, appended)
+		}
+	}
+}
+
 func BenchmarkSetKey(b *testing.B) {
 	items := make([]Value, 100)
 	for i := range items {

@@ -3,17 +3,18 @@ package value
 import (
 	"fmt"
 	"strconv"
+	"unsafe"
 )
 
 // Key encodes a value canonically for exact state identity. It is not TLC's
 // 64-bit fingerprint; callers can use Go's map without fingerprint collisions.
 func (v Value) Key() (string, error) {
-	var small [64]byte
-	b := keyWriter{buf: small[:0]}
+	var b keyWriter
 	if err := v.appendKey(&b); err != nil {
 		return "", err
 	}
-	return string(b.buf), nil
+	// Like strings.Builder, the key takes the buffer, which nothing reuses.
+	return unsafe.String(unsafe.SliceData(b.buf), len(b.buf)), nil
 }
 
 // AppendKey appends the encoding returned by Key to dst.
