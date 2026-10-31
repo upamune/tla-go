@@ -435,7 +435,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning, viewStates: options.ViewStates}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: modelWarning(options), viewStates: options.ViewStates}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)
@@ -546,11 +546,25 @@ func (m *model) validateModel() error {
 	return m.validatePossibleAndStateDependence()
 }
 
+// modelWarning returns the callback for model checking warnings, which Java
+// TLC's simulator does not report.
+func modelWarning(options Options) func(Warning) {
+	if options.Simulation != nil {
+		return nil
+	}
+	return options.OnWarning
+}
+
 func (m *model) prepareConfiguredProperties() error {
 	if err := m.validateConstantPredicates(); err != nil {
 		return err
 	}
-	return m.prepareProperties()
+	err := m.prepareProperties()
+	if failure, ok := errors.AsType[*ModelValidationError](err); ok && failure.Code == 2253 {
+		// Java TLC's AbstractChecker warns before LiveCheck rejects a tautology.
+		m.emitLivenessWarnings()
+	}
+	return err
 }
 
 func (m *model) validatePossibleAndStateDependence() error {

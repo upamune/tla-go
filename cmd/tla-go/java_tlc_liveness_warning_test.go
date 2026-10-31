@@ -50,6 +50,30 @@ func TestJavaTLCLivenessWarnings(t *testing.T) {
 	}
 }
 
+// Java TLC warns in AbstractChecker before LiveCheck rejects a temporal
+// tautology with message 2253.
+func TestJavaTLCLivenessWarningBeforeTautology(t *testing.T) {
+	dir := t.TempDir()
+	body := "CONSTANTS P, a, b\nVARIABLE x\nInit == x \\in P\nNext == x' \\in P\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\n" +
+		"Sym == Permutations(P)\nQuant == \\A p \\in P : <>(x = p) \\/ TRUE"
+	writeDOTFixture(t, dir, body, "CONSTANTS P = {a, b} a = a b = b\nSPECIFICATION Spec\nSYMMETRY Sym\nPROPERTY Quant\n")
+	var out, errout bytes.Buffer
+	code := run(context.Background(), []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", filepath.Join(dir, "M.tla")}, &out, &errout)
+	messages := readToolMessages(out.String())
+	var codes []int
+	for _, message := range messages {
+		if message.code == 2279 || message.code == 2253 {
+			codes = append(codes, message.code)
+		}
+	}
+	if code != 77 || errout.Len() != 0 || !reflect.DeepEqual(codes, []int{2279, 2253}) {
+		t.Fatalf("exit %d, messages %v; stdout:\n%s\nstderr:\n%s", code, codes, out.String(), errout.String())
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		compareJavaToolMessages(t, jar, dir, code, messages)
+	}
+}
+
 func warningsBeforeInitialStates(messages []toolMessage) []int {
 	var warnings []int
 	for _, message := range messages {
