@@ -171,7 +171,9 @@ func (e *dfidExpansion) generationFailure(err error) (bool, error) {
 		e.batch = nil
 		return e.evaluationFailure(err, nil)
 	}
-	// TLC counts the incomplete successor with the rest of its action.
+	// TLC counts the incomplete successor with the rest of its action. The
+	// generator stops at the incomplete successor, so the successors of the
+	// action after it are not counted.
 	e.search.generated++
 	more, err := e.flush()
 	if more && err == nil {
