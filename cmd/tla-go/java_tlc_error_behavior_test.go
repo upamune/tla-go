@@ -25,7 +25,7 @@ func TestJavaTLCUpstreamErrorBehavior(t *testing.T) {
 		{"etest4", nil, 75, []string{
 			"@!@!@STARTMSG 1000:1 @!@!@\nA non-function (a model value) was applied as a function.\nline 15, col 12 to line 15, col 22 of module etest4\n",
 			"0. Line 13, column 9 to line 16, column 51 in etest4\n1. Line 13, column 12 to line 13, column 16 in etest4\n" +
-				"2. Line 15, column 12 to line 15, column 26 in etest4\n3. Line 15, column 12 to line 15, column 22 in etest4\n",
+				"2. Line 15, column 12 to line 15, column 26 in etest4\n3. Line 15, column 12 to line 15, column 22 in etest4\n\n\n@!@!@ENDMSG 2103 @!@!@\n",
 			"0 states generated, 0 distinct states found, 0 states left on queue.",
 		}},
 		{"etest8", []string{"-simulate", "-seed", "1"}, 255, []string{
@@ -54,6 +54,49 @@ func TestJavaTLCUpstreamErrorBehavior(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Java TLC's 2103 text is CallStack.toString, which ends a list of frames
+// with a blank line, followed by a newline.
+func TestJavaTLCEvaluationStackLayout(t *testing.T) {
+	for _, tc := range []struct{ name, init, want string }{
+		{"frames", "x = SelectSeq([i \\in 1..20 |-> i], LAMBDA e : TRUE)", "1. Line 4, column 13 to line 4, column 59 in M\n\n\n@!@!@ENDMSG 2103 @!@!@\n"},
+		{"empty", "x \\in {i \\in 1..20 : TRUE}", "    The error call stack is empty.\n\n@!@!@ENDMSG 2103 @!@!@\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeMaxSetSizeFixture(t, dir, "VARIABLE x\nInit == "+tc.init+"\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
+			args := []string{"-tool", "-maxSetSize", "10"}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+			got := rawToolMessage(out.String(), 2103)
+			if code != 75 || !strings.HasSuffix(got, tc.want) {
+				t.Fatalf("exit %d, 2103 %q; stdout:\n%s", code, got, out.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, append(args, "M.tla")...)...)
+				cmd.Dir = dir
+				output, _ := cmd.Output()
+				if java := rawToolMessage(string(output), 2103); java != got {
+					t.Fatalf("2103 differs\nJava: %q\nGo:   %q", java, got)
+				}
+			}
+		})
+	}
+}
+
+// rawToolMessage returns the bytes of the first tool message with code.
+func rawToolMessage(output string, code int) string {
+	start := strings.Index(output, fmt.Sprintf("@!@!@STARTMSG %d:", code))
+	if start < 0 {
+		return ""
+	}
+	end := fmt.Sprintf("@!@!@ENDMSG %d @!@!@\n", code)
+	length := strings.Index(output[start:], end)
+	if length < 0 {
+		return ""
+	}
+	return output[start : start+length+len(end)]
 }
 
 func copyJavaTLCFixture(t *testing.T, name string) string {

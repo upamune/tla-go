@@ -29,5 +29,6 @@ func evaluationDetail(failure *evaluator.RuntimeError) string {
 	if index == 0 {
 		return ""
 	}
-	return "The error occurred when TLC was evaluating the nested\nexpressions at the following positions:\n" + lines.String()
+	// Like Java TLC's CallStack.toString, end the frames with a blank line.
+	return "The error occurred when TLC was evaluating the nested\nexpressions at the following positions:\n" + lines.String() + "\n"
 }

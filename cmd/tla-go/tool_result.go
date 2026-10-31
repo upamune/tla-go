@@ -26,8 +26,14 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 	if failure.FingerprintDetail != "" {
 		printToolFingerprintDetail(t, failure)
 	}
+	printToolEvaluationDetail(t, failure)
+}
+
+// printToolEvaluationDetail prints message 2103, whose text Java TLC's
+// message printer follows with a newline.
+func printToolEvaluationDetail(t toolOutput, failure *checker.Failure) {
 	if failure.EvaluationDetail != "" {
-		t.message(2103, 1, failure.EvaluationDetail)
+		t.message(2103, 1, failure.EvaluationDetail+"\n")
 	}
 }
 
@@ -43,9 +49,7 @@ func printToolInitialEvaluationFailure(t toolOutput, failure *checker.Failure) b
 	fmt.Fprintf(&body, "%s\nWhile working on the initial state:\n", failure.Message)
 	printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
 	t.message(2102, 1, body.String())
-	if failure.EvaluationDetail != "" {
-		t.message(2103, 1, failure.EvaluationDetail)
-	}
+	printToolEvaluationDetail(t, failure)
 	return true
 }
 
@@ -54,9 +58,7 @@ func printToolInitialConstraintFailure(t toolOutput, failure *checker.Failure) b
 		return false
 	}
 	printToolInitialNestedFailure(t, failure, failure.NestedToolCode, failure.NestedMessage)
-	if failure.EvaluationDetail != "" {
-		t.message(2103, 1, failure.EvaluationDetail)
-	}
+	printToolEvaluationDetail(t, failure)
 	return true
 }
 
