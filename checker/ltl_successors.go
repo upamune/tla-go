@@ -131,7 +131,7 @@ func (set *liveSuccessorSet) fingerprintValues(index int) ([]value.Value, error)
 	state := set.search.nodes[index].state
 	if m.cfg.Symmetry != "" {
 		var err error
-		state, err = m.symmetryRepresentative(state)
+		state, err = m.symmetryRepresentative(state, nil)
 		if err != nil {
 			return nil, err
 		}

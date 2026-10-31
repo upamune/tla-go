@@ -143,6 +143,8 @@ type model struct {
 	stateKeyBuffer, valueKeyBuffer []byte
 	// symmetryPrefix is reused for permuted values during symmetry reduction.
 	symmetryPrefix []value.Value
+	symmetryState  evaluator.State
+	sharedPartial  evaluator.State
 	work           workArena
 	unchangedCache map[*parser.Expression][]string
 }

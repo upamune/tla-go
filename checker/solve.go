@@ -34,6 +34,23 @@ func (m *model) partialState() evaluator.State {
 	return make(evaluator.State, len(m.names))
 }
 
+// takePartial lends a partial state, which a generator empties again before
+// its solve returns. Nested generators get their own.
+func (m *model) takePartial() evaluator.State {
+	partial := m.sharedPartial
+	m.sharedPartial = nil
+	if partial == nil {
+		partial = m.partialState()
+	}
+	return partial
+}
+
+func (m *model) returnPartial(partial evaluator.State) {
+	if len(partial) == 0 {
+		m.sharedPartial = partial
+	}
+}
+
 func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator.State) {
 	if g.initial {
 		return partial, nil
