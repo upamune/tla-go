@@ -51,6 +51,25 @@ func TestJavaTLCDiffTrace(t *testing.T) {
 	}
 }
 
+// Java TLC prints trace values with Values.ppr, which lays out values wider
+// than 80 columns over several lines.
+func TestJavaTLCLongTraceValues(t *testing.T) {
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x = [i \\in 1..12 |-> <<i, \"abcdefgh\">>]\nNext == x' = [x EXCEPT ![1] = <<0>>]\nInv == x[1] # <<0>>", "INIT Init\nNEXT Next\nINVARIANT Inv\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "M.tla"}
+	messages, code, stderr := runGoToolInDir(t, dir, args)
+	traces := traceStateMessages(messages)
+	if code != 12 || stderr != "" || !containsAll(strings.Join(traces, "\n"), []string{"x = << <<0>>,\n   <<2, \"abcdefgh\">>,\n", "<<12, \"abcdefgh\">> >>"}) {
+		t.Fatalf("exit %d; traces %q; stderr %s", code, traces, stderr)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		if javaTraces := traceStateMessages(readToolMessages(java)); javaCode != code || !reflect.DeepEqual(javaTraces, traces) {
+			t.Fatalf("Java exit %d, Go exit %d\nJava: %q\nGo: %q", javaCode, code, javaTraces, traces)
+		}
+	}
+}
+
 // Java TLC's -terse prints SUBSET, function-set, record-set, and product
 // values as formulas in Print output and traces.
 func TestJavaTLCTerseValues(t *testing.T) {

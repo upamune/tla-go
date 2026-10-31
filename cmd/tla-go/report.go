@@ -155,13 +155,19 @@ func printStateOrdered(w io.Writer, state evaluator.State, order []string) {
 		prefix = "/\\ "
 	}
 	for _, name := range names {
-		if state[name].Kind() == value.Invalid {
-			fmt.Fprintf(w, "%s%s = null\n", prefix, name)
-		} else {
-			fmt.Fprintf(w, "%s%s = %s\n", prefix, name, state[name])
-		}
+		fmt.Fprintf(w, "%s%s = %s\n", prefix, name, stateValueText(state[name]))
 	}
 	fmt.Fprintln(w)
+}
+
+// stateValueText renders a variable's value as Java TLC's
+// TLCStateMut.toString does, in Values.ppr's 80-column layout; a value
+// that is not yet defined prints as null.
+func stateValueText(v value.Value) string {
+	if v.Kind() == value.Invalid {
+		return "null"
+	}
+	return value.PrettyPrint(v.String())
 }
 
 // stateNames returns the variables to print in display order. An order

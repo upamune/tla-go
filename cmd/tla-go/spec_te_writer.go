@@ -6,7 +6,6 @@ import (
 
 	"github.com/upamune/tla-go/checker"
 	"github.com/upamune/tla-go/config"
-	"github.com/upamune/tla-go/value"
 )
 
 // The SpecTE text below follows tlc2.TraceExplorer.writeSpecTEFiles and
@@ -37,7 +36,7 @@ func specTETrace(trace []checker.TraceStep, loop *int) []specTEState {
 	for _, step := range trace {
 		var variables []specTEVariable
 		for _, name := range stateNames(step.State, step.StateOrder) {
-			variables = append(variables, specTEVariable{name, specTEValue(step.State[name])})
+			variables = append(variables, specTEVariable{name, stateValueText(step.State[name])})
 		}
 		states = append(states, specTEState{variables: variables})
 	}
@@ -47,13 +46,6 @@ func specTETrace(trace []checker.TraceStep, loop *int) []specTEState {
 		states = append(states, specTEState{backTo: *loop + 1})
 	}
 	return states
-}
-
-func specTEValue(v value.Value) string {
-	if v.Kind() == value.Invalid {
-		return "null"
-	}
-	return v.String()
 }
 
 // specTEBuffers returns the definitions inserted before the end of the

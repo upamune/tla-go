@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/upamune/tla-go/checker"
-	"github.com/upamune/tla-go/value"
 )
 
 type dotDump struct {
@@ -68,12 +67,7 @@ func dotState(event checker.GraphEvent) string {
 		if i > 0 {
 			result.WriteByte('\n')
 		}
-		v := event.State[name]
-		if v.Kind() == value.Invalid {
-			fmt.Fprintf(&result, "%s%s = null", prefix, name)
-		} else {
-			fmt.Fprintf(&result, "%s%s = %s", prefix, name, v)
-		}
+		fmt.Fprintf(&result, "%s%s = %s", prefix, name, stateValueText(event.State[name]))
 	}
 	return result.String()
 }

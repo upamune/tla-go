@@ -12,4 +12,5 @@ from a run that recorded the whole counterexample. The cases cover an
 invariant, a liveness loop, stuttering, deadlock, an action property, a failed
 `Assert`, model-value constants, an extended user module with and without
 `nomonolith`, and, in `instance`, an instantiated module next to nested
-extended modules, which SANY parses after every `EXTENDS`.
+extended modules, which SANY parses after every `EXTENDS`, and, in `long`,
+values wider than 80 columns, which Java TLC lays out over several lines.
