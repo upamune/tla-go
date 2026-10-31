@@ -12,6 +12,13 @@ type functionCacheKey struct {
 	state string
 }
 
+// functionCacheEntry keeps the operator arguments its key names by address
+// reachable, so that no later scope can reuse one of those addresses.
+type functionCacheEntry struct {
+	value     value.Value
+	operators map[string]operatorRef
+}
+
 func (e *evaluator) functionDefinition(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope) (value.Value, error) {
 	if len(args) != len(d.Params) {
 		return value.Value{}, fmt.Errorf("function definition %s expects %d operator arguments", d.Name, len(d.Params))
@@ -31,9 +38,9 @@ func (e *evaluator) functionDefinition(d parser.Definition, args []value.Value, 
 	result, err := child.makeLazyFunction(d.Bounds, d.Body, d.Name)
 	if err == nil && keyErr == nil {
 		if e.functionCache == nil {
-			e.functionCache = make(map[functionCacheKey]value.Value)
+			e.functionCache = make(map[functionCacheKey]functionCacheEntry)
 		}
-		e.functionCache[cacheKey] = result
+		e.functionCache[cacheKey] = functionCacheEntry{value: result, operators: operators}
 	}
 	return result, err
 }
@@ -43,7 +50,7 @@ func (e *evaluator) cachedFunction(key functionCacheKey, keyErr error) (value.Va
 		return value.Value{}, false
 	}
 	cached, ok := e.functionCache[key]
-	return cached, ok
+	return cached.value, ok
 }
 
 func (e *evaluator) functionScope(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope) (*evaluator, error) {

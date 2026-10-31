@@ -56,7 +56,7 @@ type evaluator struct {
 	primeArguments bool
 	keepLazy       bool
 	active         []activeCall
-	functionCache  map[functionCacheKey]value.Value
+	functionCache  map[functionCacheKey]functionCacheEntry
 	depth          int
 	frames         *frameArena
 }
