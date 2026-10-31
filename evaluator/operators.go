@@ -127,15 +127,33 @@ func valueBindings(params []parser.Declaration, args []value.Value, operators ma
 	return bindings, nil
 }
 
-// operatorBindings binds value parameters. With expressions, each one is an
+// operatorScope binds value parameters. With expressions, each one is an
 // argument evaluated on demand in the caller's scope.
-func operatorBindings(params []parser.Declaration, args []value.Value, operators map[string]operatorRef, expressions []*parser.Expression, caller *scope, enabledScopes []string) ([]binding, error) {
-	bindings, err := valueBindings(params, args, operators)
-	if err != nil || len(expressions) == 0 {
-		return bindings, err
+func operatorScope(defined *scope, params []parser.Declaration, args []value.Value, operators map[string]operatorRef, expressions []*parser.Expression, caller *scope, enabledScopes []string) (*scope, error) {
+	if len(params) == 1 && params[0].Arity == 0 && len(expressions) == 1 {
+		return unaryLazyScope(defined, params[0].Name, args[0], operators, expressions[0], caller, enabledScopes), nil
 	}
-	bindLazyArguments(bindings, params, expressions, caller, enabledScopes)
-	return bindings, nil
+	bindings, err := valueBindings(params, args, operators)
+	if err != nil {
+		return nil, err
+	}
+	if len(expressions) > 0 {
+		bindLazyArguments(bindings, params, expressions, caller, enabledScopes)
+	}
+	return &scope{parent: defined, bound: bindings, operators: operators}, nil
+}
+
+// unaryLazyScope allocates the common one-parameter call frame at once.
+func unaryLazyScope(defined *scope, name string, placeholder value.Value, operators map[string]operatorRef, expression *parser.Expression, caller *scope, enabledScopes []string) *scope {
+	frame := &struct {
+		scope    scope
+		binding  [1]binding
+		argument primeArgument
+	}{}
+	frame.argument.expression, frame.argument.scope, frame.argument.enabledScopes = expression, caller, enabledScopes
+	frame.binding[0] = binding{name: name, value: placeholder, arg: &frame.argument}
+	frame.scope = scope{parent: defined, bound: frame.binding[:], operators: operators}
+	return &frame.scope
 }
 
 func (e *evaluator) operatorCallKey(d parser.Definition, args []value.Value, ops map[string]operatorRef, defined *scope) (string, error) {

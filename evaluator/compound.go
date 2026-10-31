@@ -318,21 +318,26 @@ func (e *evaluator) functionApplication(expr *parser.Expression) (value.Value, e
 	if err != nil {
 		return value.Value{}, err
 	}
-	args, err := e.evalArgs(expr.Args[1:])
+	key, err := e.functionArgument(expr.Args[1:])
 	if err != nil {
 		return value.Value{}, err
 	}
-	if len(args) == 0 {
+	return functionLookup(fn, key, e.keepLazy)
+}
+
+// functionArgument evaluates f[a] to a and f[a, b] to <<a, b>>.
+func (e *evaluator) functionArgument(args []*parser.Expression) (value.Value, error) {
+	if len(args) == 1 {
+		return e.eval(args[0])
+	}
+	values, err := e.evalArgs(args)
+	if err != nil {
+		return value.Value{}, err
+	}
+	if len(values) == 0 {
 		return value.Value{}, fmt.Errorf("missing function argument")
 	}
-	key := args[0]
-	if len(args) > 1 {
-		key, err = value.Tuple(args)
-		if err != nil {
-			return value.Value{}, err
-		}
-	}
-	return functionLookup(fn, key, e.keepLazy)
+	return value.Tuple(values)
 }
 
 func (e *evaluator) field(expr *parser.Expression) (value.Value, error) {

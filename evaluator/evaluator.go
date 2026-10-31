@@ -481,13 +481,13 @@ func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value
 	if e.depth >= 4096 {
 		return value.Value{}, fmt.Errorf("evaluation recursion limit exceeded")
 	}
-	bindings, err := operatorBindings(d.Params, args, operators, expressions, caller, e.activeEnabledScopes())
+	frame, err := operatorScope(defined, d.Params, args, operators, expressions, caller, e.activeEnabledScopes())
 	if err != nil {
 		return value.Value{}, err
 	}
 	saved := *e
 	e.depth++
-	e.scope = &scope{parent: defined, bound: bindings, operators: operators}
+	e.scope = frame
 	e.hasOperators = e.hasOperators || len(operators) > 0
 	result, err := e.eval(d.Body)
 	*e = saved

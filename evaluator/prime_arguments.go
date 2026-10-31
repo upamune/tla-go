@@ -53,7 +53,13 @@ func lookupPrimeArgument(s *scope, name string) (*primeArgument, bool) {
 	return nil, false
 }
 
+// placeholders back the read-only arguments of lazily evaluated parameters.
+var placeholders = [8]value.Value{value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false), value.Bool(false)}
+
 func placeholderArguments(count int) []value.Value {
+	if count <= len(placeholders) {
+		return placeholders[:count:count]
+	}
 	values := make([]value.Value, count)
 	for i := range values {
 		values[i] = value.Bool(false)
