@@ -56,6 +56,18 @@ func (d *textDump) event(event checker.GraphEvent) error {
 
 func (d *textDump) empty() bool { return d.states == 0 }
 
+// styledGraphEvents renders dumped states tersely under -terse, because Java
+// TLC's state writers print states with TLCStateMut.toString.
+func styledGraphEvents(event func(checker.GraphEvent) error, style traceStyle) func(checker.GraphEvent) error {
+	if !style.terse {
+		return event
+	}
+	return func(graphEvent checker.GraphEvent) error {
+		graphEvent.State = style.state(graphEvent.State)
+		return event(graphEvent)
+	}
+}
+
 // close flushes the dump when TLC finishes it. Java TLC exits without closing
 // its writer after some failures, such as an initial invariant violation, so
 // the states it buffered are not written.

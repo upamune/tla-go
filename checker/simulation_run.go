@@ -246,6 +246,7 @@ func (r *simulationRun) finishTrace(visited int) (*Result, error) {
 		trace = r.search.trace(visited - 1)
 	}
 	r.orderTrace(trace)
+	r.model.viewTrace(trace)
 	return nil, r.options.OnTrace(r.traceIndex, trace)
 }
 

@@ -75,7 +75,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-checkpoint MINUTES` | Accept Java TLC's checkpoint interval; checkpoints are not written. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
-| `-view` | Print trace states and dumped states through the configured `VIEW`, as Java TLC does. |
+| `-view` | Print trace states, dumped states, and simulation trace files through the configured `VIEW`, as Java TLC does. |
 | `-nowarning` | Suppress TLC warnings, such as those for symmetry or constraints with liveness checking. |
 | `-dump FILE` | Write each new state in Java TLC's text format; `.dump` is appended if absent. |
 | `-dump dot[,colorize][,actionlabels] FILE` | Write a DOT state graph during exploration, optionally with colored edges and action labels; `.dot` is appended if absent. The `snapshot` option is not supported. |
@@ -83,7 +83,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |
 | `-modern-random-subsets` | Use the newer TLC random-subset algorithm. |
 | `-difftrace` | In error traces, print only the variables that changed from the previous state, following Java TLC's rules for which states are printed in full. |
-| `-terse` | Print `SUBSET`, function-set, record-set, and Cartesian-product values as formulas instead of enumerating them in `Print`/`PrintT` output and traces. |
+| `-terse` | Print `SUBSET`, function-set, record-set, and Cartesian-product values as formulas instead of enumerating them in `Print`/`PrintT` output, traces, and state dumps. |
 | `-userFile FILE` | Write `Print` and `PrintT` output to `FILE` instead of standard output. |
 | `-cleanup` | Remove the `states` directory in the working directory before checking. |
 | `-generateSpecTE [nomonolith]` | Enable `-tool` and, after a model-checking error with a trace, write a trace-exploration specification `SpecTE.tla` and `SpecTE.cfg` beside the specification, as Java TLC does. `nomonolith` keeps dependent modules in `EXTENDS` instead of embedding them. |

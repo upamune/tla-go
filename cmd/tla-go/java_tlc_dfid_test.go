@@ -71,6 +71,7 @@ var depthFirstCases = []depthFirstCase{
 	{name: "liveness with constraint", body: "Init == x=0\nNext == x'=(x+1)%4\nP == <>(x=3)\nC == x<10", cfg: "CONSTRAINT C\nPROPERTY P\n", args: []string{"-dfid", "10"}, code: 255},
 	{name: "view", body: "VARIABLE y\nInit == x=0 /\\ y=0\nNext == x<5 /\\ x'=x+1 /\\ y'=y\nInv == x<3\nV == <<x>>", cfg: "INVARIANT Inv\nVIEW V\n", args: []string{"-deadlock", "-view", "-difftrace", "-dfid", "5"}, code: 12, counts: "7 states generated, 4 distinct states found.", states: 4},
 	{name: "terse", body: "VARIABLE y\nInit == x=0 /\\ y=SUBSET {1, 2}\nNext == x<5 /\\ x'=x+1 /\\ y'=y\nInv == x<2", cfg: "INVARIANT Inv\n", args: []string{"-deadlock", "-terse", "-dfid", "5"}, code: 12, counts: "4 states generated, 3 distinct states found.", states: 3},
+	{name: "terse view", body: "VARIABLE y\nInit == x=0 /\\ y=SUBSET {1, 2}\nNext == x<5 /\\ x'=x+1 /\\ y'=y\nInv == x<2\nV == [a |-> x, b |-> y]", cfg: "INVARIANT Inv\nVIEW V\n", args: []string{"-deadlock", "-view", "-terse", "-dfid", "5"}, code: 12, counts: "4 states generated, 3 distinct states found.", states: 3},
 }
 
 func TestJavaTLCDepthFirst(t *testing.T) {

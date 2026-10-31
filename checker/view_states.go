@@ -24,9 +24,6 @@ func (m *model) presentTraces(result *Result) {
 // applyViewStates follows TLCStateMut.toString under TLC's -view option,
 // which prints trace states through the VIEW expression.
 func (m *model) applyViewStates(result *Result) {
-	if !m.viewStates || m.cfg.View == "" {
-		return
-	}
 	if result.Violation != nil {
 		m.viewTrace(result.Violation.Trace)
 	}
@@ -35,7 +32,11 @@ func (m *model) applyViewStates(result *Result) {
 	}
 }
 
+// viewTrace sets the VIEW text of trace states under -view.
 func (m *model) viewTrace(trace []TraceStep) {
+	if !m.viewStates || m.cfg.View == "" {
+		return
+	}
 	for i := range trace {
 		trace[i].View = m.stateView(trace[i].State)
 	}
@@ -54,6 +55,17 @@ func (m *model) stateView(state evaluator.State) string {
 	}
 	if text, ok := m.viewTupleText(definition.Body, v); ok {
 		return text
+	}
+	return m.valueText(v)
+}
+
+// valueText follows Java TLC's Values.ppr, which renders values through
+// toString and so leaves them unexpanded under -terse.
+func (m *model) valueText(v value.Value) string {
+	if m.terseValues {
+		if text, err := v.TerseString(); err == nil {
+			return value.PrettyPrint(text)
+		}
 	}
 	return value.PrettyPrint(v.String())
 }
@@ -77,7 +89,7 @@ func (m *model) viewTupleText(body *parser.Expression, v value.Value) (string, b
 	}
 	var text strings.Builder
 	for i, label := range labels {
-		fmt.Fprintf(&text, "/\\ %s = %s\n", label, value.PrettyPrint(pairs[i].Value.String()))
+		fmt.Fprintf(&text, "/\\ %s = %s\n", label, m.valueText(pairs[i].Value))
 	}
 	return text.String(), true
 }

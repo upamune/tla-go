@@ -39,7 +39,7 @@ func configureCheckingMode(checkOpts *checker.Options, opts options, module *par
 			checkOpts.Simulation.OnViolation = simulationViolationOutput(opts, module, out)
 		}
 		if opts.simulationFileSet {
-			checkOpts.Simulation.OnTrace = simulationTraceFile(opts.simulationFile)
+			checkOpts.Simulation.OnTrace = simulationTraceFile(opts.simulationFile, traceStyle{terse: opts.compat.terse})
 		}
 	} else if opts.dfid {
 		configureDepthFirstMode(checkOpts, opts, out)

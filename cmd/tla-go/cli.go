@@ -169,7 +169,7 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	configureCheckingMode(&checkOptions, opts, module, out)
 	configureCompatOutput(&checkOptions, opts)
 	if graph != nil {
-		checkOptions.OnGraph = graph.event
+		checkOptions.OnGraph = styledGraphEvents(graph.event, traceStyle{terse: opts.compat.terse})
 	}
 	checkOptions.OnSearch = configuredSearchOutput(opts, out)
 	checkOptions.OnWarning = configuredWarningOutput(opts, out)

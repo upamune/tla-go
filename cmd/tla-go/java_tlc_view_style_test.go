@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -50,5 +53,92 @@ func compareJavaTraceStates(t *testing.T, dir string, args []string, messages []
 	traces := traceStateMessages(messages)
 	if javaTraces := traceStateMessages(readToolMessages(java)); javaCode != code || !reflect.DeepEqual(javaTraces, traces) {
 		t.Fatalf("Java exit %d, Go exit %d\nJava: %q\nGo: %q", javaCode, code, javaTraces, traces)
+	}
+}
+
+const terseViewModel = "VARIABLES x, s\nInit == x = 0 /\\ s = SUBSET {1, 2}\nNext == x < 3 /\\ x' = x + 1 /\\ UNCHANGED s\nInv == x < 2\n"
+
+// Java TLC's -terse leaves values unexpanded wherever TLCStateMut.toString
+// prints them, including in VIEW text.
+func TestJavaTLCTerseView(t *testing.T) {
+	for _, tc := range []struct{ name, view, want string }{
+		{"tuple", "<<s, x>>", "/\\ s = SUBSET {1, 2}\n/\\ x = 0\n"},
+		{"record", "[a |-> x, b |-> s]", "[a |-> 2, b |-> SUBSET {1, 2}]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, terseViewModel+"V == "+tc.view, "INIT Init\nNEXT Next\nINVARIANT Inv\nVIEW V\n")
+			args := []string{"-tool", "-workers", "1", "-fp", "0", "-view", "-terse", "M.tla"}
+			messages, code, stderr := runGoToolInDir(t, dir, args)
+			if traces := strings.Join(traceStateMessages(messages), "\n"); code != 12 || stderr != "" || !strings.Contains(traces, tc.want) {
+				t.Fatalf("exit %d; traces %q; stderr %s", code, traces, stderr)
+			}
+			compareJavaTraceStates(t, dir, args, messages, code)
+		})
+	}
+}
+
+// Java TLC's state writers print states with TLCStateMut.toString, so -terse
+// applies to dumped states and DOT labels.
+func TestJavaTLCDumpTerse(t *testing.T) {
+	for _, tc := range []struct {
+		format, want string
+		extra        []string
+	}{
+		{"", "State 1:\n/\\ s = SUBSET {1, 2}\n/\\ x = 0\n\n", []string{"-terse"}},
+		{"dot", `[label="/\\ s = SUBSET {1, 2}\n/\\ x = 0",style = filled]`, []string{"-terse"}},
+		{"", "State 1:\n[a |-> 0, b |-> SUBSET {1, 2}]\n", []string{"-view", "-terse"}},
+		{"dot", `[label="[a |-> 0, b |-> SUBSET {1, 2}]",style = filled]`, []string{"-view", "-terse"}},
+	} {
+		t.Run(tc.format+strings.Join(tc.extra, ""), func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, terseViewModel+"V == [a |-> x, b |-> s]", "INIT Init\nNEXT Next\nVIEW V\n")
+			output := filepath.Join(dir, "go.dump")
+			if tc.format != "" {
+				output = filepath.Join(dir, "go.dot")
+			}
+			got := runDumpFormat(t, dir, "M", tc.format, output, 0, tc.extra...)
+			if !strings.Contains(string(got), tc.want) {
+				t.Fatalf("dump missing %q:\n%s", tc.want, got)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				compareJavaDumpFormat(t, jar, dir, "M", tc.format, got, 0, tc.extra...)
+			}
+		})
+	}
+}
+
+// SimulationWorker writes trace files with TLCStateMut.toString, which
+// follows -view and -terse.
+func TestJavaTLCSimulationTraceFileStyles(t *testing.T) {
+	for _, tc := range []struct {
+		name, view, want string
+		extra            []string
+	}{
+		{"view", "<<x>>", "STATE_1 == \n/\\ x = 0\n\n\n", []string{"-view"}},
+		{"terse", "<<x>>", "STATE_1 == \n/\\ s = SUBSET {1, 2}\n/\\ x = 0\n\n\n", []string{"-terse"}},
+		{"terse view", "[a |-> x, b |-> s]", "STATE_1 == \n[a |-> 0, b |-> SUBSET {1, 2}]\n\n", []string{"-view", "-terse"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, terseViewModel+"V == "+tc.view, "INIT Init\nNEXT Next\nVIEW V\n")
+			prefix := filepath.Join(dir, "go")
+			common := append([]string{"-tool", "-workers", "1", "-seed", "1", "-deadlock"}, tc.extra...)
+			args := append(append([]string{}, common...), "-simulate", "file="+prefix+",num=2", filepath.Join(dir, "M.tla"))
+			var out, errout bytes.Buffer
+			if code := run(context.Background(), args, &out, &errout); code != 0 {
+				t.Fatalf("exit %d: %s\n%s", code, out.String(), errout.String())
+			}
+			files, err := filepath.Glob(prefix + "_0_*")
+			if err != nil || len(files) != 2 {
+				t.Fatalf("files %v, %v; want 2", files, err)
+			}
+			if data, err := os.ReadFile(files[0]); err != nil || !strings.Contains(string(data), tc.want) {
+				t.Fatalf("trace file %s, %v; missing %q", data, err, tc.want)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				compareSimulationFiles(t, jar, dir, common, 2, 0, prefix, files, false)
+			}
+		})
 	}
 }

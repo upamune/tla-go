@@ -162,6 +162,7 @@ type model struct {
 	warning              func(Warning)
 	livenessWarning      func(Warning) // Model checking only, as in Java TLC's AbstractChecker.
 	viewStates           bool
+	terseValues          bool // -terse: values print as Java TLC's unexpanded formulas.
 	continueChecking     bool
 	onContinuedViolation func(Result)
 
@@ -254,6 +255,7 @@ type SimulationOptions struct {
 	// OnTrace receives each completed, nonviolating trace synchronously. The
 	// index counts all attempted traces, including those with violations.
 	// States are read-only and must be copied by callers that retain them.
+	// Under Options.ViewStates, steps carry their VIEW text.
 	OnTrace func(index int, trace []TraceStep) error
 }
 
@@ -485,6 +487,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)
 	m.program.SetPrintStyle(options.PrintStyle)
+	m.terseValues = options.PrintStyle.Terse
 	m.program.SetWarningHandler(m.evaluationWarningHandler())
 	m.sourceUnits = sourceUnits
 	runtime.model = m
