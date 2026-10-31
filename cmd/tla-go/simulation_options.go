@@ -59,9 +59,6 @@ func parseSimulationDepth(opts *options, args []string) (int, error) {
 
 func configureSimulation(opts *options) error {
 	if !opts.simulate {
-		if opts.continuation {
-			return fmt.Errorf("-continue is only supported in simulation mode")
-		}
 		return nil
 	}
 	if opts.dumpPath != "" {

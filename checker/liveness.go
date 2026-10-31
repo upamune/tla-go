@@ -344,7 +344,7 @@ func (s *search) linkState(parent int, key string) {
 	s.indices[key] = index
 	// Guarded state properties do not need explicit self-edges: repeating a
 	// state cannot change whether their trigger or requirement holds.
-	if len(s.model.properties) > 0 || len(s.model.fairness) > 0 {
+	if s.needsLivenessStuttering() {
 		s.edges = append(s.edges, []graphEdge{{to: index, action: "Stuttering"}})
 	} else {
 		s.edges = append(s.edges, nil)
@@ -356,6 +356,10 @@ func (s *search) linkState(parent int, key string) {
 	}
 }
 
+func (s *search) needsLivenessStuttering() bool {
+	return len(s.model.properties) > 0 || len(s.model.fairness) > 0 || s.model.continueChecking && len(s.model.guarded) > 0
+}
+
 func (s *search) checkLiveness() (Result, error) {
 	if s.model.tlcRuntime.needsLevelGraph {
 		return s.checkLivenessWithLevels()
@@ -365,7 +369,7 @@ func (s *search) checkLiveness() (Result, error) {
 
 func (s *search) checkLivenessGraph() (Result, error) {
 	for _, p := range s.model.livenessOrder {
-		if p.mode == guardedAlways && len(s.model.fairness) == 0 && s.model.tlcRuntime.levelGraph == nil {
+		if p.mode == guardedAlways && !s.model.continueChecking && len(s.model.fairness) == 0 && s.model.tlcRuntime.levelGraph == nil {
 			continue
 		}
 		found, err := s.checkLivenessProperty(p)

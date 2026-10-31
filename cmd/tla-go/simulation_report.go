@@ -17,6 +17,18 @@ func printChecking(out io.Writer, specPath, configPath string, opts options) {
 	}
 }
 
+func configureCheckingMode(checkOpts *checker.Options, opts options, module *parser.Module, out io.Writer) {
+	if opts.simulate {
+		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, Continue: opts.continuation}
+		if opts.continuation {
+			checkOpts.Simulation.OnViolation = simulationViolationOutput(opts, module, out)
+		}
+	} else if opts.continuation {
+		checkOpts.Continue = true
+		checkOpts.OnViolation = modelViolationOutput(opts, module, out)
+	}
+}
+
 func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEvent) {
 	if opts.tool {
 		return func(event checker.SearchEvent) { printToolSearch(out, event) }
@@ -58,6 +70,16 @@ func simulationViolationOutput(opts options, module *parser.Module, out io.Write
 		}
 		printViolation(out, result, module)
 		fmt.Fprintf(out, "Progress: %d states generated.\nThe number of states generated: %d\nSimulation using seed %d and aril 0\n", result.GeneratedStates, result.GeneratedStates, opts.seed)
+	}
+}
+
+func modelViolationOutput(opts options, module *parser.Module, out io.Writer) func(checker.Result) {
+	return func(result checker.Result) {
+		if opts.tool {
+			printToolViolation(toolOutput{out: out}, result, module)
+		} else {
+			printViolation(out, result, module)
+		}
 	}
 }
 

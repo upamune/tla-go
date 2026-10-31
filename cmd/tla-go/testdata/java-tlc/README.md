@@ -83,3 +83,8 @@ temporal next-state expression.
 `Github432` is a model and configuration from the same directory, with trailing
 blank lines normalized. Its configuration has a malformed set value and
 exercises TLC's config error.
+
+`continue/Continue` and `continue/DoInitFunctorInvariantContinue` are unchanged
+models and configurations from `test-model/Continue` and
+`test-model/DoInitFunctor` at the pinned commit. They are used by the upstream
+`ContinueTest` and `DoInitFunctorInvariantContinueTest`, respectively.

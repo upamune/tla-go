@@ -271,17 +271,25 @@ func (s *search) candidateLevel(parent int) int {
 }
 
 func (s *search) checkNewCandidate(state evaluator.State, parent int, action string) (bool, error) {
-	if more, err := s.checkViolation(state, parent, action); err != nil || !more {
-		return more, err
+	if s.continueInitialInvariants(parent) {
+		if more, err := s.checkInitialInvariantsContinuing(state, action); err != nil || !more {
+			return more, err
+		}
+		return s.checkSafetyProperties(state, parent, action)
 	}
-	return s.checkSafetyProperties(state, parent, action)
+	if more, err := s.checkViolation(state, parent, action); err != nil || !more {
+		if err != nil || !s.continueInvariantViolation() {
+			return more, err
+		}
+	}
+	return s.checkSafetyContinuing(state, parent, action)
 }
 
 func (s *search) visitExisting(state evaluator.State, parent int, action, key string) (bool, error) {
 	if err := s.graphTransition(s.graphRepresentative(state, key), parent, action, false); err != nil {
 		return false, err
 	}
-	if more, err := s.checkSafetyProperties(state, parent, action); err != nil || !more {
+	if more, err := s.checkSafetyContinuing(state, parent, action); err != nil || !more {
 		s.recordFailureCandidate(key, parent, s.candidateInModel)
 		return more, err
 	}

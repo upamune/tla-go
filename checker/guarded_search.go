@@ -23,7 +23,7 @@ type guardedMonitor struct {
 }
 
 func (s *search) checkGuardedProperties(index int) (bool, error) {
-	if len(s.model.fairness) > 0 || s.model.tlcRuntime.needsLevelGraph {
+	if s.model.continueChecking || len(s.model.fairness) > 0 || s.model.tlcRuntime.needsLevelGraph {
 		return true, nil
 	}
 	for i := range s.guarded {

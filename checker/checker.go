@@ -68,7 +68,7 @@ type Result struct {
 	QueuedStates                           int
 	OutDegrees                             [32]int
 	HasOutDegrees                          bool
-	// ContinuedViolations counts simulation violations reported before completion.
+	// ContinuedViolations counts violations reported while exploration continued.
 	ContinuedViolations int
 }
 
@@ -133,6 +133,8 @@ type model struct {
 	debug                func(string)
 	graph                func(GraphEvent) error
 	searchEvent          func(SearchEvent)
+	continueChecking     bool
+	onContinuedViolation func(Result)
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
@@ -151,6 +153,12 @@ type Options struct {
 	Fingerprint int
 	// Simulation selects bounded single-worker random simulation when non-nil.
 	Simulation *SimulationOptions
+	// Continue explores other states after invariant and action violations.
+	// It applies to model checking; simulation uses SimulationOptions.Continue.
+	Continue bool
+	// OnViolation receives each continued model-checking violation synchronously.
+	// Trace states are read-only and must be copied before modification.
+	OnViolation func(Result)
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
 	// OnDebug receives JSON lines describing liveness exploration when set.
@@ -172,7 +180,8 @@ type SimulationOptions struct {
 	// Initial-state violations, evaluation failures, and liveness violations stop.
 	Continue bool
 	// OnViolation receives each continued violation synchronously when Continue
-	// is true. Without a callback, ContinuedViolations still records the count.
+	// is true. Trace states are read-only and must be copied before modification.
+	// Without a callback, ContinuedViolations still records the count.
 	OnViolation func(Result)
 }
 
@@ -322,6 +331,7 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 	if err != nil {
 		return result, err
 	}
+	model.adjustContinuedEvaluationFailure(&result)
 	return model.finalizeCheckResult(result)
 }
 
@@ -400,6 +410,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 	}
 	runtime := newTLCRuntime(cfg, options)
 	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch}
+	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.sourceUnits = sourceUnits
 	runtime.model = m

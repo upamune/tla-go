@@ -77,6 +77,15 @@ against Java TLC 1.7.4. They cover selected results and tool traces, not all
 temporal formulas. A separate regression test records a known difference in
 simulation stability results between TLC 1.7.4 and 1.8.0.
 
+`TestJavaTLCModelContinue` compares selected model-checking continuation cases
+with Java TLC 1.7.4, including initial and successor violations, constraints,
+deadlocks, and temporal properties. `TestJavaTLCModelContinueDOT` compares DOT
+graphs for three of these cases. `TestJavaTLCModelContinueUpstream` also runs
+the original `Continue` and `DoInitFunctorInvariantContinue` model fixtures and
+checks their JUnit state counts and selected output with one worker. It does not
+run the original three-worker JUnit test or its coverage assertions. Evaluation
+error details and other models are not fully mapped.
+
 ## Audit work
 
 - Enumerate executable upstream tests, including parameterized and inherited
