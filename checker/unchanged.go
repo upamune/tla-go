@@ -2,7 +2,6 @@ package checker
 
 import (
 	"fmt"
-	"maps"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -14,14 +13,24 @@ func (g *generator) unchanged(expr *parser.Expression, rest []work, partial eval
 	if err != nil {
 		return false, err
 	}
-	next := maps.Clone(partial)
+	mark := len(g.undo)
 	for _, name := range names {
-		ok, err := g.copyUnchanged(name, next)
+		ok, err := g.copyUnchanged(name, partial)
 		if err != nil || !ok {
+			g.restore(partial, mark)
 			return ok, err
 		}
 	}
-	return g.solve(rest, next, action)
+	more, err := g.solve(rest, partial, action)
+	g.restore(partial, mark)
+	return more, err
+}
+
+// stateUndo restores a partial-state entry overwritten by UNCHANGED.
+type stateUndo struct {
+	name     string
+	previous value.Value
+	assigned bool
 }
 
 func (g *generator) copyUnchanged(name string, next evaluator.State) (bool, error) {
@@ -29,14 +38,30 @@ func (g *generator) copyUnchanged(name string, next evaluator.State) (bool, erro
 	if !ok {
 		return false, fmt.Errorf("variable %s is unassigned", name)
 	}
-	if existing, ok := next[name]; ok {
+	existing, assigned := next[name]
+	if assigned {
 		same, err := value.Equal(existing, v)
 		if err != nil || !same {
 			return same, err
 		}
 	}
+	// An equal value can differ in presentation, so the current value replaces it.
+	g.undo = append(g.undo, stateUndo{name: name, previous: existing, assigned: assigned})
 	next[name] = v
 	return true, nil
+}
+
+func (g *generator) restore(partial evaluator.State, mark int) {
+	for i := len(g.undo) - 1; i >= mark; i-- {
+		entry := g.undo[i]
+		if entry.assigned {
+			partial[entry.name] = entry.previous
+		} else {
+			delete(partial, entry.name)
+		}
+	}
+	clear(g.undo[mark:])
+	g.undo = g.undo[:mark]
 }
 
 func (g *generator) unchangedNames(expr *parser.Expression) ([]string, error) {

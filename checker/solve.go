@@ -24,6 +24,8 @@ type generator struct {
 	lexical         *evaluator.LexicalScope
 	source          *parser.Expression
 	emit            func(evaluator.State, string, *parser.Expression) (bool, error)
+	// undo records UNCHANGED writes to the shared partial state.
+	undo []stateUndo
 }
 
 func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator.State) {
@@ -225,16 +227,20 @@ func (g *generator) holdsScopedWork(item work, partial evaluator.State) (bool, e
 	return g.holdsWithLocals(item.expr, current, next, item.locals)
 }
 
+// A generator run shares one partial state and restores it after each branch,
+// so emitted states are copies. ENABLED only needs to know a successor exists.
 func (g *generator) complete(partial evaluator.State, action string) (bool, error) {
-	if g.enabled || g.allowIncomplete {
+	if g.enabled {
 		return g.emit(partial, action, g.source)
 	}
-	for _, name := range g.model.names {
-		if _, ok := partial[name]; !ok {
-			return false, &incompleteState{state: maps.Clone(partial), action: action}
+	if !g.allowIncomplete {
+		for _, name := range g.model.names {
+			if _, ok := partial[name]; !ok {
+				return false, &incompleteState{state: maps.Clone(partial), action: action}
+			}
 		}
 	}
-	return g.emit(partial, action, g.source)
+	return g.emit(maps.Clone(partial), action, g.source)
 }
 
 func (g *generator) conjunction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
@@ -268,7 +274,7 @@ func (g *generator) disjunctionBranch(item work, branch *parser.Expression, rest
 	if item.label && !g.initial && branch.Location.Range.Start.Line > 0 {
 		g.source = branch
 	}
-	more, err := g.solve(prepend(work{expr: branch, path: item.path, label: item.label, locals: item.locals}, rest), maps.Clone(partial), action)
+	more, err := g.solve(prepend(work{expr: branch, path: item.path, label: item.label, locals: item.locals}, rest), partial, action)
 	g.source = previous
 	if err != nil && item.label {
 		g.incompleteAction(err, action, branch.Location.Range, len(item.expr.Args) > 1)
@@ -351,10 +357,12 @@ func (g *generator) assign(name, operator string, rhs *parser.Expression, items 
 	return more, err
 }
 
+// assign only reaches assignOne for a variable missing from partial.
 func (g *generator) assignOne(name string, v value.Value, rest []work, partial evaluator.State, action string) (bool, error) {
-	next := maps.Clone(partial)
-	next[name] = v
-	return g.solve(rest, next, action)
+	partial[name] = v
+	more, err := g.solve(rest, partial, action)
+	delete(partial, name)
+	return more, err
 }
 
 func (g *generator) assignMembers(name string, set value.Value, rest []work, partial evaluator.State, action string) (bool, error) {
