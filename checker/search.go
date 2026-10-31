@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -457,15 +456,20 @@ func (m *model) unreducedStateKey(state evaluator.State) (string, error) {
 	if m.tlcFingerprint {
 		return m.fingerprintKey(state)
 	}
-	var key strings.Builder
+	// A lazy value can evaluate a definition while it is encoded, so a nested
+	// call must not share the buffers.
+	key, scratch := m.stateKeyBuffer[:0], m.valueKeyBuffer
+	m.stateKeyBuffer, m.valueKeyBuffer = nil, nil
 	for _, name := range m.names {
-		v, err := state[name].Key()
+		var err error
+		scratch, err = state[name].AppendKey(scratch[:0])
 		if err != nil {
 			return "", err
 		}
-		key.WriteString(strconv.Itoa(len(v)))
-		key.WriteByte(':')
-		key.WriteString(v)
+		key = strconv.AppendInt(key, int64(len(scratch)), 10)
+		key = append(key, ':')
+		key = append(key, scratch...)
 	}
-	return key.String(), nil
+	m.stateKeyBuffer, m.valueKeyBuffer = key, scratch
+	return string(key), nil
 }

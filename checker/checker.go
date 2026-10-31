@@ -138,6 +138,9 @@ type model struct {
 	searchEvent          func(SearchEvent)
 	continueChecking     bool
 	onContinuedViolation func(Result)
+
+	// stateKeyBuffer and valueKeyBuffer are reused to encode state keys.
+	stateKeyBuffer, valueKeyBuffer []byte
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
