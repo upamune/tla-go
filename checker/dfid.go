@@ -81,8 +81,8 @@ func (m *model) checkDepthFirst(options DepthFirstOptions) (Result, error) {
 	return s.iterate()
 }
 
-// start computes the initial states. TLC reports success at once when there
-// is no next-state action.
+// start computes the initial states. TLC reports success at once when the
+// next-state relation has no action.
 func (s *dfidSearch) start() (Result, bool, error) {
 	if !s.model.noStateSearch() {
 		if result, failed, err := s.initialize(); failed || err != nil {
@@ -90,7 +90,7 @@ func (s *dfidSearch) start() (Result, bool, error) {
 		}
 	}
 	s.emitInitial()
-	if s.model.noStateSearch() || s.next == nil {
+	if s.model.noStateSearch() || s.next == nil || s.model.noNextActions(s.next) {
 		return s.success(), true, nil
 	}
 	return Result{}, false, nil

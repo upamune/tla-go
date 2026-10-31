@@ -142,13 +142,20 @@ func (s *search) explore() (Result, error) {
 	return result, err
 }
 
+// missingNextAction reports TLC's error for initial states without a
+// next-state action to expand them.
 func (s *search) missingNextAction() bool {
-	if s.model.cfg.Next != "" || len(s.nodes) == 0 {
+	if len(s.nodes) == 0 || s.model.cfg.Next != "" && !s.hasNoNextActions() {
 		return false
 	}
 	s.result.Status = EvaluationFailure
 	s.result.Failure = &Failure{Message: "No next state actions defined to generate successor states from.", ToolCode: 2115, ExitCode: 75, SuppressStatistics: true}
 	return true
+}
+
+func (s *search) hasNoNextActions() bool {
+	next, err := s.model.definition(s.model.cfg.Next)
+	return err == nil && s.model.noNextActions(next)
 }
 
 func (s *search) finishSuccessfulResult(result *Result) {

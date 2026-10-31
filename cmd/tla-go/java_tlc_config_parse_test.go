@@ -189,6 +189,35 @@ func TestJavaTLCMissingStatePredicates(t *testing.T) {
 	}
 }
 
+// TLC's Tool.getActions yields no action for an existential with an empty
+// constant bound.
+func TestJavaTLCNextWithoutActions(t *testing.T) {
+	for _, tc := range []struct {
+		name, next, message string
+		code                int
+	}{
+		{"empty existential", "\\E i \\in {} : x' = i", "No next state actions defined to generate successor states from.", 75},
+		{"empty disjuncts", "(\\E i \\in {} : x' = i) \\/ (\\E j \\in 1..0 : x' = j)", "No next state actions defined to generate successor states from.", 75},
+		{"empty second bound", "\\E i \\in 1..2, j \\in {} : x' = i + j", "No next state actions defined to generate successor states from.", 75},
+		{"other action", "(\\E i \\in {} : x' = i) \\/ x' = x", "2 states generated, 1 distinct states found, 0 states left on queue", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == "+tc.next, "INIT Init\nNEXT Next\n")
+			var out, errout bytes.Buffer
+			if code := run(context.Background(), []string{"-tool", filepath.Join(dir, "M.tla")}, &out, &errout); code != tc.code || !strings.Contains(out.String(), tc.message) {
+				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java := runJavaTLCForExit(t, jar, dir, "M", tc.code)
+				if !strings.Contains(java, tc.message) {
+					t.Fatalf("Java output: %s", java)
+				}
+			}
+		})
+	}
+}
+
 func TestJavaTLCStateOnlySpecification(t *testing.T) {
 	for _, tc := range []struct {
 		name, spec, extra, message string
