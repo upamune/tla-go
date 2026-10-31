@@ -120,7 +120,7 @@ func TestCLIUpstreamLivenessStrategy(t *testing.T) {
 	out.Reset()
 	errs.Reset()
 	code = run(context.Background(), []string{path, "-lncheck"}, &out, &errs)
-	if code != 1 || errs.String() != "Error: expect a strategy such as final for -lncheck option.\n" {
+	if code != 1 || errs.Len() != 0 || out.String() != "Error: Error: expect a strategy such as final for -lncheck option.\nUsage: java tlc2.TLC [-option] inputfile\n" {
 		t.Fatalf("got %d stdout=%q stderr=%q", code, out.String(), errs.String())
 	}
 }

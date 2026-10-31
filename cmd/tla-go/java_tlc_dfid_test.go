@@ -177,17 +177,39 @@ func TestDepthFirstOptions(t *testing.T) {
 		code    int
 		message string
 	}{
-		{[]string{"-dfid"}, 1, "Error: expect a nonnegative integer for -dfid option."},
-		{[]string{"-dfid", "-1", "M"}, 1, "Error: expect a nonnegative integer for -dfid option."},
-		{[]string{"-dfid", "deep", "M"}, 1, "Errorexpect a nonnegative integer for -dfid option. But encountered deep"},
-		{[]string{"-dfid", "3", "-dump", "dot,actionlabels", "g.dot", "M"}, 255, "-dump is not supported in depth-first mode"},
+		{[]string{"-dfid"}, 1, "Error: Error: expect a nonnegative integer for -dfid option.\nUsage: java tlc2.TLC [-option] inputfile\n"},
+		{[]string{"-dfid", "-1", "M"}, 1, "Error: Error: expect a nonnegative integer for -dfid option.\nUsage: java tlc2.TLC [-option] inputfile\n"},
+		{[]string{"-dfid", "deep", "M"}, 1, "Error: Errorexpect a nonnegative integer for -dfid option. But encountered deep\nUsage: java tlc2.TLC [-option] inputfile\n"},
+		{[]string{"-tool", "-dfid", "deep", "M"}, 1, "@!@!@STARTMSG 2262:0 @!@!@\ntla-go dev\n@!@!@ENDMSG 2262 @!@!@\n@!@!@STARTMSG 1102:1 @!@!@\nErrorexpect a nonnegative integer for -dfid option. But encountered deep\nUsage: java tlc2.TLC [-option] inputfile\n@!@!@ENDMSG 1102 @!@!@\n"},
+		{[]string{"-dfid", "3", "-dump", "dot,actionlabels", "g.dot", "M"}, 255, "-dump is not supported in depth-first mode\n"},
 	} {
 		var out, errout bytes.Buffer
 		code := run(context.Background(), tc.args, &out, &errout)
-		if code != tc.code || !strings.HasPrefix(errout.String(), tc.message+"\n") {
-			t.Errorf("%q: exit %d, stderr %q", tc.args, code, errout.String())
+		got := out.String()
+		if tc.code != 1 {
+			got = errout.String()
+		}
+		if code != tc.code || !strings.HasPrefix(got, tc.message) {
+			t.Errorf("%q: exit %d, stdout %q, stderr %q", tc.args, code, out.String(), errout.String())
+		}
+		if jar := os.Getenv("TLC_JAR"); jar != "" && tc.code == 1 {
+			java, err := exec.Command("java", append([]string{"-cp", jar, "tlc2.TLC"}, tc.args...)...).Output()
+			if want := afterVersion(string(java)); err == nil || afterVersion(out.String()) != want {
+				t.Errorf("%q: Java %v, stdout %q", tc.args, err, java)
+			}
 		}
 	}
+}
+
+// afterVersion drops the version banner that TLC prints before an option error.
+func afterVersion(output string) string {
+	for _, banner := range []string{"TLC2 Version", "tla-go dev"} {
+		if _, rest, ok := strings.Cut(output, banner); ok {
+			_, rest, _ = strings.Cut(rest, "\n")
+			return strings.TrimPrefix(rest, "@!@!@ENDMSG 2262 @!@!@\n")
+		}
+	}
+	return output
 }
 
 func TestObservedProbability(t *testing.T) {

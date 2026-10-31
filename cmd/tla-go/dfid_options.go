@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 )
 
@@ -9,6 +10,20 @@ import (
 type javaOptionError struct{ message string }
 
 func (e *javaOptionError) Error() string { return e.message }
+
+// printJavaOptionError follows TLC.printErrorMsg, which reports
+// WRONG_COMMANDLINE_PARAMS_TLC with TLC's usage line on standard output, as
+// message 1102 when -tool precedes the failing option.
+func printJavaOptionError(out io.Writer, tool bool, err error) {
+	body := err.Error() + "\nUsage: java tlc2.TLC [-option] inputfile"
+	if !tool {
+		fmt.Fprintf(out, "Error: %s\n", body)
+		return
+	}
+	t := toolOutput{out: out}
+	t.message(2262, 0, "tla-go "+version)
+	t.message(1102, 1, body)
+}
 
 // parseDepthFirstOption reads TLC's -dfid argument with its error messages.
 func parseDepthFirstOption(opts *options, args []string) (int, error) {

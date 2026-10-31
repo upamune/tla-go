@@ -54,10 +54,11 @@ func run(ctx context.Context, args []string, out, errout io.Writer) int {
 func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) int {
 	opts, err := parseOptions(args)
 	if err != nil {
-		fmt.Fprintln(errout, err)
 		if _, ok := errors.AsType[*javaOptionError](err); ok || errors.Is(err, errMissingLivenessStrategy) {
+			printJavaOptionError(out, opts.tool, err)
 			return 1
 		}
+		fmt.Fprintln(errout, err)
 		usage(errout)
 		return 255
 	}
