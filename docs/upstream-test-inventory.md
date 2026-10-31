@@ -89,6 +89,11 @@ quantifier. They check exit codes and selected tool messages and traces, not
 all liveness formulas or error handling. A separate test records a result
 difference with Java TLC 1.8.0.
 
+`TestJavaTLCSimulationMultipleLeadsTo` and related tests compare selected
+combinations of leads-to, eventuality, recurrence, and stability properties,
+including constant triggers and quantified properties, with Java TLC 1.7.4.
+The tests cover selected traces and exit codes rather than every combination.
+
 `TestJavaTLCSimulationAril` compares selected seeded traces, including negative
 and large arils, against Java TLC 1.7.4. A separate test checks selected seeds
 against 1.8.0. These comparisons cover selected action and liveness behavior,

@@ -24,7 +24,7 @@ func (m *model) supportsSimulationLiveness() bool {
 }
 
 func (m *model) supportsSimulationProperty(property temporalProperty) bool {
-	if property.mode == leadsTo && len(m.livenessOrder) == 1 {
+	if property.mode == leadsTo {
 		return m.supportsSimulationLeadsTo(property)
 	}
 	return (property.mode == eventually || property.mode == often || property.mode == eventuallyAlways) && m.isStateExpression(property.predicate) &&
@@ -53,11 +53,98 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	previous := r.model.tlcRuntime.search
 	r.model.tlcRuntime.search = &graph
 	defer func() { r.model.tlcRuntime.search = previous }()
+	return r.checkSimulationGraph(visited, &graph)
+}
+
+func (r *simulationRun) checkSimulationGraph(visited int, graph *search) (*Result, error) {
+	if r.hasSimulationLeadsTo() {
+		return r.checkSimulationMultipleLeads(visited, graph)
+	}
 	result, err := graph.checkSimulationLivenessGraph()
 	if err != nil || result.Status != Success {
 		return &result, err
 	}
 	return nil, nil
+}
+
+func (r *simulationRun) hasSimulationLeadsTo() bool {
+	for _, property := range r.model.livenessOrder {
+		if property.mode == leadsTo {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *simulationRun) checkSimulationMultipleLeads(visited int, graph *search) (*Result, error) {
+	properties, err := r.simulationNormalizedProperties()
+	if err != nil {
+		return nil, err
+	}
+	checkedGroup := false
+	for _, property := range properties {
+		result, checked, err := r.checkSimulationMixedProperty(visited, graph, property, properties, checkedGroup)
+		if result != nil || err != nil {
+			return result, err
+		}
+		checkedGroup = checkedGroup || checked
+	}
+	return graph.finishSimulationMixed(properties, checkedGroup)
+}
+
+func (r *simulationRun) checkSimulationMixedProperty(visited int, graph *search, property temporalProperty, properties []temporalProperty, checkedGroup bool) (*Result, bool, error) {
+	if property.mode == leadsTo {
+		result, err := r.checkSimulationLeadsTo(visited, property)
+		return result, false, err
+	}
+	found, checked, err := graph.checkSimulationMixedSolution(property, properties, checkedGroup)
+	if err != nil || !found {
+		return nil, checked, err
+	}
+	result, err := graph.reportLassoProperties()
+	return &result, checked, err
+}
+
+func (s *search) finishSimulationMixed(properties []temporalProperty, checkedGroup bool) (*Result, error) {
+	if checkedGroup {
+		return nil, nil
+	}
+	found, err := s.checkSimulationPropertyGroup(simulationNoTableauProperties(properties))
+	if err != nil || !found {
+		return nil, err
+	}
+	result, err := s.reportLassoProperties()
+	return &result, err
+}
+
+func (r *simulationRun) simulationNormalizedProperties() ([]temporalProperty, error) {
+	if r.properties != nil {
+		return r.properties, nil
+	}
+	properties := slices.Clone(r.model.livenessOrder)
+	for i := range properties {
+		property := &properties[i]
+		if property.mode != leadsTo {
+			continue
+		}
+		known, trigger, err := r.simulationLeadsConstant(property.trigger, *property)
+		if err != nil {
+			return nil, err
+		}
+		if known && trigger {
+			property.mode = often
+		}
+	}
+	r.properties = properties
+	return properties, nil
+}
+
+func (s *search) checkSimulationMixedSolution(property temporalProperty, properties []temporalProperty, checkedGroup bool) (bool, bool, error) {
+	if property.mode == often && !checkedGroup {
+		found, err := s.checkSimulationPropertyGroup(simulationNoTableauProperties(properties))
+		return found, true, err
+	}
+	return s.checkSimulationSolution(property, true)
 }
 
 // LiveCheck1 groups recurrence and stability into one no-tableau solution.
@@ -108,9 +195,13 @@ func (s *search) checkSimulationSolution(property temporalProperty, checkedGroup
 }
 
 func (s *search) simulationNoTableauProperties() []temporalProperty {
+	return simulationNoTableauProperties(s.model.livenessOrder)
+}
+
+func simulationNoTableauProperties(properties []temporalProperty) []temporalProperty {
 	var result []temporalProperty
 	for _, mode := range []temporalMode{often, eventuallyAlways} {
-		for _, property := range s.model.livenessOrder {
+		for _, property := range properties {
 			if property.mode == mode {
 				result = append(result, property)
 			}

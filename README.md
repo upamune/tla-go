@@ -85,8 +85,8 @@ With `-continue`, model checking can finish with exit code 0 even after reportin
 Simulation samples randomly chosen behaviors; a successful run
 does not prove a model correct. Selected pure state eventualities (`<>P`),
 recurrence (`[]<>P`), and stability (`<>[]P`) are supported without fairness
-or state reduction. A single leads-to property (`P ~> Q`) with pure state
-predicates is also supported. Other temporal properties,
+or state reduction. Leads-to properties (`P ~> Q`) with pure state predicates
+can be combined with those forms. Other temporal properties,
 fairness, multiple
 workers, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
 messages and errors are not fully compatible with Java TLC. For example:

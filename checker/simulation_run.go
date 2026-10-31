@@ -19,6 +19,7 @@ type simulationRun struct {
 	options    SimulationOptions
 	traceIndex int
 	traceOrder []string
+	properties []temporalProperty
 }
 
 // simulate checks bounded traces with one worker and selected liveness properties.

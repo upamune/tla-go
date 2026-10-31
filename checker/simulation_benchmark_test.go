@@ -47,6 +47,10 @@ func BenchmarkSimulationLeadsTo(b *testing.B) {
 	benchmarkSimulationProperty(b, "(x = 1) ~> (x = 1)")
 }
 
+func BenchmarkSimulationMixedTemporal(b *testing.B) {
+	benchmarkSimulationProperty(b, "((x = 1) ~> (x = 1)) /\\ []<>(x \\in {0, 1, 2})")
+}
+
 func BenchmarkSimulationLeadsToUniqueStates(b *testing.B) {
 	const source = "---- MODULE M ----\nEXTENDS Integers\nVARIABLE x\nInit == x = 0\nNext == x' = x + 1\nP == (x < 0) ~> (x = -1)\n===="
 	for _, depth := range []int{250, 500, 1000} {

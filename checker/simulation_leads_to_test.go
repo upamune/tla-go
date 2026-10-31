@@ -35,3 +35,15 @@ func TestSimulationLeadsTo(t *testing.T) {
 		})
 	}
 }
+
+func TestSimulationMultipleLeadsTo(t *testing.T) {
+	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == x'=0\nP == (x=1) ~> (x=2)\nQ == (x=0) ~> (x=1)\n===="
+	opts := Options{Seed: 1, Simulation: &SimulationOptions{Traces: 1, Depth: 5}}
+	got, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P Q", opts)
+	if err != nil || got.Status != LivenessViolation || got.Violation == nil || got.Violation.Name != "Q" {
+		t.Fatalf("got %+v, %v; want a violation of Q", got, err)
+	}
+	if len(got.Violation.Trace) != 1 || got.Violation.LoopStart == nil || *got.Violation.LoopStart != 0 {
+		t.Fatalf("unexpected counterexample: %+v", got.Violation)
+	}
+}

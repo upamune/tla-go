@@ -146,10 +146,14 @@ func compareSimulationGraphConfig(t *testing.T, jar, body, cfg, seed string) {
 }
 
 func compareSimulationGraphDepth(t *testing.T, jar, body, cfg, seed, depth string) {
+	compareSimulationGraphParameters(t, jar, body, cfg, seed, depth, "1")
+}
+
+func compareSimulationGraphParameters(t *testing.T, jar, body, cfg, seed, depth, traces string) {
 	t.Helper()
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, body, cfg)
-	args := []string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", seed, "-depth", depth}
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=" + traces, "-seed", seed, "-depth", depth}
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 	cmd.Dir = dir
 	javaOut, _ := cmd.CombinedOutput()
