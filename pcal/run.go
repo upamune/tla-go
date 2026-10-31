@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 )
 
@@ -57,11 +58,14 @@ func RunDir(dir string, args []string, stdout, stderr io.Writer) (code int) {
 	return runFile(p, log)
 }
 
-// reportCrash reports a PcalDebug.ReportBug failure like the Java runtime.
+// reportCrash reports a failure that Java does not catch, such as a
+// PcalDebug.ReportBug error, and returns the exit code of the Java runtime.
+// Other failures are internal errors whose stack is printed to stderr.
 func reportCrash(r any, log *logger, stderr io.Writer) int {
 	bug, ok := r.(*bugError)
 	if !ok {
-		panic(r)
+		fmt.Fprintf(stderr, "internal error in the PlusCal translator: %v\n%s", r, debug.Stack())
+		return ExitBug
 	}
 	log.info("")
 	log.info(bug.msg)
