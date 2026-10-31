@@ -22,12 +22,14 @@ func TestSimulationRejectsUnsupportedCallbacks(t *testing.T) {
 }
 
 func TestSimulationRejectsUnsupportedLivenessOptions(t *testing.T) {
-	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\nP == <>(x=0)\nV == x\n===="
+	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\nMultiFair == Spec /\\ SF_x(Next)\nP == <>(x=0)\nQ == []<>(x=0)\nLead == (x=0) ~> (x=1)\nV == x\n===="
 	for _, tc := range []struct {
 		name, cfg, message string
 		depth              int
 	}{
-		{"fairness", "SPECIFICATION Spec PROPERTY P", "simulation of temporal properties is not yet supported", 1},
+		{"multiple fairness conditions", "SPECIFICATION MultiFair PROPERTY P", "simulation of temporal properties is not yet supported", 1},
+		{"multiple properties with fairness", "SPECIFICATION Spec PROPERTY P Q", "simulation of temporal properties is not yet supported", 1},
+		{"leads-to with fairness", "SPECIFICATION Spec PROPERTY Lead", "simulation of temporal properties is not yet supported", 1},
 		{"view", "INIT Init NEXT Next VIEW V PROPERTY P", "simulation of temporal properties is not yet supported", 1},
 		{"zero depth", "INIT Init NEXT Next PROPERTY P", "zero-depth liveness simulation is not yet supported", 0},
 	} {

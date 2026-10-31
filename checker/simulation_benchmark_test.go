@@ -51,6 +51,11 @@ func BenchmarkSimulationMixedTemporal(b *testing.B) {
 	benchmarkSimulationProperty(b, "((x = 1) ~> (x = 1)) /\\ []<>(x \\in {0, 1, 2})")
 }
 
+func BenchmarkSimulationFairness(b *testing.B) {
+	source := strings.Replace(simulationWalkSource, "====", "Spec == Init /\\ [][Next]_x /\\ WF_x(Next)\nP == []<>(x \\in {0, 1, 2})\n====", 1)
+	benchmarkSimulationConfigured(b, source, "SPECIFICATION Spec PROPERTY P")
+}
+
 func BenchmarkSimulationLeadsToUniqueStates(b *testing.B) {
 	const source = "---- MODULE M ----\nEXTENDS Integers\nVARIABLE x\nInit == x = 0\nNext == x' = x + 1\nP == (x < 0) ~> (x = -1)\n===="
 	for _, depth := range []int{250, 500, 1000} {
@@ -88,11 +93,16 @@ func BenchmarkSimulationRecurrenceUniqueStates(b *testing.B) {
 func benchmarkSimulationProperty(b *testing.B, property string) {
 	b.Helper()
 	source := strings.Replace(simulationWalkSource, "====", "P == "+property+"\n====", 1)
+	benchmarkSimulationConfigured(b, source, "INIT Init NEXT Next PROPERTY P")
+}
+
+func benchmarkSimulationConfigured(b *testing.B, source, configuration string) {
+	b.Helper()
 	module, err := parser.ParseModule(source)
 	if err != nil {
 		b.Fatal(err)
 	}
-	cfg, err := config.Parse("INIT Init NEXT Next PROPERTY P")
+	cfg, err := config.Parse(configuration)
 	if err != nil {
 		b.Fatal(err)
 	}

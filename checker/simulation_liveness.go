@@ -6,10 +6,13 @@ import (
 	"slices"
 )
 
-// Simulation supports selected pure state formulas without fairness or state
-// reduction. Other temporal forms still fail explicitly.
+// Simulation supports selected pure state formulas and a single pure fairness
+// condition without state reduction. Other temporal forms fail explicitly.
 func (m *model) supportsSimulationLiveness() bool {
-	if len(m.guarded) > 0 || len(m.fairness) > 0 {
+	if len(m.guarded) > 0 {
+		return false
+	}
+	if !m.supportsSimulationFairness() {
 		return false
 	}
 	if len(m.livenessOrder) > 0 && m.hasReduction() {
@@ -23,6 +26,17 @@ func (m *model) supportsSimulationLiveness() bool {
 	return true
 }
 
+func (m *model) supportsSimulationFairness() bool {
+	if len(m.fairness) == 0 {
+		return true
+	}
+	if len(m.fairness) > 1 || len(m.livenessOrder) > 1 {
+		return false
+	}
+	fair := m.fairness[0]
+	return !fair.recurrence && !m.unsafeIncrementalExpression(fair.action) && !m.unsafeIncrementalExpression(fair.subscript)
+}
+
 func (m *model) supportsSimulationProperty(property temporalProperty) bool {
 	if property.mode == leadsTo {
 		return m.supportsSimulationLeadsTo(property)
@@ -32,7 +46,7 @@ func (m *model) supportsSimulationProperty(property temporalProperty) bool {
 }
 
 func (m *model) supportsSimulationLeadsTo(property temporalProperty) bool {
-	return m.isStateExpression(property.trigger) && m.isStateExpression(property.predicate) &&
+	return len(m.fairness) == 0 && m.isStateExpression(property.trigger) && m.isStateExpression(property.predicate) &&
 		!m.propertyUsesTLC(property) && !m.unsafeIncrementalExpression(property.trigger) && !m.unsafeIncrementalExpression(property.predicate)
 }
 
@@ -46,6 +60,9 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	if len(r.model.livenessOrder) == 1 && r.model.livenessOrder[0].mode == leadsTo {
 		return r.checkSimulationLeadsTo(visited, r.model.livenessOrder[0])
 	}
+	if r.hasSimulationFairEventually() {
+		return r.checkSimulationFairEventually(visited, r.model.livenessOrder[0])
+	}
 	graph, err := r.traceGraph(visited)
 	if err != nil {
 		return nil, err
@@ -54,6 +71,10 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	r.model.tlcRuntime.search = &graph
 	defer func() { r.model.tlcRuntime.search = previous }()
 	return r.checkSimulationGraph(visited, &graph)
+}
+
+func (r *simulationRun) hasSimulationFairEventually() bool {
+	return len(r.model.fairness) > 0 && len(r.model.livenessOrder) == 1 && r.model.livenessOrder[0].mode == eventually
 }
 
 func (r *simulationRun) checkSimulationGraph(visited int, graph *search) (*Result, error) {
@@ -326,7 +347,12 @@ func simulationEdgeExists(edges []graphEdge, target int) bool {
 // LiveCheck1 processes the strongly connected components of the full sampled
 // graph before pruning states that satisfy a recurrence predicate.
 func (s *search) checkSimulationOften(property temporalProperty) (bool, error) {
-	f := fairSearch{search: s, property: property, bad: make([]bool, len(s.nodes)), trigger: make([]bool, len(s.nodes))}
+	f := fairSearch{search: s, property: property, bad: make([]bool, len(s.nodes)), trigger: make([]bool, len(s.nodes)), enabled: make([][]int8, len(s.model.fairness))}
+	for i := range f.enabled {
+		if !s.model.fairness[i].recurrence {
+			f.enabled[i] = make([]int8, len(s.nodes))
+		}
+	}
 	if err := f.evaluateStates(); err != nil {
 		return false, err
 	}

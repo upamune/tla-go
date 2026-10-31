@@ -111,6 +111,9 @@ func (f *fairSearch) holdsCachedTemporalState(index int, node stateNode) (bool, 
 			return value, nil
 		}
 	}
+	if f.property.mode == eventuallyAlways && f.search.simulationCheckStates != nil {
+		node.state = f.search.simulationCheckStates[index]
+	}
 	return f.search.model.holdsTemporalState(f.property, node.state)
 }
 
@@ -218,6 +221,16 @@ func (f *fairSearch) checkComponents(components [][]int) (bool, [][]bool, error)
 }
 
 func (f *fairSearch) recordPreferredCycle(component []int) error {
+	if f.search.simulationCheckStates != nil {
+		found, err := f.preferSimulationDisabledFairness(component)
+		if err != nil || found {
+			return err
+		}
+	}
+	return f.recordOrdinaryPreferredCycle(component)
+}
+
+func (f *fairSearch) recordOrdinaryPreferredCycle(component []int) error {
 	if f.property.mode == generalTemporal && f.search.lassoRuntimeMayChangeVerdict() && f.safePreferredCycle() {
 		single, err := f.acceptingSelfLoop(component)
 		if err != nil {
