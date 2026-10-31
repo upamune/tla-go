@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -76,12 +78,31 @@ func parseFingerprintMemory(c *compatOptions, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, commandLineError("Error: fpset memory size required.")
 	}
-	size, err := strconv.ParseFloat(strings.TrimSpace(args[1]), 64)
-	if err != nil || size < 0 || math.IsNaN(size) {
+	size, ok := parseJavaDouble(args[1])
+	if !ok || size < 0 || math.IsNaN(size) {
 		return 0, commandLineError("Error: An positive integer or a fraction for fpset memory size/percentage required. But encountered " + args[1])
 	}
 	c.fpmemDeprecated = size > 1
 	return 1, nil
+}
+
+// javaDouble matches the trimmed strings Java's Double.parseDouble accepts,
+// following the grammar documented for Double.valueOf.
+var javaDouble = regexp.MustCompile(`^[+-]?(NaN|Infinity|(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?|0[xX]([[:xdigit:]]+\.?|[[:xdigit:]]*\.[[:xdigit:]]+)[pP][+-]?\d+)[fFdD]?)$`)
+
+// parseJavaDouble parses a number as Double.parseDouble does: surrounding
+// control characters and spaces are ignored, a float-type suffix is
+// allowed, and values beyond the double range become infinite.
+func parseJavaDouble(text string) (float64, bool) {
+	text = strings.TrimFunc(text, func(r rune) bool { return r <= ' ' })
+	if !javaDouble.MatchString(text) {
+		return 0, false
+	}
+	if !strings.HasSuffix(text, "NaN") && !strings.HasSuffix(text, "Infinity") {
+		text = strings.TrimRight(text, "fFdD")
+	}
+	number, err := strconv.ParseFloat(text, 64)
+	return number, err == nil || errors.Is(err, strconv.ErrRange)
 }
 
 // parseFingerprintBits validates -fpbits, which only selects the layout of

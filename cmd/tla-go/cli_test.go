@@ -127,7 +127,7 @@ func TestCLIRejectsInvalidInputs(t *testing.T) {
 	if code := run(context.Background(), []string{spec}, &out, &errs); code != 255 {
 		t.Fatalf("expected config error, got %d: %s", code, errs.String())
 	}
-	for _, args := range [][]string{{}, {"-config"}, {"-workers", "2", spec}} {
+	for _, args := range [][]string{{}, {"-workers", "2", spec}} {
 		out.Reset()
 		errs.Reset()
 		if code := run(context.Background(), args, &out, &errs); code != 255 {

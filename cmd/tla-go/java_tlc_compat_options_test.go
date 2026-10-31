@@ -15,7 +15,15 @@ const compatOptionModel = "VARIABLE x\nInit == x = 0\nNext == x < 2 /\\ x' = x +
 // configure its fingerprint set, value streams, and debugging output.
 func TestJavaTLCAcceptedOptions(t *testing.T) {
 	for _, extra := range [][]string{
-		{"-gzip"}, {"-modelcheck"}, {"-debug"}, {"-fpbits", "3"}, {"-fpmem", "0.5"}, {"-fpmem", "1"},
+		{"-gzip"},
+		{"-modelcheck"},
+		{"-debug"},
+		{"-fpbits", "3"},
+		{"-fpmem", "0.5"},
+		{"-fpmem", "1"},
+		{"-fpmem", " 0.5d"},
+		{"-fpmem", "0x1p-1"},
+		{"-fpmem", "-0.0"},
 	} {
 		t.Run(strings.Join(extra, " "), func(t *testing.T) {
 			dir := t.TempDir()
@@ -36,20 +44,24 @@ func TestJavaTLCAcceptedOptions(t *testing.T) {
 }
 
 // An absolute -fpmem size is deprecated; Java TLC prints a notice before its
-// version banner.
+// version banner. Sizes beyond the double range are infinite.
 func TestJavaTLCDeprecatedFingerprintMemory(t *testing.T) {
-	dir := t.TempDir()
-	writeDOTFixture(t, dir, compatOptionModel, "INIT Init\nNEXT Next\n")
-	args := []string{"-tool", "-workers", "1", "-fpmem", "2", "M.tla"}
-	output, code, stderr := runGoInDir(t, dir, args)
-	if code != 11 || stderr != "" || !strings.HasPrefix(output, fpmemDeprecation+"\n@!@!@STARTMSG 2262:0 @!@!@\n") {
-		t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, output, stderr)
-	}
-	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
-		if javaCode != code || !strings.Contains(java, "\n"+fpmemDeprecation+"\n@!@!@STARTMSG 2262:0 @!@!@\n") {
-			t.Fatalf("Java exit %d:\n%s", javaCode, java)
-		}
+	for _, size := range []string{"2", "1e400"} {
+		t.Run(size, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, compatOptionModel, "INIT Init\nNEXT Next\n")
+			args := []string{"-tool", "-workers", "1", "-fpmem", size, "M.tla"}
+			output, code, stderr := runGoInDir(t, dir, args)
+			if code != 11 || stderr != "" || !strings.HasPrefix(output, fpmemDeprecation+"\n@!@!@STARTMSG 2262:0 @!@!@\n") {
+				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, output, stderr)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != code || !strings.Contains(java, "\n"+fpmemDeprecation+"\n@!@!@STARTMSG 2262:0 @!@!@\n") {
+					t.Fatalf("Java exit %d:\n%s", javaCode, java)
+				}
+			}
+		})
 	}
 }
 
@@ -64,8 +76,12 @@ func TestJavaTLCCompatOptionErrors(t *testing.T) {
 		{[]string{"M.tla", "-fpbits"}, "Error: fpbits required."},
 		{[]string{"-fpmem", "-1", "M.tla"}, "Error: An positive integer or a fraction for fpset memory size/percentage required. But encountered -1"},
 		{[]string{"-fpmem", "NaN", "M.tla"}, "Error: An positive integer or a fraction for fpset memory size/percentage required. But encountered NaN"},
+		{[]string{"-fpmem", "1_0", "M.tla"}, "Error: An positive integer or a fraction for fpset memory size/percentage required. But encountered 1_0"},
+		{[]string{"-fpmem", "Inf", "M.tla"}, "Error: An positive integer or a fraction for fpset memory size/percentage required. But encountered Inf"},
 		{[]string{"M.tla", "-fpmem"}, "Error: fpset memory size required."},
 		{[]string{"M.tla", "-userFile"}, "Error: need to specify the full qualified file."},
+		{[]string{"M.tla", "-config"}, "Error: expect a file name for -config option."},
+		{[]string{"M.tla", "-metadir"}, "Error: need to specify the metadata directory."},
 		{[]string{"-userFile", filepath.Join("missing", "out.txt"), "M.tla"}, "Error: Failed to create user output log file."},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
