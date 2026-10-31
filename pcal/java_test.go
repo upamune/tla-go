@@ -25,6 +25,8 @@ type corpusCase struct {
 	// Strip removes an existing translation, so that the translator
 	// inserts a new one with checksums.
 	Strip bool `json:"strip,omitempty"`
+	// Source names the upstream file a mutated input was derived from.
+	Source string `json:"source,omitempty"`
 }
 
 // outcome is what a run prints and leaves in its directory. Files holds

@@ -19,6 +19,11 @@ and `OptionalSemicolonTest` were replaced by the file name.
 `extra/` holds inputs written for tla-go. They cover options, error messages,
 non-ASCII text, tabs, CRLF line ends, and existing `.cfg` files.
 
+`mutations/` holds copies of upstream files with one or two tokens of the
+algorithm deleted, inserted, or replaced at random, keeping one input for
+each distinct Java error message found. The `source` field in `cases.json`
+names the file each one was derived from.
+
 `cases.json` lists each run: the input directory and files, the arguments
 of `pcal.trans`, and whether to remove the existing translation first, so
 that the translator inserts a new one with checksums. The JUnit models run
