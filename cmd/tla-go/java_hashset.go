@@ -15,6 +15,7 @@ type javaHashSet[T comparable] struct {
 type (
 	javaLongSet   struct{ javaHashSet[uint64] }
 	javaIntSet    struct{ javaHashSet[int] }
+	// javaStringSet follows java.util.HashSet<String> iteration order.
 	javaStringSet struct{ javaHashSet[string] }
 )
 
@@ -82,4 +83,26 @@ func (s *javaHashSet[T]) values() []T {
 		result = append(result, bucket...)
 	}
 	return result
+}
+
+// newJavaStringSet creates a set with Java's table size for a requested
+// initial capacity, as HashSet(int) and HashSet(Collection) do.
+func newJavaStringSet(capacity int) *javaStringSet {
+	size := 1
+	for size < capacity {
+		size *= 2
+	}
+	s := &javaStringSet{}
+	s.hash = func(v string) uint32 { return javaSpread(javaStringHash(v)) }
+	s.buckets = make([][]string, size)
+	return s
+}
+
+// javaStringSetOf copies values as new HashSet<>(collection) does.
+func javaStringSetOf(values []string) *javaStringSet {
+	s := newJavaStringSet(max(int(float32(len(values))/0.75)+1, 16))
+	for _, v := range values {
+		s.add(v)
+	}
+	return s
 }

@@ -28,6 +28,7 @@ type options struct {
 	noWarning                  bool
 	view                       bool
 	sanyMetadata               bool
+	compat                     compatOptions
 	dumpPath                   string
 	dumpDOT                    *dotFormat
 	onPause                    func()
@@ -47,6 +48,7 @@ type options struct {
 
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, compatUsage)
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -72,9 +74,15 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	if opts.sanyMetadata {
 		return runSANYMetadata(ctx, opts, out, errout)
 	}
+	runOut, finish, err := startCompatOutput(&opts, out)
+	if err != nil {
+		fmt.Fprintln(errout, err)
+		return 1
+	}
+	defer finish()
 	reader := bufio.NewReader(input)
 	opts.onPause = func() { _, _ = reader.ReadString('\n') }
-	return runModels(ctx, opts, out, errout)
+	return runModels(ctx, opts, runOut, errout)
 }
 
 // reportOptionError reports Java TLC's parameter errors as message 1102 when
@@ -154,6 +162,7 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	}
 	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, ViewStates: opts.view}
 	configureCheckingMode(&checkOptions, opts, module, out)
+	configureCompatOutput(&checkOptions, opts)
 	if graph != nil {
 		checkOptions.OnGraph = graph.event
 	}
@@ -287,6 +296,8 @@ func inputPaths(opts options) (string, string, error) {
 	cfgPath := opts.configPath
 	if cfgPath == "" {
 		cfgPath = path[:len(path)-len(filepath.Ext(path))] + ".cfg"
+	} else {
+		cfgPath = configFilePath(path, cfgPath, opts.libraryPaths)
 	}
 	return path, cfgPath, nil
 }

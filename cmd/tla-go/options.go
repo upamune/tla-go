@@ -79,12 +79,19 @@ func parseOption(opts *options, args []string) (int, error) {
 	if parse, ok := valueOptions[args[0]]; ok {
 		return parse(opts, args)
 	}
-	return 0, parsePath(opts, args[0])
+	return parseCompatOption(opts, args)
+}
+
+// missingPathErrors are Java TLC's messages for a path option without its
+// argument.
+var missingPathErrors = map[string]commandLineError{
+	"-config":  "Error: expect a file name for -config option.",
+	"-metadir": "Error: need to specify the metadata directory.",
 }
 
 func parsePathOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
-		return 0, fmt.Errorf("%s requires a path", args[0])
+		return 0, missingPathErrors[args[0]]
 	}
 	if args[0] == "-config" {
 		opts.configPath = args[1]

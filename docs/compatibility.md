@@ -78,6 +78,18 @@ The default seed is 0. `-seed` selects a different seed. The default random-subs
 
 Selected `TLCGet` and `TLCSet` registers and configuration, trace, and runtime values are supported. Complex forms and behavior involving effects are not fully compatible.
 
+## Command-line options and warnings
+
+Model checking and simulation report Java TLC's warning 2300 when a symmetry set has fewer than two elements, naming the set as Java does, and warning 2144 when an `EXCEPT` path is outside a function's domain, in which case that update is skipped. As in Java TLC, the whole path is checked, also for lazily evaluated functions, and constant definitions containing `EXCEPT` are evaluated before the initial states, so their warnings come first. `-nowarning` suppresses both warnings.
+
+As in Java TLC, trace states, simulation trace files, DOT state labels, and `SpecTE.tla` lay out values wider than 80 columns over several lines.
+
+`-difftrace` follows Java TLC 1.7.4: a model-checking trace prints its last state in full unless that state is a checked successor of an initial state, while liveness and simulation traces print every later state as a difference. `-terse` renders `SUBSET`, function sets, record sets, and Cartesian products as formulas in `Print`, `PrintT`, and traces. A `SUBSET` of an interval prints as `SUBSET 1..2`, as in Java TLC 1.7.4; Java TLC 1.8.0 adds parentheses. Java TLC also leaves some functions and other lazily evaluated sets unexpanded and applies `-terse` to `ToString`, `Assert`, and error messages; tla-go does not. As in Java TLC, `-userFile` writes `PrintT` values to the file without line wrapping.
+
+`-fpmem`, `-fpbits`, `-gzip`, `-modelcheck`, and `-debug` are validated as Java TLC validates them but have no other effect; Java's internal debugging output is not reproduced. Invalid option values exit with code 1 and Java TLC's message, which is reported like other invalid options: as message 1102 when `-tool` precedes the option, and otherwise on standard error without Java's version banner and usage line.
+
+`-generateSpecTE` follows Java TLC 1.7.4's trace-exploration writer for invariant, deadlock, action-property, evaluation-error, and liveness traces, including stuttering and back-to-state loops, model-value constants, and embedded modules. `SpecTE.tla` begins with tla-go's own tool output, and its `def_ov_` identifier and generation date depend on the time, so the files are never identical to Java's; for the tested models they otherwise match. Java TLC writes the files while another thread is still parsing its output, so it can omit trailing states or stop responding; tla-go always uses the whole trace. When the first error has no trace, both report that the output could not be parsed and write no files. Java orders the `EXTENDS` list by internal SANY node identifiers, which tla-go approximates, so names that share a hash bucket, such as `Naturals` and `TLC`, can appear in a different order. tla-go copies the configuration it checked, whereas Java TLC copies `SPEC.cfg` even with `-config`, and it writes full states even with `-difftrace` or `-terse`. Simulation writes no files. tla-go cannot check the generated files yet because it lacks Java's `Toolbox` module; Java TLC can.
+
 ## Go API
 
 The `checker` package exposes `Check`, context-aware variants, and options for module loading, printing, JSON I/O, random seeds, and debugging. `Result` distinguishes successful checks from violations and selected evaluation failures; unsupported constructs and other failures can return a Go error. See [package documentation](https://pkg.go.dev/github.com/upamune/tla-go/checker) and [development and testing](development.md).

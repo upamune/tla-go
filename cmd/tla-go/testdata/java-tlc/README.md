@@ -93,7 +93,8 @@ temporal next-state expression.
 
 `Github432` is a model and configuration from the same directory, with trailing
 blank lines normalized. Its configuration has a malformed set value and
-exercises TLC's config error.
+exercises TLC's config error. `TestJavaTLCSymmetrySetWarning` substitutes set
+elements into it as the upstream `Github432Test` does.
 
 `continue/Continue` and `continue/DoInitFunctorInvariantContinue` are unchanged
 models and configurations from `test-model/Continue` and

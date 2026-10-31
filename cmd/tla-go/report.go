@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/upamune/tla-go/checker"
@@ -158,26 +158,41 @@ func printTraceState(w io.Writer, step checker.TraceStep) {
 }
 
 func printStateOrdered(w io.Writer, state evaluator.State, order []string) {
-	names := make([]string, 0, len(state))
-	for name := range state {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	if len(order) == len(names) {
-		names = order
-	}
+	names := stateNames(state, order)
 	prefix := ""
-	if len(names) > 1 {
+	if len(names) > 1 || len(order) > 1 {
 		prefix = "/\\ "
 	}
 	for _, name := range names {
-		if state[name].Kind() == value.Invalid {
-			fmt.Fprintf(w, "%s%s = null\n", prefix, name)
-		} else {
-			fmt.Fprintf(w, "%s%s = %s\n", prefix, name, state[name])
-		}
+		fmt.Fprintf(w, "%s%s = %s\n", prefix, name, stateValueText(state[name]))
 	}
 	fmt.Fprintln(w)
+}
+
+// stateValueText renders a variable's value as Java TLC's
+// TLCStateMut.toString does, in Values.ppr's 80-column layout; a value
+// that is not yet defined prints as null.
+func stateValueText(v value.Value) string {
+	if v.Kind() == value.Invalid {
+		return "null"
+	}
+	return value.PrettyPrint(v.String())
+}
+
+// stateNames returns the variables to print in display order. An order
+// longer than the state lists every variable of a -difftrace step whose
+// state holds only the changed variables.
+func stateNames(state evaluator.State, order []string) []string {
+	if len(order) == len(state) {
+		return order
+	}
+	if len(order) > len(state) {
+		return slices.DeleteFunc(slices.Clone(order), func(name string) bool {
+			_, ok := state[name]
+			return !ok
+		})
+	}
+	return sortedStateNames(state)
 }
 
 func printLoop(w io.Writer, violation *checker.Violation, module *parser.Module) {

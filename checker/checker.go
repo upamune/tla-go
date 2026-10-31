@@ -140,6 +140,7 @@ type model struct {
 	graph                func(GraphEvent) error
 	searchEvent          func(SearchEvent)
 	warning              func(Warning)
+	livenessWarning      func(Warning) // Model checking only, as in Java TLC's AbstractChecker.
 	viewStates           bool
 	continueChecking     bool
 	onContinuedViolation func(Result)
@@ -169,6 +170,8 @@ type Options struct {
 	OnViolation func(Result)
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
+	// PrintStyle selects how Print and PrintT render values.
+	PrintStyle evaluator.PrintStyle
 	// OnDebug receives JSON lines describing liveness exploration when set.
 	OnDebug func(string)
 	// OnGraph receives states and transitions synchronously during exploration.
@@ -185,8 +188,9 @@ type Options struct {
 	// ViewStates prints trace states through the configured VIEW, as TLC's
 	// -view option does, by setting TraceStep.View.
 	ViewStates bool
-	// OnWarning receives Java TLC warnings before model checking starts.
-	// Simulation does not report these warnings, matching Java TLC.
+	// OnWarning receives Java TLC warnings. As in Java TLC, simulation reports
+	// the symmetry and EXCEPT warnings 2300 and 2144 but not the model
+	// checker's liveness warnings 2279 and 2284.
 	OnWarning func(Warning)
 }
 
@@ -435,10 +439,12 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: modelWarning(options), viewStates: options.ViewStates}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning, livenessWarning: modelWarning(options), viewStates: options.ViewStates}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)
+	m.program.SetPrintStyle(options.PrintStyle)
+	m.program.SetWarningHandler(m.evaluationWarningHandler())
 	m.sourceUnits = sourceUnits
 	runtime.model = m
 	m.enabledCallback = m.enabled
@@ -546,8 +552,8 @@ func (m *model) validateModel() error {
 	return m.validatePossibleAndStateDependence()
 }
 
-// modelWarning returns the callback for model checking warnings, which Java
-// TLC's simulator does not report.
+// modelWarning returns the callback for the liveness warnings of Java TLC's
+// AbstractChecker, which its simulator does not report.
 func modelWarning(options Options) func(Warning) {
 	if options.Simulation != nil {
 		return nil

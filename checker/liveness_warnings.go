@@ -2,7 +2,7 @@ package checker
 
 import "github.com/upamune/tla-go/syntax/parser"
 
-// Warning is a Java TLC warning reported before model checking starts.
+// Warning is a Java TLC warning.
 type Warning struct {
 	// Code is the Java TLC message code.
 	Code    int
@@ -17,14 +17,14 @@ const (
 // emitLivenessWarnings follows Java TLC's AbstractChecker, which warns before
 // checking assumptions when a model checks temporal properties.
 func (m *model) emitLivenessWarnings() {
-	if m.warning == nil || !m.checksImpliedTemporals() {
+	if m.livenessWarning == nil || !m.checksImpliedTemporals() {
 		return
 	}
 	if m.cfg.Symmetry != "" {
-		m.warning(Warning{Code: 2279, Message: livenessSymmetryWarning})
+		m.livenessWarning(Warning{Code: 2279, Message: livenessSymmetryWarning})
 	}
 	if m.hasEffectiveConstraints() {
-		m.warning(Warning{Code: 2284, Message: livenessConstraintsWarning})
+		m.livenessWarning(Warning{Code: 2284, Message: livenessConstraintsWarning})
 	}
 }
 

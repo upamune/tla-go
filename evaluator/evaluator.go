@@ -85,6 +85,8 @@ type Program struct {
 	json            bool
 	randomization   bool
 	onPrint         func(string)
+	printStyle      PrintStyle
+	onWarning       func(code int, message string)
 	tlcRuntime      TLCRuntime
 	ordering        ValueOrdering
 	readFile        func(string) (string, error)
@@ -145,6 +147,25 @@ func (p *Program) SetOrdering(ordering ValueOrdering) { p.ordering = ordering }
 // SetJSONFileSystem supplies the file callbacks used by the Json module.
 func (p *Program) SetJSONFileSystem(read func(string) (string, error), write func(string, string) error) {
 	p.readFile, p.writeFile = read, write
+}
+
+// PrintStyle selects how Print and PrintT render values.
+type PrintStyle struct {
+	// Terse renders SUBSET, function-set, record-set, and Cartesian-product
+	// values as formulas, as Java TLC does with -terse.
+	Terse bool
+	// UnformattedPrintT skips the 80-column layout of PrintT values, as Java
+	// TLC does when -userFile redirects Print output to a file.
+	UnformattedPrintT bool
+}
+
+// SetPrintStyle configures Print and PrintT before evaluation begins.
+func (p *Program) SetPrintStyle(style PrintStyle) { p.printStyle = style }
+
+// SetWarningHandler receives Java TLC warnings raised during evaluation,
+// such as an EXCEPT applied to a key outside a function's domain (2144).
+func (p *Program) SetWarningHandler(handler func(code int, message string)) {
+	p.onWarning = handler
 }
 
 // SetRandomSeed resets the generator used when no checker runtime is attached.

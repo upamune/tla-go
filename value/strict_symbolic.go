@@ -76,38 +76,37 @@ func (v Value) strictProductExpand() (bool, error) {
 	return size <= 1999, nil
 }
 
-func (v Value) strictSymbolicSet() (string, error) {
+func (v Value) strictSymbolicSet(terse bool) (string, error) {
 	switch v.kind {
 	case SubsetKind:
-		base, err := v.data.domain.StrictString()
+		// Java TLC 1.7.4's IntervalValue.toString adds no parentheses;
+		// Java TLC 1.8.0 and tla-ts print SUBSET (1..7).
+		base, err := v.data.domain.render(terse)
 		if err != nil {
 			return "", err
-		}
-		if v.data.domain.kind == IntervalKind {
-			base = "(" + base + ")"
 		}
 		return "SUBSET " + base, nil
 	case FunctionSetKind:
-		domain, err := v.data.domain.StrictString()
+		domain, err := v.data.domain.render(terse)
 		if err != nil {
 			return "", err
 		}
-		codomain, err := v.data.codomain.StrictString()
+		codomain, err := v.data.codomain.render(terse)
 		if err != nil {
 			return "", err
 		}
 		return "[" + domain + " -> " + codomain + "]", nil
 	case RecordSetKind, ProductSetKind:
-		return v.strictSymbolicProduct()
+		return v.strictSymbolicProduct(terse)
 	default:
 		return "", fmt.Errorf("cannot render this set symbolically")
 	}
 }
 
-func (v Value) strictSymbolicProduct() (string, error) {
+func (v Value) strictSymbolicProduct(terse bool) (string, error) {
 	parts := make([]string, len(v.data.pairs))
 	for i, pair := range v.data.pairs {
-		part, err := pair.Value.StrictString()
+		part, err := pair.Value.render(terse)
 		if err != nil {
 			return "", err
 		}
