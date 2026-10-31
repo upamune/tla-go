@@ -209,7 +209,7 @@ func (r *simulationRun) trace(initial []evaluator.State) (*Result, error) {
 	r.model.tlcRuntime.traceIndices = nil
 	r.deadlocked = false
 	var err error
-	r.inModel, err = r.search.constraints(r.model.cfg.Constraints, r.current, nil)
+	r.inModel, err = r.model.constraintsHold(r.model.cfg.Constraints, r.current, nil)
 	if err != nil {
 		return nil, err
 	}

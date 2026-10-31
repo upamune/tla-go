@@ -1,7 +1,5 @@
 package checker
 
-import "github.com/upamune/tla-go/value"
-
 // liveSuccessorSet follows TLC's SetOfStates insertion and slot iteration.
 // It retains distinct concrete successors even when VIEW merges their IDs.
 type liveSuccessorSet struct {
@@ -113,44 +111,9 @@ func (set *liveSuccessorSet) fingerprint(index int) (uint64, error) {
 	if fingerprint, ok := set.search.ltlFingerprints[index]; ok {
 		return fingerprint, nil
 	}
-	m := set.search.model
-	values, err := set.fingerprintValues(index)
-	if err != nil {
-		return 0, err
-	}
-	rank := func(text string) (int, bool) { n, ok := m.valueRanks[text]; return n, ok }
-	fingerprint, err := m.fingerprintAlgorithm.Fingerprint(values, rank, m.compareOrderedValues)
+	fingerprint, err := set.search.model.javaFingerprint(set.search.nodes[index].state, set.search.ltlVariableOrder)
 	if err == nil {
 		set.search.ltlFingerprints[index] = fingerprint
 	}
 	return fingerprint, err
-}
-
-func (set *liveSuccessorSet) fingerprintValues(index int) ([]value.Value, error) {
-	m := set.search.model
-	state := set.search.nodes[index].state
-	if m.cfg.Symmetry != "" {
-		var err error
-		state, err = m.symmetryRepresentative(state)
-		if err != nil {
-			return nil, err
-		}
-	}
-	order := set.search.ltlVariableOrder
-	values := make([]value.Value, len(order))
-	for i, name := range order {
-		values[i] = state[name]
-	}
-	if m.cfg.View != "" {
-		expr, err := m.definition(m.cfg.View)
-		if err != nil {
-			return nil, err
-		}
-		v, err := m.eval(expr, state, nil)
-		if err != nil {
-			return nil, err
-		}
-		values = []value.Value{v}
-	}
-	return values, nil
 }

@@ -100,7 +100,7 @@ func (s *search) replayCandidateInvariant(state evaluator.State, unseen bool) (b
 	if !unseen {
 		return true, nil
 	}
-	name, err := s.violation(state)
+	name, err := s.model.invariantViolation(state)
 	return name == "", err
 }
 
