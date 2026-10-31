@@ -33,16 +33,33 @@ func (g *generator) implication(item work, rest *workList, partial evaluator.Sta
 }
 
 func (g *generator) stutteringAction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
-	subscript := item.expr.Args[1]
-	unchanged := &parser.Expression{Kind: "Unchanged", Args: []*parser.Expression{subscript}}
+	expanded := g.model.stutteringExpansion(item.expr)
 	if item.expr.Kind == "BoxAction" {
-		branch := &parser.Expression{Kind: "Or", Args: []*parser.Expression{item.expr.Args[0], unchanged}}
-		item.expr = branch
+		item.expr = expanded
 		return g.disjunction(item, rest, partial, action)
 	}
-	negated := &parser.Expression{Kind: "Apply", Text: "~", Args: []*parser.Expression{unchanged}}
-	rest = prepend(work{expr: negated, path: item.path, locals: item.locals}, rest)
+	rest = prepend(work{expr: expanded, path: item.path, locals: item.locals}, rest)
 	return g.solve(prepend(work{expr: item.expr.Args[0], path: item.path, label: item.label, locals: item.locals}, rest), partial, action)
+}
+
+// stutteringExpansion rewrites [A]_v as A \/ UNCHANGED v and returns
+// ~UNCHANGED v for <<A>>_v, once for each expression.
+func (m *model) stutteringExpansion(expr *parser.Expression) *parser.Expression {
+	if expanded, ok := m.stutterings[expr]; ok {
+		return expanded
+	}
+	unchanged := &parser.Expression{Kind: "Unchanged", Args: []*parser.Expression{expr.Args[1]}}
+	expanded := &parser.Expression{Kind: "Apply", Text: "~", Args: []*parser.Expression{unchanged}}
+	if expr.Kind == "BoxAction" {
+		expanded = &parser.Expression{Kind: "Or", Args: []*parser.Expression{expr.Args[0], unchanged}}
+	}
+	if len(m.stutterings) < 4096 {
+		if m.stutterings == nil {
+			m.stutterings = make(map[*parser.Expression]*parser.Expression)
+		}
+		m.stutterings[expr] = expanded
+	}
+	return expanded
 }
 
 func (g *generator) caseAction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {

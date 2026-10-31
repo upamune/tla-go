@@ -339,6 +339,16 @@ func componentContains(component []int, marked []bool) bool {
 	return false
 }
 
-func fairAngle(fair fairnessCondition) *parser.Expression {
-	return &parser.Expression{Kind: "AngleAction", Args: []*parser.Expression{fair.action, fair.subscript}}
+// fairAngle builds <<A>>_v once for each fairness action and subscript.
+func (m *model) fairAngle(fair fairnessCondition) *parser.Expression {
+	key := [2]*parser.Expression{fair.action, fair.subscript}
+	if angle, ok := m.fairAngles[key]; ok {
+		return angle
+	}
+	angle := &parser.Expression{Kind: "AngleAction", Args: []*parser.Expression{fair.action, fair.subscript}}
+	if m.fairAngles == nil {
+		m.fairAngles = make(map[[2]*parser.Expression]*parser.Expression)
+	}
+	m.fairAngles[key] = angle
+	return angle
 }

@@ -150,6 +150,8 @@ type model struct {
 	// stateDependentCalls caches stateDependentCall by call expression.
 	stateDependentCalls map[*parser.Expression]bool
 	sharedPaths         map[sharedPathKey]*workPath
+	fairAngles          map[[2]*parser.Expression]*parser.Expression
+	stutterings         map[*parser.Expression]*parser.Expression
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
