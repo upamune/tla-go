@@ -72,11 +72,15 @@ func endsWithSuccessor(result checker.Result) bool {
 	return result.Status != checker.Deadlock
 }
 
+// trace styles each step. A difference is printed by TLCStateMut's
+// toString(TLCState), which lists variables even under -view, so it replaces
+// any VIEW text.
 func (s traceStyle) trace(trace []checker.TraceStep, fullLast bool) []checker.TraceStep {
 	styled := slices.Clone(trace)
 	for i := range styled {
 		if s.diff && i > 0 && (i < len(trace)-1 || !fullLast) {
 			styled[i].State, styled[i].StateOrder = changedState(trace[i-1], trace[i])
+			styled[i].View = ""
 		}
 		styled[i].State = s.state(styled[i].State)
 	}
