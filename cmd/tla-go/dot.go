@@ -65,7 +65,12 @@ func openDOTDump(path string, format dotFormat) (*dotDump, error) {
 	if format.colorize {
 		header += fmt.Sprintf("edge [colorscheme=\"%s\"]\n", dotColorScheme)
 	}
+	// Like Java TLC's DotStateWriter, write the header immediately.
 	if _, err := fmt.Fprint(graph.writer, header+"nodesep=0.35;\nsubgraph cluster_graph {\ncolor=\"white\";\n"); err != nil {
+		file.Close()
+		return nil, err
+	}
+	if err := graph.writer.Flush(); err != nil {
 		file.Close()
 		return nil, err
 	}
@@ -157,11 +162,7 @@ func (d *dotDump) close(finish bool) error {
 	if finish {
 		d.writeFooter()
 	}
-	err := d.writer.Flush()
-	if closeErr := d.file.Close(); err == nil {
-		err = closeErr
-	}
-	return err
+	return closeDump(d.writer, d.file, finish)
 }
 
 func (d *dotDump) writeFooter() {

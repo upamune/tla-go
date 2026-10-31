@@ -40,7 +40,7 @@ For symmetry-reduced models, selected pure Boolean combinations of recurrence pr
 
 Like Java TLC, model checking warns before checking assumptions when temporal properties are combined with `SYMMETRY` (message 2279) or with state or action constraints (message 2284). `-nowarning` suppresses these warnings, and simulation does not report them. Properties are classified as temporal following TLC's configuration rules for the tested forms; unusual property expressions can still be classified differently.
 
-`-dump` writes Java TLC 1.7.4's text and DOT formats, including colored edges and the action legend; the upstream `DumpAsDotTest` and `Github407Test` outputs are reproduced byte for byte. As in Java TLC, the text format repeats a state for each stuttering step recorded while checking liveness. DOT snapshots are not supported.
+`-dump` writes Java TLC 1.7.4's text and DOT formats, including colored edges and the action legend; the upstream `DumpAsDotTest` and `Github407Test` outputs are reproduced byte for byte. As in Java TLC, the text format repeats a state for each stuttering step recorded while checking liveness, an initial state is written before it is checked, and states buffered before an initial invariant violation are not written, leaving only the DOT header. DOT snapshots are not supported.
 
 As in Java TLC, `AXIOM` declarations are not evaluated during the initial assumption check. Named axioms can still be referenced by the model.
 

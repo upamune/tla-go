@@ -56,9 +56,19 @@ func (d *textDump) event(event checker.GraphEvent) error {
 
 func (d *textDump) empty() bool { return d.states == 0 }
 
-func (d *textDump) close(bool) error {
-	err := d.writer.Flush()
-	if closeErr := d.file.Close(); err == nil {
+// close flushes the dump when TLC finishes it. Java TLC exits without closing
+// its writer after some failures, such as an initial invariant violation, so
+// the states it buffered are not written.
+func (d *textDump) close(finish bool) error {
+	return closeDump(d.writer, d.file, finish)
+}
+
+func closeDump(writer *bufio.Writer, file *os.File, finish bool) error {
+	var err error
+	if finish {
+		err = writer.Flush()
+	}
+	if closeErr := file.Close(); err == nil {
 		err = closeErr
 	}
 	return err

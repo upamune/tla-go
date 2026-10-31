@@ -123,3 +123,35 @@ func compareJavaDumpFormat(t *testing.T, jar, dir, model, format string, got []b
 		t.Fatalf("dump differs from Java TLC\ngot:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// Java TLC writes an initial state before checking it, and exits without
+// flushing its dump after an initial invariant violation.
+func TestJavaTLCDumpInitialFailures(t *testing.T) {
+	header := "strict digraph DiskGraph {\nnodesep=0.35;\nsubgraph cluster_graph {\ncolor=\"white\";\n"
+	for _, tc := range []struct {
+		name, invariant string
+		want            map[string]string
+		code            int
+	}{
+		{"invariant violation", "x # 1", map[string]string{"": "", "dot": header}, 12},
+		{"evaluation error", "x < 1 \\/ 1[1] = 1", map[string]string{"": "State 1:\n/\\ x = 0\n/\\ y = 0\n\nState 2:\n/\\ x = 1\n/\\ y = 0\n\n"}, 75},
+	} {
+		for _, format := range []string{"", "dot"} {
+			t.Run(tc.name+"/"+format, func(t *testing.T) {
+				dir := t.TempDir()
+				writeDOTFixture(t, dir, "VARIABLES x, y\nInit == x \\in 0..2 /\\ y = 0\nNext == UNCHANGED <<x, y>>\nInv == "+tc.invariant, "INIT Init\nNEXT Next\nINVARIANT Inv\n")
+				output := filepath.Join(dir, "go.dump")
+				if format != "" {
+					output = filepath.Join(dir, "go.dot")
+				}
+				got := runDumpFormat(t, dir, "M", format, output, tc.code)
+				if want, exact := tc.want[format]; exact && string(got) != want {
+					t.Fatalf("dump:\n%s\nwant:\n%s", got, want)
+				}
+				if jar := os.Getenv("TLC_JAR"); jar != "" {
+					compareJavaDumpFormat(t, jar, dir, "M", format, got, tc.code)
+				}
+			})
+		}
+	}
+}

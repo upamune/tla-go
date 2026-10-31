@@ -38,9 +38,18 @@ func (s *search) graphRepresentative(state evaluator.State, key string) evaluato
 	return state
 }
 
+// checkGraphCandidate checks a new state and reports it to the state graph.
+// Java TLC writes a new initial state before checking it, and a successor
+// unless its check fails with an error.
 func (s *search) checkGraphCandidate(state evaluator.State, parent int, action string, included bool) (bool, error) {
+	if parent < 0 && included {
+		if err := s.graphTransition(state, parent, action, true); err != nil {
+			return false, err
+		}
+		return s.checkNewCandidate(state, parent, action)
+	}
 	more, err := s.checkNewCandidate(state, parent, action)
-	if err != nil || !included || parent < 0 && !more {
+	if err != nil || !included {
 		return more, err
 	}
 	if err := s.graphTransition(state, parent, action, true); err != nil {
