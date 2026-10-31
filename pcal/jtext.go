@@ -2,6 +2,7 @@ package pcal
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 )
@@ -49,6 +50,17 @@ func jlen(s string) int {
 	}
 	return n
 }
+
+// maxBMP is the last character that Java represents with a single char.
+const maxBMP = 0xFFFF
+
+// isJavaLetter mirrors Character.isLetter applied to the first char of r. A
+// character outside the Basic Multilingual Plane begins with a surrogate,
+// which is not a letter.
+func isJavaLetter(r rune) bool { return r <= maxBMP && unicode.IsLetter(r) }
+
+// isJavaDigit mirrors Character.isDigit like isJavaLetter.
+func isJavaDigit(r rune) bool { return r <= maxBMP && unicode.IsDigit(r) }
 
 // jtrim mirrors String.trim, which removes code units up to U+0020.
 func jtrim(s string) string {

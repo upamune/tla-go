@@ -2,7 +2,6 @@ package pcal
 
 import (
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -26,17 +25,20 @@ func gotoNextNonSpace(lines []string, l *loc) string {
 	return ""
 }
 
-func isIDRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' }
+// isIDRune reports whether r continues an identifier, as NextNonIdChar
+// decides for its first char.
+func isIDRune(r rune) bool { return isJavaLetter(r) || isJavaDigit(r) || r == '_' }
 
 // findToken moves l past the next occurrence of token that is not followed
-// by a letter or underscore, and reports whether it was found.
+// by a letter or underscore, and reports whether it was found. Like Java, it
+// looks only at the first char of the following character.
 func findToken(token string, lines []string, l *loc) bool {
 	for l.line < len(lines) {
 		line := gotoNextNonSpace(lines, l)
 		rest := line[l.col:]
 		if strings.HasPrefix(rest, token) {
 			r, _ := utf8.DecodeRuneInString(rest[len(token):])
-			if len(rest) == len(token) || !(unicode.IsLetter(r) || r == '_') {
+			if len(rest) == len(token) || !(isJavaLetter(r) || r == '_') {
 				l.col += len(token)
 				l.col = nextIndexAny(line, l.col, " ")
 				return true
