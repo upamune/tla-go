@@ -165,8 +165,7 @@ func compareSimulationGraphParameters(t *testing.T, jar, body, cfg, seed, depth,
 	if code != cmd.ProcessState.ExitCode() || errout.Len() != 0 {
 		t.Fatalf("Go exit %d, Java exit %d; stdout %s; stderr %s", code, cmd.ProcessState.ExitCode(), out.String(), errout.String())
 	}
-	got := withoutRepeatedProgressMessages(simulationMessages(readToolMessages(out.String())))
-	want := withoutRepeatedProgressMessages(simulationMessages(readToolMessages(string(javaOut))))
+	got, want := comparableProgress(simulationMessages(readToolMessages(out.String())), simulationMessages(readToolMessages(string(javaOut))))
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Go messages %q\nJava messages %q", got, want)
 	}

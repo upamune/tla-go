@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -71,7 +70,8 @@ func TestJavaTLCSimulationUpstreamLiveness(t *testing.T) {
 				if update {
 					expected[tc.name] = java
 				}
-				compareRecordedSimulation(t, "Java TLC", withoutRepeatedProgress(got), withoutRepeatedProgress(java))
+				gotMessages, javaMessages := comparableProgress(got.Messages, java.Messages)
+				compareRecordedSimulation(t, "Java TLC", recordedSimulation{got.Code, gotMessages}, recordedSimulation{java.Code, javaMessages})
 			}
 			compareRecordedSimulation(t, "recorded Java TLC", got, expected[tc.name])
 			if got.Code != tc.code {
@@ -97,17 +97,29 @@ func compareRecordedSimulation(t *testing.T, source string, got, want recordedSi
 	}
 }
 
-func withoutRepeatedProgress(recorded recordedSimulation) recordedSimulation {
-	recorded.Messages = withoutRepeatedProgressMessages(recorded.Messages)
-	return recorded
+// Java TLC's progress thread races with the end of a fast run, so it can omit
+// a final progress report. Compare the other messages and, when both runs
+// report progress, the last count of generated states.
+func comparableProgress(got, want []string) ([]string, []string) {
+	got, gotCount := splitProgress(got)
+	want, wantCount := splitProgress(want)
+	if gotCount != "" && wantCount != "" {
+		got, want = append(got, gotCount), append(want, wantCount)
+	}
+	return got, want
 }
 
-// Java TLC's progress thread races with the final summary, so a fast run may
-// omit one of two identical progress reports.
-func withoutRepeatedProgressMessages(messages []string) []string {
-	return slices.CompactFunc(slices.Clone(messages), func(a, b string) bool {
-		return a == b && strings.HasPrefix(a, "2209:")
-	})
+func splitProgress(messages []string) ([]string, string) {
+	var rest []string
+	last := ""
+	for _, message := range messages {
+		if strings.HasPrefix(message, "2209:") {
+			last = message
+		} else {
+			rest = append(rest, message)
+		}
+	}
+	return rest, last
 }
 
 func runUpstreamSimulation(t *testing.T, dir, spec string, args []string) recordedSimulation {
