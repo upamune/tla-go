@@ -5,6 +5,9 @@ import "fmt"
 // Equal compares values using TLC's type-sensitive equality. Set and interval
 // representations compare by their mathematical members.
 func Equal(a, b Value) (bool, error) {
+	if c, ok := compareScalars(a, b); ok {
+		return c == 0, nil
+	}
 	if isAny(a) || isAny(b) {
 		return equalAny(a, b)
 	}
@@ -53,7 +56,25 @@ func incompatibleEquality(a, b Value) error {
 	return nil
 }
 
+// compareScalars orders two integers, booleans or strings, which no
+// comparison override applies to.
+func compareScalars(a, b Value) (int, bool) {
+	if a.kind != b.kind {
+		return 0, false
+	}
+	switch a.kind {
+	case IntegerKind, BooleanKind:
+		return compareInt(a.number, b.number), true
+	case StringKind:
+		return compareString(a.data.text, b.data.text), true
+	}
+	return 0, false
+}
+
 func Compare(a, b Value) (int, error) {
+	if c, ok := compareScalars(a, b); ok {
+		return c, nil
+	}
 	if isAny(a) || isAny(b) {
 		return compareAnyValues(a, b)
 	}
