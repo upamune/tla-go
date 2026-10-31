@@ -60,9 +60,10 @@ func TestJavaTLCGenerateSpecTE(t *testing.T) {
 	}
 }
 
-// Java TLC writes no SpecTE files unless model checking prints a trace. When
-// the first error has no trace, it reports that it could not parse its output
-// (and then stops responding, which tla-go does not reproduce).
+// Java TLC writes no SpecTE files unless breadth-first model checking prints
+// a trace. When the first error has no trace, and after an error in
+// simulation or depth-first mode, it reports that it could not parse its
+// output (and then stops responding, which tla-go does not reproduce).
 func TestGenerateSpecTEWithoutTrace(t *testing.T) {
 	for _, tc := range []struct {
 		name, cfg string
@@ -73,6 +74,8 @@ func TestGenerateSpecTEWithoutTrace(t *testing.T) {
 		{"initial state", "INIT Init\nNEXT Next\nINVARIANT Zero\n", nil, 12, true},
 		{"success", "INIT Init\nNEXT Next\nINVARIANT Small\n", nil, 0, false},
 		{"simulation", "INIT Init\nNEXT Next\nINVARIANT One\n", []string{"-simulate", "num=1", "-depth", "5", "-seed", "1"}, 12, true},
+		{"depth-first", "INIT Init\nNEXT Next\nINVARIANT One\n", []string{"-dfid", "5"}, 12, true},
+		{"depth-first success", "INIT Init\nNEXT Next\nINVARIANT Small\n", []string{"-dfid", "5"}, 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

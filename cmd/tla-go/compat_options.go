@@ -167,10 +167,11 @@ func openUserFile(c *compatOptions) (func(), error) {
 }
 
 // afterCheck generates SpecTE files for -generateSpecTE before the run's
-// final tool message.
-func (c compatOptions) afterCheck(t toolOutput, result checker.Result, run specTERun, simulate bool) {
+// final tool message. unparsed reports a mode whose trace messages Java
+// TLC's SpecTE parser cannot read.
+func (c compatOptions) afterCheck(t toolOutput, result checker.Result, run specTERun, unparsed bool) {
 	if c.specTE != nil {
-		c.specTE.afterCheck(t, result, run, simulate)
+		c.specTE.afterCheck(t, result, run, unparsed)
 	}
 }
 

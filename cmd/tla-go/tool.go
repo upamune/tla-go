@@ -114,7 +114,7 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 		return toolModelError(t, err)
 	}
 	printConfiguredToolResult(t, result, module, opts)
-	opts.compat.afterCheck(t, result, specTERun{module, specPath, configPath, parsed, directoryLoader(filepath.Dir(specPath), opts.libraryPaths)}, opts.simulate)
+	opts.compat.afterCheck(t, result, specTERun{module, specPath, configPath, parsed, directoryLoader(filepath.Dir(specPath), opts.libraryPaths)}, opts.simulate || opts.dfid)
 	if result.Failure != nil {
 		return result.Failure.ExitCode
 	}

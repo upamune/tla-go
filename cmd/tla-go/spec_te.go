@@ -62,8 +62,11 @@ func (s *specTE) record(result checker.Result) {
 }
 
 // afterCheck writes the files before the run's final message. Java TLC
-// writes SpecTE files only when model checking reports a trace.
-func (s *specTE) afterCheck(t toolOutput, result checker.Result, run specTERun, simulate bool) {
+// writes SpecTE files only when breadth-first model checking reports a
+// trace. Its simulator never writes them, and in depth-first mode its output
+// parser fails on the trace states of message 2216, so the SpecTE writer
+// throws without writing any.
+func (s *specTE) afterCheck(t toolOutput, result checker.Result, run specTERun, unparsed bool) {
 	if s.first != nil {
 		result, s.first = *s.first, nil
 	}
@@ -72,7 +75,7 @@ func (s *specTE) afterCheck(t toolOutput, result checker.Result, run specTERun, 
 	}
 	s.errorSeen = true
 	trace, loop := specTEErrorTrace(result)
-	if simulate || len(trace) == 0 {
+	if unparsed || len(trace) == 0 {
 		return
 	}
 	t.message(1000, 0, "The model check run produced error-states - we will generate the SpecTE files now.")
