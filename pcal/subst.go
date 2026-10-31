@@ -84,17 +84,6 @@ func (e *expr) isFieldPosition(c coord) bool {
 	return next.typ != tokString && (next.str == ":" || next.str == "|->")
 }
 
-// substituteFor replaces every instance of id with x.
-func (e *expr) substituteFor(x *expr, id string, parenthesize bool) {
-	next, ok := coord{}, true
-	for ok {
-		next, ok = e.findNextInstanceIn(id, next)
-		if ok {
-			next, ok = e.substituteAt(x, next, parenthesize)
-		}
-	}
-}
-
 // substituteForAll simultaneously replaces each strs[i] with exprs[i].
 func (e *expr) substituteForAll(exprs []*expr, strs []string, parenthesize bool) {
 	next := make([]*coord, len(exprs))

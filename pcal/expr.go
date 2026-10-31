@@ -87,13 +87,6 @@ func (e *expr) isEmpty() bool { return len(e.tokens) == 0 }
 
 func (e *expr) isOneToken() bool { return len(e.tokens) == 1 && len(e.tokens[0]) == 1 }
 
-func (e *expr) firstToken() *token { return e.tokens[0][0] }
-
-func (e *expr) lastToken() *token {
-	line := e.tokens[len(e.tokens)-1]
-	return line[len(line)-1]
-}
-
 // allTokens returns the tokens of all lines in order.
 func (e *expr) allTokens() []*token {
 	var toks []*token

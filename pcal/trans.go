@@ -34,7 +34,9 @@ type translation struct {
 }
 
 // Translate translates the algorithm in the lines of a .tla file and returns
-// the lines of the new file, or false after reporting an error to out.
+// the lines of the new file, or false after reporting an error to out. A
+// "PlusCal options" statement in the lines updates p. It does not write
+// files, except AST.tla for the -writeAST option.
 func Translate(lines []string, p *Params, out io.Writer) ([]string, bool) {
 	t := &translation{p: p, log: &logger{w: out}}
 	return t.perform(lines)
