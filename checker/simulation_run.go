@@ -164,7 +164,7 @@ func (r *simulationRun) initialStates() ([]evaluator.State, *Result, error) {
 	r.model.tlcRuntime.initial = len(states)
 	r.model.emitSearchEvent(SearchEvent{Kind: SimulationInitialComplete, GeneratedStates: len(states), DistinctStates: -1})
 	for _, state := range states {
-		if !r.complete(state) {
+		if !r.model.assignsAll(state) {
 			result := r.search.incompleteInitialFailure(&incompleteState{state: state})
 			result.Failure.ToolCode = 2106
 			return nil, &result, nil
@@ -187,15 +187,6 @@ func (r *simulationRun) initialStates() ([]evaluator.State, *Result, error) {
 		return nil, &result, nil
 	}
 	return states, nil, nil
-}
-
-func (r *simulationRun) complete(state evaluator.State) bool {
-	for _, name := range r.model.names {
-		if _, ok := state[name]; !ok {
-			return false
-		}
-	}
-	return true
 }
 
 func (r *simulationRun) trace(initial []evaluator.State) (*Result, error) {
@@ -327,7 +318,7 @@ func (r *simulationRun) deadlock(index int) *Result {
 func (r *simulationRun) checkSuccessors(states []evaluator.State, index int) (*Result, error) {
 	for _, state := range states {
 		r.search.result.GeneratedStates++
-		if !r.complete(state) {
+		if !r.model.assignsAll(state) {
 			r.search.result.Status = EvaluationFailure
 			r.search.result.Failure = &Failure{Message: "Successor state is not completely specified by the next-state action.", Trace: r.search.trace(index), ExitCode: 255, ToolCode: 2109, SuppressStatistics: true}
 			return &r.search.result, nil

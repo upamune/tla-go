@@ -1,47 +1,47 @@
 package checker
 
 import (
-	"errors"
-
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-// initialize is DFIDModelChecker.doInit. TLC computes every initial state
-// before it checks them, and it stops without statistics after an initial
-// violation or an incomplete initial state.
+// initialize is DFIDModelChecker.doInit. TLC computes every initial state,
+// including incomplete ones, before it checks them in order, and it stops
+// without statistics after an initial violation or an incomplete state.
 func (s *dfidSearch) initialize() (Result, bool, error) {
 	states, err := s.initialStates()
-	incomplete, partial := errors.AsType[*incompleteState](err)
-	if err != nil && !partial {
+	if err != nil {
 		return s.initialFailure(err, nil)
 	}
 	s.generated = len(states)
 	for _, state := range states {
+		if !s.model.assignsAll(state) {
+			return s.incompleteInitial(state)
+		}
 		if result, failed, err := s.addInitial(state); failed || err != nil {
 			return result, failed, err
 		}
 	}
-	if partial {
-		return s.incompleteInitial(incomplete)
-	}
 	return Result{}, false, nil
 }
 
-func (s *dfidSearch) incompleteInitial(incomplete *incompleteState) (Result, bool, error) {
+// incompleteInitial reports TLC_STATE_NOT_COMPLETELY_SPECIFIED_INITIAL.
+// doInit returns this error rather than throwing it, so TLC reports it during
+// a replay as well, and the replay ends without a nested-expression report.
+func (s *dfidSearch) incompleteInitial(state evaluator.State) (Result, bool, error) {
+	s.model.addUnassigned(state)
+	failure := &Failure{Message: "State is not completely specified by the initial predicate:", ToolCode: 2106, InitialState: state, ExitCode: 255, SuppressStatistics: true}
+	result := s.publish(Result{Status: EvaluationFailure, Failure: failure})
 	if s.replaying {
-		s.replayEnded(nil)
 		return Result{}, true, nil
 	}
-	s.model.addUnassigned(incomplete.state)
-	failure := &Failure{Message: "State is not completely specified by the initial predicate:", ToolCode: 2106, InitialState: incomplete.state, ExitCode: 255, SuppressStatistics: true}
-	return s.counts(s.publish(Result{Status: EvaluationFailure, Failure: failure})), true, nil
+	return s.counts(result), true, nil
 }
 
 func (s *dfidSearch) initialStates() ([]evaluator.State, error) {
 	var states []evaluator.State
 	init, _ := s.model.definition(s.model.cfg.Init)
-	gen := generator{model: s.model, initial: true, emit: func(state evaluator.State, _ string, _ *parser.Expression) (bool, error) {
+	gen := generator{model: s.model, initial: true, allowIncomplete: true, emit: func(state evaluator.State, _ string, _ *parser.Expression) (bool, error) {
 		states = append(states, state)
 		return true, nil
 	}}

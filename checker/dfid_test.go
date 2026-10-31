@@ -248,7 +248,7 @@ func TestDepthFirstEvaluationFailures(t *testing.T) {
 		{"action property replay", dfidCounter, "INIT Init\nNEXT Next\nPROPERTY ActErr\n", "error 5/3 2113/13 x=0 x=1 x=2", true},
 		{"next-state relation", dfidCounter, "INIT Init\nNEXT Choose\n", "error 6/3 1000/255 x=0 x=1 x=2", true},
 		{"initial invariant", dfidBatch, "INIT Init\nNEXT Split\nINVARIANT DivInit\n", "error 1/1 2102/0 ", false},
-		{"incomplete initial state", dfidGrid, "INIT Partial\nNEXT Next\n", "error 0/0 2106/255 ", false},
+		{"incomplete initial state", dfidGrid, "INIT Partial\nNEXT Next\n", "error 1/0 2106/255 ", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -211,9 +211,12 @@ func (g *generator) stateDependentActionSource(expr *parser.Expression) *parser.
 	return nil
 }
 
-func (g *generator) isComplete(partial evaluator.State) bool {
-	for _, name := range g.model.names {
-		if _, ok := partial[name]; !ok {
+func (g *generator) isComplete(partial evaluator.State) bool { return g.model.assignsAll(partial) }
+
+// assignsAll reports a state that assigns every variable.
+func (m *model) assignsAll(state evaluator.State) bool {
+	for _, name := range m.names {
+		if _, ok := state[name]; !ok {
 			return false
 		}
 	}

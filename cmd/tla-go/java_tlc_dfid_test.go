@@ -64,6 +64,7 @@ var depthFirstCases = []depthFirstCase{
 	{name: "exit", body: "Init == x=0\nNext == x<5 /\\ x'=x+1 /\\ (x=2 => TLCSet(\"exit\", TRUE))", args: []string{"-dfid", "10"}, code: 255, counts: "6 states generated, 3 distinct states found.", states: 3, skipPositions: true},
 	{name: "initial error", body: "Init == x = 1 \\div 0\nNext == x'=x", args: []string{"-dfid", "10"}, code: 75, counts: "0 states generated, 0 distinct states found.", skipPositions: true},
 	{name: "initial invariant error", body: "Init == x \\in {0, 1}\nNext == UNCHANGED x\nInv == 1 \\div x = 1", cfg: "INVARIANT Inv\n", args: []string{"-dfid", "10"}, code: 0, counts: "2 states generated, 2 distinct states found."},
+	{name: "incomplete initial state in replay", body: "VARIABLE y\nInit == x \\in {0, 1} /\\ (IF x = 0 THEN y = 0 ELSE TRUE)\nNext == UNCHANGED <<x, y>>\nInv == 1 \\div x = 1", cfg: "INVARIANT Inv\n", args: []string{"-dfid", "10"}, code: 0, counts: "2 states generated, 1 distinct states found."},
 	{name: "liveness", body: "Init == x=0\nNext == x'=(x+1)%4\nP == <>(x=3)", cfg: "PROPERTY P\n", args: []string{"-dfid", "10"}, code: 255},
 }
 
