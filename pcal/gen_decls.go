@@ -74,18 +74,18 @@ func (g *generator) declareVariables(gVars, lVars []string, defs *expr) []string
 
 func (g *generator) varsTuple(vars []string) {
 	g.addToken("vars == << ")
-	indent := len(g.nextLine)
+	indent := jlen(g.nextLine)
 	for i, v := range vars {
 		if i > 0 {
 			g.addToken(", ")
 		}
-		if len(g.nextLine)+len(v)+1 > g.wrapColumn() {
+		if jlen(g.nextLine)+jlen(v)+1 > g.wrapColumn() {
 			g.endLine()
 			g.nextLine = spaces(indent)
 		}
 		g.addToken(v)
 	}
-	if len(g.nextLine)+len(" >>")+1 > g.wrapColumn() {
+	if jlen(g.nextLine)+len(" >>")+1 > g.wrapColumn() {
 		g.endLine()
 		g.nextLine = spaces(len("vars =="))
 	}
@@ -106,7 +106,7 @@ func (g *generator) varDecl(vars []string) {
 		if i > 0 {
 			g.addToken(", ")
 		}
-		if len(g.nextLine)+len(v)+1 > g.wrapColumn() {
+		if jlen(g.nextLine)+jlen(v)+1 > g.wrapColumn() {
 			g.endLine()
 			g.nextLine += spaces(len(kw))
 		}
@@ -261,7 +261,7 @@ func (g *generator) pcInit(is string) {
 	} else {
 		is += "/\\ pc = [self \\in ProcSet |-> "
 	}
-	colPC := len(is) - 3
+	colPC := jlen(is) - 3
 	for p, pe := range g.st.processes {
 		last := p == len(g.st.processes)-1
 		g.addToken(g.pcCase(is, pe, useCase, last))

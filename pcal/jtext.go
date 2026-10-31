@@ -81,6 +81,13 @@ func jsubstr(s string, begin int) string {
 	return fromUnits(toUnits(s)[begin:])
 }
 
+// jcut removes the UTF-16 units from begin up to end from s, as
+// s.substring(0, begin) + s.substring(end) does.
+func jcut(s string, begin, end int) string {
+	u := toUnits(s)
+	return fromUnits(append(u[:begin:begin], u[end:]...))
+}
+
 // decodeJava decodes UTF-8 like Java's default charset, replacing each
 // maximal invalid subsequence with U+FFFD.
 func decodeJava(b []byte) string {

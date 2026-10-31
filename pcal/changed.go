@@ -70,7 +70,7 @@ func (c *changed) unchangedLines(o *changed, ch int) []string {
 		if i > 0 {
 			s += ", "
 		}
-		if len(s)+len(one) > ch {
+		if jlen(s)+jlen(one) > ch {
 			if s != "" {
 				lines = append(lines, s)
 			}

@@ -47,7 +47,7 @@ func (g *generator) terminating() {
 // procedureDisjunct adds the disjunct for the steps of all procedures.
 func (g *generator) procedureDisjunct(sb string, nextSS []string) string {
 	sb += "(\\E self \\in ProcSet: "
-	col2 := len(sb)
+	col2 := jlen(sb)
 	if len(nextSS) > 1 {
 		sb += " \\/ "
 	}
@@ -80,7 +80,7 @@ func wrapDisjuncts(names []string, limit, extra int) []string {
 	var lines []string
 	sb := ""
 	for _, a := range names {
-		if len(a)+extra+len(sb) > limit {
+		if jlen(a)+extra+jlen(sb) > limit {
 			lines = append(lines, sb)
 			sb = ""
 		}
@@ -121,7 +121,7 @@ func (g *generator) processSetSteps() [][]string {
 		}
 		var vec []string
 		sb := "(\\E self \\in "
-		col := len(sb)
+		col := jlen(sb)
 		sv := p.id.lines()
 		sb += sv[0]
 		for _, s := range sv[1:] {
@@ -272,7 +272,7 @@ func fairnessPrefix(p *processEntry, pSelf []string) []string {
 func bindSelf(pSelf []string, begin, end string) []string {
 	prefix := make([]string, len(pSelf))
 	for j, line := range pSelf {
-		pad := spaces(len(begin))
+		pad := spaces(jlen(begin))
 		if j == 0 {
 			pad = begin
 		}
@@ -295,7 +295,7 @@ func (f formulaPair) singleLine() string {
 	return f.wf + " /\\ " + f.sf
 }
 
-func (f formulaPair) singleLineWidth() int { return len(f.singleLine()) }
+func (f formulaPair) singleLineWidth() int { return jlen(f.singleLine()) }
 
 func (f formulaPair) multiLine(col int) string {
 	val := "/\\ " + f.wf
@@ -315,12 +315,12 @@ type processFairness struct {
 func (pf *processFairness) singleLineWidth() int {
 	maxPrefix, width := 0, 0
 	for i := 0; i < len(pf.prefix)-1; i++ {
-		maxPrefix = max(maxPrefix, len(pf.prefix[i]))
-		width = len(pf.prefix[len(pf.prefix)-1])
+		maxPrefix = max(maxPrefix, jlen(pf.prefix[i]))
+		width = jlen(pf.prefix[len(pf.prefix)-1])
 	}
-	width += len(pf.body.wf)
+	width += jlen(pf.body.wf)
 	if pf.body.hasSF {
-		width += len(pf.body.sf)
+		width += jlen(pf.body.sf)
 	}
 	for _, f := range pf.procedures {
 		width += f.singleLineWidth()
@@ -359,7 +359,7 @@ func (pf *processFairness) format(col, wrap int) string {
 	val.WriteString(pf.prefixText(col))
 	curCol := col
 	if len(pf.prefix) > 0 {
-		curCol += len(pf.prefix[len(pf.prefix)-1])
+		curCol += jlen(pf.prefix[len(pf.prefix)-1])
 	}
 	val.WriteString(pairText(pf.body, curCol, wrap, ""))
 	for i, f := range pf.procedures {
@@ -375,7 +375,7 @@ func (pf *processFairness) format(col, wrap int) string {
 // newline, or on two lines otherwise.
 func pairText(f formulaPair, col, wrap int, newline string) string {
 	line := f.singleLine()
-	if col+len(line)+3 <= wrap {
+	if col+jlen(line)+3 <= wrap {
 		return "/\\ " + line + newline
 	}
 	return f.multiLine(col)

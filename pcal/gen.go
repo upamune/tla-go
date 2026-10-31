@@ -67,7 +67,7 @@ func (g *generator) endLine() {
 // current column.
 func (g *generator) addExpr(e *expr) {
 	sv := e.lines()
-	indent := len(g.nextLine)
+	indent := jlen(g.nextLine)
 	next := 0
 	if indent != 0 {
 		g.nextLine += sv[0]
@@ -148,10 +148,10 @@ func (g *generator) procedure(a *Procedure) {
 // disjunction defines an action as the disjunction of its labeled steps.
 func (g *generator) disjunction(head string, body *seq, arg string) {
 	g.addToken(head)
-	indent := spaces(len(head) + 2)
+	indent := spaces(jlen(head) + 2)
 	for i, s := range body.items {
 		disjunct := s.(*LabeledStmt).label + arg
-		if i != 0 && len(g.nextLine)+7+len(disjunct) > g.wrapColumn() {
+		if i != 0 && jlen(g.nextLine)+7+jlen(disjunct) > g.wrapColumn() {
 			g.endLine()
 		}
 		if i != 0 {
@@ -200,12 +200,12 @@ func (g *generator) actionName(a *LabeledStmt, context string) string {
 
 func (g *generator) labeledStmt(a *LabeledStmt, context string) {
 	head := g.actionName(a, context) + " == "
-	col := len(head)
+	col := jlen(head)
 	start := len(g.tlacode)
 	prefix := head + "/\\ "
 	c := newChanged(g.vars)
 	for _, s := range a.stmts.items {
-		g.stmt(s, c, context, prefix, len(prefix))
+		g.stmt(s, c, context, prefix, jlen(prefix))
 		prefix = spaces(col) + "/\\ "
 	}
 	g.stepUnchanged(c, a.stmts.len(), start, col)
@@ -229,7 +229,7 @@ func (g *generator) stepUnchanged(c *changed, numStmts, start, col int) {
 
 // unchangedConjunct states that a single variable is unchanged.
 func unchangedConjunct(v string) string {
-	if len(v) > 5 {
+	if jlen(v) > 5 {
 		return "UNCHANGED " + v
 	}
 	return v + "' = " + v
@@ -237,7 +237,7 @@ func unchangedConjunct(v string) string {
 
 func (g *generator) unchangedTuple(head string, unc []string) {
 	sb := head + unc[0]
-	here := len(head)
+	here := jlen(head)
 	for _, u := range unc[1:] {
 		g.addLine(sb)
 		sb = spaces(here) + u
@@ -250,9 +250,9 @@ func (g *generator) removeConjunction(start, colAfterAnd int) {
 	for i := start; i < len(g.tlacode); i++ {
 		line := g.tlacode[i]
 		if i == start {
-			g.tlacode[i] = line[:colAfterAnd-3] + line[colAfterAnd:]
-		} else if len(line) > 3 {
-			g.tlacode[i] = line[3:]
+			g.tlacode[i] = jcut(line, colAfterAnd-3, colAfterAnd)
+		} else if jlen(line) > 3 {
+			g.tlacode[i] = jsubstr(line, 3)
 		}
 	}
 }
@@ -301,12 +301,12 @@ func (g *generator) assert(a *Assert, c *changed, context, prefix string) {
 	g.addToken(sb)
 	g.addExpr(exp)
 	msg := "\"Failure of assertion at " + a.location() + ".\")"
-	if len(g.nextLine)+len(", ")+len(msg) < g.wrapColumn() {
+	if jlen(g.nextLine)+len(", ")+jlen(msg) < g.wrapColumn() {
 		g.addToken(", " + msg)
 	} else {
 		g.addToken(", ")
 		g.endLine()
-		g.addToken(spaces(len(sb)) + msg)
+		g.addToken(spaces(jlen(sb)) + msg)
 	}
 	g.endLine()
 }
@@ -328,7 +328,7 @@ func (g *generator) with(a *With, c *changed, context, prefix string, col int) {
 		sb += "/\\ "
 	}
 	for _, s := range a.do.items {
-		g.stmt(s, c, context, sb, len(sb))
+		g.stmt(s, c, context, sb, jlen(sb))
 		sb = spaces(col+2) + "/\\ "
 	}
 }

@@ -68,7 +68,7 @@ func (g *generator) assign(a *Assign, c *changed, context, prefix string) {
 		i = grp.last + 1
 		if i < len(a.ass) {
 			g.endLine()
-			sb = spaces(len(prefix))
+			sb = spaces(jlen(prefix))
 		}
 	}
 	g.endLine()
@@ -128,9 +128,9 @@ func (g *generator) singleAssign(sa *SingleAssign, c *changed, context, prefix, 
 // selfAssign assigns to a variable indexed by self.
 func (g *generator) selfAssign(name string, sub, rhs *expr, prefix, sb string) {
 	sb += name + "' = ["
-	wrapCol := len(sb) + 2
+	wrapCol := jlen(sb) + 2
 	sb += name + " EXCEPT "
-	if len(sb)+len(prefix) > g.params.SSWrapColumn && len(g.self.lines()) == 0 {
+	if jlen(sb)+jlen(prefix) > g.params.SSWrapColumn && len(g.self.lines()) == 0 {
 		g.addLine(sb)
 		sb = spaces(wrapCol)
 	}
@@ -149,9 +149,9 @@ func (g *generator) selfAssign(name string, sub, rhs *expr, prefix, sb string) {
 func (g *generator) groupAssign(as []*SingleAssign, grp assignGroup, c *changed, context, prefix, sb string, first bool) {
 	name := as[grp.first].lhs.name
 	sb += name + "' = [" + name + " EXCEPT "
-	cc := len(sb)
+	cc := jlen(sb)
 	if first {
-		cc += len(prefix)
+		cc += jlen(prefix)
 	}
 	subscript := g.mp && (g.isProcedureVar(name) || g.isProcessSetVar(name))
 	for i := grp.first; i <= grp.last; i++ {
@@ -184,12 +184,12 @@ func (g *generator) ifStmt(a *If, c *changed, context, prefix string) {
 	cThen, cElse := c.clone(), c.clone()
 	test := g.subscriptsFor(a.test, context, c)
 	sb := prefix + "IF "
-	here := len(sb)
+	here := jlen(sb)
 	g.addToken(sb)
 	g.addExpr(test)
 	g.endLine()
 	thenHead := spaces(here) + "THEN "
-	here = len(thenHead)
+	here = jlen(thenHead)
 	sb = thenHead + "/\\ "
 	for _, s := range a.then.items {
 		g.stmt(s, cThen, context, sb, here+3)
@@ -206,7 +206,7 @@ func (g *generator) ifStmt(a *If, c *changed, context, prefix string) {
 
 func (g *generator) elseBranch(a *If, cElse *changed, context string, here int) string {
 	sb := spaces(here-len("THEN ")) + "ELSE "
-	here = len(sb)
+	here = jlen(sb)
 	if a.els.len() == 0 {
 		g.addLine(sb + "/\\ TRUE")
 		return spaces(here) + "/\\ "
@@ -226,7 +226,7 @@ func (g *generator) elseUnchanged(sb string, cElse, cThen *changed) {
 	case 1:
 		g.addToken(sb + unchangedConjunct(cElse.unchanged(cThen)))
 	default:
-		unc := cElse.unchangedLines(cThen, g.wrapColumn()-len(sb)-len("UNCHANGED << "))
+		unc := cElse.unchangedLines(cThen, g.wrapColumn()-jlen(sb)-len("UNCHANGED << "))
 		g.unchangedTuple(sb+"UNCHANGED << ", unc)
 	}
 	g.endLine()
@@ -244,7 +244,7 @@ func (g *generator) thenUnchanged(line int, cThen, cElse *changed) {
 	case 1:
 		lines = []string{sb + unchangedConjunct(cThen.unchanged(cElse))}
 	default:
-		unc := cThen.unchangedLines(cElse, g.wrapColumn()-len(sb)-len("UNCHANGED << "))
+		unc := cThen.unchangedLines(cElse, g.wrapColumn()-jlen(sb)-len("UNCHANGED << "))
 		lines = tupleLines(sb+"UNCHANGED << ", unc)
 	}
 	g.tlacode = slices.Insert(g.tlacode, line, lines...)
@@ -257,7 +257,7 @@ func tupleLines(head string, unc []string) []string {
 	sb := head + unc[0]
 	for _, u := range unc[1:] {
 		lines = append(lines, sb)
-		sb = spaces(len(head)) + u
+		sb = spaces(jlen(head)) + u
 	}
 	return append(lines, sb+" >>")
 }
@@ -266,9 +266,9 @@ func (g *generator) either(a *Either, c *changed, context, prefix string) {
 	all := c.clone()
 	cOrs := make([]*changed, len(a.ors))
 	ucLocs := make([]int, len(a.ors))
-	prefixIndent := len(prefix)
+	prefixIndent := jlen(prefix)
 	sb := prefix + "\\/ "
-	here := len(sb)
+	here := jlen(sb)
 	for i, or := range a.ors {
 		if i != 0 {
 			sb = spaces(prefixIndent) + "\\/ "
