@@ -25,7 +25,7 @@ Mono == [][x' > x]_x
 Wrap == \/ x < 3 /\ x' = x + 1
         \/ x = 3 /\ x' = 0
 Live == <>(x = 3)
-Stats == PrintT(<<TLCGet("level"), TLCGet("diameter"), TLCGet("distinct"), TLCGet("queue")>>)
+Stats == PrintT(<<TLCGet("level"), TLCGet("diameter"), TLCGet("distinct"), TLCGet("queue"), TLCGet("generated"), TLCGet("stats").initial>>)
 Exit == IF x = 2 THEN TLCSet("exit", TRUE) ELSE TRUE
 ActErr == [][IF x' = 2 THEN 1 \div 0 = 0 ELSE TRUE]_x
 Choose == x' = IF x < 2 THEN x + 1 ELSE CHOOSE y \in {} : TRUE
@@ -295,7 +295,7 @@ func TestDepthFirstRuntimeValues(t *testing.T) {
 		t.Fatalf("result %+v, %v", run.result, err)
 	}
 	for _, line := range run.printed {
-		if line != "<<0, -1, -1, -1>>" {
+		if line != "<<0, -1, -1, -1, -1, -1>>" {
 			t.Fatalf("TLCGet values %q, want TLC's depth-first values", run.printed)
 		}
 	}
