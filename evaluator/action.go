@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -75,14 +76,18 @@ func (e *evaluator) update(current value.Value, path []parser.PathStep, expr *pa
 	return updated, !found || nestedMissing, err
 }
 
-// lazyUpdate defers the update of a lazily evaluated function, so a missing
-// key below the first level is not reported.
+// lazyUpdate defers the update of a lazily evaluated function. As Java
+// TLC's Value.select does, it first checks that the whole path selects a
+// value; otherwise the update is skipped and reported as missing.
 func (e *evaluator) lazyUpdate(current, key value.Value, path []parser.PathStep, expr *parser.Expression) (value.Value, bool, error) {
 	domain, err := current.FunctionDomain()
 	if err != nil {
 		return value.Value{}, false, err
 	}
 	found, err := domain.Contains(key)
+	if err == nil && found && len(path) > 1 {
+		found, err = e.selectsPath(current, key, path[1:])
+	}
 	if err != nil || !found {
 		return current, err == nil, err
 	}
@@ -93,6 +98,28 @@ func (e *evaluator) lazyUpdate(current, key value.Value, path []parser.PathStep,
 		return result, err
 	})
 	return updated, false, err
+}
+
+// selectsPath reports whether the steps below key select a value. A value
+// that is not a function ends the check; applying the update reports it.
+func (e *evaluator) selectsPath(current, key value.Value, steps []parser.PathStep) (bool, error) {
+	selected, err := current.Lookup(key)
+	for _, step := range steps {
+		if err != nil || !isFunctionValue(selected) {
+			break
+		}
+		if key, err = e.pathKey(step); err == nil {
+			selected, err = selected.LookupWithLazyResult(key, true)
+		}
+	}
+	if errors.Is(err, value.ErrOutsideFunctionDomain) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func isFunctionValue(v value.Value) bool {
+	return v.Kind() == value.FunctionKind || v.Kind() == value.LazyFunctionKind
 }
 
 // warnUnknownExceptField reports Java TLC's warning 2144 at the location of

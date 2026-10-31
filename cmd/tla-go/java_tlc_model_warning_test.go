@@ -70,6 +70,7 @@ func TestJavaTLCExceptUnknownFieldWarning(t *testing.T) {
 		{"tuple index", "f = <<0, 0>>", "f' = [f EXCEPT ![3] = 1, ![1] = @ + 1]", nil, []string{at + "line 6, col 18 to line 6, col 18 of module M"}},
 		{"record field", "f = [a |-> 0]", "f' = [f EXCEPT !.b = 1, !.a = @ + 1]", nil, []string{at + "line 6, col 18 to line 6, col 18 of module M"}},
 		{"nested path", "f = <<<<0>>, <<0>>>>", "f' = [f EXCEPT ![1][2] = 1, ![2][1] = @ + 1]", nil, []string{at + "line 6, col 18 to line 6, col 18 of module M"}},
+		{"lazy nested path", `f = [n \in 1..2 |-> [m \in {"p"} |-> 0]]`, `f' = [[n \in 1..2 |-> [m \in {"p"} |-> f[n]["p"]]] EXCEPT ![2]["q"] = 1, ![1]["p"] = @ + 1]`, nil, []string{at + "line 6, col 18 to line 6, col 61 of module M"}},
 		{"initial state", "f = [<<0>> EXCEPT ![0] = 1]", "f' = [f EXCEPT ![1] = @ + 1]", nil, []string{at + "line 4, col 14 to line 4, col 18 of module M"}},
 		{"defined key", "f = <<0>>", "f' = [f EXCEPT ![1] = @ + 1]", nil, nil},
 		{"nowarning", "f = <<0, 0>>", "f' = [f EXCEPT ![3] = 1, ![1] = @ + 1]", []string{"-nowarning"}, nil},

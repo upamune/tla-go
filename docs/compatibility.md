@@ -70,7 +70,7 @@ Selected `TLCGet` and `TLCSet` registers and configuration, trace, and runtime v
 
 ## Command-line options and warnings
 
-Model checking and simulation report Java TLC's warning 2300 when a symmetry set has fewer than two elements, naming the set as Java does, and warning 2144 when an `EXCEPT` path is outside a function's domain, in which case that update is skipped. For lazily evaluated functions, only the first step of the path is checked. `-nowarning` suppresses both warnings.
+Model checking and simulation report Java TLC's warning 2300 when a symmetry set has fewer than two elements, naming the set as Java does, and warning 2144 when an `EXCEPT` path is outside a function's domain, in which case that update is skipped. As in Java TLC, the whole path is checked, also for lazily evaluated functions. `-nowarning` suppresses both warnings.
 
 As in Java TLC, trace states, simulation trace files, DOT state labels, and `SpecTE.tla` lay out values wider than 80 columns over several lines.
 
