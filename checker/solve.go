@@ -3,6 +3,7 @@ package checker
 import (
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -183,6 +184,31 @@ func prependMany(n int, rest *workList) (*workList, []workList) {
 	return &nodes[0], nodes
 }
 
+// workArena lends nodes for the conjuncts of one solve call. Generators nest
+// only through calls, and pending work is never retained after solve returns,
+// so nodes are released in reverse order of their loans. Growing the arena
+// copies its nodes, but existing nodes stay valid while they are referenced.
+type workArena struct{ nodes []workList }
+
+func (a *workArena) prepend(n int, rest *workList) (*workList, []workList, int) {
+	mark := len(a.nodes)
+	if n == 0 {
+		return rest, nil, mark
+	}
+	a.nodes = slices.Grow(a.nodes, n)[:mark+n]
+	nodes := a.nodes[mark:]
+	for i := range n - 1 {
+		nodes[i].next = &nodes[i+1]
+	}
+	nodes[n-1].next = rest
+	return &nodes[0], nodes, mark
+}
+
+func (a *workArena) release(mark int) {
+	clear(a.nodes[mark:])
+	a.nodes = a.nodes[:mark]
+}
+
 // scopedTail copies items and gives those without a lexical boundary the
 // current one, so they keep it after a LET or operator argument.
 func (g *generator) scopedTail(items *workList) *workList {
@@ -284,11 +310,12 @@ func (g *generator) complete(partial evaluator.State, action string) (bool, erro
 }
 
 func (g *generator) conjunction(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
-	items, nodes := prependMany(len(item.expr.Args), rest)
+	items, nodes, mark := g.model.work.prepend(len(item.expr.Args), rest)
 	for i, arg := range item.expr.Args {
 		nodes[i].item = work{expr: arg, path: item.path, locals: item.locals}
 	}
 	more, err := g.solve(items, partial, action)
+	g.model.work.release(mark)
 	if err != nil {
 		addEnclosingActionSource(err, item.expr)
 	} else if !more {

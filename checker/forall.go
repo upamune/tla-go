@@ -13,11 +13,13 @@ func (g *generator) universal(item work, rest *workList, partial evaluator.State
 		return false, err
 	}
 	reverseTail(bindings)
-	items, nodes := prependMany(len(bindings), rest)
+	items, nodes, mark := g.model.work.prepend(len(bindings), rest)
 	for i, locals := range bindings {
 		nodes[i].item = work{expr: item.expr.Args[0], path: item.path, locals: locals}
 	}
-	return g.solve(items, partial, action)
+	more, err := g.solve(items, partial, action)
+	g.model.work.release(mark)
+	return more, err
 }
 
 // tla-ts uses the first binding followed by the remaining bindings in reverse.

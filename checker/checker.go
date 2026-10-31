@@ -143,6 +143,7 @@ type model struct {
 	stateKeyBuffer, valueKeyBuffer []byte
 	// symmetryPrefix is reused for permuted values during symmetry reduction.
 	symmetryPrefix []value.Value
+	work           workArena
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
