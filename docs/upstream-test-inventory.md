@@ -118,7 +118,8 @@ simulation mode with three seeds, matched Java TLC 1.7.4's exit codes and
 tool messages except for record field order and line breaks in printed
 values, the symmetry-set warning 2300, Java module overrides, progress message
 timing, and one `symmetry/NQ` walk whose sampled successors already differ
-before liveness is checked. That sweep is not part of the test suite.
+before liveness is checked. Long printed values and warning 2300 have since
+been implemented separately. That sweep is not part of the test suite.
 
 `TestJavaTLCSimulationAril` compares selected seeded traces, including negative
 and large arils, against Java TLC 1.7.4. A separate test checks selected seeds
