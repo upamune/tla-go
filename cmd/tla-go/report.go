@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/upamune/tla-go/checker"
@@ -149,16 +149,9 @@ func printTrace(w io.Writer, trace []checker.TraceStep, module *parser.Module) {
 }
 
 func printStateOrdered(w io.Writer, state evaluator.State, order []string) {
-	names := make([]string, 0, len(state))
-	for name := range state {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	if len(order) == len(names) {
-		names = order
-	}
+	names := stateNames(state, order)
 	prefix := ""
-	if len(names) > 1 {
+	if len(names) > 1 || len(order) > 1 {
 		prefix = "/\\ "
 	}
 	for _, name := range names {
@@ -169,6 +162,22 @@ func printStateOrdered(w io.Writer, state evaluator.State, order []string) {
 		}
 	}
 	fmt.Fprintln(w)
+}
+
+// stateNames returns the variables to print in display order. An order
+// longer than the state lists every variable of a -difftrace step whose
+// state holds only the changed variables.
+func stateNames(state evaluator.State, order []string) []string {
+	if len(order) == len(state) {
+		return order
+	}
+	if len(order) > len(state) {
+		return slices.DeleteFunc(slices.Clone(order), func(name string) bool {
+			_, ok := state[name]
+			return !ok
+		})
+	}
+	return sortedStateNames(state)
 }
 
 func printLoop(w io.Writer, violation *checker.Violation, module *parser.Module) {

@@ -68,6 +68,12 @@ The default seed is 0. `-seed` selects a different seed. The default random-subs
 
 Selected `TLCGet` and `TLCSet` registers and configuration, trace, and runtime values are supported. Complex forms and behavior involving effects are not fully compatible.
 
+## Command-line options
+
+`-difftrace` follows Java TLC 1.7.4: a model-checking trace prints its last state in full unless that state is a checked successor of an initial state, while liveness and simulation traces print every later state as a difference. `-terse` renders `SUBSET`, function sets, record sets, and Cartesian products as formulas in `Print`, `PrintT`, and traces. Java TLC also leaves some functions and other lazily evaluated sets unexpanded and applies `-terse` to `ToString`, `Assert`, and error messages; tla-go does not. As in Java TLC, `-userFile` writes `PrintT` values to the file without line wrapping.
+
+`-fpmem`, `-fpbits`, `-gzip`, `-modelcheck`, and `-debug` are validated as Java TLC validates them but have no other effect; Java's internal debugging output is not reproduced. Invalid option values exit with code 1 and Java TLC's message, which tla-go writes to standard error without Java's version banner and usage line.
+
 ## Go API
 
 The `checker` package exposes `Check`, context-aware variants, and options for module loading, printing, JSON I/O, random seeds, and debugging. `Result` distinguishes successful checks from violations and selected evaluation failures; unsupported constructs and other failures can return a Go error. See [package documentation](https://pkg.go.dev/github.com/upamune/tla-go/checker) and [development and testing](development.md).

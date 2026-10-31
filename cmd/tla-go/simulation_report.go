@@ -47,6 +47,7 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 }
 
 func printConfiguredResult(out io.Writer, result checker.Result, module *parser.Module, opts options) {
+	result = newTraceStyle(opts).apply(result)
 	if opts.simulate {
 		printSimulationResult(out, result, module, opts.seed, opts.aril)
 	} else {
@@ -55,6 +56,7 @@ func printConfiguredResult(out io.Writer, result checker.Result, module *parser.
 }
 
 func printConfiguredToolResult(t toolOutput, result checker.Result, module *parser.Module, opts options) {
+	result = newTraceStyle(opts).apply(result)
 	if opts.simulate {
 		printToolSimulationResult(t, result, module, opts.seed, opts.aril)
 	} else {
@@ -64,6 +66,7 @@ func printConfiguredToolResult(t toolOutput, result checker.Result, module *pars
 
 func simulationViolationOutput(opts options, module *parser.Module, out io.Writer) func(checker.Result) {
 	return func(result checker.Result) {
+		result = newTraceStyle(opts).apply(result)
 		if opts.tool {
 			t := toolOutput{out: out}
 			printToolViolation(t, result, module)
@@ -78,6 +81,7 @@ func simulationViolationOutput(opts options, module *parser.Module, out io.Write
 
 func modelViolationOutput(opts options, module *parser.Module, out io.Writer) func(checker.Result) {
 	return func(result checker.Result) {
+		result = newTraceStyle(opts).apply(result)
 		if opts.tool {
 			printToolViolation(toolOutput{out: out}, result, module)
 		} else {

@@ -60,17 +60,17 @@ func (e *evaluator) callTLCValue(name string, args []value.Value) (value.Value, 
 }
 
 func (e *evaluator) printTLC(name string, args []value.Value) (value.Value, error) {
-	first, err := args[0].StrictString()
+	first, err := e.printedString(args[0])
 	if err != nil {
 		return value.Value{}, printFailure(name, err)
 	}
 	if name == "PrintT" {
 		if e.context.OnPrint != nil {
-			e.context.OnPrint(value.PrettyPrint(first))
+			e.context.OnPrint(e.printTLayout(first))
 		}
 		return value.Bool(true), nil
 	}
-	second, err := args[1].StrictString()
+	second, err := e.printedString(args[1])
 	if err != nil {
 		return value.Value{}, printFailure(name, err)
 	}
@@ -78,6 +78,20 @@ func (e *evaluator) printTLC(name string, args []value.Value) (value.Value, erro
 		e.context.OnPrint(value.PrettyPrint(first) + "  " + value.PrettyPrint(second))
 	}
 	return args[1], nil
+}
+
+func (e *evaluator) printedString(v value.Value) (string, error) {
+	if e.program.printStyle.Terse {
+		return v.TerseString()
+	}
+	return v.StrictString()
+}
+
+func (e *evaluator) printTLayout(text string) string {
+	if e.program.printStyle.UnformattedPrintT {
+		return text
+	}
+	return value.PrettyPrint(text)
 }
 
 func printFailure(name string, err error) error {

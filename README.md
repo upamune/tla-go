@@ -77,6 +77,11 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-sany-metadata [-I DIR] FILE` | Emit experimental SANY-shaped XML containing variable order and definition levels, without checking a model. |
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |
 | `-modern-random-subsets` | Use the newer TLC random-subset algorithm. |
+| `-difftrace` | In error traces, print only the variables that changed from the previous state, following Java TLC's rules for which states are printed in full. |
+| `-terse` | Print `SUBSET`, function-set, record-set, and Cartesian-product values as formulas instead of enumerating them in `Print`/`PrintT` output and traces. |
+| `-userFile FILE` | Write `Print` and `PrintT` output to `FILE` instead of standard output. |
+| `-cleanup` | Remove the `states` directory in the working directory before checking. |
+| `-fpmem X`, `-fpbits N`, `-gzip`, `-modelcheck`, `-debug` | Accepted with Java TLC's argument checks. They configure Java TLC internals and have no effect, except that `-fpmem` above 1 prints Java's deprecation notice. |
 | `-version`, `-help` | Show the version or usage. |
 
 The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and DOT output are compared with Java TLC for representative models, but full compatibility is not yet established. Only `-workers 1` is supported; state identity and fingerprint collision behavior can still differ from Java TLC.

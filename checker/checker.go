@@ -165,6 +165,8 @@ type Options struct {
 	OnViolation func(Result)
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
+	// PrintStyle selects how Print and PrintT render values.
+	PrintStyle evaluator.PrintStyle
 	// OnDebug receives JSON lines describing liveness exploration when set.
 	OnDebug func(string)
 	// OnGraph receives states and transitions synchronously during exploration.
@@ -429,6 +431,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
+	m.program.SetPrintStyle(options.PrintStyle)
 	m.sourceUnits = sourceUnits
 	runtime.model = m
 	m.enabledCallback = m.enabled

@@ -99,10 +99,16 @@ func TestJavaTLCConfigSearchPath(t *testing.T) {
 // from the model directory.
 func runGoToolInDir(t *testing.T, dir string, args []string) ([]toolMessage, int, string) {
 	t.Helper()
+	output, code, stderr := runGoInDir(t, dir, args)
+	return readToolMessages(output), code, stderr
+}
+
+func runGoInDir(t *testing.T, dir string, args []string) (string, int, string) {
+	t.Helper()
 	t.Chdir(dir)
 	var out, errout bytes.Buffer
 	code := run(context.Background(), args, &out, &errout)
-	return readToolMessages(out.String()), code, errout.String()
+	return out.String(), code, errout.String()
 }
 
 func runJavaTLCArgs(t *testing.T, jar, dir string, args []string) (string, int) {

@@ -75,7 +75,7 @@ func parseOption(opts *options, args []string) (int, error) {
 	if parse, ok := valueOptions[args[0]]; ok {
 		return parse(opts, args)
 	}
-	return 0, parsePath(opts, args[0])
+	return parseCompatOption(opts, args)
 }
 
 func parsePathOption(opts *options, args []string) (int, error) {
