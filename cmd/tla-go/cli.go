@@ -267,6 +267,8 @@ func inputPaths(opts options) (string, string, error) {
 	cfgPath := opts.configPath
 	if cfgPath == "" {
 		cfgPath = path[:len(path)-len(filepath.Ext(path))] + ".cfg"
+	} else {
+		cfgPath = configFilePath(path, cfgPath, opts.libraryPaths)
 	}
 	return path, cfgPath, nil
 }
