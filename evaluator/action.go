@@ -66,7 +66,7 @@ func (e *evaluator) update(current value.Value, path []parser.PathStep, expr *pa
 
 func (e *evaluator) pathKey(step parser.PathStep) (value.Value, error) {
 	if step.Kind == "Field" {
-		return value.String(step.Name), nil
+		return e.program.literal(step.Name), nil
 	}
 	if step.Kind != "Index" {
 		return value.Value{}, fmt.Errorf("unsupported EXCEPT path %s", step.Kind)

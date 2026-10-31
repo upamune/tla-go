@@ -308,7 +308,7 @@ func (e *evaluator) record(expr *parser.Expression) (value.Value, error) {
 		if err != nil {
 			return value.Value{}, err
 		}
-		pairs = append(pairs, value.Pair{Key: value.String(field.Name), Value: v})
+		pairs = append(pairs, value.Pair{Key: e.program.literal(field.Name), Value: v})
 	}
 	return e.orderedRecord(pairs)
 }
@@ -340,7 +340,7 @@ func (e *evaluator) field(expr *parser.Expression) (value.Value, error) {
 	if err != nil {
 		return value.Value{}, err
 	}
-	return record.Lookup(value.String(expr.Text))
+	return record.Lookup(e.program.literal(expr.Text))
 }
 
 func (e *evaluator) isTLCBuiltin(name string) bool {

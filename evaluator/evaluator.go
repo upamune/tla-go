@@ -87,6 +87,8 @@ type Program struct {
 	constantCache   map[string]value.Value
 	constantTLCEval map[*parser.Expression]bool
 	tlcEvalCache    map[*parser.Expression]value.Value
+	// literals shares the immutable values of string literals and field names.
+	literals map[string]value.Value
 }
 
 // New prepares the definitions in a module for repeated evaluation.
@@ -118,6 +120,18 @@ func NewWithRuntime(module *parser.Module, onPrint func(string), runtime TLCRunt
 	program := NewWithPrint(module, onPrint)
 	program.tlcRuntime = runtime
 	return program
+}
+
+func (p *Program) literal(text string) value.Value {
+	if v, ok := p.literals[text]; ok {
+		return v
+	}
+	if p.literals == nil {
+		p.literals = make(map[string]value.Value)
+	}
+	v := value.String(text)
+	p.literals[text] = v
+	return v
 }
 
 func hasNaturals(extends []string) bool {
@@ -224,7 +238,7 @@ func (e *evaluator) evalExpression(expr *parser.Expression) (value.Value, error)
 	case "Number":
 		return numericLiteral(expr.Text)
 	case "String":
-		return value.String(expr.Text), nil
+		return e.program.literal(expr.Text), nil
 	case "Identifier":
 		return e.expressionIdentifier(expr)
 	case "Apply":

@@ -27,7 +27,7 @@ func (e *evaluator) recordSet(fields []parser.Field) (value.Value, error) {
 		if err != nil {
 			return value.Value{}, err
 		}
-		pairs = append(pairs, value.Pair{Key: value.String(field.Name), Value: set})
+		pairs = append(pairs, value.Pair{Key: e.program.literal(field.Name), Value: set})
 	}
 	return value.RecordSet(pairs)
 }
