@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -159,4 +160,28 @@ func progressMessages(output string) string {
 		}
 	}
 	return strings.Join(bodies, "|")
+}
+
+// Java TLC replaces constant definitions by their values, so a configured
+// INIT or NEXT that reads no variable is rejected with message 2233.
+func TestJavaTLCConstantInitialPredicate(t *testing.T) {
+	for _, tc := range []struct{ name, body, message string }{
+		{"initial predicate", "VARIABLE x\nInit == TRUE\nNext == UNCHANGED x", "The initial predicate Init cannot be a constant."},
+		{"next state action", "VARIABLE x\nInit == x = 0\nNext == 1 = 1", "The next state action Next cannot be a constant."},
+		{"no variables", "Init == TRUE\nNext == TRUE", "The initial predicate Init cannot be a constant."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, tc.body, "INIT Init\nNEXT Next\n")
+			var out, errout bytes.Buffer
+			code := run(context.Background(), []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", filepath.Join(dir, "M.tla")}, &out, &errout)
+			messages := readToolMessages(out.String())
+			if code != 151 || errout.Len() != 0 || !slices.Contains(messages, toolMessage{code: 2233, level: 1, body: tc.message}) {
+				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				compareJavaToolMessages(t, jar, dir, code, messages)
+			}
+		})
+	}
 }
