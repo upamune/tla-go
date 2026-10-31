@@ -200,6 +200,7 @@ func (p *Program) evaluate(expression *parser.Expression, context Context) (valu
 	e := &pooled.evaluator
 	*e = evaluator{frames: &pooled.frames, context: context, program: p, scope: &p.root, variables: p.variables, finiteSets: p.finiteSets, sequences: p.sequences, naturals: p.naturals, integers: p.integers, tlc: p.tlc, tlcext: p.tlcext, bags: p.bags, json: p.json, randomization: p.randomization}
 	defer func() {
+		pooled.frames.reset()
 		*e = evaluator{}
 		evaluatorPool.Put(pooled)
 	}()
@@ -211,7 +212,6 @@ func (p *Program) evaluate(expression *parser.Expression, context Context) (valu
 		e.scope = e.frames.localScope(e.scope, context.Locals)
 	}
 	result, err := e.eval(expression)
-	e.frames.release(frameMark{})
 	if err == nil {
 		return result, nil
 	}

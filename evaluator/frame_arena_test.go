@@ -39,6 +39,56 @@ func TestFrameArenaPinnedFramesAreNotReused(t *testing.T) {
 	}
 }
 
+// A pinned frame keeps its slot until reset, and the arena lends a heap frame
+// in its place instead of replacing the chunk that holds it.
+func TestFrameArenaSkipsPinnedFramesInPlace(t *testing.T) {
+	var arena frameArena
+	pinned := arena.valueScope(nil, "x", value.Bool(true))
+	pin(pinned)
+	arena.release(frameMark{})
+	chunk := &arena.chunks[0][0]
+	skipped := arena.valueScope(nil, "y", value.Bool(false))
+	next := arena.valueScope(nil, "z", value.Bool(false))
+	if skipped == pinned || skipped.lent {
+		t.Fatal("a pinned slot was lent again")
+	}
+	if len(arena.chunks) != 1 || &arena.chunks[0][0] != chunk || next != &arena.chunks[0][1].scope {
+		t.Fatal("skipping a pinned slot replaced its chunk")
+	}
+}
+
+// Released frames are cleared at once, so that a pooled arena keeps no values
+// of a finished evaluation. A pinned frame is cleared when reset drops its pin.
+func TestFrameArenaClearsReleasedFrames(t *testing.T) {
+	var arena frameArena
+	pinned := arena.valueScope(nil, "x", value.Bool(true))
+	pin(pinned)
+	for range frameChunk + 1 {
+		arena.valueScope(pinned, "y", value.Bool(true))
+	}
+	arena.release(frameMark{})
+	if v, ok := pinned.value("x"); !ok || v != value.Bool(true) || !clearedFrom(arena.chunks, 1) {
+		t.Fatal("release kept a released frame or cleared a pinned one")
+	}
+	arena.reset()
+	if pinned.pinned || !clearedFrom(arena.chunks, 0) || arena.mark() != (frameMark{}) {
+		t.Fatal("reset kept a pinned frame")
+	}
+	if first := arena.valueScope(nil, "z", value.Bool(true)); first != pinned {
+		t.Fatal("reset kept the pinned frame from being lent")
+	}
+}
+
+func clearedFrom(chunks [][]callFrame, start int) bool {
+	for i := start; i < len(chunks)*frameChunk; i++ {
+		frame := &chunks[i/frameChunk][i%frameChunk]
+		if frame.scope.lent || frame.scope.pinned || frame.scope.parent != nil || frame.binding[0] != (binding{}) {
+			return false
+		}
+	}
+	return true
+}
+
 func TestFrameArenaSpansChunks(t *testing.T) {
 	var arena frameArena
 	mark := arena.mark()

@@ -18,47 +18,66 @@ const frameChunk = 256
 // operator call or bound element that took it finishes, after any nested
 // evaluation. Each top-level evaluation owns an arena. Values that outlive a
 // call capture snapshots, which use none, instead of its scopes, so released
-// frames are unreachable. The only lasting reference is an operator scope
-// address in a function cache key; pin keeps such a frame from being reused.
-// A nil arena allocates every frame.
+// frames are unreachable and are cleared at once. The only lasting reference
+// is an operator scope address in a function cache key; pin keeps such a
+// frame from being cleared or lent again until reset, when the evaluation and
+// its function cache end. A nil arena allocates every frame.
 type frameArena struct {
-	chunks      [][]callFrame
-	chunk, used int
+	chunks [][]callFrame
+	// top counts the frames lent; every pinned frame lies below pinned.
+	top, pinned int
 }
 
-type frameMark struct{ chunk, used int }
+type frameMark struct{ top int }
 
 func (a *frameArena) mark() frameMark {
 	if a == nil {
 		return frameMark{}
 	}
-	return frameMark{a.chunk, a.used}
+	return frameMark{a.top}
 }
 
+// release clears the frames lent after m, so that free frames hold nothing.
 func (a *frameArena) release(m frameMark) {
-	if a != nil {
-		a.chunk, a.used = m.chunk, m.used
+	if a == nil {
+		return
 	}
+	for i := m.top; i < a.top; i++ {
+		if frame := a.frame(i); !frame.scope.pinned {
+			*frame = callFrame{}
+		} else {
+			a.pinned = max(a.pinned, i+1)
+		}
+	}
+	a.top = m.top
+}
+
+// reset releases every frame and then clears the pinned ones.
+func (a *frameArena) reset() {
+	a.release(frameMark{})
+	for i := range a.pinned {
+		*a.frame(i) = callFrame{}
+	}
+	a.pinned = 0
+}
+
+func (a *frameArena) frame(i int) *callFrame {
+	return &a.chunks[i/frameChunk][i%frameChunk]
 }
 
 func (a *frameArena) take() *callFrame {
 	if a == nil {
 		return new(callFrame)
 	}
-	if a.chunk < len(a.chunks) && a.used == frameChunk {
-		a.chunk++
-		a.used = 0
-	}
-	if a.chunk == len(a.chunks) {
+	if a.top == len(a.chunks)*frameChunk {
 		a.chunks = append(a.chunks, make([]callFrame, frameChunk))
 	}
-	if a.chunks[a.chunk][a.used].scope.pinned {
-		// The pinned frame keeps its chunk; frames still in use there stay valid.
-		a.chunks[a.chunk] = make([]callFrame, frameChunk)
+	frame := a.frame(a.top)
+	a.top++
+	if frame.scope.pinned {
+		// A function cache key still names the pinned frame.
+		return new(callFrame)
 	}
-	frame := &a.chunks[a.chunk][a.used]
-	a.used++
-	*frame = callFrame{}
 	frame.scope.lent = true
 	return frame
 }
