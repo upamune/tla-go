@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-
-	"github.com/upamune/tla-go/evaluator"
 )
 
 var errLiveCycle = errors.New("LiveCheck failed to find a cycle in the bad component")
@@ -238,9 +236,10 @@ func (b *liveTraceBuilder) fail(err error) error {
 	return err
 }
 
-// liveRecovery returns the first initial state (for a nil previous state) or
-// the first successor with the given key, with the action that generates it.
-type liveRecovery func(previous evaluator.State, key string) (TraceStep, error)
+// liveRecovery returns the state that follows the printed steps: the first
+// initial state with the given key for an empty trace, or else the first
+// successor of the last printed state with the action that generates it.
+type liveRecovery func(printed []TraceStep, key string) (TraceStep, error)
 
 func (g *liveTraceGraph) nodeKey(node int) string { return g.keys[g.nodes[node].state] }
 
@@ -252,11 +251,7 @@ func (b *liveTraceBuilder) appendNode(node int) error {
 		return nil
 	}
 	b.printed = key
-	var previous evaluator.State
-	if len(b.trace) > 0 {
-		previous = b.trace[len(b.trace)-1].State
-	}
-	step, err := b.recover(previous, key)
+	step, err := b.recover(b.trace, key)
 	if err != nil {
 		return b.fail(err)
 	}
@@ -301,7 +296,7 @@ func (b *liveTraceBuilder) loop(node, loop int, cycleKey string) (*Violation, er
 	if b.graph.nodeKey(node) == b.printed {
 		return v, nil
 	}
-	step, err := b.recover(b.trace[last].State, cycleKey)
+	step, err := b.recover(b.trace, cycleKey)
 	v.LoopStart, v.LoopAction, v.LoopActionRange = &loop, step.Action, step.ActionRange
 	return v, b.fail(err)
 }

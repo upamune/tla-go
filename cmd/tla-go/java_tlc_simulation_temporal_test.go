@@ -77,3 +77,26 @@ func TestJavaTLCSimulationLivenessActionRecovery(t *testing.T) {
 		})
 	}
 }
+
+// TLC recovers each counterexample state with its predecessor as the current
+// state, so TLCGet("level") in Next is the predecessor's position in the
+// counterexample. A step of the trace can then be impossible to recover.
+func TestJavaTLCSimulationLivenessRecoveryLevel(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	for i, next := range []string{
+		"x' = IF TLCGet(\"level\") < 4 THEN (x + 1) % 3 ELSE x",
+		"\\/ TLCGet(\"level\") < 3 /\\ x' = (x + 1) % 3\n        \\/ TLCGet(\"level\") >= 3 /\\ x' = (x + 2) % 3",
+	} {
+		for _, property := range []string{"[]<>(x = 0)", "<>[](x = 0)"} {
+			for _, seed := range []string{"1", "2", "3"} {
+				t.Run(fmt.Sprintf("Next%d/%s/%s", i+1, property, seed), func(t *testing.T) {
+					body := "VARIABLE x\nInit == x = 0\nNext == " + next + "\nSpec == Init /\\ [][Next]_x\nP == " + property
+					compareSimulationGraphParameters(t, jar, body, "SPECIFICATION Spec PROPERTY P", seed, "8", "3")
+				})
+			}
+		}
+	}
+}

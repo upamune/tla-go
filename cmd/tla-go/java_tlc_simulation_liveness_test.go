@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -157,7 +158,7 @@ func compareSimulationGraphParameters(t *testing.T, jar, body, cfg, seed, depth,
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 	cmd.Dir = dir
 	javaOut, _ := cmd.CombinedOutput()
-	if cmd.ProcessState == nil || (cmd.ProcessState.ExitCode() != 0 && cmd.ProcessState.ExitCode() != 13) {
+	if cmd.ProcessState == nil || !slices.Contains([]int{0, 13, 255}, cmd.ProcessState.ExitCode()) {
 		t.Fatalf("Java TLC failed: %s", javaOut)
 	}
 	var out, errout bytes.Buffer
