@@ -55,7 +55,7 @@ type evaluator struct {
 	hasOperators   bool
 	primeArguments bool
 	keepLazy       bool
-	active         map[string][]activeCall
+	active         []activeCall
 	functionCache  map[functionCacheKey]value.Value
 	depth          int
 }
@@ -460,16 +460,9 @@ func (e *evaluator) evaluateOperatorDefinition(d parser.Definition, args []value
 }
 
 func (e *evaluator) evaluateGuardedOperator(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope, expressions []*parser.Expression, caller *scope) (value.Value, error) {
-	if e.active == nil {
-		e.active = map[string][]activeCall{}
-	}
-	key, err := callArgumentsKey(d, args, defined)
+	key, err := activeCallKey(d, args, operators, defined, expressions, caller)
 	if err != nil {
 		return value.Value{}, err
-	}
-	key = appendOperatorBindings(key, d, operators)
-	if len(expressions) > 0 {
-		key = lazyRecursiveCallKey(key, expressions, caller)
 	}
 	repeated, err := e.recursiveStateSeen(key)
 	if err != nil {
@@ -479,8 +472,9 @@ func (e *evaluator) evaluateGuardedOperator(d parser.Definition, args []value.Va
 		return value.Value{}, fmt.Errorf("recursive call to %s with unchanged arguments and state", d.Name)
 	}
 	e.pushActiveCall(key)
-	defer e.popActiveCall(key)
-	return e.evaluateOperatorBody(d, args, operators, defined, expressions, caller)
+	result, err := e.evaluateOperatorBody(d, args, operators, defined, expressions, caller)
+	e.popActiveCall()
+	return result, err
 }
 
 func (e *evaluator) evaluateOperatorBody(d parser.Definition, args []value.Value, operators map[string]operatorRef, defined *scope, expressions []*parser.Expression, caller *scope) (value.Value, error) {
