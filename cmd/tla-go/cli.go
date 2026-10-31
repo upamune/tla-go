@@ -76,8 +76,8 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	}
 	runOut, finish, err := startCompatOutput(&opts, out)
 	if err != nil {
-		fmt.Fprintln(errout, err)
-		return 1
+		// Java TLC creates the -userFile file while reading its parameters.
+		return reportOptionError(options{tool: opts.compat.userFileTool}, err, out, errout)
 	}
 	defer finish()
 	reader := bufio.NewReader(input)

@@ -85,9 +85,10 @@ func TestJavaTLCInvalidWorkerAndCheckpointOptions(t *testing.T) {
 
 // With -tool before an invalid option, Java TLC reports message 1102, followed
 // by its usage line, on standard output. An unwritable dump file is a
-// parameter error as well.
+// parameter error as well, and so is a -userFile file that cannot be created.
 func TestJavaTLCToolOptionErrors(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "missing", "states")
+	missingUserFile := filepath.Join(t.TempDir(), "missing", "out.txt")
 	for _, tc := range []struct {
 		args          []string
 		stdout, error string
@@ -96,6 +97,7 @@ func TestJavaTLCToolOptionErrors(t *testing.T) {
 		{[]string{"-tool", "M.tla", "-maxSetSize"}, "", "Error: maxSetSize required."},
 		{[]string{"-tool", "-dump", missing, "M.tla"}, "Error: Unable to write to file " + missing + ".dump\n", "Error: Given file name " + missing + ".dump for dumping states invalid."},
 		{[]string{"-tool", "-dump", "dot", missing, "M.tla"}, "Error: Unable to write to file " + missing + ".dot\n", "Error: Given file name " + missing + ".dot for dumping states invalid."},
+		{[]string{"-tool", "-userFile", missingUserFile, "M.tla"}, "", "Error: Failed to create user output log file."},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			dir := t.TempDir()

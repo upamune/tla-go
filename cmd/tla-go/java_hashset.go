@@ -12,10 +12,11 @@ type javaHashSet[T comparable] struct {
 	hash    func(T) uint32
 }
 
+// The typed sets follow java.util.HashSet iteration order for Long, Integer,
+// and String elements.
 type (
 	javaLongSet   struct{ javaHashSet[uint64] }
 	javaIntSet    struct{ javaHashSet[int] }
-	// javaStringSet follows java.util.HashSet<String> iteration order.
 	javaStringSet struct{ javaHashSet[string] }
 )
 

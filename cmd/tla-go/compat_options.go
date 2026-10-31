@@ -21,6 +21,7 @@ type compatOptions struct {
 	diffTrace, terse bool
 	cleanup          bool
 	userFile         string
+	userFileTool     bool // -tool preceded -userFile, so its error is message 1102.
 	userOutput       *bufio.Writer
 	fpmemDeprecated  bool
 	specTE           *specTE
@@ -58,6 +59,7 @@ func parseCompatOption(opts *options, args []string) (int, error) {
 		return 0, nil
 	}
 	if parse, ok := compatValues[args[0]]; ok {
+		opts.compat.userFileTool = opts.compat.userFileTool || args[0] == "-userFile" && opts.tool
 		return parse(&opts.compat, args)
 	}
 	return 0, parsePath(opts, args[0])
