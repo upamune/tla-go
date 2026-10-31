@@ -132,6 +132,9 @@ type model struct {
 	enabledCallback      evaluator.EnabledCallback
 	properties           []temporalProperty
 	livenessOrder        []temporalProperty
+	// propertyCalls counts the parameterized operators being expanded in a
+	// property; TLC does not split a property below such a call.
+	propertyCalls        int
 	safety               []temporalProperty
 	guarded              []temporalProperty
 	fairness             []fairnessCondition

@@ -101,10 +101,14 @@ func (p *livePEMFormulas) classify(item *liveNode) error {
 		return nil
 	}
 	if item.containsAction() {
-		return fmt.Errorf("Temporal formulas containing actions must be of forms <>[]A or []<>A.")
+		return liveActionFormatError()
 	}
 	p.temporal = append(p.temporal, item)
 	return nil
+}
+
+func liveActionFormatError() error {
+	return &ModelValidationError{Message: "Temporal formulas containing actions must be of forms <>[]A or []<>A.", Code: 2214, ExitCode: 255}
 }
 
 func (p livePEMFormulas) temporalFormula() *liveNode {

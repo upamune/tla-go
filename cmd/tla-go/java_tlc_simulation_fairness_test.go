@@ -34,6 +34,8 @@ func TestJavaTLCSimulationTemporalForms(t *testing.T) {
 		"[](x = 1 => [](x = 1))", "<>(x = 1 /\\ <>(x = 2))", "[]<><<x' = 0>>_x", "<>[][x' = x]_x",
 		"[]<>(x = 1) => []<>(x = 2)", "(x = 1) ~> [](x = 2)", "<>[](x = 1) \\/ []<>(x = 2)", "\\A v \\in {1, 2} : <>(x = v)",
 		"IF x = 0 THEN <>(x = 2) ELSE [](x = 1)", "~[](x = 0)", "<>~[](x = 1)", "[](<>(x = 1) \\/ <>(x = 2))",
+		// TLC does not split a property below a quantifier, so this is not an invariant.
+		"\\A v \\in {2} : [](x # v)",
 	} {
 		for _, next := range []string{"x' \\in {0, 1, 2}", "IF x = 2 THEN x' = 2 ELSE x' = x + 1"} {
 			t.Run(property+"/"+next, func(t *testing.T) {
