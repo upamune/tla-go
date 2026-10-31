@@ -95,6 +95,54 @@ func TestJavaTLCConfigSearchPath(t *testing.T) {
 	}
 }
 
+// TLC.main resolves files in the specification's directory instead of the
+// TLA-Library paths when a relative specification path has a directory part.
+func TestJavaTLCConfigLibraryPath(t *testing.T) {
+	for _, tc := range []struct {
+		name, workDir string
+		absolute      bool
+		code          int
+	}{
+		{"relative specification directory", ".", false, 255},
+		{"bare specification name", "sub", false, 12},
+		{"absolute specification", ".", true, 12},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			sub, library := filepath.Join(root, "sub"), filepath.Join(root, "lib")
+			for _, dir := range []string{sub, library} {
+				if err := os.Mkdir(dir, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeDOTFixture(t, sub, "VARIABLE x\nInit == x = 0\nNext == x < 1 /\\ x' = x + 1\nInv == x < 1", "INIT Init\nNEXT Next\n")
+			if err := os.WriteFile(filepath.Join(library, "L.cfg"), []byte("INIT Init\nNEXT Next\nINVARIANT Inv\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			dir, spec := filepath.Join(root, tc.workDir), filepath.Join("sub", "M.tla")
+			if tc.workDir == "sub" {
+				spec = "M.tla"
+			}
+			if tc.absolute {
+				spec = filepath.Join(sub, "M.tla")
+			}
+			args := []string{"-workers", "1", "-config", "L", spec}
+			_, code, _ := runGoInDir(t, dir, append([]string{"-DTLA-Library=" + library}, args...))
+			if code != tc.code {
+				t.Fatalf("exit %d, want %d", code, tc.code)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				cmd := exec.Command("java", append([]string{"-DTLA-Library=" + library, "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
+				cmd.Dir = dir
+				output, err := cmd.CombinedOutput()
+				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+					t.Fatalf("Java exit: %v\n%s", err, output)
+				}
+			}
+		})
+	}
+}
+
 // runGoToolInDir runs tla-go with args relative to dir, as Java TLC runs
 // from the model directory.
 func runGoToolInDir(t *testing.T, dir string, args []string) ([]toolMessage, int, string) {
