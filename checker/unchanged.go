@@ -67,8 +67,24 @@ func (g *generator) restore(partial evaluator.State, mark int) {
 	g.undo = g.undo[:mark]
 }
 
+// unchangedNames resolves an UNCHANGED operand to variables. Without a
+// lexical scope the result depends only on the operand and module
+// definitions, so it is cached; callers must not modify it.
 func (g *generator) unchangedNames(expr *parser.Expression) ([]string, error) {
-	return g.unchangedNamesSeen(expr, map[string]bool{})
+	if g.lexical != nil {
+		return g.unchangedNamesSeen(expr, map[string]bool{})
+	}
+	if names, ok := g.model.unchangedCache[expr]; ok {
+		return names, nil
+	}
+	names, err := g.unchangedNamesSeen(expr, map[string]bool{})
+	if err == nil && len(g.model.unchangedCache) < 4096 {
+		if g.model.unchangedCache == nil {
+			g.model.unchangedCache = make(map[*parser.Expression][]string)
+		}
+		g.model.unchangedCache[expr] = names
+	}
+	return names, err
 }
 
 func (g *generator) unchangedNamesSeen(expr *parser.Expression, seen map[string]bool) ([]string, error) {

@@ -144,6 +144,7 @@ type model struct {
 	// symmetryPrefix is reused for permuted values during symmetry reduction.
 	symmetryPrefix []value.Value
 	work           workArena
+	unchangedCache map[*parser.Expression][]string
 }
 
 // ModuleLoader returns the source of an external module by its declared name.
