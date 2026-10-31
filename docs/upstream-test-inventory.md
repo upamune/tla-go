@@ -142,6 +142,12 @@ checks their JUnit state counts and selected output with one worker. It does not
 run the original three-worker JUnit test or its coverage assertions. Evaluation
 error details and other models are not fully mapped.
 
+`TestJavaTLCDepthFirst` runs the `DepthFirstDieHardTest`,
+`DepthFirstErrorTraceTest`, and `DepthFirstTerminate` models with `-dfid` and
+compares all tool messages except the banner, parsing, and timing messages with
+Java TLC 1.7.4. It runs `DepthFirstTerminate` with one worker; the JUnit test
+uses one worker per core, which Java TLC 1.7.4 rejects in this mode.
+
 ## Audit work
 
 - Enumerate executable upstream tests, including parameterized and inherited

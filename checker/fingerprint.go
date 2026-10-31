@@ -169,3 +169,25 @@ func (m *model) fingerprintKey(state evaluator.State) (string, error) {
 	}
 	return strconv.FormatUint(fingerprint, 16), nil
 }
+
+// javaFingerprint follows TLCStateMut.fingerPrint: it fingerprints the
+// symmetry representative, or its VIEW value, with variables in order.
+func (m *model) javaFingerprint(state evaluator.State, order []string) (uint64, error) {
+	reduced, err := m.reduceState(state)
+	if err != nil {
+		return 0, err
+	}
+	return m.reducedJavaFingerprint(reduced, order)
+}
+
+func (m *model) reducedJavaFingerprint(reduced reducedState, order []string) (uint64, error) {
+	values := []value.Value{reduced.view}
+	if !reduced.hasView {
+		values = make([]value.Value, len(order))
+		for i, name := range order {
+			values[i] = reduced.state[name]
+		}
+	}
+	rank := func(text string) (int, bool) { n, ok := m.valueRanks[text]; return n, ok }
+	return m.fingerprintAlgorithm.Fingerprint(values, rank, m.compareOrderedValues)
+}

@@ -143,17 +143,6 @@ func composePermutations(first, second permutation) permutation {
 	return result
 }
 
-func (m *model) symmetryKey(state evaluator.State) (string, error) {
-	representative, err := m.symmetryRepresentative(state)
-	if err != nil {
-		return "", err
-	}
-	if m.cfg.View != "" {
-		return m.viewKey(representative)
-	}
-	return m.unreducedStateKey(representative)
-}
-
 func (m *model) symmetryRepresentative(state evaluator.State) (evaluator.State, error) {
 	minimum := state
 	for _, p := range m.symmetry {

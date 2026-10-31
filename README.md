@@ -67,9 +67,10 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-seed N` | Set the random seed; model checking defaults to 0 and simulation chooses a random seed. |
 | `-aril N` | Advance the simulation's random stream by N double draws when `-seed` is supplied. |
 | `-simulate [num=N,file=PREFIX]` | Run experimental single-worker random simulation; omit `num=N` to run until interrupted or a violation is found. `file=PREFIX` writes completed traces as `PREFIX_0_0`, `PREFIX_0_1`, and so on. |
+| `-dfid N` | Check safety with experimental depth-first iterative deepening up to depth N, like Java TLC's `-dfid`. Successors are taken in generation order, not at random. |
 | `-continue` | Continue model checking after invariant or action violations, or simulation after safety violations and deadlocks. |
 | `-depth N` | Set the simulation trace length (default 100; `-1` means no limit). |
-| `-workers N` | Accept a positive worker count or `auto`, as Java TLC does. Exploration is currently sequential regardless of the count; simulation accepts only one worker. |
+| `-workers N` | Accept a positive worker count or `auto`, as Java TLC does. Exploration is currently sequential regardless of the count; simulation accepts only one worker, and with `-dfid` more workers are rejected with Java TLC's error and exit code 255. |
 | `-maxSetSize N` | Limit the sets and other values that Java TLC builds element by element, such as `{e : x \in S}` and `(1..n) \cup S` (default 1,000,000). Deferred sets stored in states are not limited yet. |
 | `-checkpoint MINUTES` | Accept Java TLC's checkpoint interval; checkpoints are not written. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
@@ -92,6 +93,8 @@ The module name must match the `.tla` filename. External modules referenced by `
 The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and state dumps are compared with Java TLC for representative models, but full compatibility is not yet established. Model checking explores states sequentially even when `-workers` requests more than one worker. A complete search reports the same state counts as Java TLC, but the statistics and counterexample reported at a violation can differ from a parallel Java TLC run. State identity and fingerprint collision behavior can still differ from Java TLC.
 
 With `-continue`, model checking can finish with exit code 0 even after reporting violations, matching Java TLC. Check the reported messages or the Go API's violation count.
+
+With `-dfid N`, each iteration restarts from the initial states and searches one level deeper, so the generated-state count includes repeated states. As in Java TLC, a check that reaches depth N before the search ends exits with code 0 but does not report `No error has been found`, and liveness properties are rejected. See [compatibility](docs/compatibility.md) for other differences.
 
 Simulation samples randomly chosen behaviors; a successful run
 does not prove a model correct. Selected pure state eventualities (`<>P`),

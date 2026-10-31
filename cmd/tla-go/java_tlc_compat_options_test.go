@@ -88,7 +88,7 @@ func TestJavaTLCCompatOptionErrors(t *testing.T) {
 			dir := t.TempDir()
 			writeDOTFixture(t, dir, compatOptionModel, "INIT Init\nNEXT Next\n")
 			output, code, stderr := runGoInDir(t, dir, tc.args)
-			if code != 1 || output != "" || strings.TrimSpace(stderr) != tc.want {
+			if code != 1 || stderr != "" || output != printedOptionError(tc.want) {
 				t.Fatalf("exit %d; stdout %q; stderr %q", code, output, stderr)
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {

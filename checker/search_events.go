@@ -11,12 +11,17 @@ const (
 	InitialProgress           SearchEventKind = "initial-progress"
 	InitialComplete           SearchEventKind = "initial-complete"
 	SimulationInitialComplete SearchEventKind = "simulation-initial-complete"
+	// DepthFirstLevel starts an iteration of depth-first iterative deepening.
+	DepthFirstLevel SearchEventKind = "depth-first-level"
 )
 
-// SearchEvent describes initial-state generation for optional progress output.
+// SearchEvent describes initial-state generation and depth-first iterations
+// for optional progress output.
 type SearchEvent struct {
 	Kind                            SearchEventKind
 	GeneratedStates, DistinctStates int
+	// Level is the depth of a DepthFirstLevel iteration.
+	Level int
 }
 
 func (m *model) emitSearchEvent(event SearchEvent) {

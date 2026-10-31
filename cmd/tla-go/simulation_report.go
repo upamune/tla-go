@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"runtime"
 
 	"github.com/upamune/tla-go/checker"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -14,6 +15,20 @@ func printChecking(out io.Writer, specPath, configPath string, opts options) {
 	fmt.Fprintf(out, "Checking %s with %s\n", filepath.Base(specPath), filepath.Base(configPath))
 	if opts.simulate {
 		fmt.Fprintf(out, "Running Random Simulation with seed %d.\n", opts.seed)
+	} else if opts.dfid {
+		fmt.Fprintln(out, depthFirstBanner(opts)+".")
+	}
+}
+
+func printToolModeBanner(t toolOutput, opts options) {
+	workers := fmt.Sprintf(" with %d worker%s on %d cores.", opts.workers, plural(opts.workers), runtime.NumCPU())
+	switch {
+	case opts.simulate:
+		t.message(2188, 0, fmt.Sprintf("Running Random Simulation with seed %d with 1 worker.", opts.seed))
+	case opts.dfid:
+		t.message(2271, 0, depthFirstBanner(opts)+workers)
+	default:
+		t.message(2187, 0, fmt.Sprintf("Running breadth-first search Model-Checking with fp %d and seed %d", opts.fingerprint, opts.seed)+workers)
 	}
 }
 
@@ -26,6 +41,8 @@ func configureCheckingMode(checkOpts *checker.Options, opts options, module *par
 		if opts.simulationFileSet {
 			checkOpts.Simulation.OnTrace = simulationTraceFile(opts.simulationFile)
 		}
+	} else if opts.dfid {
+		configureDepthFirstMode(checkOpts, opts, out)
 	} else if opts.continuation {
 		checkOpts.Continue = true
 		checkOpts.OnViolation = modelViolationOutput(opts, module, out)
@@ -33,6 +50,9 @@ func configureCheckingMode(checkOpts *checker.Options, opts options, module *par
 }
 
 func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEvent) {
+	if depthFirstMode(opts) {
+		return depthFirstSearchOutput(opts.tool, out)
+	}
 	if opts.tool {
 		return func(event checker.SearchEvent) { printToolSearch(out, event) }
 	}
@@ -50,6 +70,8 @@ func printConfiguredResult(out io.Writer, result checker.Result, module *parser.
 	result = newTraceStyle(opts).apply(result)
 	if opts.simulate {
 		printSimulationResult(out, result, module, opts.seed, opts.aril)
+	} else if opts.dfid {
+		printDepthFirstResult(out, result)
 	} else {
 		printResult(out, result, module)
 	}
@@ -59,6 +81,8 @@ func printConfiguredToolResult(t toolOutput, result checker.Result, module *pars
 	result = newTraceStyle(opts).apply(result)
 	if opts.simulate {
 		printToolSimulationResult(t, result, module, opts.seed, opts.aril)
+	} else if opts.dfid {
+		printToolDepthFirstResult(t, result)
 	} else {
 		printToolResult(t, result, module)
 	}
@@ -119,12 +143,19 @@ func printToolSimulationFailure(t toolOutput, failure *checker.Failure, module *
 		printToolTrace(t, failure.Trace, module)
 		return
 	}
-	if failure.InitialState == nil || failure.ToolCode != 2102 && failure.ToolCode != 2106 {
+	if !printToolInitialStateFailure(t, failure) {
 		printToolFailure(t, failure, module)
-		return
+	}
+}
+
+// printToolInitialStateFailure prints an initial state that failed to
+// evaluate or left variables unassigned.
+func printToolInitialStateFailure(t toolOutput, failure *checker.Failure) bool {
+	if failure.InitialState == nil || failure.ToolCode != 2102 && failure.ToolCode != 2106 {
+		return false
 	}
 	if printToolSimulationInitialNested(t, failure) {
-		return
+		return true
 	}
 	var body bytes.Buffer
 	if failure.ToolCode == 2106 {
@@ -134,6 +165,7 @@ func printToolSimulationFailure(t toolOutput, failure *checker.Failure, module *
 	}
 	printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
 	t.message(failure.ToolCode, 1, body.String())
+	return true
 }
 
 func printToolSimulationInitialNested(t toolOutput, failure *checker.Failure) bool {

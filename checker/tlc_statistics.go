@@ -35,6 +35,11 @@ func (r *tlcRuntime) statisticsValue(name string) (value.Value, error) {
 
 func (r *tlcRuntime) counts() tlcCounts {
 	counts := tlcCounts{initial: r.initial, diameter: 1}
+	if r.depthFirst != nil {
+		// TLC's depth-first checker does not track these statistics. Java TLC
+		// 1.7.4 has no "generated" or "stats" keys; 1.8.0 reports -1 here.
+		return tlcCounts{generated: -1, distinct: -1, queue: -1, diameter: -1, initial: -1}
+	}
 	if r.search != nil {
 		result := r.search.result
 		counts.generated, counts.distinct, counts.queue, counts.diameter = result.GeneratedStates, result.DistinctStates, result.QueuedStates, max(result.Depth, 1)

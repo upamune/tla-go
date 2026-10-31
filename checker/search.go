@@ -145,13 +145,20 @@ func (s *search) explore() (Result, error) {
 	return result, err
 }
 
+// missingNextAction reports TLC's error for initial states without a
+// next-state action to expand them.
 func (s *search) missingNextAction() bool {
-	if s.model.cfg.Next != "" || len(s.nodes) == 0 {
+	if len(s.nodes) == 0 || s.model.cfg.Next != "" && !s.hasNoNextActions() {
 		return false
 	}
 	s.result.Status = EvaluationFailure
 	s.result.Failure = &Failure{Message: "No next state actions defined to generate successor states from.", ToolCode: 2115, ExitCode: 75, SuppressStatistics: true}
 	return true
+}
+
+func (s *search) hasNoNextActions() bool {
+	next, err := s.model.definition(s.model.cfg.Next)
+	return err == nil && s.model.noNextActions(next)
 }
 
 func (s *search) finishSuccessfulResult(result *Result) {
@@ -200,7 +207,7 @@ func (s *search) expandRawNode(index int, next *parser.Expression) (bool, error)
 		}
 		return s.visit(state, index, action, source)
 	}}
-	more, err := gen.solve([]work{{expr: next, label: true}}, evaluator.State{}, s.model.cfg.Next)
+	more, err := gen.solveNext(next)
 	if err != nil || !more {
 		addEnclosingActionSource(err, gen.actionRoot(next))
 		if s.result.HasOutDegrees {
@@ -343,7 +350,7 @@ func (s *search) countState(parent int) {
 }
 
 func (s *search) checkViolation(state evaluator.State, parent int, action string) (bool, error) {
-	name, err := s.violation(state)
+	name, err := s.model.invariantViolation(state)
 	if err != nil {
 		return s.invariantRuntimeFailure(err, name, state, parent, action)
 	}
@@ -373,7 +380,7 @@ func (s *search) add(state evaluator.State, parent int, action, key string) {
 }
 
 func (s *search) satisfiesConstraints(state evaluator.State, parent int) (bool, error) {
-	ok, err := s.constraints(s.model.cfg.Constraints, state, nil)
+	ok, err := s.model.constraintsHold(s.model.cfg.Constraints, state, nil)
 	if err != nil || !ok {
 		return ok, err
 	}
@@ -386,7 +393,7 @@ func (s *search) satisfiesConstraints(state evaluator.State, parent int) (bool, 
 	oldLevel := s.model.tlcRuntime.level
 	s.model.tlcRuntime.level = s.nodes[parent].depth
 	defer func() { s.model.tlcRuntime.level = oldLevel }()
-	ok, err = s.constraints(s.model.cfg.ActionConstraints, s.nodes[parent].state, state)
+	ok, err = s.model.constraintsHold(s.model.cfg.ActionConstraints, s.nodes[parent].state, state)
 	if err != nil || !ok {
 		return ok, err
 	}
@@ -396,13 +403,13 @@ func (s *search) satisfiesConstraints(state evaluator.State, parent int) (bool, 
 	return true, nil
 }
 
-func (s *search) constraints(names []string, current, next evaluator.State) (bool, error) {
+func (m *model) constraintsHold(names []string, current, next evaluator.State) (bool, error) {
 	for _, name := range names {
-		if s.model.trueConfigured[name] {
+		if m.trueConfigured[name] {
 			continue
 		}
-		expr, _ := s.model.definition(name)
-		ok, err := s.model.constraintHolds(expr, current, next)
+		expr, _ := m.definition(name)
+		ok, err := m.constraintHolds(expr, current, next)
 		if err != nil || !ok {
 			return ok, err
 		}
@@ -410,13 +417,15 @@ func (s *search) constraints(names []string, current, next evaluator.State) (boo
 	return true, nil
 }
 
-func (s *search) violation(state evaluator.State) (string, error) {
-	for _, name := range s.model.cfg.Invariants {
-		if s.model.trueConfigured[name] {
+// invariantViolation returns the first invariant, including state-level
+// []P properties, that state violates or fails to evaluate.
+func (m *model) invariantViolation(state evaluator.State) (string, error) {
+	for _, name := range m.cfg.Invariants {
+		if m.trueConfigured[name] {
 			continue
 		}
-		expr, _ := s.model.definition(name)
-		ok, err := s.model.holds(expr, state, nil)
+		expr, _ := m.definition(name)
+		ok, err := m.holds(expr, state, nil)
 		if err != nil {
 			return name, err
 		}
@@ -424,17 +433,17 @@ func (s *search) violation(state evaluator.State) (string, error) {
 			return name, nil
 		}
 	}
-	return s.safetyViolation(state)
+	return m.safetyViolation(state)
 }
 
-func (s *search) safetyViolation(state evaluator.State) (string, error) {
-	for _, p := range s.model.safety {
+func (m *model) safetyViolation(state evaluator.State) (string, error) {
+	for _, p := range m.safety {
 		if p.mode != stateAlways {
 			continue
 		}
-		ok, err := s.model.holdsProperty(p.predicate, state, p.locals)
+		ok, err := m.holdsProperty(p.predicate, state, p.locals)
 		if err != nil || !ok {
-			return s.model.safetyViolationName(p), err
+			return m.safetyViolationName(p), err
 		}
 	}
 	return "", nil
@@ -454,13 +463,14 @@ func (s *search) trace(index int) []TraceStep {
 }
 
 func (m *model) stateKey(state evaluator.State) (string, error) {
-	if m.cfg.Symmetry != "" {
-		return m.symmetryKey(state)
+	if !m.hasReduction() {
+		return m.unreducedStateKey(state)
 	}
-	if m.cfg.View != "" {
-		return m.viewKey(state)
+	reduced, err := m.reduceState(state)
+	if err != nil {
+		return "", err
 	}
-	return m.unreducedStateKey(state)
+	return m.reducedKey(reduced)
 }
 
 func (m *model) unreducedStateKey(state evaluator.State) (string, error) {

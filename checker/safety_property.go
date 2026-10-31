@@ -32,8 +32,12 @@ func (s *search) holdsSafetyProperty(p temporalProperty, state evaluator.State, 
 	oldLevel := s.model.tlcRuntime.level
 	s.model.tlcRuntime.level = s.nodes[parent].depth
 	defer func() { s.model.tlcRuntime.level = oldLevel }()
-	context := evaluator.Context{Current: s.nodes[parent].state, Next: state, Constants: s.model.constants, Locals: p.locals, Enabled: s.model.enabledCallback}
-	result, err := s.model.program.Evaluate(p.predicate, context)
+	return s.model.holdsActionProperty(p, s.nodes[parent].state, state)
+}
+
+func (m *model) holdsActionProperty(p temporalProperty, current, next evaluator.State) (bool, error) {
+	context := evaluator.Context{Current: current, Next: next, Constants: m.constants, Locals: p.locals, Enabled: m.enabledCallback}
+	result, err := m.program.Evaluate(p.predicate, context)
 	if err != nil {
 		return false, err
 	}

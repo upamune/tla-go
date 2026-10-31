@@ -310,11 +310,11 @@ func (b *reducedTableauProduct) expandRegenerated(node int, state evaluator.Stat
 		return err
 	}
 	gen := generator{model: b.source.model, current: state, emit: func(next evaluator.State, action string, source *parser.Expression) (bool, error) {
-		ok, err := b.source.constraints(b.source.model.cfg.Constraints, next, nil)
+		ok, err := b.source.model.constraintsHold(b.source.model.cfg.Constraints, next, nil)
 		if err != nil || !ok {
 			return err == nil, err
 		}
-		ok, err = b.source.constraints(b.source.model.cfg.ActionConstraints, state, next)
+		ok, err = b.source.model.constraintsHold(b.source.model.cfg.ActionConstraints, state, next)
 		if err != nil || !ok {
 			return err == nil, err
 		}
@@ -327,7 +327,7 @@ func (b *reducedTableauProduct) expandRegenerated(node int, state evaluator.Stat
 		}
 		return true, nil
 	}}
-	if _, err := gen.solve([]work{{expr: expr, label: true}}, evaluator.State{}, b.source.model.cfg.Next); err != nil {
+	if _, err := gen.solveNext(expr); err != nil {
 		return err
 	}
 	order := make([]int, len(edges))

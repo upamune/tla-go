@@ -142,7 +142,7 @@ func TestJavaTLCInvalidMaxSetSize(t *testing.T) {
 			dir := t.TempDir()
 			writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n")
 			var out, errout bytes.Buffer
-			if code := run(context.Background(), tc.args, &out, &errout); code != 1 || errout.String() != tc.message+"\n" {
+			if code := run(context.Background(), tc.args, &out, &errout); code != 1 || errout.Len() != 0 || out.String() != printedOptionError(tc.message) {
 				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {

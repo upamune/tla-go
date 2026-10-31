@@ -44,10 +44,12 @@ type options struct {
 	simulationUnlimited        bool
 	simulationFile             string
 	simulationFileSet          bool
+	dfid                       bool
+	dfidDepth                  int
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 	fmt.Fprintln(w, compatUsage)
 }
 
@@ -85,21 +87,24 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	return runModels(ctx, opts, runOut, errout)
 }
 
-// reportOptionError reports Java TLC's parameter errors as message 1102 when
-// -tool precedes them, as Java TLC does, and on standard error otherwise.
+// reportOptionError follows TLC.printErrorMsg, which reports Java TLC's
+// parameter errors (WRONG_COMMANDLINE_PARAMS_TLC) with TLC's usage line on
+// standard output, as message 1102 when -tool precedes the failing option.
+// Other errors are tla-go's own and go to standard error with its usage.
 func reportOptionError(opts options, err error, out, errout io.Writer) int {
 	if _, ok := errors.AsType[commandLineError](err); !ok {
 		fmt.Fprintln(errout, err)
 		usage(errout)
 		return 255
 	}
+	body := err.Error() + "\nUsage: java tlc2.TLC [-option] inputfile"
 	if !opts.tool {
-		fmt.Fprintln(errout, err)
+		fmt.Fprintf(out, "Error: %s\n", body)
 		return 1
 	}
 	t := toolOutput{out: out}
 	t.message(2262, 0, "tla-go "+version)
-	t.message(1102, 1, err.Error()+"\nUsage: java tlc2.TLC [-option] inputfile")
+	t.message(1102, 1, body)
 	return 1
 }
 
@@ -312,7 +317,7 @@ func validateModuleName(path, module string) error {
 
 func exitCode(status checker.Status) int {
 	switch status {
-	case checker.Success:
+	case checker.Success, checker.DepthLimit:
 		return 0
 	case checker.AssumptionViolation, checker.PostconditionViolation:
 		return 10

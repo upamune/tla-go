@@ -49,6 +49,12 @@ func TestJavaTLCWorkerAndCheckpointOptions(t *testing.T) {
 	}
 }
 
+// printedOptionError is TLC.printErrorMsg's output for a parameter error
+// without -tool, after the version banner that tla-go does not print.
+func printedOptionError(message string) string {
+	return "Error: " + message + "\nUsage: java tlc2.TLC [-option] inputfile\n"
+}
+
 func TestJavaTLCInvalidWorkerAndCheckpointOptions(t *testing.T) {
 	for _, tc := range []struct {
 		args    []string
@@ -68,7 +74,7 @@ func TestJavaTLCInvalidWorkerAndCheckpointOptions(t *testing.T) {
 			dir := t.TempDir()
 			writeDOTFixture(t, dir, workerModel, "INIT Init\nNEXT Next\n")
 			var out, errout bytes.Buffer
-			if code := run(context.Background(), tc.args, &out, &errout); code != 1 || errout.String() != tc.message+"\n" {
+			if code := run(context.Background(), tc.args, &out, &errout); code != 1 || errout.Len() != 0 || out.String() != printedOptionError(tc.message) {
 				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {

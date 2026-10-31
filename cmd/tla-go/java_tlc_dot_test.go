@@ -110,7 +110,7 @@ func TestDotOutputErrors(t *testing.T) {
 	var out, errout bytes.Buffer
 	path := filepath.Join(dir, "missing", "out.dot")
 	code := run(context.Background(), []string{"-dump", "dot,actionlabels", path, filepath.Join(dir, "M.tla")}, &out, &errout)
-	if code != 1 || out.String() != "Error: Unable to write to file "+path+"\n" || errout.String() != "Error: Given file name "+path+" for dumping states invalid.\n" {
+	if code != 1 || out.String() != "Error: Unable to write to file "+path+"\n"+printedOptionError("Error: Given file name "+path+" for dumping states invalid.") || errout.Len() != 0 {
 		t.Fatalf("exit %d, stdout %q, stderr %q", code, out.String(), errout.String())
 	}
 }

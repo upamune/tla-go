@@ -29,6 +29,16 @@ type generator struct {
 	// after generating it, so the error carries no frames of the action; it
 	// checks an initial state within the initial predicate's continuation.
 	emitted error
+	// actionStart, when set, runs before each disjunct or witness that TLC
+	// splits into a separate next-state action.
+	actionStart func() (bool, error)
+}
+
+func (g *generator) startAction(item work) (bool, error) {
+	if g.actionStart == nil || !item.label || g.initial {
+		return true, nil
+	}
+	return g.actionStart()
 }
 
 func (g *generator) context(partial evaluator.State) (evaluator.State, evaluator.State) {
@@ -172,7 +182,7 @@ func (g *generator) expandWork(item work, expanded *parser.Expression, rest []wo
 	previous := g.source
 	if !g.initial && item.label {
 		action = item.expr.Text
-		g.source = g.stateDependentActionSource(item.expr)
+		g.source = g.unsplitActionSource(item.expr)
 	}
 	more, err := g.solve(prepend(work{expr: expanded, path: path, label: item.label && g.source == nil, locals: item.locals}, rest), partial, action)
 	g.source = previous
@@ -182,6 +192,16 @@ func (g *generator) expandWork(item work, expanded *parser.Expression, rest []wo
 		g.addInitialExpandedSource(item.expr, expanded)
 	}
 	return more, err
+}
+
+// unsplitActionSource is the source of an action call that TLC does not
+// split further: one with state-dependent arguments or a substituted instance.
+func (g *generator) unsplitActionSource(expr *parser.Expression) *parser.Expression {
+	if source := g.stateDependentActionSource(expr); source != nil {
+		return source
+	}
+	d, _ := g.definition(expr.Text)
+	return g.model.instanceActionSource(d)
 }
 
 func (g *generator) stateDependentActionSource(expr *parser.Expression) *parser.Expression {
@@ -196,9 +216,12 @@ func (g *generator) stateDependentActionSource(expr *parser.Expression) *parser.
 	return nil
 }
 
-func (g *generator) isComplete(partial evaluator.State) bool {
-	for _, name := range g.model.names {
-		if _, ok := partial[name]; !ok {
+func (g *generator) isComplete(partial evaluator.State) bool { return g.model.assignsAll(partial) }
+
+// assignsAll reports a state that assigns every variable.
+func (m *model) assignsAll(state evaluator.State) bool {
+	for _, name := range m.names {
+		if _, ok := state[name]; !ok {
 			return false
 		}
 	}
@@ -292,6 +315,9 @@ func (g *generator) disjunction(item work, rest []work, partial evaluator.State,
 }
 
 func (g *generator) disjunctionBranch(item work, branch *parser.Expression, rest []work, partial evaluator.State, action string) (bool, error) {
+	if more, err := g.startAction(item); err != nil || !more {
+		return more, err
+	}
 	previous := g.source
 	if item.label && !g.initial && branch.Location.Range.Start.Line > 0 {
 		g.source = branch

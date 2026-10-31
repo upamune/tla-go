@@ -48,6 +48,7 @@ var valueOptions = map[string]func(*options, []string) (int, error){
 	"-I":          parseLibraryOption,
 	"-simulate":   parseSimulationOption,
 	"-depth":      parseSimulationDepth,
+	"-dfid":       parseDepthFirstOption,
 }
 
 func setHelp(opts *options)    { opts.help = true }
@@ -66,6 +67,9 @@ func parseOptions(args []string) (options, error) {
 		return opts, fmt.Errorf("missing model path")
 	}
 	if err := configureSimulation(&opts); err != nil {
+		return opts, err
+	}
+	if err := configureDepthFirst(&opts); err != nil {
 		return opts, err
 	}
 	return opts, nil

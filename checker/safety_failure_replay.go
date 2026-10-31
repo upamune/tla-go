@@ -33,7 +33,7 @@ func (s *search) replaySafetyFailure(index int, next *parser.Expression) error {
 	gen := generator{model: s.model, current: s.nodes[index].state, emit: func(state evaluator.State, action string, source *parser.Expression) (bool, error) {
 		return s.replaySafetyCandidate(index, state, action, source, seen)
 	}}
-	_, err := gen.solve([]work{{expr: next, label: true}}, evaluator.State{}, s.model.cfg.Next)
+	_, err := gen.solveNext(next)
 	if err == nil {
 		return nil
 	}
@@ -100,7 +100,7 @@ func (s *search) replayCandidateInvariant(state evaluator.State, unseen bool) (b
 	if !unseen {
 		return true, nil
 	}
-	name, err := s.violation(state)
+	name, err := s.model.invariantViolation(state)
 	return name == "", err
 }
 
