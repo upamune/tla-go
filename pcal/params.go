@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Version and ModDate identify the Java translator this package follows.
@@ -57,14 +58,16 @@ func (p *Params) TLCTranslation() bool {
 	return p.specOption || p.myspecOption || p.spec2Option || p.myspec2Option
 }
 
-// versionToNumber ports PcalParams.VersionToNumber.
+// versionToNumber ports PcalParams.VersionToNumber. Like Java, it computes
+// with 32-bit integers that wrap around.
 func versionToNumber(s string) int {
-	result, digitsAfter, afterDecimal := 0, 0, false
+	var result int32
+	digitsAfter, afterDecimal := 0, false
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		switch {
 		case '0' <= c && c <= '9':
-			result = 10*result + int(c-'0')
+			result = 10*result + int32(c-'0')
 			if afterDecimal {
 				digitsAfter++
 			}
@@ -80,7 +83,7 @@ func versionToNumber(s string) int {
 	for range 3 - digitsAfter {
 		result *= 10
 	}
-	return result
+	return int(result)
 }
 
 // status values of trans.parseAndProcessArguments.
@@ -306,13 +309,33 @@ func (a *argParser) version() argStatus {
 
 func (a *argParser) lineWidth() argStatus {
 	arg, ok := a.argument()
-	width, err := strconv.ParseInt(arg, 10, 32)
-	if !ok || err != nil || width < 60 {
+	width, isInt := parseJavaInt(arg)
+	if !ok || !isInt || width < 60 {
 		return a.commandLineError("Integer value at least 60 must follow `-lineWidth' option")
 	}
-	a.p.WrapColumn = int(width)
-	a.p.SSWrapColumn = int(width) - 33
+	a.p.WrapColumn = width
+	a.p.SSWrapColumn = width - 33
 	return statusOK
+}
+
+// parseJavaInt mirrors Integer.parseInt, which also accepts the decimal
+// digits of other scripts.
+func parseJavaInt(s string) (int, bool) {
+	n, err := strconv.ParseInt(strings.Map(asciiDigit, s), 10, 32)
+	return int(n), err == nil
+}
+
+// asciiDigit maps a decimal digit of the Basic Multilingual Plane, which
+// Character.digit accepts, to the ASCII digit of the same value. Unicode
+// encodes decimal digits in runs of ten that start with zero, and each
+// range of unicode.Nd consists of whole runs.
+func asciiDigit(r rune) rune {
+	for _, rg := range unicode.Nd.R16 {
+		if lo := rune(rg.Lo); lo <= r && r <= rune(rg.Hi) {
+			return '0' + (r-lo)%10
+		}
+	}
+	return r
 }
 
 // inputFile sets InputFile from the last argument and checks that the file
