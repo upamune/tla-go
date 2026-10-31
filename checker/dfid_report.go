@@ -65,7 +65,8 @@ func (e *dfidExpansion) propertyFailure(err error, succ *dfidNode, failure *Fail
 }
 
 // evaluationFailure reports an exception while computing successors, after
-// which TLC's worker stops.
+// which TLC's worker stops. With -continue, DFIDWorker reports the exception
+// it catches again.
 func (e *dfidExpansion) evaluationFailure(err error, succ *dfidNode) (bool, error) {
 	failure, ok := asRuntimeError(err)
 	if !ok {
@@ -74,6 +75,9 @@ func (e *dfidExpansion) evaluationFailure(err error, succ *dfidNode) (bool, erro
 	result := generalFailure("computing the set of next states", failure)
 	result.ExitCode, result.Trace = 255, e.traceTo(succ)
 	e.report(Result{Status: EvaluationFailure, Failure: result}, true, err)
+	if s := e.search; s.model.continueChecking && !s.replaying {
+		s.publish(Result{Status: EvaluationFailure, Failure: generalFailure("", failure)})
+	}
 	e.aborted = true
 	return false, nil
 }

@@ -25,10 +25,15 @@ func javaException(failure *evaluator.RuntimeError) (string, int) {
 }
 
 // generalFailure is MP.ECGeneralMsg for the exception behind failure while
-// TLC was doing activity. A coded message is nested in tool output.
+// TLC was doing activity, which can be empty. A coded message is nested in
+// tool output.
 func generalFailure(activity string, failure *evaluator.RuntimeError) *Failure {
 	class, _ := javaException(failure)
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nThe error occurred when TLC was " + activity + ".\nThe exception was a " + class + "\n: "
+	cause := "See the User Output or TLC Console for clues to what happened."
+	if activity != "" {
+		cause = "The error occurred when TLC was " + activity + "."
+	}
+	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\n" + cause + "\nThe exception was a " + class + "\n: "
 	result := &Failure{Message: heading + failure.Message, ToolCode: 1000}
 	nestJavaMessage(result, failure)
 	return result
