@@ -74,6 +74,14 @@ As in Java TLC, an empty function that was not written as a tuple, such as `[x \
 
 The CLI reads and writes JSON paths relative to its working directory. Go callers can supply `Options.ReadFile` and `Options.WriteFile`; without callbacks, reads fail as missing files and writes have no effect.
 
+## PlusCal translation
+
+`tla-go -translate` ports `pcal.trans` 1.11 from the Java TLA+ tools at the pinned commit, including its error messages, automatic labels, checksums, and `.cfg` updates. Tests compare exit codes, standard output, and every written file with Java TLA+ tools 1.7.4 for 1134 runs: the 106 upstream files that contain an algorithm, the inline sources of the upstream `pcal` JUnit tests, randomly mutated upstream algorithms, and inputs written for tla-go, under several option sets. All of them currently match. Other inputs can still differ; for example, internal Java failures that the tests do not reach are reported differently.
+
+The translator does not produce the TLA+-to-PlusCal source mapping that the Toolbox uses, and it rejects `-spec`, `-myspec`, `-spec2`, and `-myspec2`, which run TLC on PlusCal's TLA+ specification. Java prints messages in the locale's charset, so non-ASCII characters can appear as `?` under the C locale; tla-go always writes UTF-8. Java's `-unixEOL` has no effect on current Java versions, which write the platform's line ends; tla-go writes `\n` with `-unixEOL` and the platform's line ends otherwise. Like Java, tla-go counts columns in UTF-16 code units, so a character outside the Basic Multilingual Plane counts as two columns, and an error message that quotes half of such a character shows `?`.
+
+Because the translations of the tested models are identical, tla-go checks them exactly as it checks the translations Java produces.
+
 ## Randomness and runtime values
 
 The default seed is 0. `-seed` selects a different seed. The default random-subset behavior follows the tested Java TLC 1.7.4 cases; `-modern-random-subsets` selects the newer algorithm tested against Java TLC 1.8.0 and the 2026-10-28 development build. Other seeded behavior and constant-level caching can still differ across versions.

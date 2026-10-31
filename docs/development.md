@@ -82,6 +82,12 @@ CI downloads the official Java TLC 1.7.4 and 1.8.0 JARs, verifies their SHA-256 
 TLC_JAR=/absolute/path/to/tla2tools-1.7.4.jar TLC_MODERN_JAR=/absolute/path/to/tla2tools-1.8.0.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
 ```
 
+The PlusCal translator is compared with `pcal.trans` from the same JAR. The normal test run compares tla-go with recorded Java outputs; with `TLC_JAR` set, the test also runs Java, which takes a few minutes. `PCAL_UPDATE_GOLDEN=1` rewrites the recorded outputs from Java; see [the fixture README](../pcal/testdata/README.md).
+
+```sh
+TLC_JAR=/absolute/path/to/tla2tools-1.7.4.jar mise exec -- go test ./pcal -run '^TestJavaPlusCalCorpus$' -count=1
+```
+
 Without either JAR variable, the tests still run tla-go assertions but skip direct Java comparisons. These selected tests cover only part of TLC; see the [upstream test inventory](upstream-test-inventory.md) for the audit scope and its limits. Java TLC versions can also differ; selected newer-version comparisons use `TLC_MODERN_JAR` when supplied.
 
 Fixtures from Java TLC 1.7.4 are traceable to TLA+ Tools commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`. Fixture-specific provenance is recorded alongside the test data. The `OneBitMutexNoSymmetryMC.trace.json` fixture records the counterexample asserted by that version's Java test.
