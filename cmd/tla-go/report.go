@@ -76,7 +76,7 @@ func printViolation(w io.Writer, result checker.Result, module *parser.Module) b
 			kind = "Property"
 		}
 		fmt.Fprintf(w, "Error: %s %s is violated by the initial state:\n", kind, violation.Name)
-		printStateOrdered(w, violation.Trace[0].State, violation.Trace[0].StateOrder)
+		printTraceState(w, violation.Trace[0])
 		printUnwitnessed(w, violation.Unwitnessed)
 		return true
 	}
@@ -144,8 +144,17 @@ func temporalHeadline(violation *checker.Violation) string {
 func printTrace(w io.Writer, trace []checker.TraceStep, module *parser.Module) {
 	for i, step := range trace {
 		fmt.Fprintf(w, "State %d: <%s>\n", i+1, actionLabelWithRange(module, step.Action, step.ActionRange))
-		printStateOrdered(w, step.State, step.StateOrder)
+		printTraceState(w, step)
 	}
+}
+
+// printTraceState prints a trace state, or its VIEW text under -view.
+func printTraceState(w io.Writer, step checker.TraceStep) {
+	if step.View != "" {
+		fmt.Fprintln(w, step.View)
+		return
+	}
+	printStateOrdered(w, step.State, step.StateOrder)
 }
 
 func printStateOrdered(w io.Writer, state evaluator.State, order []string) {

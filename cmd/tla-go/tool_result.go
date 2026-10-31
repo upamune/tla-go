@@ -148,7 +148,7 @@ func printToolInitialViolation(t toolOutput, result checker.Result) {
 	}
 	var body bytes.Buffer
 	fmt.Fprintf(&body, "%s %s is violated by the initial state:\n", kind, v.Name)
-	printStateOrdered(&body, v.Trace[0].State, v.Trace[0].StateOrder)
+	printTraceState(&body, v.Trace[0])
 	t.message(code, 1, body.String())
 }
 
@@ -174,7 +174,7 @@ func printToolTrace(t toolOutput, trace []checker.TraceStep, module *parser.Modu
 	for i, step := range trace {
 		var body bytes.Buffer
 		fmt.Fprintf(&body, "%d: <%s>\n", i+1, actionLabelWithRange(module, step.Action, step.ActionRange))
-		printStateOrdered(&body, step.State, step.StateOrder)
+		printTraceState(&body, step)
 		t.message(2217, 4, body.String())
 	}
 }

@@ -39,11 +39,7 @@ func (m *model) finishSimulationResult(result *Result) {
 		result.Violation.AfterInitial = len(result.Violation.Trace) > 1
 		result.Violation.Trace = m.compactSimulationTrace(result.Violation.Trace)
 	}
-	if m.cfg.Alias != "" {
-		m.applyAlias(result)
-	}
-	m.applyTraceOrder(result)
-	m.applyActionRanges(result)
+	m.presentTraces(result)
 }
 
 func (m *model) compactSimulationTrace(trace []TraceStep) []TraceStep {

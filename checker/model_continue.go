@@ -48,11 +48,7 @@ func (s *search) continueActionViolation(parent int) bool {
 func (s *search) emitContinuedViolation() {
 	s.result.ContinuedViolations++
 	if s.model.onContinuedViolation != nil {
-		if s.model.cfg.Alias != "" {
-			s.model.applyAlias(&s.result)
-		}
-		s.model.applyTraceOrder(&s.result)
-		s.model.applyActionRanges(&s.result)
+		s.model.presentTraces(&s.result)
 		s.model.onContinuedViolation(s.result)
 	}
 	s.result.Status = Success

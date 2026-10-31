@@ -29,6 +29,7 @@ var flagOptions = map[string]func(*options){
 	"-tool":                  func(opts *options) { opts.tool = true },
 	"-continue":              func(opts *options) { opts.continuation = true },
 	"-nowarning":             func(opts *options) { opts.noWarning = true },
+	"-view":                  func(opts *options) { opts.view = true },
 }
 
 // valueOptions parse an option and its arguments, returning the number of

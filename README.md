@@ -74,6 +74,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-checkpoint MINUTES` | Accept Java TLC's checkpoint interval; checkpoints are not written. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
+| `-view` | Print trace states through the configured `VIEW`, as Java TLC does. |
 | `-nowarning` | Suppress TLC warnings, such as those for symmetry or constraints with liveness checking. |
 | `-dump FILE` | Write each new state in Java TLC's text format; `.dump` is appended if absent. |
 | `-dump dot[,colorize][,actionlabels] FILE` | Write a DOT state graph during exploration, optionally with colored edges and action labels; `.dot` is appended if absent. The `snapshot` option is not supported. |

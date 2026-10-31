@@ -35,6 +35,9 @@ type TraceStep struct {
 	ActionRange parser.Range
 	// StateOrder records the display order for state or ALIAS-generated fields.
 	StateOrder []string
+	// View is the state as TLC prints it through VIEW when Options.ViewStates
+	// is set. It is empty when the state is printed directly.
+	View string
 }
 type Violation struct {
 	Name    string
@@ -137,6 +140,7 @@ type model struct {
 	graph                func(GraphEvent) error
 	searchEvent          func(SearchEvent)
 	warning              func(Warning)
+	viewStates           bool
 	continueChecking     bool
 	onContinuedViolation func(Result)
 }
@@ -175,6 +179,9 @@ type Options struct {
 	// MaxSetSize is Java TLC's -maxSetSize bound on sets that are built element
 	// by element. A nonpositive value selects TLC's default of 1,000,000.
 	MaxSetSize int
+	// ViewStates prints trace states through the configured VIEW, as TLC's
+	// -view option does, by setting TraceStep.View.
+	ViewStates bool
 	// OnWarning receives Java TLC warnings before model checking starts.
 	// Simulation does not report these warnings, matching Java TLC.
 	OnWarning func(Warning)
@@ -364,11 +371,7 @@ func (m *model) finalizeCheckResult(result Result) (Result, error) {
 			return result, err
 		}
 	}
-	if m.cfg.Alias != "" {
-		m.applyAlias(&result)
-	}
-	m.applyTraceOrder(&result)
-	m.applyActionRanges(&result)
+	m.presentTraces(&result)
 	if result.Status == AssumptionViolation || result.Status == EvaluationFailure || m.noStateSearch() {
 		return result, nil
 	}
@@ -429,7 +432,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning, viewStates: options.ViewStates}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)
