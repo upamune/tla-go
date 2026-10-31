@@ -65,6 +65,9 @@ type dfidSearch struct {
 }
 
 func (m *model) checkDepthFirst(options DepthFirstOptions) (Result, error) {
+	// DFIDModelChecker's AbstractChecker constructor warns before its
+	// assertions reject several workers or liveness properties.
+	m.emitLivenessWarnings()
 	if err := m.validateDepthFirst(options); err != nil {
 		return Result{}, err
 	}

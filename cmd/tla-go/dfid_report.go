@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/upamune/tla-go/checker"
-	"github.com/upamune/tla-go/evaluator"
 )
 
 // depthFirstMode reports whether TLC's -dfid search applies; -simulate wins.
@@ -18,8 +17,10 @@ func depthFirstBanner(opts options) string {
 
 // configureDepthFirstMode prints errors when TLC's depth-first checker
 // reports them, because exploration can continue and print afterwards.
+// TLC applies -terse but not -difftrace to depth-first traces.
 func configureDepthFirstMode(checkOpts *checker.Options, opts options, out io.Writer) {
-	report := func(result checker.Result) { printDepthFirstError(out, result, opts.tool) }
+	style := traceStyle{terse: opts.compat.terse}
+	report := func(result checker.Result) { printDepthFirstError(out, style.apply(result), opts.tool) }
 	checkOpts.DepthFirst = &checker.DepthFirstOptions{MaxDepth: opts.dfidDepth, Workers: opts.workers, OnError: report}
 	if opts.continuation {
 		checkOpts.Continue, checkOpts.OnViolation = true, report
@@ -83,7 +84,7 @@ func printDepthFirstFailure(w io.Writer, failure *checker.Failure) {
 func printDepthFirstTrace(w io.Writer, trace []checker.TraceStep) {
 	for i, step := range trace {
 		fmt.Fprintf(w, "State %d:\n", i+1)
-		printStateOrdered(w, step.State, step.StateOrder)
+		printTraceState(w, step)
 	}
 }
 
@@ -121,14 +122,14 @@ func printToolDepthFirstInitialFailure(t toolOutput, failure *checker.Failure) b
 
 func printToolDepthFirstTrace(t toolOutput, trace []checker.TraceStep) {
 	for i, step := range trace {
-		t.message(2216, 4, depthFirstState(i+1, step.State, step.StateOrder))
+		t.message(2216, 4, depthFirstState(i+1, step))
 	}
 }
 
-func depthFirstState(number int, state evaluator.State, order []string) string {
+func depthFirstState(number int, step checker.TraceStep) string {
 	var body bytes.Buffer
 	fmt.Fprintf(&body, "%d:\n", number)
-	printStateOrdered(&body, state, order)
+	printTraceState(&body, step)
 	return body.String()
 }
 

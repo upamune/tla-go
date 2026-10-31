@@ -32,7 +32,9 @@ const depthFirstInner = "---- MODULE Inner ----\nEXTENDS Naturals\nVARIABLE y\nN
 
 // The upstream JUnit tests DepthFirstDieHardTest, DepthFirstErrorTraceTest,
 // and DepthFirstTerminate, followed by small models whose Java TLC output does
-// not depend on its random choice of states.
+// not depend on its random choice of states. As in Java TLC, depth-first
+// traces follow -view and -terse but not -difftrace, and liveness warnings
+// precede the rejection of liveness properties.
 var depthFirstCases = []depthFirstCase{
 	{name: "DepthFirstDieHardTest", spec: "DieHard", args: []string{"-deadlock", "-dfid", "7"}, code: 12, counts: "876 states generated, 68 distinct states found.", states: 7},
 	{name: "DepthFirstErrorTraceTest", spec: "DepthFirstErrorTrace", args: []string{"-deadlock", "-dfid", "9"}, code: 12, counts: "29 states generated, 8 distinct states found.", states: 8},
@@ -66,6 +68,9 @@ var depthFirstCases = []depthFirstCase{
 	{name: "initial invariant error", body: "Init == x \\in {0, 1}\nNext == UNCHANGED x\nInv == 1 \\div x = 1", cfg: "INVARIANT Inv\n", args: []string{"-dfid", "10"}, code: 0, counts: "2 states generated, 2 distinct states found."},
 	{name: "incomplete initial state in replay", body: "VARIABLE y\nInit == x \\in {0, 1} /\\ (IF x = 0 THEN y = 0 ELSE TRUE)\nNext == UNCHANGED <<x, y>>\nInv == 1 \\div x = 1", cfg: "INVARIANT Inv\n", args: []string{"-dfid", "10"}, code: 0, counts: "2 states generated, 1 distinct states found."},
 	{name: "liveness", body: "Init == x=0\nNext == x'=(x+1)%4\nP == <>(x=3)", cfg: "PROPERTY P\n", args: []string{"-dfid", "10"}, code: 255},
+	{name: "liveness with constraint", body: "Init == x=0\nNext == x'=(x+1)%4\nP == <>(x=3)\nC == x<10", cfg: "CONSTRAINT C\nPROPERTY P\n", args: []string{"-dfid", "10"}, code: 255},
+	{name: "view", body: "VARIABLE y\nInit == x=0 /\\ y=0\nNext == x<5 /\\ x'=x+1 /\\ y'=y\nInv == x<3\nV == <<x>>", cfg: "INVARIANT Inv\nVIEW V\n", args: []string{"-deadlock", "-view", "-difftrace", "-dfid", "5"}, code: 12, counts: "7 states generated, 4 distinct states found.", states: 4},
+	{name: "terse", body: "VARIABLE y\nInit == x=0 /\\ y=SUBSET {1, 2}\nNext == x<5 /\\ x'=x+1 /\\ y'=y\nInv == x<2", cfg: "INVARIANT Inv\n", args: []string{"-deadlock", "-terse", "-dfid", "5"}, code: 12, counts: "4 states generated, 3 distinct states found.", states: 3},
 }
 
 func TestJavaTLCDepthFirst(t *testing.T) {

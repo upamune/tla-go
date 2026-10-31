@@ -102,11 +102,10 @@ func (e *dfidExpansion) report(result Result, keep bool, cause error) {
 	s.stop = s.publish(result)
 }
 
-// publish orders trace variables and passes an error to OnError when TLC
-// prints it.
+// publish orders trace variables, prints them through VIEW under -view, and
+// passes an error to OnError when TLC prints it.
 func (s *dfidSearch) publish(result Result) Result {
-	s.model.applyTraceOrder(&result)
-	s.model.applyActionRanges(&result)
+	s.presentTrace(&result)
 	if s.options.OnError != nil {
 		s.options.OnError(s.counts(result))
 	}
@@ -116,10 +115,17 @@ func (s *dfidSearch) publish(result Result) Result {
 func (s *dfidSearch) continueViolation(result Result) {
 	s.continued++
 	if s.model.onContinuedViolation != nil {
-		s.model.applyTraceOrder(&result)
-		s.model.applyActionRanges(&result)
+		s.presentTrace(&result)
 		s.model.onContinuedViolation(s.counts(result))
 	}
+}
+
+// presentTrace prepares a depth-first trace as presentTraces does, without
+// ALIAS, which TLC's depth-first checker does not apply.
+func (s *dfidSearch) presentTrace(result *Result) {
+	s.model.applyTraceOrder(result)
+	s.model.applyActionRanges(result)
+	s.model.applyViewStates(result)
 }
 
 // replayExpansion follows TLC's replay of the failing doNext with a call
