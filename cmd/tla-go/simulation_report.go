@@ -116,6 +116,9 @@ func printToolSimulationFailure(t toolOutput, failure *checker.Failure, module *
 		printToolFailure(t, failure, module)
 		return
 	}
+	if printToolSimulationInitialNested(t, failure) {
+		return
+	}
 	var body bytes.Buffer
 	if failure.ToolCode == 2106 {
 		fmt.Fprintln(&body, "State is not completely specified by the initial predicate:")
@@ -124,6 +127,14 @@ func printToolSimulationFailure(t toolOutput, failure *checker.Failure, module *
 	}
 	printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
 	t.message(failure.ToolCode, 1, body.String())
+}
+
+func printToolSimulationInitialNested(t toolOutput, failure *checker.Failure) bool {
+	if failure.ToolCode != 2102 || failure.NestedToolCode != 2215 {
+		return false
+	}
+	printToolInitialNestedFailure(t, failure, 2215, failure.NestedMessage)
+	return true
 }
 
 func simulationHasStatistics(result checker.Result) bool {

@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -126,7 +127,14 @@ func (e *evaluator) binaryWithSource(expr *parser.Expression, left, right value.
 	if expr.Text == "\\cap" {
 		return value.SetOperationWithSource(expr.Text, left, right, expr)
 	}
-	return comparisonCheckedBinary(expr.Text, left, right, e.naturals && !e.integers)
+	result, err := comparisonCheckedBinary(expr.Text, left, right, e.naturals && !e.integers)
+	if err != nil && expr.Text == "<=>" {
+		if _, ok := errors.AsType[*nonBooleanError](err); ok {
+			message := "Attempted to evaluate an expression of form P <=> Q when P or Q was not a boolean."
+			return value.Value{}, booleanRuntimeError(message, expr, nil)
+		}
+	}
+	return result, err
 }
 
 func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {
@@ -137,13 +145,18 @@ func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {
 	if expr.Text == "SUBSET" {
 		return value.SubsetsWithSource(v, expr)
 	}
-	return unary(expr.Text, v)
+	result, err := unary(expr.Text, v)
+	if err != nil && expr.Text == "~" {
+		message := fmt.Sprintf("Attempted to apply the operator ~ to a non-boolean\n(%s)", v.TLCKindDescription())
+		return value.Value{}, booleanRuntimeError(message, expr, nil)
+	}
+	return result, err
 }
 
 func boolean(v value.Value) (bool, error) {
 	b, ok := v.Bool()
 	if !ok {
-		return false, fmt.Errorf("expected a boolean, found %s", v)
+		return false, &nonBooleanError{value: v}
 	}
 	return b, nil
 }
@@ -153,15 +166,18 @@ func (e *evaluator) condition(expr *parser.Expression) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return boolean(v)
+	if b, ok := v.Bool(); ok {
+		return b, nil
+	}
+	return false, &nonBooleanError{value: v, origin: expr}
 }
 
 func (e *evaluator) junction(expr *parser.Expression) (value.Value, error) {
 	want := expr.Kind == "And"
-	for _, operand := range expr.Args {
+	for index, operand := range expr.Args {
 		b, err := e.condition(operand)
 		if err != nil {
-			return value.Value{}, err
+			return value.Value{}, booleanJunctionError(err, expr, index)
 		}
 		if b != want {
 			return value.Bool(!want), nil
@@ -176,13 +192,16 @@ func (e *evaluator) implies(expr *parser.Expression) (value.Value, error) {
 	}
 	left, err := e.condition(expr.Args[0])
 	if err != nil {
-		return value.Value{}, err
+		return value.Value{}, booleanOperatorError(err, expr, expr.Args[0], "=>", "P", nil)
 	}
 	if !left {
 		return value.Bool(true), nil
 	}
 	right, err := e.condition(expr.Args[1])
-	return value.Bool(right), err
+	if err != nil {
+		return value.Bool(right), booleanOperatorError(err, expr, expr.Args[1], "=>", "Q", nil)
+	}
+	return value.Bool(right), nil
 }
 
 func (e *evaluator) prime(expr *parser.Expression) (value.Value, error) {
@@ -221,6 +240,10 @@ func (e *evaluator) unchanged(expr *parser.Expression) (value.Value, error) {
 func (e *evaluator) ifExpression(expr *parser.Expression) (value.Value, error) {
 	b, err := e.condition(expr.Args[0])
 	if err != nil {
+		if failure, ok := errors.AsType[*nonBooleanError](err); ok && failure.origin == expr.Args[0] {
+			message := fmt.Sprintf("A non-boolean expression (%s) was used as the condition of an IF.", failure.value.TLCKindDescription())
+			return value.Value{}, booleanRuntimeError(message, expr, nil)
+		}
 		return value.Value{}, err
 	}
 	if b {
@@ -233,7 +256,7 @@ func (e *evaluator) caseExpression(expr *parser.Expression) (value.Value, error)
 	for _, arm := range expr.Arms {
 		b, err := e.condition(arm.Condition)
 		if err != nil {
-			return value.Value{}, err
+			return value.Value{}, booleanCaseError(err, arm.Condition)
 		}
 		if b {
 			return e.eval(arm.Body)

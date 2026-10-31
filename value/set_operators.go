@@ -11,6 +11,19 @@ func Subsets(base Value) (Value, error) {
 	return SubsetsWithSource(base, nil)
 }
 
+// TLC eagerly represents the union of enumerated sets as an enumerated set.
+func (v Value) tlcUnionEnumerated() bool {
+	if v.kind != UnionKind || v.data.domain.kind != SetKind {
+		return false
+	}
+	for _, member := range v.data.domain.data.elements {
+		if member.kind != SetKind {
+			return false
+		}
+	}
+	return true
+}
+
 // SubsetsWithSource retains the source of a deferred set for TLC diagnostics.
 func SubsetsWithSource(base Value, source *parser.Expression) (Value, error) {
 	if !isSet(base) {

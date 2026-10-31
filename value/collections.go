@@ -147,6 +147,19 @@ func Function(pairs []Pair) (Value, error) {
 	return Value{kind: FunctionKind, data: &payload{pairs: uniquePairs(sorted)}}, nil
 }
 
+// Record constructs a record while retaining its presentation provenance.
+func Record(pairs []Pair) (Value, error) {
+	v, err := Function(pairs)
+	if err != nil {
+		return Value{}, err
+	}
+	if !recordDomain(v.data.pairs) {
+		return Value{}, fmt.Errorf("record requires string field names")
+	}
+	v.number = 2
+	return v, nil
+}
+
 // FunctionWithFieldOrder retains record field order for presentation without
 // changing the function's canonical key ordering or equality.
 func FunctionWithFieldOrder(pairs []Pair, order []string) (Value, error) {
@@ -156,6 +169,7 @@ func FunctionWithFieldOrder(pairs []Pair, order []string) (Value, error) {
 	}
 	if len(order) == len(v.data.pairs) && recordDomain(v.data.pairs) {
 		v.data.displayOrder = append([]string(nil), order...)
+		v.number = 2
 	}
 	return v, nil
 }
@@ -390,7 +404,7 @@ func (v Value) Update(key Value, update func(Value) (Value, error)) (Value, erro
 			}
 			pairs := append([]Pair(nil), v.data.pairs...)
 			pairs[i].Value = replacement
-			return Value{kind: FunctionKind, data: &payload{pairs: pairs, domain: v.data.domain}}, nil
+			return Value{kind: FunctionKind, number: v.number, data: &payload{pairs: pairs, domain: v.data.domain, displayOrder: v.data.displayOrder}}, nil
 		}
 	}
 	return v, nil

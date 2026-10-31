@@ -50,7 +50,7 @@ func setFingerprintCause(result *Failure, failure *evaluator.RuntimeError) {
 }
 
 func setInitialNestedFailure(result *Failure, failure *evaluator.RuntimeError) {
-	if failure.ToolCode == 2132 || failure.ToolCode == 2266 {
+	if failure.ToolCode == 2132 || failure.ToolCode == 2266 || failure.ToolCode == 2215 || failure.ToolCode == 2247 {
 		result.NestedToolCode = failure.ToolCode
 		result.NestedMessage = failure.Message
 		result.evaluationSources = slices.Clone(failure.Sources)
@@ -71,9 +71,7 @@ func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 	if missing, ok := errors.AsType[*evaluator.UnboundVariable](err); ok {
 		failure.Unexpected = &value.UnexpectedError{Message: failure.Message, Sources: missing.Sources}
 	}
-	if failure.Unexpected != nil {
-		failure = nextUnexpectedFailure(failure)
-	}
+	failure = normalizeNextFailure(failure)
 	if _, ok := errors.AsType[*candidateFingerprintError](err); ok {
 		return s.runtimeFailure(failure, nil, actionFailureCode(failure))
 	}
@@ -82,6 +80,24 @@ func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 		return Result{}, recoveryErr
 	}
 	return s.runtimeFailure(failure, trace, actionFailureCode(failure))
+}
+
+func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
+	if failure.Unexpected != nil {
+		failure = nextUnexpectedFailure(failure)
+	}
+	if failure.ToolCode == 2247 {
+		failure = nextBooleanGenerationFailure(failure)
+	}
+	return failure
+}
+
+func nextBooleanGenerationFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
+	result := *failure
+	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n: "
+	result.Message = heading + failure.Message
+	result.NestedMessage, result.NestedToolCode, result.ToolCode = failure.Message, 2247, 1000
+	return &result
 }
 
 func asRuntimeError(err error) (*evaluator.RuntimeError, bool) {
@@ -192,14 +208,7 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 	}
 	result := &Failure{Message: failure.Message, ExitCode: 75}
 	if parent < 0 {
-		setInitialNestedFailure(result, failure)
-		if len(failure.Sources) > 0 {
-			result.evaluationSources = slices.Clone(failure.Sources)
-			result.SuppressDepth = true
-		}
-		if !failure.Standard {
-			result.InitialState = state
-		}
+		setInitialInvariantFailure(result, failure, state)
 	} else {
 		result.Message = fmt.Sprintf("Evaluating invariant %s failed.\n%s", name, failure.Message)
 		result.ToolCode = 2111
@@ -216,4 +225,18 @@ func (s *search) invariantRuntimeFailure(err error, name string, state evaluator
 	s.result.Status = EvaluationFailure
 	s.result.Failure = result
 	return false, nil
+}
+
+func setInitialInvariantFailure(result *Failure, failure *evaluator.RuntimeError, state evaluator.State) {
+	setInitialNestedFailure(result, failure)
+	if failure.BooleanOperator || failure.ToolCode == 2215 {
+		result.ToolCode = 2102
+	}
+	if len(failure.Sources) > 0 {
+		result.evaluationSources = slices.Clone(failure.Sources)
+		result.SuppressDepth = true
+	}
+	if !failure.Standard {
+		result.InitialState = state
+	}
 }

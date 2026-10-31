@@ -14,7 +14,7 @@ func makeRecord(fields map[string]value.Value) (value.Value, error) {
 	for key, val := range fields {
 		pairs = append(pairs, value.Pair{Key: value.String(key), Value: val})
 	}
-	return value.Function(pairs)
+	return value.Record(pairs)
 }
 
 func unnamedAction() (value.Value, error) {

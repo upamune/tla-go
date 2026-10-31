@@ -45,7 +45,7 @@ func (e *evaluator) orderSetResult(op string, v value.Value) (value.Value, error
 
 func (e *evaluator) orderedRecord(pairs []value.Pair) (value.Value, error) {
 	if e.program.ordering == nil {
-		return value.Function(pairs)
+		return value.Record(pairs)
 	}
 	var failure error
 	slices.SortStableFunc(pairs, func(a, b value.Pair) int {

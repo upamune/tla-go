@@ -56,7 +56,24 @@ func (g *generator) holdsWithLocals(expr *parser.Expression, current, next evalu
 	}
 	b, ok := v.Bool()
 	if !ok {
-		return false, fmt.Errorf("predicate must be boolean, got %s", v)
+		if g.enabled {
+			return false, fmt.Errorf("predicate must be boolean, got %s", v)
+		}
+		return false, g.nonBooleanGenerationError(expr, v)
 	}
 	return b, nil
+}
+
+func (g *generator) nonBooleanGenerationError(expr *parser.Expression, v value.Value) error {
+	phase := "next"
+	if g.initial {
+		phase = "initial"
+	}
+	detail := v.String()
+	r := expr.Location.Range
+	if expr.Kind != "Number" && r.Start.Line > 0 {
+		detail = fmt.Sprintf("line %d, col %d to line %d, col %d of module %s", r.Start.Line, r.Start.Column, r.End.Line, r.End.Column, r.Module)
+	}
+	message := fmt.Sprintf("In computing %s states, TLC expected a boolean expression,\nbut instead found %s.\n%s", phase, v, detail)
+	return &evaluator.RuntimeError{Message: message, ToolCode: 2247, TrackSource: true, Sources: []*parser.Expression{expr}}
 }

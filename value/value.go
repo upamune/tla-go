@@ -35,7 +35,7 @@ const (
 // Value is immutable. Constructors copy their inputs and accessors return copies.
 type Value struct {
 	kind Kind
-	// number is also used to remember literal tuple provenance for functions.
+	// number also records tuple or record provenance for functions.
 	number, high int32
 	data         *payload
 }
@@ -61,6 +61,9 @@ func (v Value) Kind() Kind { return v.kind }
 
 // IsTuple reports whether this function was constructed as a tuple.
 func (v Value) IsTuple() bool { return v.kind == FunctionKind && v.number == 1 }
+
+// IsRecord reports whether this function was constructed as a record.
+func (v Value) IsRecord() bool { return v.kind == FunctionKind && v.number == 2 }
 
 // IsEnumerable reports whether this set can be enumerated.
 func (v Value) IsEnumerable() bool { return v.enumerable() }

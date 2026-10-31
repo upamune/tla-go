@@ -85,6 +85,45 @@ func TestTupleFunctionAndRecord(t *testing.T) {
 	}
 }
 
+func TestRecordProvenancePreservesIdentity(t *testing.T) {
+	if _, err := Record([]Pair{{Key: number(t, 1), Value: Bool(true)}}); err == nil {
+		t.Fatal("accepted a non-string record field")
+	}
+	pairs := []Pair{{Key: String("a"), Value: number(t, 1)}}
+	record, err := Record(pairs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	function, err := Function(pairs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	equal, err := Equal(record, function)
+	if err != nil || !equal || !record.IsRecord() || function.IsRecord() || key(t, record) != key(t, function) {
+		t.Fatalf("record %v, function %v, equal %t, error %v", record.IsRecord(), function.IsRecord(), equal, err)
+	}
+	recordFP, err := TLCFingerprint([]Value{record})
+	if err != nil {
+		t.Fatal(err)
+	}
+	functionFP, err := TLCFingerprint([]Value{function})
+	if err != nil || recordFP != functionFP {
+		t.Fatalf("fingerprints %d and %d, error %v", recordFP, functionFP, err)
+	}
+	updated, err := record.Update(String("a"), func(Value) (Value, error) { return number(t, 2), nil })
+	if err != nil || !updated.IsRecord() || record.String() != "[a |-> 1]" || updated.String() != "[a |-> 2]" {
+		t.Fatalf("updated record %s, original %s, error %v", updated, record, err)
+	}
+	tuple, err := Tuple([]Value{number(t, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updatedTuple, err := tuple.Update(number(t, 1), func(Value) (Value, error) { return number(t, 2), nil })
+	if err != nil || !updatedTuple.IsTuple() || tuple.String() != "<<1>>" || updatedTuple.String() != "<<2>>" {
+		t.Fatalf("updated tuple %s, original %s, error %v", updatedTuple, tuple, err)
+	}
+}
+
 func TestBoundsTypesAndImmutability(t *testing.T) {
 	if _, err := Integer(math.MaxInt32 + 1); err == nil {
 		t.Fatal("overflow accepted")

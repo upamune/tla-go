@@ -85,7 +85,7 @@ func (e *evaluator) quantifier(expr *parser.Expression) (value.Value, error) {
 	err := e.walkBounds(expr.Bounds, nil, func(child *evaluator, _ []value.Value) (bool, error) {
 		b, err := child.condition(expr.Args[0])
 		if err != nil {
-			return false, err
+			return false, booleanQuantifierError(err, expr, expr.Args[0])
 		}
 		if b != result {
 			result = b
@@ -102,7 +102,7 @@ func (e *evaluator) choose(expr *parser.Expression) (value.Value, error) {
 	err := e.walkBounds(expr.Bounds, nil, func(child *evaluator, selected []value.Value) (bool, error) {
 		b, err := child.condition(expr.Args[0])
 		if err != nil {
-			return false, err
+			return false, booleanQuantifierError(err, expr, expr.Args[0])
 		}
 		if b {
 			result = selected[0]

@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/upamune/tla-go/evaluator"
@@ -80,9 +81,20 @@ func (r *simulationRun) explore(traces int) (Result, error) {
 		return *result, err
 	}
 	if err != nil {
-		return Result{}, err
+		return r.initialGenerationFailure(err)
 	}
 	return r.exploreTraces(states, traces)
+}
+
+func (r *simulationRun) initialGenerationFailure(err error) (Result, error) {
+	failure, ok := errors.AsType[*evaluator.RuntimeError](err)
+	if !ok || failure.ToolCode != 2247 {
+		return Result{}, err
+	}
+	result := r.search.result
+	result.Status = EvaluationFailure
+	result.Failure = &Failure{Message: failure.Message, ToolCode: 2247, ExitCode: 255, SuppressStatistics: true}
+	return result, nil
 }
 
 func (r *simulationRun) exploreTraces(states []evaluator.State, traces int) (Result, error) {
@@ -244,7 +256,7 @@ func (r *simulationRun) step(index int) (*Result, error) {
 	r.model.tlcRuntime.traceCurrent = index
 	states, err := r.worker.nextStates(r.current)
 	if err != nil {
-		return nil, err
+		return r.nextGenerationFailure(err, index)
 	}
 	if len(states) == 0 {
 		return r.deadlock(index), nil
@@ -261,6 +273,17 @@ func (r *simulationRun) step(index int) (*Result, error) {
 	r.model.tlcRuntime.rememberTraceState(next, index+1)
 	r.current = next
 	return nil, nil
+}
+
+func (r *simulationRun) nextGenerationFailure(err error, index int) (*Result, error) {
+	failure, ok := errors.AsType[*evaluator.RuntimeError](err)
+	if !ok || failure.ToolCode != 2247 {
+		return nil, err
+	}
+	result := r.search.result
+	result.Status = EvaluationFailure
+	result.Failure = &Failure{Message: failure.Message, ToolCode: 2247, ExitCode: 255, Trace: r.search.trace(index)}
+	return &result, nil
 }
 
 func (r *simulationRun) deadlock(index int) *Result {

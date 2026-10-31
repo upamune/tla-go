@@ -107,6 +107,15 @@ configured constant is rejected.
 postcondition with Java TLC 1.8.0. Non-boolean expressions and all evaluation
 errors are not covered by these comparisons.
 
+`TestJavaTLCNonBooleanInvariant`, `TestJavaTLCNonBooleanSuccessor`,
+`TestJavaTLCNonBooleanJunctionRanges`, `TestJavaTLCNonBooleanProperty`, and the
+simulation variants compare selected type errors with Java TLC 1.7.4 and
+1.8.0. They check error messages, locations, exit codes, and selected tool
+messages, not complete evaluation stacks or all value representations.
+`TestJavaTLCNonBooleanGeneration` compares selected errors while generating
+initial and successor states. Their surrounding simulation messages can differ
+between Java TLC versions.
+
 `TestJavaTLCModelContinue` compares selected model-checking continuation cases
 with Java TLC 1.7.4, including initial and successor violations, constraints,
 deadlocks, and temporal properties. `TestJavaTLCModelContinueDOT` compares DOT

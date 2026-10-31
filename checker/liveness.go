@@ -304,7 +304,7 @@ func (m *model) holdsProperty(expr *parser.Expression, current evaluator.State, 
 	}
 	ok, valid := result.Bool()
 	if !valid {
-		return false, fmt.Errorf("temporal predicate must be boolean, got %s", result)
+		return false, m.nonBooleanPredicateError(expr, result)
 	}
 	return ok, nil
 }

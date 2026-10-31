@@ -619,7 +619,13 @@ func (m *model) eval(expr *parser.Expression, current, next evaluator.State) (va
 
 func (m *model) holds(expr *parser.Expression, current, next evaluator.State) (bool, error) {
 	v, err := m.eval(expr, current, next)
-	return predicateBoolean(v, err)
+	if err != nil {
+		return false, err
+	}
+	if b, ok := v.Bool(); ok {
+		return b, nil
+	}
+	return false, m.nonBooleanPredicateError(expr, v)
 }
 
 func predicateBoolean(v value.Value, err error) (bool, error) {

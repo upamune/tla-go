@@ -19,9 +19,11 @@ type RuntimeError struct {
 	NestedToolCode int
 	NestedMessage  string
 	TrackSource    bool
-	Unexpected     *value.UnexpectedError
-	Fingerprint    *value.FingerprintError
-	Sources        []*parser.Expression
+	// BooleanOperator identifies a TLC type error in a Boolean operator.
+	BooleanOperator bool
+	Unexpected      *value.UnexpectedError
+	Fingerprint     *value.FingerprintError
+	Sources         []*parser.Expression
 }
 
 // AddUnexpectedSource records an evaluation frame unless a fingerprint stack

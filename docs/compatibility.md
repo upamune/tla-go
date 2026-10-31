@@ -16,6 +16,10 @@ Simulation's `TLCSet("exit", TRUE)` follows Java TLC 1.8.0 for the tested single
 
 Selected constant configured invariants, properties, and constraints are evaluated before assumptions. `FALSE` is reported as a configuration error and `TRUE` is not reevaluated during exploration. Precomputation involving TLC runtime operations, diagnostics for non-boolean expressions, and evaluation failures can still differ from Java TLC.
 
+Selected non-boolean invariant and property failures report Java TLC's operator, value kind, source location, and exit code, including Boolean operators, conditionals, and quantifiers. Nested evaluation stacks, replayed side effects, and other contexts are not fully compatible.
+
+When a non-boolean expression is encountered while generating initial states in simulation, tla-go reports message 2247 directly as Java TLC 1.7.4 does. Java TLC 1.8.0 nests that message inside a general error instead.
+
 Supported finite-state models include `INIT`/`NEXT`, common `SPECIFICATION` forms, invariants, state and action constraints, constants, and selected quantified and parameterized actions. The checker also supports selected temporal properties, weak and strong fairness, `VIEW`, `SYMMETRY`, counterexamples, `ALIAS`, `POSTCONDITION`, and `_POSSIBLE`.
 
 Support is partial. Complex temporal formulas, action predicates, fairness combined with state reductions, and some recursive or effectful expressions can fail or differ from Java TLC. Counterexample selection, state ordering, fingerprinting, error messages, printed values, and exit codes are not fully compatible. TLC runtime values, side effects, random choices, and duration-dependent checks can also produce different results.

@@ -10,10 +10,7 @@ import (
 )
 
 func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Module) {
-	if printToolInitialFingerprintFailure(t, failure) {
-		return
-	}
-	if printToolInitialConstraintFailure(t, failure) {
+	if printToolInitialFailure(t, failure) {
 		return
 	}
 	printToolFailureHeader(t, failure)
@@ -32,6 +29,24 @@ func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Mod
 	if failure.EvaluationDetail != "" {
 		t.message(2103, 1, failure.EvaluationDetail)
 	}
+}
+
+func printToolInitialFailure(t toolOutput, failure *checker.Failure) bool {
+	return printToolInitialFingerprintFailure(t, failure) || printToolInitialConstraintFailure(t, failure) || printToolInitialEvaluationFailure(t, failure)
+}
+
+func printToolInitialEvaluationFailure(t toolOutput, failure *checker.Failure) bool {
+	if failure.ToolCode != 2102 || failure.InitialState == nil || failure.NestedToolCode != 0 {
+		return false
+	}
+	var body bytes.Buffer
+	fmt.Fprintf(&body, "%s\nWhile working on the initial state:\n", failure.Message)
+	printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
+	t.message(2102, 1, body.String())
+	if failure.EvaluationDetail != "" {
+		t.message(2103, 1, failure.EvaluationDetail)
+	}
+	return true
 }
 
 func printToolInitialConstraintFailure(t toolOutput, failure *checker.Failure) bool {
