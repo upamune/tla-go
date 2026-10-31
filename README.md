@@ -79,8 +79,9 @@ The module name must match the `.tla` filename. External modules referenced by `
 The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and DOT output are compared with Java TLC for representative models, but full compatibility is not yet established. Only `-workers 1` is supported; state identity and fingerprint collision behavior can still differ from Java TLC.
 
 Simulation checks a bounded set of randomly chosen behaviors; a successful run
-does not prove a model correct. Selected pure state eventualities (`<>P`) are
-supported without fairness or state reduction. Other temporal properties,
+does not prove a model correct. Selected pure state eventualities (`<>P`),
+recurrence (`[]<>P`), and stability (`<>[]P`) are supported without fairness
+or state reduction. Other temporal properties,
 fairness, trace files, continuation after violations, multiple
 workers, `-aril`, `TLCGet("config")`, `TLCSet("exit", TRUE)`, DOT dumps, and liveness debugging in simulation mode are not supported. Simulation
 messages and errors are not fully compatible with Java TLC. For example:

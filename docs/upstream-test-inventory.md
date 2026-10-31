@@ -67,6 +67,12 @@ They check exit codes, generated-state counts when reported, and selected tool
 messages and traces; they do not establish equivalence for all output or for
 the remaining original liveness and `-continue` tests.
 
+The simulation recurrence tests also compare small models for `[]<>P` and
+`<>[]P`, including branching traces and combinations of temporal properties,
+against Java TLC 1.7.4. They cover selected results and tool traces, not all
+temporal formulas. A separate regression test records a known difference in
+simulation stability results between TLC 1.7.4 and 1.8.0.
+
 ## Audit work
 
 - Enumerate executable upstream tests, including parameterized and inherited

@@ -2,6 +2,7 @@ package checker
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -35,7 +36,33 @@ func BenchmarkSimulationTraces(b *testing.B) {
 }
 
 func BenchmarkSimulationLiveness(b *testing.B) {
-	source := strings.Replace(simulationWalkSource, "====", "P == <>(x = 0)\n====", 1)
+	benchmarkSimulationProperty(b, "<>(x = 0)")
+}
+
+func BenchmarkSimulationRecurrence(b *testing.B) {
+	benchmarkSimulationProperty(b, "[]<>(x \\in {0, 1, 2})")
+}
+
+func BenchmarkSimulationRecurrenceUniqueStates(b *testing.B) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = x + 1\nP == []<>(x >= 0)\n===="
+	for _, depth := range []int{250, 500, 1000} {
+		b.Run(fmt.Sprintf("depth-%d", depth), func(b *testing.B) {
+			opts := Options{Simulation: &SimulationOptions{Traces: 1, Depth: depth}}
+			b.ReportAllocs()
+			for b.Loop() {
+				result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P", opts)
+				if err != nil || result.Status != Success {
+					b.Fatalf("simulation: %+v, %v", result, err)
+				}
+				b.ReportMetric(float64(result.GeneratedStates), "states/op")
+			}
+		})
+	}
+}
+
+func benchmarkSimulationProperty(b *testing.B, property string) {
+	b.Helper()
+	source := strings.Replace(simulationWalkSource, "====", "P == "+property+"\n====", 1)
 	module, err := parser.ParseModule(source)
 	if err != nil {
 		b.Fatal(err)

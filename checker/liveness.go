@@ -397,6 +397,9 @@ func (s *search) checkProperty(p temporalProperty) (bool, error) {
 }
 
 func (s *search) checkOtherProperty(p temporalProperty) (bool, error) {
+	if s.simulationCheckStates != nil && p.mode == often {
+		return s.checkSimulationOften(p)
+	}
 	if p.mode == oftenImpliesState || p.mode == oftenImpliesAction {
 		return s.checkOftenImplication(p)
 	}
