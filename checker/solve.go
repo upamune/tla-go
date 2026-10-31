@@ -248,7 +248,7 @@ func (g *generator) expandWork(item work, expanded *parser.Expression, rest *wor
 	if item.path.contains(item.expr.Text) {
 		return false, fmt.Errorf("recursive action expansion: %s", item.expr.Text)
 	}
-	path := item.path.withName(item.expr.Text)
+	path := g.model.pathWithName(item.path, item.expr.Text)
 	previous := g.source
 	if !g.initial && item.label {
 		action = item.expr.Text

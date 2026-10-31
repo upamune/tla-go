@@ -10,6 +10,8 @@ type workPath struct {
 	scope         *evaluator.LexicalScope
 	hasScope      bool
 	functionDepth int
+	// shared paths only name actions; the model keeps one for each sequence.
+	shared bool
 }
 
 func (p *workPath) withFunction() *workPath {
@@ -18,6 +20,7 @@ func (p *workPath) withFunction() *workPath {
 		result = *p
 	}
 	result.functionDepth++
+	result.shared = false
 	return &result
 }
 
@@ -64,5 +67,32 @@ func (p *workPath) withScope(scope *evaluator.LexicalScope) *workPath {
 		result = *p
 	}
 	result.scope, result.hasScope = scope, true
+	result.shared = false
 	return &result
+}
+
+type sharedPathKey struct {
+	parent *workPath
+	name   string
+}
+
+// pathWithName extends p by an expanded action name. Paths without a lexical
+// boundary or function action are equal in every state, so they are shared.
+func (m *model) pathWithName(p *workPath, name string) *workPath {
+	if p != nil && !p.shared {
+		return p.withName(name)
+	}
+	key := sharedPathKey{parent: p, name: name}
+	if path, ok := m.sharedPaths[key]; ok {
+		return path
+	}
+	path := p.withName(name)
+	path.shared = true
+	if len(m.sharedPaths) < 4096 {
+		if m.sharedPaths == nil {
+			m.sharedPaths = make(map[sharedPathKey]*workPath)
+		}
+		m.sharedPaths[key] = path
+	}
+	return path
 }
