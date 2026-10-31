@@ -22,7 +22,7 @@ func (v Value) String() string {
 	case SetKind:
 		return formatSet(v.setIteration())
 	case FunctionKind:
-		return formatFunction(v.displayPairs())
+		return v.formatFunctionValue()
 	default:
 		return v.formatSpecial()
 	}
@@ -48,6 +48,20 @@ func formatSet(elements []Value) string {
 		parts[i] = v.String()
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
+}
+
+// Java TLC prints an empty FcnRcdValue as "<< >>", unlike an empty TupleValue.
+const emptyFunctionRecordText = "<< >>"
+
+func (v Value) formatFunctionValue() string {
+	if v.emptyFunctionRecord() {
+		return emptyFunctionRecordText
+	}
+	return formatFunction(v.displayPairs())
+}
+
+func (v Value) emptyFunctionRecord() bool {
+	return v.kind == FunctionKind && len(v.data.pairs) == 0 && !v.IsTuple()
 }
 
 func formatFunction(pairs []Pair) string {

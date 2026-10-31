@@ -47,6 +47,9 @@ func strictValues(values []Value) ([]string, error) {
 }
 
 func strictFunction(v Value) (string, error) {
+	if v.emptyFunctionRecord() {
+		return emptyFunctionRecordText, nil
+	}
 	pairs := v.displayPairs()
 	parts := make([]string, len(pairs))
 	tuple, record := tupleDomain(pairs), printableRecordDomain(pairs)

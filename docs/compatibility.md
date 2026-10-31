@@ -64,6 +64,8 @@ Theorem `ASSUME`/`PROVE` statements support `NEW` declarations and the `CONSTANT
 
 The implementation provides selected functionality from `Naturals`, `Integers`, `FiniteSets`, `Sequences`, `Bags`, `TLC`, `TLCExt`, `Json`, and `Randomization`. The Java TLC 1.7.4 sources for `Reals` and `RealTime` are embedded and can also be supplied as local modules. Standard imports used inside an `INSTANCE` retain their own bindings; inherited operators and substitutions are not yet fully supported for every standard module. Support for infinite sets and individual standard operators is partial. Some functions require enumerable finite values.
 
+As in Java TLC, an empty function that was not written as a tuple, such as `[x \in {} |-> 0]` or the element of `[{} -> S]`, prints as `<< >>`, while an empty tuple or sequence prints as `<<>>`.
+
 The CLI reads and writes JSON paths relative to its working directory. Go callers can supply `Options.ReadFile` and `Options.WriteFile`; without callbacks, reads fail as missing files and writes have no effect.
 
 ## Randomness and runtime values
