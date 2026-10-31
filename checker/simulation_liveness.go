@@ -30,8 +30,12 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	for i, node := range r.search.nodes[:visited] {
 		states[i] = node.state
 	}
+	trace, err := newLiveTrace(r.model, states)
+	if err != nil {
+		return r.liveFailure(err)
+	}
 	for i := range r.live {
-		violation, err := r.checkLiveSolution(&r.live[i], states)
+		violation, err := r.checkLiveSolution(&r.live[i], trace)
 		if err != nil {
 			return r.liveFailure(err)
 		}
@@ -91,8 +95,8 @@ func (r *simulationRun) liveException(failure *Failure, printing *livePrintError
 	return &result
 }
 
-func (r *simulationRun) checkLiveSolution(solution *liveSolution, states []evaluator.State) (*Violation, error) {
-	graph, err := newLiveTraceGraph(r.model, solution, states)
+func (r *simulationRun) checkLiveSolution(solution *liveSolution, trace *liveTrace) (*Violation, error) {
+	graph, err := newLiveTraceGraph(trace, solution)
 	if err != nil {
 		return nil, err
 	}

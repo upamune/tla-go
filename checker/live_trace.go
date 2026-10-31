@@ -23,27 +23,84 @@ type liveTraceKey struct {
 	tableau int
 }
 
-// liveTraceGraph is the behavior graph that LiveCheck1.constructBEGraph
-// builds from one simulated trace and one solution. Like TLC fingerprints,
-// its keys identify states up to VIEW and SYMMETRY.
-type liveTraceGraph struct {
-	solution *liveSolution
-	states   []evaluator.State
-	keys     []string
-	nodes    []liveTraceNode
-	initial  []int
-	index    map[liveTraceKey]int
+// liveTrace is the sampled trace that LiveCheck1 checks. Like TLC
+// fingerprints, its keys identify states up to VIEW and SYMMETRY. TLC
+// evaluates each check on every node and edge of each solution's graph;
+// tla-go evaluates a leaf once per state, or per step for an action, which
+// only skips repeated side effects.
+type liveTrace struct {
+	states []evaluator.State
+	keys   []string
+	// leaves holds, by leaf tag and slot, 1 for a true and -1 for a false leaf.
+	leaves [][]int8
 }
 
-func newLiveTraceGraph(m *model, solution *liveSolution, states []evaluator.State) (*liveTraceGraph, error) {
-	g := &liveTraceGraph{solution: solution, states: states, keys: make([]string, len(states)), index: map[liveTraceKey]int{}}
+func newLiveTrace(m *model, states []evaluator.State) (*liveTrace, error) {
+	t := &liveTrace{states: states, keys: make([]string, len(states))}
 	for i, state := range states {
 		key, err := m.stateKey(state)
 		if err != nil {
 			return nil, err
 		}
-		g.keys[i] = key
+		t.keys[i] = key
 	}
+	return t, nil
+}
+
+func (t *liveTrace) leaf(n *liveNode, current, next int) (bool, error) {
+	slot, cached := liveLeafSlot(n, current, next)
+	values := t.leafValues(n.leaf.tag)
+	if cached && values[slot] != 0 {
+		return values[slot] > 0, nil
+	}
+	var nextState evaluator.State
+	if next >= 0 {
+		nextState = t.states[next]
+	}
+	holds, err := n.leaf.eval(t.states[current], nextState)
+	if err == nil && cached {
+		values[slot] = -1
+		if holds {
+			values[slot] = 1
+		}
+	}
+	return holds, err
+}
+
+// liveLeafSlot caches a state leaf per state and an action leaf per
+// stuttering or forward step, the edges of LiveCheck1's graphs.
+func liveLeafSlot(n *liveNode, current, next int) (int, bool) {
+	switch {
+	case n.kind == liveState || next == current:
+		return 2 * current, true
+	case next == current+1:
+		return 2*current + 1, true
+	}
+	return 0, false
+}
+
+func (t *liveTrace) leafValues(tag int) []int8 {
+	for len(t.leaves) <= tag {
+		t.leaves = append(t.leaves, nil)
+	}
+	if t.leaves[tag] == nil {
+		t.leaves[tag] = make([]int8, 2*len(t.states))
+	}
+	return t.leaves[tag]
+}
+
+// liveTraceGraph is the behavior graph that LiveCheck1.constructBEGraph
+// builds from one simulated trace and one solution.
+type liveTraceGraph struct {
+	solution *liveSolution
+	*liveTrace
+	nodes   []liveTraceNode
+	initial []int
+	index   map[liveTraceKey]int
+}
+
+func newLiveTraceGraph(trace *liveTrace, solution *liveSolution) (*liveTraceGraph, error) {
+	g := &liveTraceGraph{solution: solution, liveTrace: trace, index: map[liveTraceKey]int{}}
 	if solution.tableau == nil {
 		return g, g.buildPlain()
 	}
@@ -51,17 +108,17 @@ func newLiveTraceGraph(m *model, solution *liveSolution, states []evaluator.Stat
 }
 
 func (g *liveTraceGraph) checkState(state int) ([]bool, error) {
-	return liveChecks(g.solution.checkState, g.states[state], nil)
+	return g.checks(g.solution.checkState, state, -1)
 }
 
 func (g *liveTraceGraph) checkAction(from, to int) ([]bool, error) {
-	return liveChecks(g.solution.checkAction, g.states[from], g.states[to])
+	return g.checks(g.solution.checkAction, from, to)
 }
 
-func liveChecks(checks []*liveNode, current, next evaluator.State) ([]bool, error) {
+func (g *liveTraceGraph) checks(checks []*liveNode, current, next int) ([]bool, error) {
 	result := make([]bool, len(checks))
 	for i, check := range checks {
-		holds, err := check.eval(current, next)
+		holds, err := check.eval(g.liveTrace, current, next)
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +228,7 @@ func (g *liveTraceGraph) initialTableauNodes() ([]int, error) {
 		return nil, err
 	}
 	for _, node := range g.solution.tableau.nodes[:g.solution.tableau.initial] {
-		consistent, err := node.consistent(g.states[0])
+		consistent, err := node.consistent(g.liveTrace, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +288,7 @@ func (g *liveTraceGraph) expandTableau(source, state int, checks, actions []bool
 			}
 			continue
 		}
-		consistent, err := next.consistent(g.states[state])
+		consistent, err := next.consistent(g.liveTrace, state)
 		if err != nil {
 			return err
 		}

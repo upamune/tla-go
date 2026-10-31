@@ -2,8 +2,6 @@ package checker
 
 import (
 	"slices"
-
-	"github.com/upamune/tla-go/evaluator"
 )
 
 // livePar is a TBPar: an ordered particle whose members are compared with
@@ -245,9 +243,9 @@ func newLiveTableauNode(par *livePar) *liveTableauNode {
 	return node
 }
 
-func (n *liveTableauNode) consistent(state evaluator.State) (bool, error) {
+func (n *liveTableauNode) consistent(trace *liveTrace, state int) (bool, error) {
 	for _, predicate := range n.statePreds {
-		holds, err := predicate.eval(state, nil)
+		holds, err := predicate.eval(trace, state, -1)
 		if err != nil || !holds {
 			return false, err
 		}

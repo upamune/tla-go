@@ -165,3 +165,45 @@ Bound == Len(Trace) <= 100
 		b.ReportMetric(float64(result.GeneratedStates), "states/op")
 	}
 }
+
+// petersonSource follows the translation of the upstream test-model
+// pcal/Peterson.tla, with its fairness and leads-to property.
+const petersonSource = `---- MODULE Peterson ----
+VARIABLES flag, turn, pc
+vars == <<flag, turn, pc>>
+Not(i) == IF i = 0 THEN 1 ELSE 0
+Init == /\ flag = [i \in {0, 1} |-> FALSE]
+        /\ turn = 0
+        /\ pc = [self \in {0, 1} |-> "a0"]
+a0(self) == /\ pc[self] = "a0" /\ pc' = [pc EXCEPT ![self] = "a1"] /\ UNCHANGED << flag, turn >>
+a1(self) == /\ pc[self] = "a1" /\ flag' = [flag EXCEPT ![self] = TRUE] /\ pc' = [pc EXCEPT ![self] = "a2"] /\ turn' = turn
+a2(self) == /\ pc[self] = "a2" /\ turn' = Not(self) /\ pc' = [pc EXCEPT ![self] = "a3"] /\ flag' = flag
+a3(self) == /\ pc[self] = "a3"
+            /\ IF flag[Not(self)] /\ turn = Not(self) THEN pc' = [pc EXCEPT ![self] = "a3"] ELSE pc' = [pc EXCEPT ![self] = "cs"]
+            /\ UNCHANGED << flag, turn >>
+cs(self) == /\ pc[self] = "cs" /\ pc' = [pc EXCEPT ![self] = "a4"] /\ UNCHANGED << flag, turn >>
+a4(self) == /\ pc[self] = "a4" /\ flag' = [flag EXCEPT ![self] = FALSE] /\ pc' = [pc EXCEPT ![self] = "a0"] /\ turn' = turn
+proc(self) == a0(self) \/ a1(self) \/ a2(self) \/ a3(self) \/ cs(self) \/ a4(self)
+Next == \E self \in {0, 1} : proc(self)
+FairSpec == /\ Init /\ [][Next]_vars
+            /\ \A self \in {0, 1} : WF_vars(proc(self) /\ (pc[self] # "a0"))
+DeadlockFree == \A i \in {0, 1} : (pc[i] = "a1") ~> (pc[i] = "cs")
+====
+`
+
+// Quantified weak fairness evaluates ENABLED for every trace state. The run
+// without a property measures the simulation itself.
+func BenchmarkSimulationQuantifiedFairness(b *testing.B) {
+	for name, configuration := range map[string]string{"spec": "SPECIFICATION FairSpec", "property": "SPECIFICATION FairSpec PROPERTY DeadlockFree"} {
+		b.Run(name, func(b *testing.B) {
+			opts := Options{Seed: 1, Simulation: &SimulationOptions{Traces: 4, Depth: 500}}
+			b.ReportAllocs()
+			for b.Loop() {
+				result, err := CheckWithOptions(context.Background(), petersonSource, configuration, opts)
+				if err != nil || result.Status != Success {
+					b.Fatalf("simulation: %+v, %v", result, err)
+				}
+			}
+		})
+	}
+}

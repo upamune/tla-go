@@ -142,28 +142,30 @@ func (n *liveNode) eaBody() *liveNode {
 	return nil
 }
 
-func (n *liveNode) eval(current, next evaluator.State) (bool, error) {
+// eval evaluates the formula on the state at index current of the trace and,
+// for an action, the state at index next.
+func (n *liveNode) eval(trace *liveTrace, current, next int) (bool, error) {
 	switch n.kind {
 	case liveBool:
 		return n.value, nil
 	case liveState, liveAction:
-		return n.leaf.eval(current, next)
+		return trace.leaf(n, current, next)
 	case liveNeg:
-		result, err := n.body.eval(current, next)
+		result, err := n.body.eval(trace, current, next)
 		return !result, err
 	case liveConj, liveDisj:
-		return n.evalJunction(current, next)
+		return n.evalJunction(trace, current, next)
 	case liveNext:
-		return n.body.eval(next, nil)
+		return n.body.eval(trace, next, -1)
 	}
 	return false, fmt.Errorf("TLC cannot evaluate a temporal formula on a single transition")
 }
 
-func (n *liveNode) evalJunction(current, next evaluator.State) (bool, error) {
+func (n *liveNode) evalJunction(trace *liveTrace, current, next int) (bool, error) {
 	// A conjunction stops at its first false item, a disjunction at its first true item.
 	stop := n.kind == liveDisj
 	for _, item := range n.items {
-		result, err := item.eval(current, next)
+		result, err := item.eval(trace, current, next)
 		if err != nil || result == stop {
 			return result, err
 		}
