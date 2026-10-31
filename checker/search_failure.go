@@ -94,10 +94,15 @@ func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeErr
 
 func nextBooleanGenerationFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
 	result := *failure
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n: "
-	result.Message = heading + failure.Message
+	result.Message = unexpectedExceptionHeading("java.lang.RuntimeException") + " " + failure.Message
 	result.NestedMessage, result.NestedToolCode, result.ToolCode = failure.Message, 2247, 1000
 	return &result
+}
+
+// unexpectedExceptionHeading follows Java TLC's MP.ECGeneralMsg for an
+// exception class, without the space that precedes the exception message.
+func unexpectedExceptionHeading(exception string) string {
+	return "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a " + exception + "\n:"
 }
 
 func asRuntimeError(err error) (*evaluator.RuntimeError, bool) {
@@ -125,8 +130,7 @@ func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeEr
 	if failure.Unexpected.TLCAssert && failure.Fingerprint != nil {
 		cause = "util.Assert$TLCRuntimeException: " + cause
 	}
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n:"
-	result.Message = heading + " " + cause
+	result.Message = unexpectedExceptionHeading("java.lang.RuntimeException") + " " + cause
 	if failure.ToolCode == 2261 {
 		result.NestedMessage = cause
 		result.NestedToolCode, result.ToolCode = failure.ToolCode, 1000

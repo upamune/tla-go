@@ -304,12 +304,18 @@ func (r *simulationRun) step(index int) (*Result, error) {
 
 func (r *simulationRun) nextGenerationFailure(err error, index int) (*Result, error) {
 	failure, ok := errors.AsType[*evaluator.RuntimeError](err)
-	if !ok || failure.ToolCode != 2247 {
+	if !ok || failure.ToolCode != 2247 && failure.ToolCode != 2132 {
 		return nil, err
 	}
 	result := r.search.result
 	result.Status = EvaluationFailure
 	result.Failure = &Failure{Message: failure.Message, ToolCode: 2247, ExitCode: 255, Trace: r.search.trace(index)}
+	if failure.ToolCode == 2132 {
+		// Java TLC's simulator reports the EvalException thrown by Assert as an
+		// unexpected exception, followed by the behavior and statistics.
+		result.Failure.Message = unexpectedExceptionHeading("tlc2.tool.EvalException") + " " + failure.Message
+		result.Failure.ToolCode, result.Failure.NestedToolCode, result.Failure.NestedMessage = 1000, 2132, failure.Message
+	}
 	return &result, nil
 }
 

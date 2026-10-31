@@ -39,8 +39,10 @@ func actionErrorSources(err error) []*parser.Expression {
 	return failure.Sources
 }
 
+// Java TLC keeps an initial assignment on its call stack while it evaluates the
+// remaining conjuncts, so later evaluation errors include the assignment.
 func addInitialAssignmentErrorSource(err error, source *parser.Expression) {
-	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && failure.TrackSource {
+	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && (failure.TrackSource || failure.Unexpected != nil) {
 		evaluator.AddUnexpectedSource(err, source)
 	}
 }

@@ -44,7 +44,7 @@ func (s *search) nextConstraintFailure(candidate *candidateConstraintError) (Res
 	if !ok {
 		return Result{}, candidate.cause
 	}
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a java.lang.RuntimeException\n: util.Assert$TLCRuntimeException: "
+	heading := unexpectedExceptionHeading("java.lang.RuntimeException") + " util.Assert$TLCRuntimeException: "
 	result, err := s.runtimeFailure(&evaluator.RuntimeError{
 		Message: heading + failure.Message, ToolCode: 1000,
 		NestedToolCode: failure.ToolCode, NestedMessage: failure.Message,
