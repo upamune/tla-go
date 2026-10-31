@@ -31,6 +31,8 @@ type recordedSimulation struct {
 var upstreamSimulationLivenessCases = []upstreamSimulationLiveness{
 	{"Example1Test", "simulation", "Example1", "1", []string{"-depth", "11"}, 13},
 	{"Example2Test", "simulation", "Example2", "1", []string{"-depth", "11"}, 13},
+	// LiveCheck1 fails on the empty trace of a zero-depth simulation.
+	{"Example1ZeroDepth", "simulation", "Example1", "1", []string{"num=2", "-depth", "0"}, 255},
 	{"SimulationTest2", "test-model", "Test2", "1", []string{"num=200", "-depth", "6"}, 0},
 	{"SimulationTest2a", "test-model", "Test2a", "1", []string{"-depth", "6"}, 13},
 	{"LiveCheckSimulationTest2", "test-model", "Test2", "2", []string{"num=200", "-depth", "10"}, 0},

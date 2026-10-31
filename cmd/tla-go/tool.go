@@ -53,6 +53,10 @@ func printToolSearch(out io.Writer, event checker.SearchEvent) {
 		t.message(2269, 0, fmt.Sprintf("Computed %d initial states...", event.GeneratedStates))
 		return
 	}
+	if event.Kind == checker.SimulationLiveness {
+		t.message(2212, 0, livenessBranches(event))
+		return
+	}
 	if event.Kind == checker.InitialStart {
 		t.message(2189, 0, "Computing initial states...")
 		return

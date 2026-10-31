@@ -2,7 +2,6 @@ package checker
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/upamune/tla-go/evaluator"
 )
@@ -11,6 +10,9 @@ import (
 func (r *simulationRun) prepareSimulationLiveness() error {
 	solutions, err := r.model.liveSolutions()
 	r.live = solutions
+	if len(solutions) > 0 {
+		r.model.emitSearchEvent(SearchEvent{Kind: SimulationLiveness, Branches: len(solutions)})
+	}
 	return err
 }
 
@@ -21,7 +23,8 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 		return nil, nil
 	}
 	if visited == 0 {
-		return nil, fmt.Errorf("zero-depth liveness simulation is not yet supported")
+		// TLC's LiveCheck1 reads the first state of the empty trace.
+		return r.liveException("java.lang.ArrayIndexOutOfBoundsException", "Index 0 out of bounds for length 0", nil), nil
 	}
 	states := make([]evaluator.State, visited)
 	for i, node := range r.search.nodes[:visited] {
@@ -30,7 +33,7 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	for i := range r.live {
 		violation, err := r.checkLiveSolution(&r.live[i], states)
 		if recovery, ok := errors.AsType[*liveRecoveryError](err); ok {
-			return r.liveRecoveryFailure(recovery), nil
+			return r.liveException("tlc2.tool.EvalException", "", recovery), nil
 		}
 		if err != nil || violation != nil {
 			return r.liveViolationResult(violation), err
@@ -39,15 +42,19 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	return nil, nil
 }
 
-// TLC reports a recovery failure as an unexpected exception of the worker,
-// followed by the whole sampled behavior.
-func (r *simulationRun) liveRecoveryFailure(recovery *liveRecoveryError) *Result {
-	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a tlc2.tool.EvalException\n:"
+// liveException reports an exception that TLC's LiveCheck1 throws in the
+// simulation worker: TLC prints it, then the whole sampled behavior. A
+// recovery failure follows the part of the counterexample printed before it.
+func (r *simulationRun) liveException(exception, detail string, recovery *liveRecoveryError) *Result {
+	heading := "TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a " + exception + "\n:"
 	result := r.search.result
 	result.Status = EvaluationFailure
-	result.Failure = &Failure{
-		Message: heading + " " + recovery.message, ToolCode: 1000, NestedToolCode: recovery.code, NestedMessage: recovery.message, ExitCode: 255,
-		Trace: r.search.trace(len(r.search.nodes) - 1), TemporalViolation: true, TemporalTrace: recovery.shown,
+	result.Failure = &Failure{Message: heading + " " + detail, ToolCode: 1000, ExitCode: 255, Trace: r.search.trace(len(r.search.nodes) - 1)}
+	if recovery != nil {
+		f := result.Failure
+		f.Message += recovery.message
+		f.NestedToolCode, f.NestedMessage = recovery.code, recovery.message
+		f.TemporalViolation, f.TemporalTrace = true, recovery.shown
 	}
 	return &result
 }

@@ -2,6 +2,7 @@
   "Example1Test": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 1 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\nx = 0",
@@ -19,9 +20,20 @@
       "2209:12"
     ]
   },
+  "Example1ZeroDepth": {
+    "code": 255,
+    "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
+      "2269:Computed 1 initial states...",
+      "2217:1: \u003cInitial predicate\u003e\nx = 0",
+      "2209:1",
+      "2209:1"
+    ]
+  },
   "Example2Test": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 1 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\nx = 0",
@@ -42,6 +54,7 @@
   "LiveCheckSimulationTest2": {
     "code": 0,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 1 initial states...",
       "2209:2001"
     ]
@@ -49,6 +62,7 @@
   "LiveCheckSimulationTest2a": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 1 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\nx = 0",
@@ -71,6 +85,7 @@
   "SimulationTest2": {
     "code": 0,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 1 initial states...",
       "2209:1201"
     ]
@@ -78,6 +93,7 @@
   "SimulationTest2a": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 1 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\nx = 0",
@@ -93,6 +109,7 @@
   "StutteringTest": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 8 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\n/\\ b = FALSE\n/\\ x = 0",
@@ -113,6 +130,7 @@
   "StutteringTestSeed2": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 8 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\n/\\ b = FALSE\n/\\ x = 0",
@@ -133,6 +151,7 @@
   "StutteringTestSeed3": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 8 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\n/\\ b = TRUE\n/\\ x = 0",
@@ -154,6 +173,7 @@
   "TLCGetLevel": {
     "code": 255,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 1 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\n/\\ x = 0\n/\\ y = 0",
@@ -167,6 +187,7 @@
   "UnsymmetricMCA": {
     "code": 13,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 2 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\nx = a",
@@ -179,6 +200,7 @@
   "UnsymmetricMCB": {
     "code": 255,
     "messages": [
+      "2212:Implied-temporal checking--satisfiability problem has 1 branches.",
       "2269:Computed 2 initial states...",
       "2116:Temporal properties were violated.",
       "2217:1: \u003cInitial predicate\u003e\nx = a",

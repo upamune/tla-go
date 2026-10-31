@@ -28,7 +28,6 @@ func TestSimulationRejectsUnsupportedLivenessOptions(t *testing.T) {
 		depth              int
 	}{
 		{"runtime level", "INIT Init NEXT Next PROPERTY Q", "using TLCGet is not yet supported", 1},
-		{"zero depth", "INIT Init NEXT Next PROPERTY P", "zero-depth liveness simulation is not yet supported", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := CheckWithOptions(context.Background(), source, tc.cfg, Options{Simulation: &SimulationOptions{Traces: 1, Depth: tc.depth}})
@@ -72,5 +71,18 @@ func TestSimulationTraceCallbackError(t *testing.T) {
 	_, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next", opts)
 	if !errors.Is(err, failure) {
 		t.Fatalf("got %v; want %v", err, failure)
+	}
+}
+
+// TLC's LiveCheck1 fails on the empty trace of a zero-depth simulation and
+// reports the sampled initial state.
+func TestSimulationZeroDepthLiveness(t *testing.T) {
+	const source = "---- MODULE M ----\nVARIABLE x\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=0)\n===="
+	got, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P", Options{Simulation: &SimulationOptions{Traces: 1, Depth: 0}})
+	if err != nil || got.Status != EvaluationFailure || got.Failure == nil || got.Failure.ToolCode != 1000 || len(got.Failure.Trace) != 1 {
+		t.Fatalf("got %+v, %v; want TLC's unexpected exception after the initial state", got, err)
+	}
+	if !strings.HasSuffix(got.Failure.Message, "java.lang.ArrayIndexOutOfBoundsException\n: Index 0 out of bounds for length 0") || got.Failure.ExitCode != 255 {
+		t.Fatalf("got failure %+v", got.Failure)
 	}
 }

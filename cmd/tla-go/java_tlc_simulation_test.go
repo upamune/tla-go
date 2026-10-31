@@ -75,7 +75,7 @@ func simulationMessages(messages []toolMessage) []string {
 	var result []string
 	for _, msg := range messages {
 		switch msg.code {
-		case 2102, 2106, 2107, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2118, 2122, 2218, 2269:
+		case 2102, 2106, 2107, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2118, 2122, 2212, 2218, 2269:
 			result = append(result, fmt.Sprintf("%d:%s", msg.code, msg.body))
 		case 2217:
 			result = append(result, fmt.Sprintf("2217:%s", msg.body))

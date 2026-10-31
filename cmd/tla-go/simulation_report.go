@@ -38,12 +38,19 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 	}
 	if opts.simulate {
 		return func(event checker.SearchEvent) {
+			if event.Kind == checker.SimulationLiveness {
+				fmt.Fprintln(out, livenessBranches(event))
+			}
 			if event.Kind == checker.SimulationInitialComplete {
 				fmt.Fprintf(out, "Computed %d initial states...\n", event.GeneratedStates)
 			}
 		}
 	}
 	return nil
+}
+
+func livenessBranches(event checker.SearchEvent) string {
+	return fmt.Sprintf("Implied-temporal checking--satisfiability problem has %d branches.", event.Branches)
 }
 
 func printConfiguredResult(out io.Writer, result checker.Result, module *parser.Module, opts options) {

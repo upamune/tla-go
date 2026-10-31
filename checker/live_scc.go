@@ -21,15 +21,15 @@ type liveSCC struct {
 	root     int
 	bad      int
 
-	first, second, third      int64
-	startSecond, startThird   int64
-	firstComponent, secondCom int64
+	first, second, third            int64
+	startSecond, startThird         int64
+	firstComponent, secondComponent int64
 }
 
 func newLiveSCC(graph *liveTraceGraph) *liveSCC {
 	c := &liveSCC{graph: graph, solution: graph.solution, bad: -1, first: 1, second: liveMaxFirst + 1, third: liveMaxSecond + 1}
 	c.startSecond, c.startThird = c.second, c.third
-	c.firstComponent, c.secondCom = c.second, c.third
+	c.firstComponent, c.secondComponent = c.second, c.third
 	return c
 }
 
@@ -111,7 +111,7 @@ func (c *liveSCC) extractComponent(node int) []int {
 	}
 	c.firstComponent = c.second
 	c.second++
-	c.secondCom = c.third
+	c.secondComponent = c.third
 	nodes := []int{top}
 	c.setNumber(top, c.firstComponent)
 	for top != node {
@@ -158,7 +158,7 @@ func (c *liveSCC) subcomponentEdge(node, edge, next int) int64 {
 	if c.firstComponent > number || !c.edgeHolds(node, edge, c.pem.eaAction) {
 		return math.MaxInt64
 	}
-	if number < c.startSecond || c.secondCom <= number && number < c.startThird {
+	if number < c.startSecond || c.secondComponent <= number && number < c.startThird {
 		return c.visitSubcomponent(next)
 	}
 	return number
