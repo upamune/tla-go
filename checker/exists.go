@@ -25,7 +25,7 @@ func (g *generator) existential(item work, rest []work, partial evaluator.State,
 	if err != nil && !split {
 		// Java TLC splits an action at a top-level \E into one action per
 		// witness, and keeps any other \E on its call stack.
-		addConjunctErrorSource(err, item.expr)
+		g.addFrame(err, item.expr)
 	}
 	if err == nil && !more {
 		g.addInitialFailureSource(item.expr, false)

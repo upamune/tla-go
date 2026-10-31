@@ -58,10 +58,10 @@ func addConjunctErrorSource(err error, source *parser.Expression) {
 	}
 }
 
-// addInlineConjunctionSources adds the frames of SANY's left-nested binary
+// addInlineConjunctionFrames adds the frames of SANY's left-nested binary
 // conjunctions for an inline chain a /\ b /\ c, innermost first. A bulleted
 // list is a single conjunction list and starts before its first conjunct.
-func addInlineConjunctionSources(err error, conjunction *parser.Expression) {
+func (g *generator) addInlineConjunctionFrames(err error, conjunction *parser.Expression) {
 	args := conjunction.Args
 	if len(args) < 3 || conjunction.Location.Range.Start != args[0].Location.Range.Start {
 		return
@@ -74,7 +74,7 @@ func addInlineConjunctionSources(err error, conjunction *parser.Expression) {
 		chain := *conjunction
 		chain.Args = nil
 		chain.Location.Range.End = last.Location.Range.End
-		addConjunctErrorSource(err, &chain)
+		g.addFrame(err, &chain)
 	}
 }
 
