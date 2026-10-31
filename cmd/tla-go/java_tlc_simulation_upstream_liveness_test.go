@@ -129,7 +129,7 @@ func runUpstreamSimulation(t *testing.T, dir, spec string, args []string) record
 	if errout.Len() != 0 {
 		t.Fatalf("stderr: %s", errout.String())
 	}
-	return recordedSimulation{Code: code, Messages: simulationMessages(readToolMessages(out.String()))}
+	return recordedSimulation{Code: code, Messages: livenessMessages(readToolMessages(out.String()))}
 }
 
 func runJavaUpstreamSimulation(t *testing.T, jar, source, spec string, args []string) recordedSimulation {
@@ -145,5 +145,5 @@ func runJavaUpstreamSimulation(t *testing.T, jar, source, spec string, args []st
 	if cmd.ProcessState == nil {
 		t.Fatalf("Java did not start: %s", output)
 	}
-	return recordedSimulation{Code: cmd.ProcessState.ExitCode(), Messages: simulationMessages(readToolMessages(string(output)))}
+	return recordedSimulation{Code: cmd.ProcessState.ExitCode(), Messages: livenessMessages(readToolMessages(string(output)))}
 }

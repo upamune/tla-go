@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -71,20 +72,35 @@ func javaSimulationToolSeed(t *testing.T, jar, dir string, code int, seed string
 	return readToolMessages(string(output))
 }
 
+var simulationCodes = []int{2102, 2106, 2107, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2118, 2121, 2122, 2212, 2217, 2218, 2250, 2264, 2269}
+
 func simulationMessages(messages []toolMessage) []string {
+	return filterSimulationMessages(messages, simulationCodes)
+}
+
+// livenessMessages also compares unexpected exceptions, which TLC's
+// LiveCheck1 throws in simulation. Elsewhere TLC can throw one while it
+// prints an incomplete successor, which tla-go does not reproduce.
+func livenessMessages(messages []toolMessage) []string {
+	return filterSimulationMessages(messages, append([]int{1000}, simulationCodes...))
+}
+
+func filterSimulationMessages(messages []toolMessage, codes []int) []string {
 	var result []string
 	for _, msg := range messages {
-		switch msg.code {
-		case 1000, 2102, 2106, 2107, 2109, 2110, 2111, 2112, 2113, 2114, 2116, 2118, 2121, 2122, 2212, 2217, 2218, 2250, 2264, 2269:
+		switch {
+		case slices.Contains(codes, msg.code):
 			result = append(result, fmt.Sprintf("%d:%s", msg.code, msg.body))
-		case 2209:
-			if match := regexp.MustCompile(`([0-9]+) states generated`).FindStringSubmatch(msg.body); len(match) > 0 {
+		case msg.code == 2209:
+			if match := simulationProgress.FindStringSubmatch(msg.body); len(match) > 0 {
 				result = append(result, "2209:"+match[1])
 			}
 		}
 	}
 	return result
 }
+
+var simulationProgress = regexp.MustCompile(`([0-9]+) states generated`)
 
 func TestSimulationRejectsUnsupportedLiveness(t *testing.T) {
 	dir := t.TempDir()

@@ -46,8 +46,8 @@ func TestJavaTLCSimulationLiveness(t *testing.T) {
 				t.Fatalf("Go exit %d; stdout %s; stderr %s", code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				got := simulationMessages(readToolMessages(out.String()))
-				want := simulationMessages(javaSimulationTool(t, jar, dir, code))
+				got := livenessMessages(readToolMessages(out.String()))
+				want := livenessMessages(javaSimulationTool(t, jar, dir, code))
 				if !reflect.DeepEqual(got, want) {
 					t.Fatalf("Go messages %q\nJava messages %q", got, want)
 				}
@@ -166,7 +166,7 @@ func compareSimulationGraphParameters(t *testing.T, jar, body, cfg, seed, depth,
 	if code != cmd.ProcessState.ExitCode() || errout.Len() != 0 {
 		t.Fatalf("Go exit %d, Java exit %d; stdout %s; stderr %s", code, cmd.ProcessState.ExitCode(), out.String(), errout.String())
 	}
-	got, want := comparableProgress(simulationMessages(readToolMessages(out.String())), simulationMessages(readToolMessages(string(javaOut))))
+	got, want := comparableProgress(livenessMessages(readToolMessages(out.String())), livenessMessages(readToolMessages(string(javaOut))))
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Go messages %q\nJava messages %q", got, want)
 	}
