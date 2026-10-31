@@ -104,16 +104,17 @@ func (r *simulationRun) liveViolationNames(violation *Violation) []string {
 // recoverLiveStep is Tool.getState: the first initial state or, in TLC's
 // action order, the first successor whose fingerprint matches. Like TLC, it
 // generates the states again. TLC makes the predecessor the current state, so
-// TLCGet("level") is its position in the counterexample; initial states are
-// generated at the level of the worker's last state.
+// TLCGet("level") is its position in the counterexample. Initial states are
+// generated with the last state that the worker sampled as the current state.
 func (r *simulationRun) recoverLiveStep(printed []TraceStep, key string) (TraceStep, error) {
-	if len(printed) == 0 {
-		return r.recoverLiveInitial(key)
-	}
 	runtime := r.model.tlcRuntime
 	oldLevel := runtime.level
-	runtime.level = len(printed)
 	defer func() { runtime.level = oldLevel }()
+	if len(printed) == 0 {
+		runtime.level = r.search.nodes[len(r.search.nodes)-1].depth
+		return r.recoverLiveInitial(key)
+	}
+	runtime.level = len(printed)
 	previous := printed[len(printed)-1].State
 	for _, action := range r.worker.actions {
 		states, err := r.worker.actionStates(action, previous)

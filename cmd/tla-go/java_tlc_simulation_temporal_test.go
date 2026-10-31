@@ -99,4 +99,14 @@ func TestJavaTLCSimulationLivenessRecoveryLevel(t *testing.T) {
 			}
 		}
 	}
+	// TLC generates the initial states again with the last sampled state as
+	// the current state: the successor beyond a full trace, or the state that
+	// violates the constraint.
+	for _, level := range []string{"3", "8", "9"} {
+		t.Run("Init/"+level, func(t *testing.T) {
+			body := "VARIABLE x\nInit == x = 0 /\\ TLCGet(\"level\") # " + level + "\nNext == x' = (x + 1) % 3\nC == x < 2\nP == []<>(x = 5)"
+			compareSimulationGraphParameters(t, jar, body, "INIT Init NEXT Next PROPERTY P", "1", "8", "1")
+			compareSimulationGraphParameters(t, jar, body, "INIT Init NEXT Next CONSTRAINT C PROPERTY P", "1", "8", "1")
+		})
+	}
 }

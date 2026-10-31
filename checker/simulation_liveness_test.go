@@ -25,3 +25,17 @@ func TestSimulationLivenessRecoveryLevel(t *testing.T) {
 		t.Fatalf("got %+v, %v; want TLC's failure to recover the second state", got, err)
 	}
 }
+
+// TLC generates the initial states again with the last state that the
+// worker sampled as the current state: after a trace of full depth, that is
+// the successor beyond the trace.
+func TestSimulationLivenessInitialRecoveryLevel(t *testing.T) {
+	opts := Options{Seed: 1, Simulation: &SimulationOptions{Traces: 1, Depth: 8}}
+	for level, want := range map[string]Status{"8": LivenessViolation, "9": EvaluationFailure} {
+		source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0 /\\ TLCGet(\"level\") # " + level + "\nNext == x' = (x + 1) % 3\nP == []<>(x = 5)\n===="
+		got, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P", opts)
+		if err != nil || got.Status != want || want == EvaluationFailure && got.Failure.NestedToolCode != 2123 {
+			t.Fatalf("level %s: got %+v, %v; want %v", level, got, err, want)
+		}
+	}
+}
