@@ -8,20 +8,6 @@ import (
 	"strings"
 )
 
-func parseOtherOption(opts *options, args []string) (int, error) {
-	switch args[0] {
-	case "-continue":
-		opts.continuation = true
-		return 0, nil
-	case "-simulate":
-		return parseSimulationOption(opts, args)
-	case "-depth":
-		return parseSimulationDepth(opts, args)
-	default:
-		return 0, parsePath(opts, args[0])
-	}
-}
-
 func parseSimulationOption(opts *options, args []string) (int, error) {
 	opts.simulate = true
 	if len(args) < 2 || !(strings.Contains(args[1], "num=") || strings.Contains(args[1], "file=")) {

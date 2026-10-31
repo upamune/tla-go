@@ -136,6 +136,7 @@ type model struct {
 	debug                func(string)
 	graph                func(GraphEvent) error
 	searchEvent          func(SearchEvent)
+	warning              func(Warning)
 	continueChecking     bool
 	onContinuedViolation func(Result)
 }
@@ -171,6 +172,9 @@ type Options struct {
 	OnGraph func(GraphEvent) error
 	// OnSearch receives synchronous initial-state progress events when set.
 	OnSearch func(SearchEvent)
+	// OnWarning receives Java TLC warnings before model checking starts.
+	// Simulation does not report these warnings, matching Java TLC.
+	OnWarning func(Warning)
 }
 
 // SimulationOptions bounds the number and length of simulated traces. A
@@ -422,7 +426,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.sourceUnits = sourceUnits

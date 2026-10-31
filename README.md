@@ -72,6 +72,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-workers 1` | Select the currently supported single-worker mode. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
+| `-nowarning` | Suppress TLC warnings, such as those for symmetry or constraints with liveness checking. |
 | `-dump dot,actionlabels FILE` | Write an action-labeled DOT graph during exploration; `.dot` is appended if absent. |
 | `-sany-metadata [-I DIR] FILE` | Emit experimental SANY-shaped XML containing variable order and definition levels, without checking a model. |
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |

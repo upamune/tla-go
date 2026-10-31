@@ -25,6 +25,7 @@ type options struct {
 	debugLiveness              bool
 	modernRandomSubsets        bool
 	tool                       bool
+	noWarning                  bool
 	sanyMetadata               bool
 	dumpPath                   string
 	onPause                    func()
@@ -41,7 +42,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers 1] [-fp N] [-tool] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-continue] [-depth N] [-workers 1] [-fp N] [-tool] [-nowarning] [-dump dot,actionlabels file.dot] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-continue reports supported violations and continues exploration.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -52,7 +53,7 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	opts, err := parseOptions(args)
 	if err != nil {
 		fmt.Fprintln(errout, err)
-		if errors.Is(err, errMissingLivenessStrategy) {
+		if _, ok := errors.AsType[commandLineError](err); ok {
 			return 1
 		}
 		usage(errout)
@@ -137,6 +138,7 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 		checkOptions.OnGraph = graph.event
 	}
 	checkOptions.OnSearch = configuredSearchOutput(opts, out)
+	checkOptions.OnWarning = configuredWarningOutput(opts, out)
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}

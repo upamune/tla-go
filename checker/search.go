@@ -44,6 +44,7 @@ type search struct {
 
 func (m *model) check() (Result, error) {
 	m.tlcRuntime.started = true
+	m.emitLivenessWarnings()
 	if result, failed, err := m.checkAssumptions(); failed || err != nil {
 		return result, err
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -10,7 +9,45 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-var errMissingLivenessStrategy = errors.New("Error: expect a strategy such as final for -lncheck option.")
+// commandLineError is a Java TLC parameter error, which exits with code 1.
+type commandLineError string
+
+func (e commandLineError) Error() string { return string(e) }
+
+const errMissingLivenessStrategy = commandLineError("Error: expect a strategy such as final for -lncheck option.")
+
+var flagOptions = map[string]func(*options){
+	"-h":                     setHelp,
+	"--help":                 setHelp,
+	"-help":                  setHelp,
+	"-version":               setVersion,
+	"--version":              setVersion,
+	"-deadlock":              func(opts *options) { opts.deadlockOff = true },
+	"-debug-liveness":        func(opts *options) { opts.debugLiveness = true },
+	"-modern-random-subsets": func(opts *options) { opts.modernRandomSubsets = true },
+	"-tool":                  func(opts *options) { opts.tool = true },
+	"-continue":              func(opts *options) { opts.continuation = true },
+	"-nowarning":             func(opts *options) { opts.noWarning = true },
+}
+
+// valueOptions parse an option and its arguments, returning the number of
+// arguments consumed after the option name.
+var valueOptions = map[string]func(*options, []string) (int, error){
+	"-config":   parsePathOption,
+	"-metadir":  parsePathOption,
+	"-seed":     parseRandomOption,
+	"-aril":     parseRandomOption,
+	"-lncheck":  parseLivenessOption,
+	"-dump":     parseDumpOption,
+	"-workers":  parseFixedOption,
+	"-fp":       parseFixedOption,
+	"-I":        parseLibraryOption,
+	"-simulate": parseSimulationOption,
+	"-depth":    parseSimulationDepth,
+}
+
+func setHelp(opts *options)    { opts.help = true }
+func setVersion(opts *options) { opts.version = true }
 
 func parseOptions(args []string) (options, error) {
 	opts := options{simulationUnlimited: true, simulationDepth: 100}
@@ -31,25 +68,41 @@ func parseOptions(args []string) (options, error) {
 }
 
 func parseOption(opts *options, args []string) (int, error) {
-	switch args[0] {
-	case "-h", "--help", "-help":
-		opts.help = true
-	case "-version", "--version":
-		opts.version = true
-	case "-deadlock":
-		opts.deadlockOff = true
-	case "-debug-liveness":
-		opts.debugLiveness = true
-	case "-modern-random-subsets":
-		opts.modernRandomSubsets = true
-	case "-tool":
-		opts.tool = true
-	case "-config", "-seed", "-aril", "-lncheck", "-dump", "-workers", "-fp", "-metadir", "-I":
-		return parseValueOption(opts, args)
-	default:
-		return parseOtherOption(opts, args)
+	if set, ok := flagOptions[args[0]]; ok {
+		set(opts)
+		return 0, nil
 	}
-	return 0, nil
+	if parse, ok := valueOptions[args[0]]; ok {
+		return parse(opts, args)
+	}
+	return 0, parsePath(opts, args[0])
+}
+
+func parsePathOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, fmt.Errorf("%s requires a path", args[0])
+	}
+	if args[0] == "-config" {
+		opts.configPath = args[1]
+	} else {
+		opts.metaRoot = args[1]
+	}
+	return 1, nil
+}
+
+func parseLivenessOption(_ *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, errMissingLivenessStrategy
+	}
+	return 1, nil
+}
+
+func parseLibraryOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, fmt.Errorf("-I requires a path")
+	}
+	opts.libraryPaths = append(opts.libraryPaths, args[1])
+	return 1, nil
 }
 
 func parseDumpOption(opts *options, args []string) (int, error) {
@@ -90,31 +143,6 @@ func unsupportedFixedOption(option string, number int) bool {
 	return number < 0 || number >= value.TLCFingerprintPolynomialCount
 }
 
-func parseValueOption(opts *options, args []string) (int, error) {
-	switch args[0] {
-	case "-config", "-metadir":
-		if len(args) < 2 {
-			return 0, fmt.Errorf("%s requires a path", args[0])
-		}
-		if args[0] == "-config" {
-			opts.configPath = args[1]
-		} else {
-			opts.metaRoot = args[1]
-		}
-		return 1, nil
-	case "-seed", "-aril":
-		return parseRandomOption(opts, args)
-	case "-lncheck":
-		if len(args) < 2 {
-			return 0, errMissingLivenessStrategy
-		}
-		return 1, nil
-	case "-dump", "-workers", "-fp", "-I":
-		return parseAuxiliaryOption(opts, args)
-	}
-	return 0, nil
-}
-
 func parseRandomOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, fmt.Errorf("%s requires an integer", args[0])
@@ -130,20 +158,6 @@ func parseRandomOption(opts *options, args []string) (int, error) {
 		opts.seedSet = true
 	}
 	return 1, nil
-}
-
-func parseAuxiliaryOption(opts *options, args []string) (int, error) {
-	if args[0] == "-I" {
-		if len(args) < 2 {
-			return 0, fmt.Errorf("-I requires a path")
-		}
-		opts.libraryPaths = append(opts.libraryPaths, args[1])
-		return 1, nil
-	}
-	if args[0] == "-dump" {
-		return parseDumpOption(opts, args)
-	}
-	return parseFixedOption(opts, args)
 }
 
 func parsePath(opts *options, path string) error {

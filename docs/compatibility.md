@@ -34,6 +34,8 @@ After a successor invariant or action-property evaluation error, Java TLC replay
 
 For symmetry-reduced models, selected pure Boolean combinations of recurrence properties use Java TLC's no-tableau successor ordering and transition handling. Selected state-predicate tableau and leads-to properties also regenerate successors when a tableau node appears after its reduced state was explored. Nine upstream symmetry models and additional weak- and strong-fairness cases are compared against Java TLC. Tests also compare raw tool traces for the two `ChooseTableauSymmetry` models and selected temporal properties with and without fairness, including subscripts that name individual variables. Other tableau formulas and reductions remain incomplete, and counterexample traces can differ.
 
+Like Java TLC, model checking warns before checking assumptions when temporal properties are combined with `SYMMETRY` (message 2279) or with state or action constraints (message 2284). `-nowarning` suppresses these warnings, and simulation does not report them. Properties are classified as temporal following TLC's configuration rules for the tested forms; unusual property expressions can still be classified differently.
+
 As in Java TLC, `AXIOM` declarations are not evaluated during the initial assumption check. Named axioms can still be referenced by the model.
 
 Fingerprint failures report Java TLC-style tool messages for the tested initial and successor states. Intersections with explicit sets or intervals use Java TLC's reduction order, including for nested power sets. Other lazy-set failures can still evaluate operands in a different order, producing a different underlying error or source location.
