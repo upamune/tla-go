@@ -25,6 +25,16 @@ func addEnclosingActionSource(err error, source *parser.Expression) {
 	}
 }
 
+// actionRoot returns the outermost frame Java TLC keeps for a successor error
+// in next, or nil when its action decomposition splits next into disjuncts or
+// existential witnesses, which are then the outermost frames.
+func (g *generator) actionRoot(next *parser.Expression) *parser.Expression {
+	if next.Kind == "Or" || next.Kind == "Exists" && g.actionExistentialCanSplit(next) {
+		return nil
+	}
+	return next
+}
+
 func actionErrorSources(err error) []*parser.Expression {
 	if missing, ok := errors.AsType[*evaluator.UnboundVariable](err); ok {
 		return missing.Sources
@@ -39,11 +49,32 @@ func actionErrorSources(err error) []*parser.Expression {
 	return failure.Sources
 }
 
-// Java TLC keeps an initial assignment on its call stack while it evaluates the
-// remaining conjuncts, so later evaluation errors include the assignment.
-func addInitialAssignmentErrorSource(err error, source *parser.Expression) {
+// Java TLC generates states by continuation passing, so a conjunct stays on
+// its call stack while the remaining conjuncts are evaluated, and later
+// evaluation errors include it.
+func addConjunctErrorSource(err error, source *parser.Expression) {
 	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && (failure.TrackSource || failure.Unexpected != nil) {
 		evaluator.AddUnexpectedSource(err, source)
+	}
+}
+
+// addInlineConjunctionSources adds the frames of SANY's left-nested binary
+// conjunctions for an inline chain a /\ b /\ c, innermost first. A bulleted
+// list is a single conjunction list and starts before its first conjunct.
+func addInlineConjunctionSources(err error, conjunction *parser.Expression) {
+	args := conjunction.Args
+	if len(args) < 3 || conjunction.Location.Range.Start != args[0].Location.Range.Start {
+		return
+	}
+	frames := actionErrorSources(err)
+	if len(frames) == 0 || frames[len(frames)-1] != args[0] {
+		return
+	}
+	for _, last := range args[1 : len(args)-1] {
+		chain := *conjunction
+		chain.Args = nil
+		chain.Location.Range.End = last.Location.Range.End
+		addConjunctErrorSource(err, &chain)
 	}
 }
 

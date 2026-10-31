@@ -85,6 +85,41 @@ func TestJavaTLCEvaluationStackLayout(t *testing.T) {
 	}
 }
 
+// Java TLC generates states by continuation passing, so earlier conjuncts and
+// SANY's nested inline conjunctions stay on the call stack, while top-level
+// disjunctions and existential quantifiers are split into actions.
+func TestJavaTLCEvaluationStackFrames(t *testing.T) {
+	for _, tc := range []struct{ name, init, next, want string }{
+		{"successor guard", "x = 0 /\\ y = 0", "x < 2 /\\ x' = x[1] /\\ y' = y", "0. Line 5, column 9 to line 5, column 36 in M\n1. Line 5, column 9 to line 5, column 26 in M\n2. Line 5, column 9 to line 5, column 13 in M\n3. Line 5, column 18 to line 5, column 26 in M\n4. Line 5, column 23 to line 5, column 26 in M\n"},
+		{"successor assignment", "x = 0 /\\ y = 0", "x' = 1 /\\ y' = x[1]", "1. Line 5, column 9 to line 5, column 14 in M\n2. Line 5, column 19 to line 5, column 27 in M\n"},
+		{"inline chain", "x = 0 /\\ y = 0", "x < 5 /\\ y < 5 /\\ x' = 1 /\\ y' = x[1]", "2. Line 5, column 9 to line 5, column 22 in M\n3. Line 5, column 9 to line 5, column 13 in M\n"},
+		{"initial guard", "/\\ x = 0 /\\ x < 5 /\\ y = x[1]", "UNCHANGED <<x, y>>", "1. Line 4, column 12 to line 4, column 37 in M\n2. Line 4, column 12 to line 4, column 25 in M\n"},
+		{"split existential", "x = 0 /\\ y = 0", "\\E i \\in {1} : x' = i /\\ y' = x[1]", "0. Line 5, column 24 to line 5, column 42 in M\n1. Line 5, column 24 to line 5, column 29 in M\n"},
+		{"split disjunction", "x = 0 /\\ y = 0", "(x' = 1 /\\ y' = y) \\/ (x' = x /\\ y' = x[1])", "0. Line 5, column 32 to line 5, column 50 in M\n"},
+		{"nested existential", "x = 0 /\\ y = 0", "x < 3 /\\ \\E i \\in {1} : x' = i /\\ y' = x[1]", "2. Line 5, column 18 to line 5, column 51 in M\n3. Line 5, column 33 to line 5, column 51 in M\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeMaxSetSizeFixture(t, dir, "VARIABLES x, y\nInit == "+tc.init+"\nNext == "+tc.next, "INIT Init\nNEXT Next\n")
+			args := []string{"-tool", "-deadlock"}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+			got := rawToolMessage(out.String(), 2103)
+			if !strings.Contains(got, tc.want) {
+				t.Fatalf("exit %d, 2103 missing %q:\n%s", code, tc.want, out.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, append(args, "M.tla")...)...)
+				cmd.Dir = dir
+				output, _ := cmd.Output()
+				if java := rawToolMessage(string(output), 2103); java != got {
+					t.Fatalf("2103 differs\nJava: %q\nGo:   %q", java, got)
+				}
+			}
+		})
+	}
+}
+
 // rawToolMessage returns the bytes of the first tool message with code.
 func rawToolMessage(output string, code int) string {
 	start := strings.Index(output, fmt.Sprintf("@!@!@STARTMSG %d:", code))

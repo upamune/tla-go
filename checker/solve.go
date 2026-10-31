@@ -245,6 +245,7 @@ func (g *generator) conjunction(item work, rest []work, partial evaluator.State,
 	items = append(items, rest...)
 	more, err := g.solve(items, partial, action)
 	if err != nil {
+		addInlineConjunctionSources(err, item.expr)
 		addEnclosingActionSource(err, item.expr)
 	} else if !more {
 		g.addInitialFailureSource(item.expr, false)
@@ -255,6 +256,11 @@ func (g *generator) conjunction(item work, rest []work, partial evaluator.State,
 func (g *generator) disjunction(item work, rest []work, partial evaluator.State, action string) (bool, error) {
 	for _, branch := range item.expr.Args {
 		more, err := g.disjunctionBranch(item, branch, rest, partial, action)
+		if err != nil && (!item.label || g.initial) {
+			// Like a top-level \E, a top-level disjunction is split into
+			// actions rather than kept on Java TLC's call stack.
+			addConjunctErrorSource(err, item.expr)
+		}
 		if err != nil || !more {
 			g.addInitialFailureSource(item.expr, false)
 			return more, err
@@ -342,8 +348,8 @@ func (g *generator) assign(name, operator string, rhs *parser.Expression, items 
 	} else {
 		more, err = g.assignMembers(name, v, items[1:], partial, action)
 	}
-	if g.initial && err != nil {
-		addInitialAssignmentErrorSource(err, items[0].expr)
+	if err != nil {
+		addConjunctErrorSource(err, items[0].expr)
 	}
 	if err == nil && !more {
 		g.addInitialFailureSource(items[0].expr, true)
@@ -376,5 +382,9 @@ func (g *generator) guard(items []work, partial evaluator.State, action string) 
 	if !ok {
 		return true, nil
 	}
-	return g.solve(items[1:], partial, action)
+	more, err := g.solve(items[1:], partial, action)
+	if err != nil {
+		addConjunctErrorSource(err, items[0].expr)
+	}
+	return more, err
 }

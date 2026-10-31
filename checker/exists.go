@@ -11,8 +11,10 @@ import (
 
 func (g *generator) existential(item work, rest []work, partial evaluator.State, action string) (bool, error) {
 	previous := g.source
+	split := false
 	if item.label && !g.initial {
-		if g.actionExistentialCanSplit(item.expr) {
+		split = g.actionExistentialCanSplit(item.expr)
+		if split {
 			g.source = item.expr.Args[0]
 		} else {
 			item.label = false
@@ -20,6 +22,11 @@ func (g *generator) existential(item work, rest []work, partial evaluator.State,
 	}
 	more, err := g.witnesses(item, item.expr.Bounds, rest, partial, item.locals, action)
 	g.source = previous
+	if err != nil && !split {
+		// Java TLC splits an action at a top-level \E into one action per
+		// witness, and keeps any other \E on its call stack.
+		addConjunctErrorSource(err, item.expr)
+	}
 	if err == nil && !more {
 		g.addInitialFailureSource(item.expr, false)
 	}

@@ -202,7 +202,7 @@ func (s *search) expandRawNode(index int, next *parser.Expression) (bool, error)
 	}}
 	more, err := gen.solve([]work{{expr: next, label: true}}, evaluator.State{}, s.model.cfg.Next)
 	if err != nil || !more {
-		addEnclosingActionSource(err, next)
+		addEnclosingActionSource(err, gen.actionRoot(next))
 		if s.result.HasOutDegrees {
 			// Java TLC samples a state's outdegree only after its expansion finishes.
 			s.result.OutDegrees = s.outDegrees
