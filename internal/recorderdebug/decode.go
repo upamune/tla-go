@@ -216,6 +216,9 @@ func validateRecordPayload(event Event) error {
 }
 
 func validPayloadValues(event Event) bool {
+	if event.Code == 2192 {
+		return validTemporalCheck(event.Values)
+	}
 	if event.Code == 2193 {
 		return validProbability(event.Values[0])
 	}
@@ -223,6 +226,19 @@ func validPayloadValues(event Event) bool {
 		return validCoverageValues(event.Values)
 	}
 	return validRecordValues(event)
+}
+
+// The only supported temporal-check observation is a complete-space check.
+// Java's third argument is either empty or the textual branch prefix.
+func validTemporalCheck(values []string) bool {
+	if values[0] != "complete" || !decimal(values[1]) {
+		return false
+	}
+	if values[2] == "" {
+		return true
+	}
+	count, ok := strings.CutSuffix(values[2], " branches of ")
+	return ok && decimal(count) && count != "0" && count != "1"
 }
 
 func validCoverageValues(values []string) bool {
@@ -296,9 +312,9 @@ func recordArity(code int) int {
 		return 0
 	case 2190, 2221:
 		return 2
-	case 2191, 2199, 2772, 2773, 2775:
+	case 2191, 2192, 2199, 2772, 2773, 2775:
 		return 3
-	case 2193, 2194, 2269, 2186, 2774:
+	case 2193, 2194, 2212, 2269, 2186, 2774:
 		return 1
 	default:
 		return -1

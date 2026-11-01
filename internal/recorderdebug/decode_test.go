@@ -129,6 +129,32 @@ func TestDecodeCoverageRecords(t *testing.T) {
 	}
 }
 
+func TestDecodeTemporalRecords(t *testing.T) {
+	header := `{"kind":"header","version":1,"complete":false}` + "\n"
+	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2212,"array":"strings","values":["1"]}`,
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["complete","4",""]}`,
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["complete","8","2 branches of "]}`,
+	} {
+		if _, err := Decode(strings.NewReader(header + record + "\n")); err != nil {
+			t.Errorf("valid temporal event %s: %v", record, err)
+		}
+	}
+	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2212,"array":"objects","values":["1"]}`,
+		`{"kind":"record","complete":false,"code":2212,"array":"strings","values":["01"]}`,
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["current","4",""]}`,
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["complete","-1",""]}`,
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["complete","4","1 branches of "]}`,
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["complete","4","02 branches of "]}`,
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["complete","4"]}`,
+	} {
+		if _, err := Decode(strings.NewReader(header + record + "\n")); err == nil {
+			t.Errorf("accepted invalid temporal event %s", record)
+		}
+	}
+}
+
 func TestDecodeSuccessProbabilityOmission(t *testing.T) {
 	header := `{"kind":"header","version":1,"complete":false}` + "\n"
 	omission := `{"kind":"omission","complete":false,"code":2193,"reason":"observed-fingerprint-probability-unavailable"}` + "\n"

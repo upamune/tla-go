@@ -639,6 +639,28 @@ list forward and `bridgeVerdict` rejects a pass even when the original
 assertions return successfully. This adapter accepts only the verified
 `EmptyTest` argument list; expanding it requires new case-specific evidence.
 
+### Liveness recorder observations
+
+For supported final model-checking progress events, the opt-in Go recorder
+directly emits 2212 as a `String[]` branch count and 2192 as a `String[]`
+containing `complete`, the graph-node count, and Java's optional branch
+prefix. These values come from checker search events, not tool text. The
+stream is still incomplete: some formulas do not produce Go progress events,
+and liveness duration, intermediate checks, traces and other recorder calls
+are not captured. Single- and multi-branch success and violation examples
+compare the selected calls with the pinned Java 1.7.4 MPRecorder.
+
+The opt-in upstream experiment runs Java's original `LoopTestWeakFair` setup,
+assertion and teardown. Separately, it runs tla-go on the pinned `SystemLoop`
+model with the original configuration and final-only liveness checking, then
+compares the selected typed Go recorder calls to Java and independently checks
+tool messages. The original JUnit assertion and inherited teardown execute on
+those Go observations via an adapter; missing or altered 2192 records fail the
+original assertion. Go coverage is disabled because it does not yet support
+this model, so the original zero-uncovered assertion is vacuous. Dump, original
+setup, recorder completeness and liveness strategy equivalence are also not
+established. The bridge explicitly remains incomplete and is not a JUnit pass.
+
 ## Full diagnostic snapshot
 
 Targeted follow-up for `ETest7` and `Github179a/b/c` reproduces the original

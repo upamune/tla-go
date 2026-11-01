@@ -2,6 +2,7 @@ package upstreamjunit
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -79,6 +80,30 @@ func TestBridgeInitialProgressProjection(t *testing.T) {
 		}
 		if tc.want && (records[0].code != "2269" || len(records[0].values) != 1 || records[0].values[0] != "2") {
 			t.Fatalf("body %q: records=%v", tc.body, records)
+		}
+	}
+}
+
+func TestBridgeTemporalProjection(t *testing.T) {
+	for _, tc := range []struct {
+		id, body string
+		values   []string
+	}{
+		{"2212", "Implied-temporal checking--satisfiability problem has 2 branches.", []string{"2"}},
+		{"2192", "Checking temporal properties for the complete state space with 4 total distinct states at (2026-11-02 01:02:03)", []string{"complete", "4", ""}},
+		{"2192", "Checking 2 branches of temporal properties for the complete state space with 8 total distinct states at (2026-11-02 01:02:03)", []string{"complete", "8", "2 branches of "}},
+	} {
+		record, omission := projectMessage(tc.id, tc.body)
+		if record.code != tc.id || !slices.Equal(record.values, tc.values) || omission != "" {
+			t.Fatalf("body %q: record=%+v omission=%q", tc.body, record, omission)
+		}
+	}
+	for _, tc := range []struct{ id, body string }{
+		{"2212", "Implied-temporal checking--satisfiability problem has two branches."},
+		{"2192", "Checking temporal properties for the current state space with 4 total distinct states at (2026-11-02 01:02:03)"},
+	} {
+		if record, omission := projectMessage(tc.id, tc.body); record.code != "" || omission == "" {
+			t.Fatalf("accepted unsupported temporal message: %+v %q", record, omission)
 		}
 	}
 }

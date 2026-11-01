@@ -26,6 +26,9 @@ var goGCoverageTestJava string
 //go:embed GoCoverageStatisticsTest.java
 var goCoverageStatisticsTestJava string
 
+//go:embed GoLoopTestWeakFair.java
+var goLoopTestWeakFairJava string
+
 //go:embed RecorderFixture.java
 var recorderFixtureJava string
 
@@ -55,6 +58,8 @@ var (
 	bridgeProperty = regexp.MustCompile(`^(<[^\n]+>)$`)
 	bridgeStarting = regexp.MustCompile(`^Starting\.\.\. \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)$`)
 	bridgeSuccess  = regexp.MustCompile(`(?s)^Model checking completed\. No error has been found\.\n  Estimates of the probability that TLC did not check all reachable states\n  because two distinct states had the same fingerprint:\n  calculated \(optimistic\):  (val = [0-9.E+-]+)$`)
+	bridgeBranches = regexp.MustCompile(`^Implied-temporal checking--satisfiability problem has ([0-9]+) branches\.$`)
+	bridgeTemporal = regexp.MustCompile(`^Checking ((?:[0-9]+ branches of )?)temporal properties for the (complete) state space with ([0-9]+) total distinct states at \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)$`)
 )
 
 // projectBridge is deliberately incomplete: every unrepresentable message is
@@ -87,6 +92,24 @@ func projectBridge(output string) ([]bridgeRecord, []string, error) {
 }
 
 func projectMessage(id, body string) (bridgeRecord, string) {
+	if id == "2212" || id == "2192" {
+		return projectTemporalMessage(id, body)
+	}
+	return projectNonTemporalMessage(id, body)
+}
+
+func projectTemporalMessage(id, body string) (bridgeRecord, string) {
+	if id == "2212" {
+		if branches := bridgeBranches.FindStringSubmatch(body); branches != nil {
+			return bridgeRecord{id, branches[1:]}, ""
+		}
+	} else if temporal := bridgeTemporal.FindStringSubmatch(body); temporal != nil {
+		return bridgeRecord{id, []string{temporal[2], temporal[3], temporal[1]}}, ""
+	}
+	return bridgeRecord{}, "unsupported arguments for message " + id
+}
+
+func projectNonTemporalMessage(id, body string) (bridgeRecord, string) {
 	switch id {
 	case "2193":
 		if m := bridgeSuccess.FindStringSubmatch(body); m != nil {

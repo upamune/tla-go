@@ -13,7 +13,7 @@ public class CaptureRecorder {
         final String path = args[0];
         MP.setRecorder(new MPRecorder() {
             public synchronized void record(int code, Object... values) {
-                if (!(code == 1000 || code == 2190 || code == 2194 || code == 2199 || code == 2221 || code == 2269 || (code >= 2772 && code <= 2775))) return;
+                if (!(code == 1000 || code == 2190 || code == 2192 || code == 2194 || code == 2199 || code == 2212 || code == 2221 || code == 2269 || (code >= 2772 && code <= 2775))) return;
                 StringBuilder line = new StringBuilder();
                 line.append(code).append('\t');
                 line.append(values.getClass() == String[].class ? "strings" : "unsupported-array:" + values.getClass().getName());

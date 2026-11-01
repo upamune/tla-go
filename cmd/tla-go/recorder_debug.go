@@ -124,6 +124,28 @@ func recordSearchEvent(recorder *recorderConfig, event checker.SearchEvent) {
 		return
 	}
 	switch event.Kind {
+	case checker.ModelCheckingLiveness, checker.TemporalCheckStart:
+		recordLivenessSearch(recorder, event)
+	default:
+		recordInitialSearch(recorder, event)
+	}
+}
+
+func recordLivenessSearch(recorder *recorderConfig, event checker.SearchEvent) {
+	switch event.Kind {
+	case checker.ModelCheckingLiveness:
+		recordStrings(recorder, 2212, strconv.Itoa(event.Branches))
+	case checker.TemporalCheckStart:
+		branches := ""
+		if event.Branches != 1 {
+			branches = strconv.Itoa(event.Branches) + " branches of "
+		}
+		recordStrings(recorder, 2192, "complete", strconv.Itoa(event.Nodes), branches)
+	}
+}
+
+func recordInitialSearch(recorder *recorderConfig, event checker.SearchEvent) {
+	switch event.Kind {
 	case checker.InitialStart:
 		recordStrings(recorder, 2189)
 	case checker.InitialProgress:

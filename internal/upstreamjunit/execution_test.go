@@ -329,7 +329,8 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	coverageClass := "tlc2.tool.coverage.BCoverageTest"
 	statisticsClass := "tlc2.tool.coverage.CoverageStatisticsTest"
 	gCoverageClass := "tlc2.tool.coverage.GCoverageTest"
-	records, err := discover(discoveryCtx, root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest", coverageClass, statisticsClass, gCoverageClass})
+	loopClass := "tlc2.tool.liveness.LoopTestWeakFair"
+	records, err := discover(discoveryCtx, root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest", coverageClass, statisticsClass, gCoverageClass, loopClass})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,7 +339,8 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	coverage := DiscoveryRecord{"case", coverageClass, "testSpec(" + coverageClass + ")", ""}
 	statistics := DiscoveryRecord{"case", statisticsClass, "testSpec(" + statisticsClass + ")", ""}
 	gCoverage := DiscoveryRecord{"case", gCoverageClass, "testSpec(" + gCoverageClass + ")", ""}
-	if len(records) != 5 || !slices.Contains(records, want) || !slices.Contains(records, empty) || !slices.Contains(records, coverage) || !slices.Contains(records, statistics) || !slices.Contains(records, gCoverage) {
+	loop := DiscoveryRecord{"case", loopClass, "testSpec(" + loopClass + ")", ""}
+	if len(records) != 6 || !slices.Contains(records, want) || !slices.Contains(records, empty) || !slices.Contains(records, coverage) || !slices.Contains(records, statistics) || !slices.Contains(records, gCoverage) || !slices.Contains(records, loop) {
 		t.Fatalf("unsupported lifecycle or discovery: %+v", records)
 	}
 	classes := filepath.Join(temp, "classes")
@@ -375,11 +377,15 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	if err := os.WriteFile(goGCoverageSource, []byte(goGCoverageTestJava), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	goLoopSource := filepath.Join(temp, "GoLoopTestWeakFair.java")
+	if err := os.WriteFile(goLoopSource, []byte(goLoopTestWeakFairJava), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	captureSource := filepath.Join(temp, "CaptureRecorder.java")
 	if err := os.WriteFile(captureSource, []byte(captureRecorderJava), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source, bridgeSource, goEmptySource, goSuiteSource, recorderSource, goBCoverageSource, goGCoverageSource, goStatisticsSource, captureSource}
+	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source, bridgeSource, goEmptySource, goSuiteSource, recorderSource, goBCoverageSource, goGCoverageSource, goStatisticsSource, goLoopSource, captureSource}
 	if out, err := exec.Command("javac", args...).CombinedOutput(); err != nil {
 		t.Fatalf("javac: %v\n%s", err, out)
 	}
@@ -436,6 +442,7 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	t.Logf("Java JUnit pass: %s; events=%v", coverage.Display, coverageEvents)
 	checkJavaStatisticsJUnit(t, classes, deps, temp, runDir, statistics)
 	checkJavaGCoverageJUnit(t, classes, deps, temp, runDir, gCoverage)
+	checkJavaLoopJUnit(t, classes, deps, temp, runDir, loop)
 	binary := filepath.Join(temp, "tla-go")
 	if out, err := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
@@ -562,4 +569,5 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	checkBridgeBCoverage(t, binary, filepath.Join(temp, "go", "coverage"), classes, deps, runDir, runBridge)
 	checkCoverageStatisticsBridge(t, binary, filepath.Join(temp, "go", "coverage"), classes, deps, runDir, runBridge)
 	checkGCoverageBridge(t, binary, filepath.Join(temp, "go", "coverage"), classes, deps, runDir, runBridge)
+	checkLoopRecorderBridge(t, binary, filepath.Join(temp, "go", "Loop"), classes, deps, runDir)
 }
