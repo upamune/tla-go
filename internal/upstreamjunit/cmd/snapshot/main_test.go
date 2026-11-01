@@ -12,6 +12,7 @@ func TestCommitForSourceHash(t *testing.T) {
 		{"4769aef155298934c93845b6a0130091bbd0f1060d03ebd94762068acdcb755a", "2399b1535d1ef68aa78d81bba2b9559cf8e586f7"},
 		{"fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5", "56336d54f659dbb744aff66ffa8e653a6117c06a"},
 		{"65e957a50c1a58779f5982458ca42adb3d4ed16e0884229dd7bbe752aa298765", "e81f221f7ba59b833244e7613bd149f836532c86"},
+		{"e548e0fba387f59c1278069d2bb0bcd7196475e36a6049003336d2616bb13000", "9f5816269083eb7c9d44e5477695e95e6bf68059"},
 	} {
 		got, err := commitForSourceHash(tc.hash)
 		if err != nil || got != tc.commit {
@@ -26,13 +27,22 @@ func TestCommitForSourceHash(t *testing.T) {
 }
 
 func TestRegenerateE81Snapshot(t *testing.T) {
-	path := os.Getenv("TLA_GO_E81_SWEEP_LOG")
+	checkRegeneration(t, "TLA_GO_E81_SWEEP_LOG", "/tmp/tla-e81-diagnostic-sweep.log", "sweep-e81f221f.json")
+}
+
+func TestRegenerate9F58162Snapshot(t *testing.T) {
+	checkRegeneration(t, "TLA_GO_9F58162_SWEEP_LOG", "/tmp/tla-9f58162-diagnostic-sweep.log", "sweep-9f581626.json")
+}
+
+func checkRegeneration(t *testing.T, env, defaultPath, snapshot string) {
+	t.Helper()
+	path := os.Getenv(env)
 	if path == "" {
-		path = "/tmp/tla-e81-diagnostic-sweep.log"
+		path = defaultPath
 	}
 	log, err := os.ReadFile(path)
-	if os.IsNotExist(err) && os.Getenv("TLA_GO_E81_SWEEP_LOG") == "" {
-		t.Skip("ephemeral source log unavailable; set TLA_GO_E81_SWEEP_LOG to verify regeneration")
+	if os.IsNotExist(err) && os.Getenv(env) == "" {
+		t.Skipf("ephemeral source log unavailable; set %s to verify regeneration", env)
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -47,7 +57,7 @@ func TestRegenerateE81Snapshot(t *testing.T) {
 	if err := enc.Encode(snap); err != nil {
 		t.Fatal(err)
 	}
-	want, err := os.ReadFile("../../testdata/snapshots/sweep-e81f221f.json")
+	want, err := os.ReadFile("../../testdata/snapshots/" + snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
