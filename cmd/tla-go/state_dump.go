@@ -13,7 +13,7 @@ import (
 // checkDumpPath creates the dump file while options are processed, as Java
 // TLC does, so that an unwritable path is a command-line error. A path in the
 // metadata directory is created once that directory exists.
-func checkDumpPath(path string, out io.Writer) error {
+func checkDumpPath(path string, format *dotFormat, out io.Writer) error {
 	if path == "" || strings.HasPrefix(path, "${metadir}") {
 		return nil
 	}
@@ -22,7 +22,17 @@ func checkDumpPath(path string, out io.Writer) error {
 		fmt.Fprintf(out, "Error: Unable to write to file %s\n", path)
 		return commandLineError(fmt.Sprintf("Error: Given file name %s for dumping states invalid.", path))
 	}
-	return file.Close()
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if format != nil {
+		dump, err := openDOTDump(path, *format)
+		if err != nil {
+			return err
+		}
+		return dump.close(false)
+	}
+	return nil
 }
 
 // textDump follows Java TLC's StateWriter, which numbers each new state. Like

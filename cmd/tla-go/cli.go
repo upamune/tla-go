@@ -70,7 +70,7 @@ func validateOutputPaths(opts options, out io.Writer) error {
 	if err := validateProfilePaths(opts); err != nil {
 		return err
 	}
-	return checkDumpPath(opts.dumpPath, out)
+	return checkDumpPath(opts.dumpPath, opts.dumpDOT, out)
 }
 
 func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) (code int) {
@@ -288,9 +288,9 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 }
 
 func graphShouldFinish(result checker.Result, err error) bool {
-	// Incomplete initial states and initial violations take TLC's early return
-	// path; exceptions during initial evaluation close the writer instead.
-	return err == nil && !(result.Violation != nil && initialViolation(result)) &&
+	// Assumption failures, incomplete initial states and initial violations take
+	// TLC's early return path; initial generation exceptions close the writer.
+	return err == nil && result.Status != checker.AssumptionViolation && !(result.Violation != nil && initialViolation(result)) &&
 		!(result.Failure != nil && result.Failure.IncompleteInitialState)
 }
 

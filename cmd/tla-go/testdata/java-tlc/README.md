@@ -4,6 +4,12 @@ They exercise `tlc2.tool.Github179cTest` and are covered by
 `TestJavaTLCGithub179c`. The upstream project is distributed under the MIT
 license; see `LICENSE` in this directory.
 
+`Github798I.tla` and `Github798N.tla` are unchanged test-model files from the
+same commit. Their tests use `-config Github798I.tla` and `-config Github798N.tla`,
+which resolve to missing `.tla.cfg` files. `etest6-java.dot` is the complete
+output of the pinned 1.7.4 jar with `-tool -deadlock -fp 0 -coverage 1 -workers 1
+-checkpoint 0 -dump dot`, generated from the unchanged suite model and config.
+
 `test17`, `test20`, and `test21` are unchanged models from the same release's
 `test-model/suite` directory. They exercise priming and ENABLED with operator
 arguments.

@@ -331,6 +331,19 @@ difference for Github179a, and the resolver's coverage, dump lifecycle and
 JUnit limitations described above remain. These diagnostics do not establish
 JUnit pass counts or full compatibility.
 
+For the later `56336d5` snapshot, direct one-worker runs with the pinned jar,
+`-tool -deadlock -fp 0 -coverage 1 -workers 1 -checkpoint 0 -dump dot`, and
+isolated original model files show that Github179a's failed assumption leaves
+only the DOT header. Github798I and Github798N use `-config Github798I.tla`
+and `-config Github798N.tla`; those arguments select absent `.tla.cfg` files,
+so their header-only dumps are configuration errors, not explored graphs.
+ETest12 through ETest15 likewise leave the header on assumption errors, while
+ETest6 completes a graph containing its initial state after successor evaluation
+fails. These are raw byte comparisons: the diagnostic runner does not normalize
+DOT. Its Java-only coverage, liveness threshold and incomplete JUnit lifecycle
+still limit the conclusions. ETest8 specifies simulation; parallel or random
+exploration order is not made deterministic by these comparisons.
+
 [`testdata/snapshots/sweep-2399b153.json`](testdata/snapshots/sweep-2399b153.json)
 records the completed opt-in full run at tla-go commit
 `2399b1535d1ef68aa78d81bba2b9559cf8e586f7`, against the pinned upstream
