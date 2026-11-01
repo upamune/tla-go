@@ -127,11 +127,18 @@ func validateRecursiveDeclarations(decls []parser.Declaration, defs []parser.Def
 		if definition == nil {
 			return fmt.Errorf("symbol %s declared RECURSIVE but not defined", decl.Name)
 		}
-		if len(definition.Params) != decl.Arity {
+		if recursiveArityMismatch(decl, definition) {
 			return fmt.Errorf("definition of %s has different arity than its RECURSIVE declaration", decl.Name)
 		}
 	}
 	return nil
+}
+
+// SANY 1.7.4's Generator.processOperator overwrites paramsMatch for each
+// parameter, so only the last parameter's operator arity is checked.
+func recursiveArityMismatch(decl parser.Declaration, definition *parser.Definition) bool {
+	params := definition.Params
+	return len(params) != decl.Arity || len(params) > 0 && params[len(params)-1].Arity != 0
 }
 
 func recursiveDefinition(decl parser.Declaration, defs []parser.Definition) *parser.Definition {

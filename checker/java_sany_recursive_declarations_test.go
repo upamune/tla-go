@@ -46,6 +46,13 @@ func TestJavaSANYRecursiveDeclarations(t *testing.T) {
 		{"function wrong arity", "RECURSIVE F(_)\nF[x \\in {1}] == x", true},
 		{"function zero arity", "RECURSIVE F\nF[x \\in {1}] == x", false},
 		{"operator parameter first", "RECURSIVE F(_,_)\nF(G(_),x) == x", false},
+		{"operator parameter last", "RECURSIVE F(_)\nF(G(_)) == 1", true},
+		{"operator parameter last after value", "RECURSIVE F(_,_)\nF(x,G(_)) == x", true},
+		{"operator parameter last after operator", "RECURSIVE F(_,_)\nF(G(_),H(_,_)) == 1", true},
+		{"operator parameter earlier", "RECURSIVE F(_,_,_)\nF(G(_,_),x,y) == x", false},
+		{"operator parameter last in let", "X == LET RECURSIVE F(_) F(G(_)) == 1 IN 1", true},
+		{"operator parameter first in let", "X == LET RECURSIVE F(_,_) F(G(_),x) == x IN F(LAMBDA y : y, 1)", false},
+		{"operator parameter last in proof", "THEOREM TRUE\n<1>1. DEFINE X == LET RECURSIVE F(_) F(G(_)) == 1 IN 1\n<1> QED OBVIOUS", true},
 		{"nullary", "RECURSIVE F\nF == 1", false},
 		{"operator", "RECURSIVE F(_)\nF(x) == IF x = 0 THEN 0 ELSE F(x-1)", false},
 		{"local definition", "RECURSIVE F(_)\nLOCAL F(x) == x", false},
@@ -84,6 +91,9 @@ func TestJavaSANYRecursiveDeclarations(t *testing.T) {
 			if (err != nil) != tc.invalid {
 				t.Fatalf("Go error %v, invalid %t", err, tc.invalid)
 			}
+			if strings.HasPrefix(tc.name, "operator parameter last") && !strings.Contains(err.Error(), "different arity") {
+				t.Fatalf("Go reported wrong error: %v", err)
+			}
 			m, err := parser.ParseModule(source)
 			if err != nil {
 				t.Fatal(err)
@@ -95,6 +105,9 @@ func TestJavaSANYRecursiveDeclarations(t *testing.T) {
 			_, err = CheckModuleWithLoader(context.Background(), m, c, loader)
 			if (err != nil) != tc.invalid {
 				t.Fatalf("direct API error %v, invalid %t", err, tc.invalid)
+			}
+			if strings.HasPrefix(tc.name, "operator parameter last") && !strings.Contains(err.Error(), "different arity") {
+				t.Fatalf("direct API reported wrong error: %v", err)
 			}
 			if jar == "" {
 				return
@@ -109,6 +122,9 @@ func TestJavaSANYRecursiveDeclarations(t *testing.T) {
 			if code != 0 || strings.Contains(out, "Parse Error") || strings.Contains(out, "Semantic errors:") != tc.invalid {
 				t.Fatalf("SANY exit %d invalid %t:\n%s", code, tc.invalid, out)
 			}
+			if strings.HasPrefix(tc.name, "operator parameter last") && !strings.Contains(out, "different arity") {
+				t.Fatalf("SANY reported wrong error:\n%s", out)
+			}
 		})
 	}
 }
@@ -122,6 +138,8 @@ func TestRecursiveDeclarationsInImportedModules(t *testing.T) {
 		{"instance invalid", "I == INSTANCE A", "RECURSIVE F(_)", true},
 		{"extension valid", "EXTENDS A", "RECURSIVE F(_)\nF(x) == x", false},
 		{"instance valid", "I == INSTANCE A", "RECURSIVE F(_)\nF(x) == x", false},
+		{"extension operator parameter last", "EXTENDS A", "RECURSIVE F(_)\nF(G(_)) == 1", true},
+		{"instance operator parameter first", "I == INSTANCE A", "RECURSIVE F(_,_)\nF(G(_),x) == x", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := "---- MODULE M ----\n" + tc.root + "\nVARIABLE v\nInit == v = 0\nNext == UNCHANGED v\n====\n"
@@ -174,7 +192,6 @@ func TestJavaSANYRecursiveDeclarationKnownGaps(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ name, body, diagnostic string }{
-		{"operator parameter last", "RECURSIVE F(_)\nF(G(_)) == 1", "different arity"},
 		{"constant in recursive section", "RECURSIVE F(_)\nCONSTANT C\nF(x) == x", "recursive definition section"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
