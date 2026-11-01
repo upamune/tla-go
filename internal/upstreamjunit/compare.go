@@ -29,11 +29,20 @@ type (
 	frame struct {
 		id    string
 		start int
+		order int
+	}
+	orderedMessage struct {
+		id, body string
+		order    int
 	}
 	messageParser struct {
-		output   string
-		stack    []frame
-		messages map[string][]string
+		output       string
+		stack        []frame
+		messages     map[string][]string
+		ordered      []orderedMessage
+		started      int
+		nested       bool
+		captureOrder bool
 	}
 )
 
@@ -97,7 +106,9 @@ func (p *messageParser) consume(n, end int, m []int) error {
 		if end >= len(p.output) || p.output[end] != '\n' {
 			return fmt.Errorf("missing newline after start %s", id)
 		}
-		p.stack = append(p.stack, frame{id, end + 1})
+		p.nested = p.nested || p.captureOrder && len(p.stack) != 0
+		p.stack = append(p.stack, frame{id, end + 1, p.started})
+		p.started++
 		return nil
 	}
 	return p.close(n, end, p.output[n+m[6]:n+m[7]])
@@ -118,7 +129,11 @@ func (p *messageParser) close(n, end int, id string) error {
 		}
 		bodyEnd--
 	}
-	p.messages[id] = append(p.messages[id], p.output[f.start:bodyEnd])
+	body := p.output[f.start:bodyEnd]
+	p.messages[id] = append(p.messages[id], body)
+	if p.captureOrder {
+		p.ordered = append(p.ordered, orderedMessage{id, body, f.order})
+	}
 	p.stack = p.stack[:len(p.stack)-1]
 	return nil
 }

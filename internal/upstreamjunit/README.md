@@ -445,12 +445,16 @@ The existing direct JUnit invocation runs the original Java setup, method and
 teardown separately for comparison.
 
 This is **not a Go JUnit pass**, even if the method returns successfully. The
-adapter supports only well-formed 2186, 2190, 2199 and 2221 text messages; it
+adapter supports well-formed 2186, 2190, 2194, 2199, 2221 and 2772–2775 text messages; it
 records every other code and malformed supported message as an omission. Its
-encoder rejects unknown record codes. Tool output is rendered text, not the
-complete typed MP recorder stream: message order across codes, nested messages,
-other argument types, hidden parameters and recorder calls without tool output
-are not established. In particular, absence of a complete Go coverage stream is
+encoder rejects unknown record codes. Every text projection includes an
+omission for unproven recorder types and unobserved calls, even if every
+printed message was recognized. Tool output is rendered text, not the
+complete typed MP recorder stream: projected events follow tool start-marker
+order and preserve duplicate records, but that does not establish Java recorder
+call order. Nested messages explicitly add an omission. Other argument types,
+hidden parameters and recorder calls without tool output are not established.
+In particular, absence of a complete Go coverage stream is
 not proof of zero uncovered expressions, even though upstream's recorder treats
 no 2221 records as an empty set. The wrapper does not run upstream setup or
 teardown on the bridged instance. Initial process globals, final-only liveness,
@@ -460,8 +464,8 @@ are reported; they cannot turn the result into a pass. A broader bridge requires
 a typed recorder interface from Go, complete lifecycle equivalence, and an
 explicit completeness contract before it can claim one.
 
-The experiment additionally runs two test subclasses, `GoSuiteTest10` and
-`GoEmptyTest`, through JUnit itself. Their inherited upstream `testSpec` and
+The experiment additionally runs three test subclasses, `GoSuiteTest10`,
+`GoEmptyTest` and `GoBCoverageTest`, through JUnit itself. Their inherited upstream `testSpec` and
 `ModelCheckerTestCase.tearDown` execute on Go's projected records and exit
 status. The subclass replaces the upstream setup with an adapter and consumes
 the already completed Go invocation; it does not run Java TLC. Negative
@@ -473,6 +477,27 @@ projection is not evidence that Go collected complete coverage. For both
 subclasses, missing recorder events, upstream globals, setup, the JUnit-selected
 class identity and cleanup behavior remain unresolved. A successful adapted
 run is not an upstream JUnit pass for tla-go.
+
+The recorder transfer preserves `String[]` versus `Object[]` and supports
+strings, 32-bit integers, 64-bit integers, booleans and null in object arrays;
+unknown types, malformed values and unsupported codes fail closed. A Java
+fixture verifies the retained runtime array and element types, repetitions and
+per-code order in the pinned `TestMPRecorder`, including rejection of malformed
+input. This transport supports more than the text projection can infer: it does
+not manufacture TLCStateInfo, exceptions or other Java objects from printed
+text. Each text-projected record is explicitly a `String[]` hypothesis.
+
+For the upstream B coverage model, the experiment also compares the projected
+2190, 2194, 2199, 2221 and 2772–2775 records, including order, duplicates,
+array type and arguments, against a fresh run of the verified Java TLC JAR with
+an actual instrumented `MPRecorder`. This is a comparison of those selected
+records for that model, not a completeness guarantee for other cases. The Go
+invocation enables coverage but omits the upstream harness's DOT dump because
+coverage and dump cannot currently be combined. The real `BCoverageTest`
+method and inherited teardown execute against the projected records; a changed
+action count must fail the original coverage assertion. Other recorder events,
+setup and lifecycle effects remain unverified, so this is not an upstream JUnit
+pass for Go.
 
 ## EmptyTest assertion-method bridge
 
@@ -486,7 +511,8 @@ checkpoint and duplicate `-coverage 1` arguments. Tool mode is added and its
 DOT destination differs from the harness's metadir path. The experiment requires
 exit zero and an empty-model output without a coverage report, projects the
 FINISHED and state-count messages into string recorder arguments, preserves
-GENERAL presence, and calls the original `EmptyTest.testSpec` on a fresh
+GENERAL presence as a synthetic record appended after the projection, and calls
+the original `EmptyTest.testSpec` on a fresh
 instance. Unknown and otherwise unrepresented messages are reported. Synthetic
 altered counts, missing FINISHED and GENERAL must fail the original assertion;
 disabled coverage, malformed output, unexpected coverage, errors and timeouts

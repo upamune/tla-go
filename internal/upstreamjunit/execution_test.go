@@ -275,7 +275,7 @@ func TestBridgeCoverageFallbackClassification(t *testing.T) {
 			if calls != tc.calls || (err == nil) != tc.ok {
 				t.Fatalf("calls=%d err=%v", calls, err)
 			}
-			if tc.ok && (len(omissions) > 0) != (tc.calls == 2) {
+			if tc.ok && (!strings.Contains(strings.Join(omissions, ";"), "do not establish recorder") || strings.Contains(strings.Join(omissions, ";"), "coverage-enabled invocation rejected") != (tc.calls == 2)) {
 				t.Fatalf("omissions=%v", omissions)
 			}
 		})
@@ -283,7 +283,7 @@ func TestBridgeCoverageFallbackClassification(t *testing.T) {
 }
 
 func TestBridgeCoverageSuccessRetainsObservations(t *testing.T) {
-	output := msg("2201", "start") + msg("2221", "line 1: 0") + msg("2202", "end")
+	output := msg("2201", "start") + msg("2221", "  line 1: 0") + msg("2202", "end")
 	calls := 0
 	result, records, omissions, err := runBridgeModel(func(coverage bool) (Result, error) {
 		calls++
@@ -354,7 +354,19 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	if err := os.WriteFile(goSuiteSource, []byte(goSuiteTest10Java), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source, bridgeSource, goEmptySource, goSuiteSource}
+	recorderSource := filepath.Join(temp, "RecorderFixture.java")
+	if err := os.WriteFile(recorderSource, []byte(recorderFixtureJava), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	goBCoverageSource := filepath.Join(temp, "GoBCoverageTest.java")
+	if err := os.WriteFile(goBCoverageSource, []byte(goBCoverageTestJava), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	captureSource := filepath.Join(temp, "CaptureRecorder.java")
+	if err := os.WriteFile(captureSource, []byte(captureRecorderJava), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source, bridgeSource, goEmptySource, goSuiteSource, recorderSource, goBCoverageSource, captureSource}
 	if out, err := exec.Command("javac", args...).CombinedOutput(); err != nil {
 		t.Fatalf("javac: %v\n%s", err, out)
 	}
@@ -374,6 +386,7 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	if err := os.Rename(filepath.Join(temp, "java"), filepath.Join(runDir, "test-model")); err != nil {
 		t.Fatal(err)
 	}
+	checkTypedRecorderFixture(t, classes, deps, runDir)
 	events, err := executeJUnit(classes, deps, runDir, runDir, want.Class, "testSpec")
 	if err != nil {
 		t.Fatal(err)
@@ -528,4 +541,5 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 		}
 	}
 	checkBridgeLifecycle(t, classes, deps, runDir, "GoEmptyTest", "tlc2.tool.EmptyTest.testSpec", emptyRecords, emptyResult.ExitCode)
+	checkBridgeBCoverage(t, binary, filepath.Join(temp, "go", "coverage"), classes, deps, runDir, runBridge)
 }

@@ -2,10 +2,9 @@ package upstreamjunit
 
 import (
 	_ "embed"
-	"encoding/base64"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -18,6 +17,15 @@ var goEmptyTestJava string
 //go:embed GoSuiteTest10.java
 var goSuiteTest10Java string
 
+//go:embed GoBCoverageTest.java
+var goBCoverageTestJava string
+
+//go:embed RecorderFixture.java
+var recorderFixtureJava string
+
+//go:embed CaptureRecorder.java
+var captureRecorderJava string
+
 type bridgeRecord struct {
 	code   string
 	values []string
@@ -27,32 +35,36 @@ var (
 	bridgeStats    = regexp.MustCompile(`^([0-9]+) states generated, ([0-9]+) distinct states found, ([0-9]+) states left on queue\.$`)
 	bridgeFinished = regexp.MustCompile(`^Finished in (.+) at \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)$`)
 	bridgeInitial  = regexp.MustCompile(`^Finished computing initial states: ([0-9]+) distinct state(s?) generated at [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.$`)
-	bridgeCoverage = regexp.MustCompile(`^(.+): ([0-9]+)$`)
+	bridgeDepth    = regexp.MustCompile(`^The depth of the complete state graph search is ([0-9]+)\.$`)
+	bridgeCoverage = regexp.MustCompile(`^  (.+): ([0-9]+)$`)
+	bridgeCost     = regexp.MustCompile(`^  (.+): ([0-9]+):([0-9]+)$`)
+	bridgeAction   = regexp.MustCompile(`^(<[^\n]+>): ([0-9]+):([0-9]+)$`)
+	bridgeProperty = regexp.MustCompile(`^(<[^\n]+>)$`)
 )
 
 // projectBridge is deliberately incomplete: every unrepresentable message is
 // returned as an omission, including unknown IDs. Its records cannot establish
 // an overall pass. Messages retains repetitions within each code.
 func projectBridge(output string) ([]bridgeRecord, []string, error) {
-	messages, err := Messages(output)
-	if err != nil {
+	p := messageParser{output: strings.ReplaceAll(output, "\r\n", "\n"), messages: make(map[string][]string), captureOrder: true}
+	if err := p.parse(); err != nil {
+		return nil, nil, err
+	}
+	if err := p.validateComplete(); err != nil {
 		return nil, nil, err
 	}
 	var records []bridgeRecord
-	var omissions []string
-	ids := make([]string, 0, len(messages))
-	for id := range messages {
-		ids = append(ids, id)
+	omissions := []string{"tool messages do not establish recorder array types or all recorder calls"}
+	if p.nested {
+		omissions = append(omissions, "nested tool messages do not establish recorder call order")
 	}
-	sort.Strings(ids)
-	for _, id := range ids {
-		for _, body := range messages[id] {
-			record, omission := projectMessage(id, body)
-			if omission != "" {
-				omissions = append(omissions, omission)
-			} else {
-				records = append(records, record)
-			}
+	slices.SortFunc(p.ordered, func(a, b orderedMessage) int { return a.order - b.order })
+	for _, message := range p.ordered {
+		record, omission := projectMessage(message.id, message.body)
+		if omission != "" {
+			omissions = append(omissions, omission)
+		} else {
+			records = append(records, record)
 		}
 	}
 	return records, omissions, nil
@@ -67,8 +79,10 @@ func projectMessage(id, body string) (bridgeRecord, string) {
 		m = bridgeInitial.FindStringSubmatch(body)
 	case "2199":
 		m = bridgeStats.FindStringSubmatch(body)
-	case "2221":
-		m = bridgeCoverage.FindStringSubmatch(body)
+	case "2194":
+		m = bridgeDepth.FindStringSubmatch(body)
+	case "2221", "2772", "2773", "2774", "2775":
+		m = bridgeCoverageMatch(id, body)
 	default:
 		return bridgeRecord{}, "unsupported message " + id
 	}
@@ -78,22 +92,18 @@ func projectMessage(id, body string) (bridgeRecord, string) {
 	return bridgeRecord{id, m[1:]}, ""
 }
 
-func encodeBridge(records []bridgeRecord) (string, error) {
-	var b strings.Builder
-	for _, record := range records {
-		switch record.code {
-		case "2186", "2190", "2199", "1000", "2221":
-		default:
-			return "", fmt.Errorf("unsupported message %s", record.code)
-		}
-		b.WriteString(record.code)
-		for _, v := range record.values {
-			b.WriteByte('\t')
-			b.WriteString(base64.StdEncoding.EncodeToString([]byte(v)))
-		}
-		b.WriteByte('\n')
+func bridgeCoverageMatch(id, body string) []string {
+	switch id {
+	case "2221":
+		return bridgeCoverage.FindStringSubmatch(body)
+	case "2772", "2773":
+		return bridgeAction.FindStringSubmatch(body)
+	case "2774":
+		return bridgeProperty.FindStringSubmatch(body)
+	case "2775":
+		return bridgeCost.FindStringSubmatch(body)
 	}
-	return b.String(), nil
+	return nil
 }
 
 // bridgeVerdict never reports a pass until a complete typed recorder and the

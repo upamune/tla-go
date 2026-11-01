@@ -11,7 +11,7 @@ func TestBridgeProjectionRejectsUnsupported(t *testing.T) {
 		"@!@!@STARTMSG 9999:0 @!@!@\nunknown\n@!@!@ENDMSG 9999 @!@!@\n" +
 		"@!@!@STARTMSG 2190:0 @!@!@\nmalformed\n@!@!@ENDMSG 2190 @!@!@\n"
 	records, omissions, err := projectBridge(output)
-	if err != nil || len(records) != 1 || len(omissions) != 2 || !strings.Contains(strings.Join(omissions, ","), "9999") {
+	if err != nil || len(records) != 1 || len(omissions) != 3 || !strings.Contains(strings.Join(omissions, ","), "9999") {
 		t.Fatalf("records=%v omissions=%v err=%v", records, omissions, err)
 	}
 	if _, err := encodeBridge([]bridgeRecord{{code: "9999"}}); err == nil {
@@ -48,7 +48,7 @@ func TestBridgeProjectionOrdinaryMarkerLikeText(t *testing.T) {
 		t.Run(body, func(t *testing.T) {
 			output := msg("9999", body) + "ordinary text ending in @!@!"
 			_, omissions, err := projectBridge(output)
-			if err != nil || len(omissions) != 1 {
+			if err != nil || len(omissions) != 2 {
 				t.Fatalf("omissions=%v err=%v", omissions, err)
 			}
 		})
