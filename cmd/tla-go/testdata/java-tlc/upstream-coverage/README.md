@@ -2,6 +2,11 @@ These models and configurations are from `test-model/coverage` in TLA+ Tools com
 `5a47802b5c391f59ecdd44117981f4ff8c0656ba` (Java TLC 1.7.4). See
 [UPSTREAM-LICENSE](../../../../../UPSTREAM-LICENSE).
 
+`B.coverage` records the full final coverage report for upstream `B.tla` and
+`B.cfg` from Java TLC 1.7.4 with `-workers 1 -coverage 9999` (the same
+interval as `BCoverageTest`). Tests compare variants and tool coverage messages against
+the Java oracle when `TLC_JAR` is set.
+
 `CoverageStatistics.coverage` is the full final coverage report from Java TLC
 1.7.4 with `-workers 1 -coverage 0`; its timestamp is omitted.
 The `CoverageStatistics-guard.coverage` and

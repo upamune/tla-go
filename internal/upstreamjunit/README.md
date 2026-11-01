@@ -417,6 +417,12 @@ TLA_GO_JUNIT_HAMCREST=/tmp/hamcrest-core-1.3.jar \
 go test -v ./internal/upstreamjunit -run 'Test(ValidateExecution|JUnitExecutionFixture|UpstreamJUnitExecution)$' -count=1
 ```
 
+`TestUpstreamJUnitExecution` also executes the pinned upstream
+`BCoverageTest#testSpec` with its actual Java setup, coverage assertions, and
+teardown. The Go CLI's matching `B` coverage report, state counts, search depth,
+and tool coverage messages are checked separately by `TestJavaTLCUpstreamBooleanCoverage`;
+this is not a Go JUnit lifecycle pass.
+
 ## Test10 assertion-method bridge (experimental, unsupported result)
 
 The opt-in `TestUpstreamJUnitExecution` also runs Go with coverage enabled on a
