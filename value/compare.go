@@ -67,15 +67,39 @@ func isEnumerableEqualitySet(v Value) bool {
 }
 
 func incompatibleSetEquality(a, b Value) error {
-	if (a.kind == SetKind || a.kind == IntervalKind) && !isSet(b) && b.kind != ModelKind {
+	if setEqualityErrorSupported(a) && !isSet(b) && b.kind != ModelKind {
 		set, err := setForComparison(a)
 		if err != nil {
 			return err
 		}
-		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of the set %s with the value:\n%s", set, b)}
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of the set %s with the value:\n%s", PrettyPrint(set), b)}
 	}
 	return nil
 }
+
+// Limit lazy-set expansion to simple finite domains: determining whether an
+// arbitrary lazy set is enumerable can itself evaluate user expressions.
+func setEqualityErrorSupported(v Value) bool {
+	switch v.kind {
+	case SetKind, IntervalKind:
+		return true
+	case SubsetKind:
+		return simpleFiniteSet(v.data.domain)
+	case FunctionSetKind:
+		return simpleFiniteSet(v.data.domain) && simpleFiniteSet(v.data.codomain)
+	case RecordSetKind, ProductSetKind:
+		for _, factor := range v.data.pairs {
+			if !simpleFiniteSet(factor.Value) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func simpleFiniteSet(v Value) bool { return v.kind == SetKind || v.kind == IntervalKind }
 
 func incompatibleEquality(a, b Value) error {
 	if b.kind == ModelKind {

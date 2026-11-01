@@ -15,6 +15,10 @@ import (
 // Small independent observations against TLC 1.7.4, built from TLA+ Tools
 // commit 5a47802b5c391f59ecdd44117981f4ff8c0656ba (see docs/development.md).
 func TestJavaTLCTerseOperators(t *testing.T) {
+	longRecordSet := "Attempted to check equality of the set { [a |-> 1, b |-> 1],\n" +
+		"  [a |-> 1, b |-> 2],\n  [a |-> 1, b |-> 3],\n  [a |-> 2, b |-> 1],\n" +
+		"  [a |-> 2, b |-> 2],\n  [a |-> 2, b |-> 3],\n  [a |-> 3, b |-> 1],\n" +
+		"  [a |-> 3, b |-> 2],\n  [a |-> 3, b |-> 3] }"
 	cases := []struct {
 		name, expr, plain, terse string
 		codePlain, codeTerse     int
@@ -23,6 +27,13 @@ func TestJavaTLCTerseOperators(t *testing.T) {
 		{"nested function", `PrintT(ToString([i \in 1..2 |-> SUBSET {i}]))`, `"<<{{}, {1}}, {{}, {2}}>>"`, `"<<SUBSET {1}, SUBSET {2}>>"`, 0, 0},
 		{"Assert", `Assert(FALSE, SUBSET {1, 2})`, `{{}, {1}, {2}, {1, 2}}`, `SUBSET {1, 2}`, 10, 10},
 		{"equality error", `SUBSET {1,2} = 1`, `Attempted to check equality of the set {{}, {1}, {2}, {1, 2}}`, `Attempted to check equality of the set {{}, {1}, {2}, {1, 2}}`, 10, 10},
+		{"inequality error", `SUBSET {1,2} # 1`, `Attempted to check equality of the set {{}, {1}, {2}, {1, 2}}`, `Attempted to check equality of the set {{}, {1}, {2}, {1, 2}}`, 10, 10},
+		{"tuple equality error", `SUBSET {1,2} = <<1>>`, `Attempted to check equality of the set {{}, {1}, {2}, {1, 2}}`, `Attempted to check equality of the set {{}, {1}, {2}, {1, 2}}`, 10, 10},
+		{"record set equality error", `[a : {1,2}] = 1`, `Attempted to check equality of the set {[a |-> 1], [a |-> 2]}`, `Attempted to check equality of the set {[a |-> 1], [a |-> 2]}`, 10, 10},
+		{"long record set equality error", `[a : 1..3, b : 1..3] = 1`, longRecordSet, longRecordSet, 10, 10},
+		{"function set equality error", `[{1} -> {1,2}] = 1`, `Attempted to check equality of the set {<<1>>, <<2>>}`, `Attempted to check equality of the set {<<1>>, <<2>>}`, 10, 10},
+		{"product set equality error", `((1..2) \X {1}) = 1`, `Attempted to check equality of the set {<<1, 1>>, <<2, 1>>}`, `Attempted to check equality of the set {<<1, 1>>, <<2, 1>>}`, 10, 10},
+		{"subset overflow equality", `SUBSET (1..31) = 1`, "Overflow when computing the number of elements in:\nSUBSET 1..31", "Overflow when computing the number of elements in:\nSUBSET 1..31", 10, 10},
 		{"infinite product", `PrintT(Nat \X {1})`, `Attempted to compute the number of elements`, `(Nat \X {1})`, 10, 0},
 		{"infinite subset", `PrintT(ToString(SUBSET Nat))`, `Attempted to compute the number of elements`, `"SUBSET Nat"`, 10, 0},
 		{"lazy Assert", `Assert(FALSE, [i \in Nat |-> 1 \div 0])`, `<expression line 3, col 37 to line 3, col 44 of module M>`, `<expression line 3, col 37 to line 3, col 44 of module M>`, 10, 10},
@@ -56,9 +67,6 @@ func TestJavaTLCTerseOperators(t *testing.T) {
 					goWant, goCode := want, code
 					if (tc.name == "infinite subset" || tc.name == "infinite product") && !terse {
 						goWant = "cardinality requires a finite set"
-					}
-					if tc.name == "equality error" {
-						goWant, goCode = "cannot compare different TLA+ value kinds", 255
 					}
 					gotCode := run(context.Background(), append(append([]string{}, args...), filepath.Join(dir, "M.tla")), &out, &errout)
 					if gotCode != goCode || !strings.Contains(out.String()+errout.String(), goWant) {
