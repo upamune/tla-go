@@ -52,7 +52,7 @@ func TestJavaTLCLibrarySearch(t *testing.T) {
 				t.Fatalf("Go exit %d want %d\n%s\n%s", code, tc.want, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-DTLA-Library="+path, "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", filepath.Join(specDir, "M.tla"))
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-DTLA-Library="+path, "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", filepath.Join(specDir, "M.tla"))
 				cmd.Dir = root
 				output, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.want {
@@ -127,7 +127,7 @@ func TestJavaTLCLibraryTransitive(t *testing.T) {
 		t.Fatalf("Go exit %d: %s %s", code, out.String(), errout.String())
 	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		cmd := exec.Command("java", "-DTLA-Library="+paths, "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", filepath.Join(spec, "M.tla"))
+		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-DTLA-Library="+paths, "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", filepath.Join(spec, "M.tla"))
 		cmd.Dir = root
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("Java: %v\n%s", err, output)
@@ -143,7 +143,7 @@ func TestJavaTLCMetadataDirectory(t *testing.T) {
 	dir := t.TempDir()
 	writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nInv == x = 1", "INIT Init\nNEXT Next\nINVARIANT Inv\n")
 	meta := filepath.Join(dir, "java metadata")
-	cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-metadir", meta, "-dump", "dot,actionlabels", "${metadir}/graph", filepath.Join(dir, "M.tla"))
+	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-metadir", meta, "-dump", "dot,actionlabels", "${metadir}/graph", filepath.Join(dir, "M.tla"))
 	cmd.Dir = dir
 	if output, err := cmd.CombinedOutput(); cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 12 {
 		t.Fatalf("Java: %v\n%s", err, output)
@@ -173,7 +173,7 @@ func TestMetadataDirectoryCleanup(t *testing.T) {
 	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		javaRoot := filepath.Join(dir, "java-meta")
-		cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-metadir", javaRoot, filepath.Join(dir, "M.tla"))
+		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-metadir", javaRoot, filepath.Join(dir, "M.tla"))
 		cmd.Dir = dir
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("Java: %v\n%s", err, output)

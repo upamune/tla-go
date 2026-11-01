@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestJavaNameResolutionUsesIsolatedTemporaryDirectories(t *testing.T) {
@@ -33,6 +35,49 @@ func TestJavaNameResolutionUsesIsolatedTemporaryDirectories(t *testing.T) {
 	}
 	if directories[0] == directories[1] {
 		t.Fatalf("Java invocations share a temporary directory: %q", directories[0])
+	}
+}
+
+func TestJavaNameResolutionTemporaryDirectoryWithSpaces(t *testing.T) {
+	if _, err := exec.LookPath("java"); err != nil {
+		t.Skip("Java is not installed")
+	}
+	const marker = "TLA_GO_JAVA_TEMP_SPACE_CHILD"
+	const rootKey = "TLA_GO_JAVA_TEMP_SPACE_ROOT"
+	if os.Getenv(marker) == "1" {
+		out, code := runNameResolutionJava(t, t.TempDir(), "-XshowSettings:properties", "-version")
+		if code != 0 {
+			t.Fatalf("Java exit %d: %s", code, out)
+		}
+		for line := range strings.SplitSeq(out, "\n") {
+			if value, ok := strings.CutPrefix(strings.TrimSpace(line), "java.io.tmpdir = "); ok {
+				relative, err := filepath.Rel(os.Getenv(rootKey), value)
+				if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) || !strings.Contains(value, " ") {
+					t.Fatalf("Java temporary directory %q is not inside the requested directory: %v", value, err)
+				}
+				return
+			}
+		}
+		t.Fatalf("Java did not report a temporary directory: %s", out)
+	}
+	root := filepath.Join(t.TempDir(), "java temporary directory")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestJavaNameResolutionTemporaryDirectoryWithSpaces$")
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		switch strings.ToUpper(key) {
+		case "TMPDIR", "TMP", "TEMP", marker, rootKey:
+		default:
+			cmd.Env = append(cmd.Env, entry)
+		}
+	}
+	cmd.Env = append(cmd.Env, "TMPDIR="+root, "TMP="+root, "TEMP="+root, marker+"=1", rootKey+"="+root)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("space-path subprocess: %v\n%s", err, out)
 	}
 }
 

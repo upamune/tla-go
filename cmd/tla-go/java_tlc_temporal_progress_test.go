@@ -44,7 +44,7 @@ func TestPinnedJavaFairnessProgressEffects(t *testing.T) {
 			args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
 			var out, errout bytes.Buffer
 			code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
-			cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 			cmd.Dir = dir
 			java, err := cmd.CombinedOutput()
 			if code != tc.code || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
@@ -117,7 +117,7 @@ func TestJavaTLCTemporalProgress(t *testing.T) {
 			if jar == "" {
 				t.Skip("required TLC_JAR or TLC_MODERN_JAR is not set")
 			}
-			cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 			cmd.Dir = dir
 			java, err := cmd.CombinedOutput()
 			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
@@ -195,7 +195,7 @@ func TestJavaTLCTableauProgressWithInitialEffect(t *testing.T) {
 	var out, errout bytes.Buffer
 	goArgs := append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla"))
 	code := run(context.Background(), goArgs, &out, &errout)
-	cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 	cmd.Dir = dir
 	java, err := cmd.CombinedOutput()
 	if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
@@ -220,7 +220,7 @@ func TestJavaTLCTableauProgressWithNextEffect(t *testing.T) {
 	args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
 	var out, errout bytes.Buffer
 	code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
-	cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 	cmd.Dir = dir
 	java, err := cmd.CombinedOutput()
 	if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
@@ -253,7 +253,7 @@ func TestJavaTLCTableauProgressWithReusedInitialPredicate(t *testing.T) {
 			args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
 			var out, errout bytes.Buffer
 			code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
-			cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 			cmd.Dir = dir
 			java, err := cmd.CombinedOutput()
 			if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {

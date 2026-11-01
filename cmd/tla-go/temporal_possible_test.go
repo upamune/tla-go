@@ -47,7 +47,7 @@ func TestTemporalDiagnosticsAfterCounterexample(t *testing.T) {
 				if jar == "" {
 					return
 				}
-				cmd := exec.Command("java", append([]string{"-jar", jar}, append(args, "M.tla")...)...)
+				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, append(args, "M.tla")...)...)
 				cmd.Dir = dir
 				java, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {

@@ -57,7 +57,7 @@ func TestJavaTLCTheoremNewDeclarations(t *testing.T) {
 				t.Fatalf("Go exit %d want %d\n%s\n%s", code, tc.code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", path)
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", path)
 				cmd.Dir = dir
 				javaOutput, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
@@ -95,7 +95,7 @@ func TestJavaSANYTheoremNewLevels(t *testing.T) {
 				t.Fatalf("Go exit %d: %s", code, errout.String())
 			}
 			got := summarizeSANY(t, out.Bytes()).definitions["T"]
-			cmd := exec.Command("java", "-cp", jar, "tla2sany.xml.XMLExporter", "-o", path)
+			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-cp", jar, "tla2sany.xml.XMLExporter", "-o", path)
 			java, err := cmd.Output()
 			if err != nil {
 				t.Fatal(err)
@@ -146,7 +146,7 @@ func TestJavaTLCTheoremNewImports(t *testing.T) {
 				t.Fatalf("Go exit %d: %s %s", code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
 				if output, err := cmd.CombinedOutput(); err != nil {
 					t.Fatalf("Java: %v\n%s", err, output)

@@ -46,7 +46,7 @@ func TestJavaTLCStructuredProofDirectives(t *testing.T) {
 				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
 				output, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
@@ -93,7 +93,7 @@ func TestJavaTLCProofDirectiveModules(t *testing.T) {
 				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
 				output, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
@@ -130,7 +130,7 @@ func TestJavaTLCModuleProofDirectiveModuleFacts(t *testing.T) {
 				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
 				output, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
@@ -166,7 +166,7 @@ func TestJavaTLCProofDirectiveNestedModule(t *testing.T) {
 				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
 				output, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
@@ -210,7 +210,7 @@ func TestJavaTLCProofDirectiveInstancedFacts(t *testing.T) {
 				t.Fatalf("Go exit %d want %d: %s %s", code, tc.code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
 				output, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {

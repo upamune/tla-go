@@ -49,7 +49,7 @@ func TestJavaTLCArithmeticErrors(t *testing.T) {
 				t.Fatalf("exit %d, stderr %s, output:\n%s\nwant %s", code, errout.String(), out.String(), want)
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
 				java, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !strings.Contains(string(java), want) {
@@ -91,7 +91,7 @@ func TestJavaTLCArithmeticErrorContexts(t *testing.T) {
 			writeDOTFixture(t, dir, "VARIABLE x\n"+tc.body, tc.cfg)
 			var out, errout bytes.Buffer
 			code := run(context.Background(), []string{"-tool", "-workers", "1", "-fp", "0", filepath.Join(dir, "M.tla")}, &out, &errout)
-			cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
+			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 			cmd.Dir = dir
 			java, err := cmd.CombinedOutput()
 			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {

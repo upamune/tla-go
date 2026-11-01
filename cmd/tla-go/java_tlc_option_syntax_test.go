@@ -136,7 +136,7 @@ func optionSyntaxJava(t *testing.T, jar, dir string, args []string) (string, str
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "java", append([]string{"-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
+	cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
 	cmd.Dir = dir
 	var out, errout bytes.Buffer
 	cmd.Stdout = &out

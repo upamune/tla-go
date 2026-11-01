@@ -31,7 +31,7 @@ func TestJavaTLCParameterizedInstanceVersion(t *testing.T) {
 		if jar == "" {
 			continue
 		}
-		cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "test61.tla")
+		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "test61.tla")
 		cmd.Dir = dir
 		java, err := cmd.CombinedOutput()
 		if cmd.ProcessState == nil || !instanceVersionResult(env, cmd.ProcessState.ExitCode(), string(java)) {

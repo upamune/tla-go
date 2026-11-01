@@ -46,7 +46,7 @@ func TestCheckpointCLIPreflightFallback(t *testing.T) {
 			}
 			// Json is an optional community module, not bundled in TLC 1.7.4.
 			if jar := os.Getenv("TLC_JAR"); jar != "" && tc.name != "substitution" {
-				javaOut, err := exec.Command("java", "-jar", jar, "-workers", "1", spec).CombinedOutput()
+				javaOut, err := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-jar", jar, "-workers", "1", spec).CombinedOutput()
 				if err != nil || (tc.marker != "" && strings.Count(string(javaOut), tc.marker) != 1) {
 					t.Fatalf("Java TLC: %v %s", err, javaOut)
 				}
@@ -121,7 +121,7 @@ func TestCheckpointCLIRecoveryPreparationWarning(t *testing.T) {
 		t.Fatal(err)
 	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		output, err := exec.Command("java", "-jar", jar, "-workers", "1", spec).CombinedOutput()
+		output, err := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-jar", jar, "-workers", "1", spec).CombinedOutput()
 		if err != nil || !bytes.Contains(output, []byte("Warning: The EXCEPT")) {
 			t.Fatalf("Java warning: %v %s", err, output)
 		}
@@ -246,7 +246,7 @@ func TestCheckpointProcessRestart(t *testing.T) {
 	}
 
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		java := exec.Command("java", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-metadir", filepath.Join(dir, "java-states"), spec)
+		java := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-metadir", filepath.Join(dir, "java-states"), spec)
 		javaOutput, javaErr := java.CombinedOutput()
 		if java.ProcessState == nil || java.ProcessState.ExitCode() != 12 {
 			t.Fatalf("Java: %v %s", javaErr, javaOutput)

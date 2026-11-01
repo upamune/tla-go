@@ -323,7 +323,7 @@ func TestPeriodicCoverageUnreadPipeInterrupt(t *testing.T) {
 		{"go-zero-interrupt", []string{binary, "-workers", "1", "-coverage", "0", "M.tla"}, false, false},
 	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		implementations = append(implementations, implementation{"java", []string{"java", "-XX:+UseParallelGC", "-Xmx512m", "-cp", jar, "tlc2.TLC", "-workers", "1", "-coverage", "71583", "M.tla"}, true, false})
+		implementations = append(implementations, implementation{"java", []string{"java", "-Djava.io.tmpdir=" + t.TempDir(), "-XX:+UseParallelGC", "-Xmx512m", "-cp", jar, "tlc2.TLC", "-workers", "1", "-coverage", "71583", "M.tla"}, true, false})
 	}
 	for _, impl := range implementations {
 		t.Run(impl.name, func(t *testing.T) {

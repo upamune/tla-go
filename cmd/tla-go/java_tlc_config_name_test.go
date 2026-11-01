@@ -132,7 +132,7 @@ func TestJavaTLCConfigLibraryPath(t *testing.T) {
 				t.Fatalf("exit %d, want %d", code, tc.code)
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				cmd := exec.Command("java", append([]string{"-DTLA-Library=" + library, "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
+				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-DTLA-Library=" + library, "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
 				cmd.Dir = dir
 				output, err := cmd.CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {

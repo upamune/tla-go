@@ -67,7 +67,7 @@ func TestJavaTLCCoveragePeriodicOracle(t *testing.T) {
 				args = append(args, "-tool")
 			}
 			args = append(args, "M.tla")
-			cmd := exec.CommandContext(ctx, "java", args...)
+			cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir()}, args...)...)
 			cmd.Dir = dir
 			marker, count := "End of statistics.", 1
 			if tc.tool && tc.coverage {

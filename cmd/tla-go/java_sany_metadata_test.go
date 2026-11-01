@@ -59,7 +59,7 @@ func compareSANYMetadata(t *testing.T, jar, path string) {
 	if code := run(context.Background(), []string{"-sany-metadata", path}, &out, &errout); code != 0 {
 		t.Fatalf("Go metadata exit %d: %s", code, errout.String())
 	}
-	cmd := exec.Command("java", "-cp", jar, "tla2sany.xml.XMLExporter", "-o", "-I", filepath.Dir(path), path)
+	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-cp", jar, "tla2sany.xml.XMLExporter", "-o", "-I", filepath.Dir(path), path)
 	var javaOut, javaErr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &javaOut, &javaErr
 	if err := cmd.Run(); err != nil {

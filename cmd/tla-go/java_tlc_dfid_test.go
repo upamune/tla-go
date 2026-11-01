@@ -199,7 +199,7 @@ func TestDepthFirstOptions(t *testing.T) {
 			t.Errorf("%q: exit %d, stdout %q, stderr %q", tc.args, code, out.String(), errout.String())
 		}
 		if jar := os.Getenv("TLC_JAR"); jar != "" && tc.code == 1 {
-			java, err := exec.Command("java", append([]string{"-cp", jar, "tlc2.TLC"}, tc.args...)...).Output()
+			java, err := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-cp", jar, "tlc2.TLC"}, tc.args...)...).Output()
 			if want := afterVersion(string(java)); err == nil || afterVersion(out.String()) != want {
 				t.Errorf("%q: Java %v, stdout %q", tc.args, err, java)
 			}

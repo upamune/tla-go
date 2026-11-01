@@ -124,7 +124,7 @@ func compareErrorFidelity(t *testing.T, dir, name string, wantExit int, ids []st
 	defer cancel()
 	javaArgs := append([]string{"-Xmx256m", "-XX:+UseParallelGC", "-jar", jar}, args...)
 	javaArgs = append(javaArgs, name+".tla")
-	cmd := exec.CommandContext(ctx, "java", javaArgs...)
+	cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir()}, javaArgs...)...)
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != wantExit {
