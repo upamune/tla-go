@@ -245,6 +245,10 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 		checkOptions.OnGraph = styledGraphEvents(graph.event, traceStyle{terse: opts.compat.terse})
 	}
 	checkOptions.OnSearch = configuredSearchOutput(opts, out)
+	checkOptions.OnWarning = configuredWarningOutput(opts, out)
+	if coordinateEventOutput(opts.coverageInterval, out) {
+		checkOptions.OnSearch, checkOptions.OnWarning = newCoordinatedCallbacks(opts, out)
+	}
 	checkOptions.OnTemporalViolation = func(result checker.Result) {
 		result = newTraceStyle(opts).apply(result)
 		if opts.tool {
@@ -267,7 +271,6 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 		}
 		printTemporalCheckEnd(out, opts.tool, *result.TemporalCheckDuration)
 	}
-	checkOptions.OnWarning = configuredWarningOutput(opts, out)
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}
