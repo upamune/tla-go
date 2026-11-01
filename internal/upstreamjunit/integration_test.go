@@ -120,5 +120,5 @@ func TestUpstreamJUnitSweep(t *testing.T) {
 			}
 		}
 	}
-	t.Errorf("incomplete sweep: %d candidates with recovered spec, %d diagnostic runs, %d candidates with unsafe or unresolved setup, %d unresolved non-abstract candidates; inventory is not an exhaustive JUnit count (goal: 336)", recovered, attempted, unsafeCount, unresolved)
+	t.Errorf("incomplete sweep: %d candidates with recovered spec, %d diagnostic runs, %d candidates with unsafe or unresolved setup, %d unresolved non-abstract candidates; inventory is not an exhaustive JUnit count", recovered, attempted, unsafeCount, unresolved)
 }

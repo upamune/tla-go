@@ -148,3 +148,53 @@ actual recorder/lifecycle, a fixed dump path, and Go's exploration-time
 liveness strategy. Test10's config has INIT, NEXT and INVARIANT but no temporal
 property. Recorder equivalence, lifecycle effects, metadir cleanup, and Go
 coverage remain unproven; this is not a JUnit pass.
+
+## JUnit runner discovery (opt-in)
+
+The discovery test compiles **all tracked files** in upstream `test/` against the
+verified TLC jar, JUnit 4.12 and Hamcrest Core 1.3, then asks JUnit
+`Request.aClass(...).getRunner().getDescription()` for each non-abstract lexical
+candidate class. It prints one record per described leaf, including the owning
+candidate class and JUnit display name; this is the mapping needed to distinguish
+inherited methods and parameterized instances. It reports ignored leaves,
+class-level ignores and runner initialization errors separately.
+The latter are not executable test cases. A class-level `@Ignore` is represented
+by JUnit as a single ignored class, without enumerating its methods.
+Nested unannotated `initializationError` descriptions are reported as errors:
+they may be initialization failures or ambiguous custom-runner descriptions.
+An `initializationError` leaf carrying `@Test` is retained as a test method.
+Runner construction can execute code, including parameter factories; discovery
+does not execute test methods or their assertions. JUnit descriptions do not reliably distinguish an empty suite from a leaf. Custom runners can choose
+what they expose, and the results depend on the Java runtime and environment.
+
+The inputs are checked by SHA-256: TLC jar `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`,
+JUnit 4.12 `59721f0805e223d84b90677887d9ff567dc534d7c502ca903c0c2b17f05c116a`,
+and Hamcrest Core 1.3 `66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9`.
+The latter two are Maven Central artifacts `junit:junit:4.12` and
+`org.hamcrest:hamcrest-core:1.3`; versions match upstream `customBuild.xml`.
+The checkout must have the pinned HEAD and no tracked modifications. The test
+source list comes from the pinned Git tree, so untracked sources are excluded.
+
+```sh
+TLA_GO_JUNIT_DISCOVERY=1 \
+TLA_GO_JUNIT_ROOT=/tmp/tlaplus-java-v1.7.4 \
+TLA_GO_JUNIT_JAR=/tmp/tla2tools-v1.7.4.jar \
+TLA_GO_JUNIT_JUNIT=/tmp/junit-4.12.jar \
+TLA_GO_JUNIT_HAMCREST=/tmp/hamcrest-core-1.3.jar \
+go test -v ./internal/upstreamjunit -run 'Test(JUnitDiscoveryFixture|UpstreamJUnitDiscovery)$' -count=1
+```
+
+On 2026-11-01, OpenJDK 21.0.11 discovered **322 executable leaf
+cases** within the 340 lexical non-abstract candidate classes: 319 classes
+had executable cases, and 21 had none. Twenty descriptions were ignored methods
+and `tlc2.tool.suite.Test61` was ignored at class level. No runner errors were
+reported. `tlc2.tool.Github432Test` accounts for four leaves in one class;
+the other candidate classes each had one leaf or one class-level ignore. The
+command prints the individual names, including all ignored cases. This is the
+denominator only for these explicitly selected candidate classes, not for all
+upstream tests or the upstream Ant suite: Ant selects source filenames and uses
+multiple batches and exclusions, and the lexical inheritance scan can miss
+classes. The 322 cases have not been mapped individually to Go runs or proven
+equivalent; all remain unresolved for full differential purposes. Existing
+class-based diagnostic runs and extracted observations are not JUnit executions,
+and their counts cannot be substituted for this case denominator.
