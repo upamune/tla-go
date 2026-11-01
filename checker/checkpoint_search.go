@@ -18,11 +18,21 @@ func checkpointPreflight(module *parser.Module, sources map[string]*parser.Modul
 	for _, v := range module.Variables {
 		m.variables[v.Name] = true
 	}
+	if cfg.Specification != "" {
+		if !m.checkpointSpecification(cfg.Specification) {
+			return fmt.Errorf("unsupported checkpoint SPECIFICATION")
+		}
+		m.checkpointSpecSafe = true
+	}
 	if m.checkpointUnsupportedFeatures() {
 		return fmt.Errorf("unsupported checkpoint model configuration or modules")
 	}
-	for _, d := range module.Definitions {
-		if !m.checkpointPreparationExpression(d.Body) {
+	return m.checkpointPreparationDefinitions(cfg.Specification)
+}
+
+func (m *model) checkpointPreparationDefinitions(spec string) error {
+	for _, d := range m.module.Definitions {
+		if d.Name != spec && !m.checkpointPreparationExpression(d.Body) {
 			return fmt.Errorf("unsupported checkpoint preparation expression in %q", d.Name)
 		}
 	}
@@ -55,16 +65,43 @@ func (m *model) checkpointSupported() error {
 	}
 	for _, name := range append([]string{c.Init, c.Next}, c.Invariants...) {
 		expr, err := m.definition(name)
-		if err != nil || !m.checkpointExpression(expr) {
+		if err != nil || !m.checkpointSupportedExpression(expr) {
 			return fmt.Errorf("unsupported checkpoint expression %q", name)
 		}
 	}
 	return nil
 }
 
+func (m *model) checkpointSupportedExpression(e *parser.Expression) bool {
+	if m.checkpointExpression(e) {
+		return true
+	}
+	if !m.checkpointSpecSafe || e == nil || parallelExtraChildren(e) || e.Kind != "And" {
+		return false
+	}
+	for _, arg := range e.Args {
+		if !m.checkpointInitialArgument(arg) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *model) checkpointInitialArgument(e *parser.Expression) bool {
+	if e != nil && e.Kind == "Identifier" && e.Text == "!spec!init" && len(e.Args) == 0 {
+		d, ok := m.defs[e.Text]
+		return ok && m.checkpointExpression(d.Body)
+	}
+	return m.checkpointExpression(e)
+}
+
 func (m *model) checkpointUnsupportedFeatures() bool {
 	c := m.cfg
-	return m.checkpointUnsupportedSources() || m.fromSpecification || m.hasReduction() || m.parallelCallbacks() || m.viewStates || len(m.module.Assumptions) != 0 || len(c.Constraints)+len(c.ActionConstraints)+len(c.Properties)+len(c.Possible)+len(c.Postconditions)+len(c.Substitutions) != 0 || m.checkpointUnsupportedConfig()
+	return m.checkpointUnsupportedSources() || m.checkpointUnverifiedSpec() || m.hasReduction() || m.parallelCallbacks() || m.viewStates || len(m.module.Assumptions) != 0 || len(c.Constraints)+len(c.ActionConstraints)+len(c.Properties)+len(c.Possible)+len(c.Postconditions)+len(c.Substitutions) != 0 || m.checkpointUnsupportedConfig()
+}
+
+func (m *model) checkpointUnverifiedSpec() bool {
+	return m.fromSpecification && !m.checkpointSpecSafe
 }
 
 func (m *model) checkpointUnsupportedSources() bool {
@@ -126,7 +163,7 @@ func (m *model) checkpointExpression(e *parser.Expression) bool {
 	if e == nil || parallelExtraChildren(e) {
 		return false
 	}
-	if checkpointSetMembership(e) {
+	if checkpointMembership(e) {
 		return m.checkpointExpression(e.Args[0]) && m.checkpointSetElements(e.Args[1])
 	}
 	if e.Kind == "String" || m.checkpointConstantIdentifier(e) {
@@ -170,6 +207,18 @@ func (m *model) checkpointSetElements(e *parser.Expression) bool {
 
 func checkpointSetMembership(e *parser.Expression) bool {
 	return e.Kind == "Apply" && e.Text == "\\in" && len(e.Args) == 2 && e.Args[1].Kind == "SetEnumeration"
+}
+
+func checkpointMembership(e *parser.Expression) bool {
+	return checkpointSetMembership(e) || checkpointIntervalMembership(e)
+}
+
+func checkpointIntervalMembership(e *parser.Expression) bool {
+	if e.Kind != "Apply" || e.Text != "\\in" || len(e.Args) != 2 || e.Args[1] == nil {
+		return false
+	}
+	r := e.Args[1]
+	return r.Kind == "Apply" && r.Text == ".." && len(r.Args) == 2 && !parallelExtraChildren(r)
 }
 
 func (s *search) checkpoint(identity checkpointIdentity) (checkpointSnapshot, error) {

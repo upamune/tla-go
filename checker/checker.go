@@ -170,6 +170,7 @@ type model struct {
 	initialProductBound  int
 	fingerprintAlgorithm *value.TLCFingerprintAlgorithm
 	fromSpecification    bool
+	checkpointSpecSafe   bool
 	tlcRuntime           *tlcRuntime
 	enabledCallback      evaluator.EnabledCallback
 	properties           []temporalProperty

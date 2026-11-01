@@ -239,6 +239,7 @@ func prepareCheckpointModelObserved(ctx context.Context, source, configSource st
 		return nil, err
 	}
 	m.ctx = ctx
+	m.checkpointSpecSafe = effective.Specification != ""
 	m.checkpointObserver = observer
 	m.checkpointIdentity = &identity
 	return m, nil
