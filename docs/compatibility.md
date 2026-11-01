@@ -112,7 +112,7 @@ The `checker` package exposes `Check`, context-aware variants, and options for m
 
 ## Experimental coverage
 
-`-coverage 0` collects action and expression counts during breadth-first
+`-coverage N` collects action and expression counts during breadth-first
 exploration. It is compared line-for-line with Java TLC 1.7.4 on the upstream
 `CoverageStatistics` model, including a changed state constraint. The first
 number on an action is the number of new in-model states and the second is
@@ -142,8 +142,16 @@ For evaluation failures, failures after this existential has been evaluated,
 or failures with a successor trace, coverage is omitted because TLC can charge
 replay to its cost model; the diagnostic and exit status are retained. Failures
 before evaluation that do not require replay retain their normal coverage behavior.
-Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, depth-first search,
-and nonzero periodic intervals. Tool mode emits coverage messages with the
+For positive effective intervals, checks must complete before a conservative limit
+derived from Java 1.7.4's 32-bit millisecond overflow and progress counter. The limit
+is the earlier of the effective interval and three seconds plus that interval rounded
+down to whole minutes. For example, `-coverage 71584` wraps to 72.704 seconds,
+but the limit is 63 seconds. This calculation assumes TLC's timed waits run to
+their deadlines: Java permits spurious wakeups, so it cannot guarantee that a
+periodic report was impossible before the limit. If the limit elapses, the check
+is canceled with an error instead of producing an incomplete report. Periodic
+coverage reports are not implemented; `-coverage 0` retains its previous behavior.
+Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, and depth-first search. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, other operator calls,
 other action quantification, parameterized or inline actions, initial or action disjunctions,
 substituted instances, other nested cost-model expressions, and coverage during error

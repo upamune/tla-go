@@ -83,7 +83,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-depth N` | Set the simulation trace length (default 100; `-1` means no limit). |
 | `-workers N` | Accept a positive worker count or `auto`, as Java TLC does. Eligible BFS models generate successors concurrently and merge them in serial order; other models fall back to serial exploration. Simulation accepts only one worker, and with `-dfid` more workers are rejected with Java TLC's error and exit code 255. |
 | `-maxSetSize N` | Limit the sets and other values that Java TLC builds element by element, such as `{e : x \in S}` and `(1..n) \cup S` (default 1,000,000). Deferred sets stored in states are not limited yet. |
-| `-coverage 0` | Report experimental action and expression counts for a restricted set of breadth-first models. Unsupported forms are rejected; see [limitations](docs/compatibility.md). |
+| `-coverage N` | Report experimental action and expression counts for a restricted set of breadth-first models. Positive intervals require runs to complete before a conservative deadline; longer runs stop with an error. See [limitations](docs/compatibility.md). |
 | `-checkpoint MINUTES` | Accept Java TLC's checkpoint interval; checkpoints are not written. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |

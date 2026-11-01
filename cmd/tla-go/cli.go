@@ -24,6 +24,7 @@ type options struct {
 	deadlockOff, help, version bool
 	debugLiveness              bool
 	coverage                   bool
+	coverageInterval           time.Duration
 	checkpoint                 bool
 	modernRandomSubsets        bool
 	tool                       bool
@@ -51,7 +52,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-coverage 0] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-coverage N] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 	fmt.Fprintln(w, compatUsage)
 }
 
@@ -205,7 +206,14 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}
-	result, err := checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+	var result checker.Result
+	if opts.coverageInterval == 0 {
+		result, err = checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+	} else {
+		result, err = checkWithCoverageDeadline(ctx, opts.coverageInterval, context.WithTimeout, func(ctx context.Context) (checker.Result, error) {
+			return checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+		})
+	}
 	if graph != nil {
 		if closeErr := graph.close(graphShouldFinish(result, err, graph)); err == nil {
 			err = closeErr
