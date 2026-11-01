@@ -53,7 +53,10 @@ custom hooks, indirect suite inheritance and dynamic setup prevent execution.
 Other recorder parameter forms, numeric predicates, coverage assertions,
 translation mapping/message assertions, arbitrary JUnit assertions, other inherited
 assertions, test-specific Java overrides, and nonliteral setup are omissions.
-Coverage and dump setup and artifact assertions are not reproduced. Unsupported
+Java runs with inherited coverage enabled; Go does not, pending its separate
+coverage integration. DOT dumps are enabled on both sides and compared byte for
+byte, using isolated explicit output paths rather than the harness's metadir path.
+The dump path and cleanup lifecycle are therefore not equivalent. Unsupported
 or ambiguous constructor expressions and custom setup hooks are not run.
 The harness does not yet prove that its extracted observations are exhaustive,
 execute JUnit lifecycle methods, or establish the requested 336-test denominator.
@@ -86,3 +89,24 @@ with no selected recorder observations: its intercepted error substring was not
 checked. The enabled sweep failed intentionally in all three runs. Coverage,
 dump, lifecycle, exit expectations, and liveness equivalence remain unresolved;
 none of these results is a JUnit pass or proof of the 336-test denominator.
+
+## Test10 focused differential
+
+`TestPinnedSuiteTest10Partial` verifies the pinned checkout and jar, runs the
+real `suite/test10` config and model, and checks both exits against the inherited
+success expectation, the four inherited recorder assertions, and DOT contents.
+Java receives `-coverage 1` and its complete coverage report is projected using
+`TestMPRecorder.getZeroCoverage` (2221 records only). On the 1.7.4 oracle this
+set is empty. The Go coverage flag and zero-coverage assertion remain missing;
+an absent report is never accepted as evidence of zero coverage. Set
+`TLA_GO_JUNIT_ROOT` and `TLA_GO_JUNIT_JAR` to run this partial regression.
+
+The upstream lifecycle calls `beforeSetUp`, sets vetoCleanup and the user dir,
+installs a recorder, sets the final-only liveness threshold, invokes TLC with
+`-deadlock -fp 0 -coverage 1 -workers 1 -checkpoint 0 -dump dot` and the
+class-named metadir output, then asserts the exit in `tearDown`. Test10 has no
+overrides. The diagnostic uses a launcher and tool messages instead of the
+actual recorder/lifecycle, a fixed dump path, and Go's exploration-time
+liveness strategy. Test10's config has INIT, NEXT and INVARIANT but no temporal
+property. Recorder equivalence, lifecycle effects, metadir cleanup, and Go
+coverage remain unproven; this is not a JUnit pass.

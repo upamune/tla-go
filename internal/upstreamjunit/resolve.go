@@ -385,10 +385,10 @@ func (r *Resolution) resolveArrayItem(item string) {
 
 func (r *Resolution) recordOmissions() {
 	if r.Coverage {
-		r.Reasons = append(r.Reasons, "coverage setup and assertions not reproduced")
+		r.Reasons = append(r.Reasons, "coverage setup and assertions not reproduced on Go")
 	}
 	if r.Dump {
-		r.Reasons = append(r.Reasons, "dump setup and artifacts not reproduced")
+		r.Reasons = append(r.Reasons, "dump metadata path and lifecycle not reproduced")
 	}
 	if r.Translate {
 		r.Reasons = append(r.Reasons, "PlusCal mapping and translation message assertions not reproduced")

@@ -77,6 +77,7 @@ func TestUpstreamJUnitSweep(t *testing.T) {
 		r.Reasons = append(r.Reasons, assertionOmissions...)
 		r.Reasons = append(r.Reasons, "Go liveness strategy not verified against JUnit final-only checks")
 		r.Case.Path, r.Case.Deadlock, r.Case.Checkpoint = r.Path, r.Deadlock, r.Checkpoint
+		r.Case.Coverage, r.Case.Dump = r.Coverage, r.Dump
 		r.Case.IDs, r.Case.PresenceIDs = ids, presence
 		r.Case.Translate = r.Translate
 		unresolved++
@@ -104,6 +105,10 @@ func TestUpstreamJUnitSweep(t *testing.T) {
 		jf, jo, je := CheckAssertions(j, observations)
 		gf, goOmissions, ge := CheckAssertions(g, observations)
 		t.Logf("assertions %s Java failures=%v Go failures=%v omissions=%v/%v errors=%v/%v", class.Name, jf, gf, jo, goOmissions, je, ge)
+		if class.Name == "tlc2.tool.suite.Test10" {
+			zero, coverageErr := ZeroCoverage(j)
+			t.Logf("Test10 inherited assertions: expected exit=0 Java=%d Go=%d; Java zero coverage=%v error=%v; Go zero coverage unavailable", j.ExitCode, g.ExitCode, zero, coverageErr)
+		}
 		t.Logf("diagnostic %s differences=%v selected bodies=%v presence=%v; partial comparison, liveness strategy unresolved, not a match; Java exit=%d Go exit=%d", class.Name, diffs, ids, presence, j.ExitCode, g.ExitCode)
 		if len(diffs) > 0 {
 			jm, _ := Messages(j.Output)
