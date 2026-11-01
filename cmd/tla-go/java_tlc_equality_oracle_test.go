@@ -170,6 +170,9 @@ func TestJavaTLCIntervalEqualitySizes(t *testing.T) {
 
 func TestJavaTLCIntervalLazySetEqualityOrder(t *testing.T) {
 	for _, tc := range []struct{ expr, message string }{
+		{`LET f[a \in [k : {1}], x \in 1..50000, y \in 1..50000] == Print("body-marker", 1) IN f = f`, "Overflow when computing the number of elements"},
+		{`LET f[x \in [1..31 -> {1,2}]] == Print("body-marker", 1) IN f = f`, "Overflow when computing the number of elements"},
+		{`LET f[a \in [k : {1}, l : {2}], x \in 1..50000, y \in 1..50000] == Print("body-marker", 1) IN f = f`, "Overflow when computing the number of elements"},
 		{`(0..2147483647) = (SUBSET (1..31))`, "Size of interval value exceeds the maximum representable size (32bits): 0..2147483647."},
 		{`(SUBSET (1..31)) = (0..2147483647)`, "Overflow when computing the number of elements in:\nSUBSET 1..31"},
 		{`(1..0) = (SUBSET (1..31))`, "Overflow when computing the number of elements in:\nSUBSET 1..31"},
@@ -507,5 +510,202 @@ ASSUME LET F == [i \in 1..2 |-> Print(i, i)] IN /\ F[1] = 1 /\ F = F
 	check("Go", out.String(), "1,1,2,1,2")
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		check("Java", equalityJava(t, jar, dir, false, 0), "1,1,2")
+	}
+}
+
+func TestJavaTLCProductFunctionInfiniteDomains(t *testing.T) {
+	cases := []struct{ expr, infinite string }{
+		{`LET f[x \in Nat, y \in Nat] == x IN f = f`, "Nat"},
+		{`LET f[x \in Int, y \in Nat] == x IN f = f`, "Int"},
+		{`LET f[x \in Nat, y \in Any] == x IN <<f>> = <<f>>`, "Nat"},
+		{`LET f[x \in {1}, y \in Any] == x IN f = f`, "ANY"},
+		{`LET f[x \in {}, y \in Nat] == x IN f = f`, "Nat"},
+		{`LET f[x \in Nat, y \in {}] == x IN f = f`, "Nat"},
+		{`LET f[x \in ({} \X (Int \X Nat))] == x IN f = f`, "Int"},
+		{`LET f[<<x,y>> \in ({} \X Nat)] == x IN f = f`, "Nat"},
+		{`LET f[x \in Print("bound-one", {}), y \in Print("bound-two", Nat)] == Print("body-marker", x) IN f = f`, "Nat"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, TLC\nASSUME "+tc.expr+"\n====\n", "")
+			var out, stderr bytes.Buffer
+			code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr)
+			want := "Attempted to compute the number of elements in the overridden value " + tc.infinite + "."
+			check := func(name, output string) {
+				t.Helper()
+				if !strings.Contains(output, want) {
+					t.Fatalf("%s missing %q: %s", name, want, output)
+				}
+				if strings.Contains(tc.expr, "bound-one") {
+					a, b := strings.Index(output, `"bound-one"`), strings.Index(output, `"bound-two"`)
+					if a < 0 || b <= a || strings.Contains(output, `"body-marker"`) {
+						t.Fatalf("%s effects: %s", name, output)
+					}
+				}
+			}
+			if code != 10 {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			check("Go", out.String())
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				check("Java", equalityJava(t, jar, dir, false, 10))
+			}
+		})
+	}
+}
+
+func TestJavaTLCProductFunctionFiniteControls(t *testing.T) {
+	for _, expr := range []string{
+		`LET f[x \in {}, y \in 1..2000000000] == 1 \div 0 IN f = f`,
+		`LET f[x \in 1..2, y \in 1..2] == x + y IN f[2, 1] = 3 /\ f = f`,
+		`LET f[x \in [{} -> {1,2}]] == 1 IN f = f`,
+		`LET f[x \in [1..2 -> {}]] == 1 \div 0 IN f = f`,
+		`LET f[x \in [a : {1}, b : {2}], y \in {3}] == x.a + y IN f = f`,
+	} {
+		t.Run(expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers\nASSUME "+expr+"\n====\n", "")
+			var out, stderr bytes.Buffer
+			if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 0 {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				equalityJava(t, jar, dir, false, 0)
+			}
+		})
+	}
+}
+
+func TestJavaTLCProductFunctionSizeOrder(t *testing.T) {
+	for _, tc := range []struct{ expr, message string }{
+		{`LET f[x \in 1..50000, y \in 1..50000, z \in {}] == Print("body-marker", 1) IN f = f`, "Overflow when computing the number of elements"},
+		{`LET f[x \in (1..50000) \X (1..50000), y \in Nat] == Print("body-marker", 1) IN f = f`, "Overflow when computing the number of elements"},
+		{`LET f[x \in 0..2147483647, y \in Nat] == 1 IN f = f`, "Size of interval value exceeds the maximum representable size"},
+		{`LET f[x \in SUBSET (1..31), y \in Nat] == 1 IN f = f`, "Overflow when computing the number of elements in:\nSUBSET 1..31"},
+		{`LET f[x \in SUBSET {1,2}, y \in {}, z \in Nat] == 1 IN f = f`, "Attempted to compute the number of elements in the overridden value Nat."},
+		{`LET f[x \in [1..2 -> {1,2}], y \in {}, z \in Nat] == 1 IN f = f`, "Attempted to compute the number of elements in the overridden value Nat."},
+		{`LET f[x \in [{} -> Nat], y \in Int] == 1 IN f = f`, "Attempted to compute the number of elements in the overridden value Nat."},
+	} {
+		t.Run(tc.expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, FiniteSets, TLC\nASSUME "+tc.expr+"\n====\n", "")
+			var out, stderr bytes.Buffer
+			code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr)
+			if code != 10 || !strings.Contains(out.String(), tc.message) || strings.Contains(out.String(), `"body-marker"`) {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java := equalityJava(t, jar, dir, false, 10)
+				if !strings.Contains(java, tc.message) || strings.Contains(java, `"body-marker"`) {
+					t.Fatalf("Java: %s", java)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCRecordSetSizeOrder(t *testing.T) {
+	for _, tc := range []struct{ domain, message string }{
+		{`[a : {}, b : Nat]`, "overridden value Nat"},
+		{`[b : Nat, a : {}]`, "overridden value Nat"},
+		{`[a : 1..50000, b : 1..50000]`, "Overflow when computing the number of elements"},
+		{`[b : 1..50000, a : 1..50000]`, "Overflow when computing the number of elements"},
+		{`[a : [p : {}, q : Nat], b : {1}]`, "overridden value Nat"},
+		{`[b : {1}, a : [q : 1..50000, p : 1..50000]]`, "Overflow when computing the number of elements"},
+	} {
+		t.Run(tc.domain, func(t *testing.T) {
+			dir := t.TempDir()
+			expr := `LET f[x \in ` + tc.domain + `, y \in {1}] == Print("body-marker", 1 \div 0) IN f = f`
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, TLC\nASSUME "+expr+"\n====\n", "")
+			check := func(name, output string) {
+				t.Helper()
+				if !strings.Contains(output, tc.message) || strings.Contains(output, `"body-marker"`) || strings.Contains(output, "argument of \\div is 0") {
+					t.Fatalf("%s: %s", name, output)
+				}
+			}
+			var out, stderr bytes.Buffer
+			if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 10 {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			check("Go", out.String())
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				check("Java", equalityJava(t, jar, dir, false, 10))
+			}
+		})
+	}
+}
+
+func TestJavaTLCRecordSetMultipleErrorsInternOrder(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR not set")
+	}
+	for _, tc := range []struct{ expr, first string }{
+		{`LET f[x \in [a : Nat, b : Int], y \in {1}] == Print("body-marker", 1) IN f = f`, "Nat"},
+		{`LET f[x \in [b : Int, a : Nat], y \in {1}] == Print("body-marker", 1) IN f = f`, "Int"},
+		{`LET z == [b |-> 1, a |-> 2] IN LET f[x \in [a : Nat, b : Int], y \in {1}] == Print("body-marker", 1) IN f = f`, "Int"},
+	} {
+		t.Run(tc.expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, TLC\nASSUME "+tc.expr+"\n====\n", "")
+			output := equalityJava(t, jar, dir, false, 10)
+			if !strings.Contains(output, "overridden value "+tc.first+".") || strings.Contains(output, `"body-marker"`) {
+				t.Fatalf("Java: %s", output)
+			}
+		})
+	}
+}
+
+func TestJavaTLCFunctionSetDomainFiniteEffects(t *testing.T) {
+	dir := t.TempDir()
+	writeEqualityModel(t, dir, `---- MODULE M ----
+EXTENDS Integers, TLC
+ASSUME LET f[x \in Print("bound", [1..1 -> {1}])] == Print("body", 1) IN f = f
+====
+`, "")
+	check := func(name, output string) {
+		t.Helper()
+		bound, body := strings.Index(output, `"bound"`), strings.Index(output, `"body"`)
+		if bound < 0 || body <= bound || strings.Count(output, `"body"`) != 1 {
+			t.Fatalf("%s effects: %s", name, output)
+		}
+	}
+	var out, stderr bytes.Buffer
+	if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 0 {
+		t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+	}
+	check("Go", out.String())
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		check("Java", equalityJava(t, jar, dir, false, 0))
+	}
+}
+
+func TestJavaTLCProductFunctionBodyOrderGap(t *testing.T) {
+	dir := t.TempDir()
+	writeEqualityModel(t, dir, `---- MODULE M ----
+EXTENDS Integers, TLC
+ASSUME LET f[x \in {2,1}, y \in {4,3}] == Print("body", <<x,y>>) IN f = f
+====
+`, "")
+	check := func(name, output string, want []string) {
+		t.Helper()
+		last := -1
+		for _, tuple := range want {
+			marker := `"body"  ` + tuple
+			pos := strings.Index(output, marker)
+			if pos <= last || strings.Count(output, marker) != 1 {
+				t.Fatalf("%s body order: %s", name, output)
+			}
+			last = pos
+		}
+	}
+	var out, stderr bytes.Buffer
+	if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 0 {
+		t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+	}
+	check("Go", out.String(), []string{"<<1, 3>>", "<<1, 4>>", "<<2, 3>>", "<<2, 4>>"})
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		check("Java", equalityJava(t, jar, dir, false, 0), []string{"<<1, 3>>", "<<2, 3>>", "<<1, 4>>", "<<2, 4>>"})
 	}
 }
