@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -140,11 +141,25 @@ func TestCLIUpstreamExactReports(t *testing.T) {
 			}
 			var out, errs bytes.Buffer
 			code := run(context.Background(), []string{filepath.Join(dir, tc.name+".tla")}, &out, &errs)
-			if code != tc.code || out.String() != string(want) || errs.Len() != 0 {
+			got := out.String()
+			if tc.name == "Lasso" || tc.name == "Lassos" {
+				got = normalizeTemporalProgress(got)
+			}
+			if code != tc.code || got != string(want) || errs.Len() != 0 {
 				t.Fatalf("code=%d stdout=%q want=%q stderr=%q", code, out.String(), want, errs.String())
 			}
 		})
 	}
+}
+
+var (
+	progressTimestamp = regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`)
+	progressDuration  = regexp.MustCompile(`(Finished checking temporal properties in )[^\n]+( at TIME)`)
+)
+
+func normalizeTemporalProgress(output string) string {
+	output = progressTimestamp.ReplaceAllString(output, "TIME")
+	return progressDuration.ReplaceAllString(output, "${1}DURATION${2}")
 }
 
 func TestCLIUpstreamMultipleVariableTrace(t *testing.T) {

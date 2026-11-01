@@ -1,4 +1,6 @@
 Checking Lassos.tla with Lassos.cfg
+Progress(3) at TIME: 4 states generated, 3 distinct states found, 0 states left on queue.
+Checking 2 branches of temporal properties for the complete state space with 6 total distinct states at (TIME)
 Error: Temporal properties Reach, Settle, and Stop were violated.
 
 Error: The following behavior constitutes a counter-example:
@@ -14,5 +16,6 @@ x = 2
 
 Back to state 1: <Next line 5, col 9 to line 5, col 24 of module Lassos>
 
+Finished checking temporal properties in DURATION at TIME
 4 states generated, 3 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 3.
