@@ -3,6 +3,7 @@ package javatmp
 
 import (
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -10,10 +11,12 @@ import (
 // options. Set Dir and any explicit Env before calling Apply. Use only for
 // Java processes.
 func Apply(cmd *exec.Cmd) *exec.Cmd {
-	var result []string
-	for _, entry := range cmd.Environ() {
+	environ := cmd.Environ()
+	result := make([]string, 0, len(environ))
+	for _, entry := range environ {
 		name, _, _ := strings.Cut(entry, "=")
-		if !strings.EqualFold(name, "_JAVA_OPTIONS") {
+		isOptions := name == "_JAVA_OPTIONS" || (runtime.GOOS == "windows" && strings.EqualFold(name, "_JAVA_OPTIONS"))
+		if !isOptions {
 			result = append(result, entry)
 		}
 	}

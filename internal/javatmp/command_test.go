@@ -1,11 +1,49 @@
 package javatmp
 
 import (
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestApplyEmptyEnvironmentDoesNotInherit(t *testing.T) {
+	t.Setenv("TLA_JAVA_ENV_SENTINEL", "present")
+	cmd := exec.Command(os.Args[0], "-test.run=^TestApplyEnvironmentChild$", "-test.v")
+	cmd.Env = []string{"_JAVA_OPTIONS=-Dexample=1"}
+	Apply(cmd)
+	if cmd.Env == nil {
+		t.Fatal("empty environment became nil")
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(output), "environment child checked") {
+		t.Fatalf("child inherited environment or failed: %v\n%s", err, output)
+	}
+}
+
+func TestApplyEnvironmentNameCase(t *testing.T) {
+	cmd := exec.Command("java")
+	cmd.Env = []string{"_java_options=lowercase"}
+	Apply(cmd)
+	found := false
+	for _, entry := range cmd.Env {
+		found = found || entry == "_java_options=lowercase"
+	}
+	if found == (runtime.GOOS == "windows") {
+		t.Fatalf("unexpected lowercase option in %v", cmd.Env)
+	}
+}
+
+func TestApplyEnvironmentChild(t *testing.T) {
+	if !strings.Contains(strings.Join(os.Args, " "), "^TestApplyEnvironmentChild$") {
+		t.Skip("child process only")
+	}
+	if os.Getenv("TLA_JAVA_ENV_SENTINEL") != "" || os.Getenv("_JAVA_OPTIONS") != "" {
+		t.Fatal("child inherited parent variables")
+	}
+	t.Log("environment child checked")
+}
 
 func TestApplyPreservesEnvironmentAndWorkingDirectory(t *testing.T) {
 	t.Setenv("_JAVA_OPTIONS", "-Djava.io.tmpdir=/shared")
