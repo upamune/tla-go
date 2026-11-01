@@ -15,6 +15,8 @@ type checkpointDriver struct {
 	every               int
 	pauseAt             int
 	paused              bool
+	stopped             bool
+	stopAt              time.Time
 	interval            time.Duration
 	next                time.Time
 	pauseOnTick         bool
@@ -32,7 +34,8 @@ func (s *search) checkpointBoundary() (bool, error) {
 }
 
 func (d *checkpointDriver) boundary(s *search) error {
-	if !d.boundaryDue(s.head) {
+	timedStop := d.timedStopDue(s)
+	if !timedStop && !d.boundaryDue(s.head) {
 		return nil
 	}
 	snapshot, err := s.checkpoint(*s.model.checkpointIdentity)
@@ -46,11 +49,20 @@ func (d *checkpointDriver) boundary(s *search) error {
 	if err := checkpointWriteContext(s.model.ctx, d.path, snapshot); err != nil {
 		return err
 	}
-	d.paused = d.pauseOnTick || (d.pauseAt != 0 && s.head == d.pauseAt)
+	d.finishBoundary(s.head, timedStop)
+	return nil
+}
+
+func (d *checkpointDriver) timedStopDue(s *search) bool {
+	return !d.stopAt.IsZero() && !time.Now().Before(d.stopAt) && s.head < len(s.nodes)
+}
+
+func (d *checkpointDriver) finishBoundary(head int, timedStop bool) {
+	d.stopped = timedStop
+	d.paused = timedStop || d.pauseOnTick || (d.pauseAt != 0 && head == d.pauseAt)
 	if d.interval > 0 {
 		d.next = time.Now().Add(d.interval)
 	}
-	return nil
 }
 
 func (d *checkpointDriver) due(head int) bool {

@@ -23,6 +23,8 @@ type options struct {
 	metaRoot                     string
 	metaDir, recoverDir          string
 	checkpointInterval           time.Duration
+	debugStopAfter               time.Duration
+	keepMeta                     *bool
 	deadlockOff, help, version   bool
 	debugLiveness                bool
 	tracePath, cpuPath, heapPath string
@@ -155,6 +157,25 @@ func reportOptionError(opts options, err error, out, errout io.Writer) int {
 }
 
 func runModel(ctx context.Context, opts options, out, errout io.Writer) (code int) {
+	if err := configureTimedStop(&opts); err != nil {
+		fmt.Fprintln(errout, err)
+		return 255
+	}
+	return runModelWithMeta(ctx, opts, out, errout)
+}
+
+func configureTimedStop(opts *options) error {
+	duration, err := debugStopDuration()
+	if err != nil || duration > 0 && opts.checkpointInterval <= 0 {
+		return fmt.Errorf("TLA_GO_DEBUG_STOP_AFTER requires a positive duration and an enabled -checkpoint")
+	}
+	opts.debugStopAfter = duration
+	return nil
+}
+
+func runModelWithMeta(ctx context.Context, opts options, out, errout io.Writer) (code int) {
+	keepMeta := false
+	opts.keepMeta = &keepMeta
 	if opts.recoverDir != "" {
 		opts.metaDir = opts.recoverDir
 	} else if opts.metaRoot != "" || opts.checkpointInterval > 0 {
@@ -168,7 +189,7 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) (code in
 		}
 		opts.metaDir = metaDir
 		defer func() {
-			if code == 0 {
+			if code == 0 && !keepMeta {
 				_ = os.RemoveAll(metaDir)
 			}
 		}()
@@ -184,7 +205,7 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) (code in
 }
 
 func checkpointMetaError(ctx context.Context, opts options, out, errout io.Writer, err error) int {
-	if opts.metaRoot == "" && opts.checkpointInterval > 0 {
+	if opts.metaRoot == "" && opts.checkpointInterval > 0 && opts.debugStopAfter == 0 {
 		fmt.Fprintf(errout, "Checkpointing unavailable (cannot create metadata directory: %s); checking normally without checkpoints.\n", err)
 		opts.checkpointInterval = 0
 		return runConfiguredModel(ctx, opts, out, errout)
@@ -314,6 +335,9 @@ func graphShouldFinish(result checker.Result, err error) bool {
 }
 
 func reportModelError(out, errout io.Writer, err error) int {
+	if errors.Is(err, errDebugStopped) {
+		return 0
+	}
 	if modelErr, ok := errors.AsType[*checker.ModelValidationError](err); ok {
 		fmt.Fprintf(out, "Error: %s\n", modelErr.Message)
 		return modelErr.ExitCode

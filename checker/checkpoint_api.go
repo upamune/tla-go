@@ -31,6 +31,10 @@ type CheckpointOptions struct {
 	Config *config.Config
 	// DebugPauseAfterExpansions saves and pauses at an absolute expansion count.
 	DebugPauseAfterExpansions int
+	// DebugStopAfter stops at the first safe expansion boundary after this
+	// duration, saving a checkpoint if there are still states to explore.
+	// The clock starts after model preparation. Zero disables timed stops.
+	DebugStopAfter time.Duration
 	// Stream receives new observations synchronously in order. The caller must
 	// drain it until this call returns. Previously persisted records are not replayed.
 	// Delivery occurs before persistence and may be repeated after a crash.
@@ -58,6 +62,8 @@ type CheckpointRun struct {
 	Result       Result
 	Observations []CheckpointObservation
 	Paused       bool
+	// Stopped indicates an incomplete search saved because DebugStopAfter elapsed.
+	Stopped bool
 }
 
 // CheckWithCheckpoint starts or recovers a checkpointable search. Each call
@@ -92,11 +98,13 @@ func CheckWithCheckpoint(ctx context.Context, source, configuration string, opti
 		observer.startStream(options.Stream)
 	}
 	d := &checkpointDriver{path: options.Path, interval: options.Interval, next: time.Now().Add(options.Interval), pauseOnTick: options.PauseOnCheckpoint, persistObservations: true, pauseAt: options.DebugPauseAfterExpansions, stream: options.Stream}
+	d.setDebugStopAfter(options.DebugStopAfter)
 	m.checkpointDriver = d
 	defer traceExploration(ctx)()
 	result, err := d.run(m, options.Resume)
 	out.Observations = exportCheckpointObservations(observer.records)
 	out.Paused = d.paused
+	out.Stopped = d.stopped
 	if err != nil || d.paused {
 		return out, err
 	}
@@ -104,6 +112,12 @@ func CheckWithCheckpoint(ctx context.Context, source, configuration string, opti
 	out.Result, err = m.finalizeCheckResult(result, nil, nil)
 	out.Observations = exportCheckpointObservations(observer.records)
 	return out, err
+}
+
+func (d *checkpointDriver) setDebugStopAfter(duration time.Duration) {
+	if duration > 0 {
+		d.stopAt = time.Now().Add(duration)
+	}
 }
 
 func checkpointEffectiveConfig(source string, effective *config.Config) (config.Config, error) {
@@ -159,5 +173,5 @@ func (e *CheckpointUnsupportedError) Error() string { return e.Err.Error() }
 func (e *CheckpointUnsupportedError) Unwrap() error { return e.Err }
 
 func validPublicCheckpointOptions(options CheckpointOptions) bool {
-	return options.Path != "" && (options.Interval > 0 || (options.Resume && options.Interval == 0)) && options.DebugPauseAfterExpansions >= 0
+	return options.Path != "" && (options.Interval > 0 || (options.Resume && options.Interval == 0)) && options.DebugPauseAfterExpansions >= 0 && options.DebugStopAfter >= 0 && (options.DebugStopAfter == 0 || options.Interval > 0)
 }

@@ -14,14 +14,12 @@ import (
 	"github.com/upamune/tla-go/config"
 )
 
+var errDebugStopped = errors.New("debug time limit reached")
+
 // checkCLIWithCheckpoint falls back only before exploration, and never on recovery.
 func checkCLIWithCheckpoint(ctx context.Context, opts options, cfg config.Config, source []byte, specPath string, out, errout io.Writer) (checker.Result, bool, error) {
 	if checkpointCLIUnsupported(opts) {
-		if opts.recoverDir != "" {
-			return checker.Result{}, true, fmt.Errorf("checkpoint recovery does not support these options")
-		}
-		fmt.Fprintln(errout, "Checkpointing unavailable for these options; checking normally without checkpoints.")
-		return checker.Result{}, false, nil
+		return checkpointUnsupportedOptions(opts, errout)
 	}
 	configSource, interval, debug, err := checkpointInputs(opts)
 	if err != nil {
@@ -34,7 +32,7 @@ func checkCLIWithCheckpoint(ctx context.Context, opts options, cfg config.Config
 		err error
 	}
 	done := make(chan answer, 1)
-	checkpointOpts := checker.CheckpointOptions{Path: filepath.Join(opts.metaDir, "tla-go.chkpt"), Interval: interval, Resume: opts.recoverDir != "", Config: &cfg, DebugPauseAfterExpansions: debug, Stream: stream, Options: checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, SerialExploration: true}}
+	checkpointOpts := checker.CheckpointOptions{Path: filepath.Join(opts.metaDir, "tla-go.chkpt"), Interval: interval, Resume: opts.recoverDir != "", Config: &cfg, DebugPauseAfterExpansions: debug, DebugStopAfter: opts.debugStopAfter, Stream: stream, Options: checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, SerialExploration: true}}
 	go func() {
 		run, e := checker.CheckWithCheckpoint(ctx, string(source), string(configSource), checkpointOpts)
 		close(stream)
@@ -43,17 +41,56 @@ func checkCLIWithCheckpoint(ctx context.Context, opts options, cfg config.Config
 	deliverCheckpointEvents(stream, opts, out)
 	answerValue := <-done
 	var unsupportedErr *checker.CheckpointUnsupportedError
-	if errors.As(answerValue.err, &unsupportedErr) && opts.recoverDir == "" {
+	if errors.As(answerValue.err, &unsupportedErr) && opts.recoverDir == "" && opts.debugStopAfter == 0 {
 		fmt.Fprintf(errout, "Checkpointing unavailable (%v); checking normally without checkpoints.\n", answerValue.err)
 		return checker.Result{}, false, nil
 	}
 	if answerValue.err != nil {
 		return checker.Result{}, true, answerValue.err
 	}
-	if answerValue.run.Paused {
+	return checkpointCLIResult(answerValue.run, opts, out, errout)
+}
+
+func checkpointUnsupportedOptions(opts options, errout io.Writer) (checker.Result, bool, error) {
+	if opts.recoverDir != "" {
+		return checker.Result{}, true, fmt.Errorf("checkpoint recovery does not support these options")
+	}
+	if opts.debugStopAfter > 0 {
+		return checker.Result{}, true, fmt.Errorf("timed checkpoint stop does not support these options")
+	}
+	fmt.Fprintln(errout, "Checkpointing unavailable for these options; checking normally without checkpoints.")
+	return checker.Result{}, false, nil
+}
+
+func checkpointCLIResult(run checker.CheckpointRun, opts options, out, errout io.Writer) (checker.Result, bool, error) {
+	if run.Stopped {
+		if opts.keepMeta != nil {
+			*opts.keepMeta = true
+		}
+		fmt.Fprintf(errout, "Debug time limit reached; search incomplete. Checkpoint saved in %s\n", opts.metaDir)
+		if opts.tool {
+			t := toolOutput{out: out}
+			t.message(2195, 0, "Checkpointing of run "+opts.metaDir)
+			t.message(2196, 0, "Checkpointing completed at ("+toolTime()+")")
+		}
+		return checker.Result{}, true, errDebugStopped
+	}
+	if run.Paused {
 		return checker.Result{}, true, fmt.Errorf("debug checkpoint saved in %s; search paused", opts.metaDir)
 	}
-	return answerValue.run.Result, true, nil
+	return run.Result, true, nil
+}
+
+func debugStopDuration() (time.Duration, error) {
+	raw := os.Getenv("TLA_GO_DEBUG_STOP_AFTER")
+	if raw == "" {
+		return 0, nil
+	}
+	duration, err := time.ParseDuration(raw)
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("invalid TLA_GO_DEBUG_STOP_AFTER")
+	}
+	return duration, nil
 }
 
 func checkpointCLIUnsupported(opts options) bool {

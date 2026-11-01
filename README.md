@@ -203,6 +203,17 @@ For deterministic debugging, `TLA_GO_DEBUG_CHECKPOINT_AFTER=N` saves after N
 state expansions and stops with a nonzero status. It is not a production
 scheduling option.
 
+`TLA_GO_DEBUG_STOP_AFTER=1s` provides an experimental time-bound debugging
+stop with a positive `-checkpoint` interval. The duration uses Go syntax, such
+as `250ms` or `2s`. After model preparation, tla-go waits until the first
+completed state expansion after that duration; if states remain, it saves a
+checkpoint, reports the incomplete search on standard error, and exits 0.
+Recover the saved directory with `-recover`. If the model finishes first, no
+time-bound checkpoint is made. Unsupported models fail instead of falling back
+to an unlimited search. This debug control is specific to tla-go: Java TLC's
+`tlc2.TLC.stopAfter` is a JVM system property, its timer starts at a different
+point, and its output includes a success message even for an incomplete search.
+
 ## Documentation
 
 - [Compatibility and limitations](docs/compatibility.md): supported model constructs and known differences from Java TLC.
