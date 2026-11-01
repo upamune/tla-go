@@ -75,7 +75,7 @@ operator-valued constants, substitutions, instances, higher-order definitions,
 oversized liveness normalization, and empty or incomplete searches; those cases
 do not create a liveness graph.
 It also requires a dump path ending in a single `.dot` suffix and avoids paths
-that alias the main graph or input files. Unavailable or non-regular existing
+that alias the main graph, input files, or active diagnostic outputs. Unavailable or non-regular existing
 destinations are not written; Java may report an error earlier for these paths.
 Tableau graphs, multiple solutions, and liveness evaluation side effects are
 not yet reproduced. The completed graph is staged before opening the target,

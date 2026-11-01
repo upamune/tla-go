@@ -38,7 +38,7 @@ func (s *search) emitCompletedLivenessGraph() error {
 
 func (s *search) canReconstructLivenessGraph() bool {
 	m := s.model
-	if !s.completedLivenessGraphEligible() {
+	if len(m.livenessOrder) == 0 || !s.completedLivenessGraphEligible() {
 		return false
 	}
 	for _, def := range m.module.Definitions {

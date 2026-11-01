@@ -16,21 +16,17 @@ type livenessDump struct {
 	path, temporary string
 	dump            *dotDump
 	failure         error
+	opts            options
+	checked, skip   bool
 }
 
 func prepareGraphDumps(opts options) (stateDump, *livenessDump, error) {
-	path, err := safeLivenessDumpPath(opts)
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := protectProfileOutput(opts, path); err != nil {
-		return nil, nil, err
-	}
 	graph, err := openStateDump(opts.dumpPath, opts.dumpDOT)
+	path := livenessDumpPath(opts)
 	if err != nil || path == "" {
 		return graph, nil, err
 	}
-	return graph, &livenessDump{path: path}, nil
+	return graph, &livenessDump{opts: opts}, nil
 }
 
 func finishGraphDumps(graph stateDump, live *livenessDump, result checker.Result, err error) error {
@@ -79,6 +75,18 @@ func safeLivenessDumpPath(opts options) (string, error) {
 }
 
 func (d *livenessDump) event(event checker.GraphEvent) error {
+	if !d.checked {
+		d.checked = true
+		path, err := safeLivenessDumpPath(d.opts)
+		if err != nil || path == "" || protectProfileOutput(d.opts, path) != nil {
+			d.skip = true
+		} else {
+			d.path = path
+		}
+	}
+	if d.skip {
+		return nil
+	}
 	if d.failure == nil {
 		d.failure = d.writeEvent(event)
 	}

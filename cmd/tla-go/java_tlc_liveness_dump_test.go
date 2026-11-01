@@ -102,10 +102,9 @@ func TestLivenessDOTOutputSafety(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, code, _ := runGoInDir(t, dir, args)
-			success := mode != "profile alias"
-			if success && code != 0 || !success && code == 0 {
-				t.Fatalf("unexpected exit %d", code)
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("exit %d stderr %q: %s", code, stderr, out)
 			}
 			got, err := os.ReadFile(filepath.Join(dir, "M.tla"))
 			if err != nil || !bytes.Equal(got, original) {
@@ -127,6 +126,12 @@ func TestLivenessDOTOutputSafety(t *testing.T) {
 				got, err := os.ReadFile(path)
 				if err != nil || !strings.HasPrefix(string(got), "digraph DiskGraph") {
 					t.Fatalf("liveness graph was not replaced: %q, %v", got, err)
+				}
+			}
+			if mode == "profile alias" {
+				got, err := os.ReadFile(path)
+				if err != nil || len(got) < 2 || got[0] != 0x1f || got[1] != 0x8b {
+					t.Fatalf("CPU profile was overwritten: %q, %v", got, err)
 				}
 			}
 			files, err := filepath.Glob(filepath.Join(dir, ".tla-liveness-*.tmp"))
@@ -183,6 +188,46 @@ func createLivenessTestLink(t *testing.T, dir, kind string) {
 	}
 	if err != nil {
 		t.Skipf("links unavailable: %v", err)
+	}
+}
+
+func TestJavaTLCLivenessDOTUnusedPath(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, mode := range []string{"safety cycle", "liveness cycle", "safety profile"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nP == <>[](x = 0)"
+			cfg := "INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n"
+			if mode == "liveness cycle" {
+				cfg += "PROPERTY P\n"
+			}
+			writeDOTFixture(t, dir, body, cfg)
+			args := []string{"-tool", "-fp", "0", "-workers", "1", "-lncheck", "final", "-dump", "dot", "out.dot", "M.tla"}
+			path := filepath.Join(dir, "out_liveness.dot")
+			if mode == "safety profile" {
+				args = append([]string{"-debug-cpu-profile", "out_liveness.dot"}, args...)
+			} else if err := os.Symlink("out_liveness.dot", path); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			if mode == "safety cycle" && jar != "" {
+				_, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 {
+					t.Fatalf("Java safety check exited %d", javaCode)
+				}
+			}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("exit %d stderr %q: %s", code, stderr, out)
+			}
+			if mode == "safety profile" {
+				profile, err := os.ReadFile(path)
+				if err != nil || len(profile) < 2 || profile[0] != 0x1f || profile[1] != 0x8b {
+					t.Fatalf("CPU profile was overwritten: %q, %v", profile, err)
+				}
+			} else if target, err := os.Readlink(path); err != nil || target != "out_liveness.dot" {
+				t.Fatalf("unused symlink changed: %q, %v", target, err)
+			}
+		})
 	}
 }
 
