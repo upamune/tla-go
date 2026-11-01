@@ -24,6 +24,7 @@ type options struct {
 	deadlockOff, help, version bool
 	debugLiveness              bool
 	coverage                   bool
+	checkpoint                 bool
 	modernRandomSubsets        bool
 	tool                       bool
 	noWarning                  bool
@@ -171,6 +172,7 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 	}
 	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, ViewStates: opts.view}
 	checkOptions.Coverage = opts.coverage
+	checkOptions.SerialExploration = opts.checkpoint
 	configureCheckingMode(&checkOptions, opts, module, out)
 	configureCompatOutput(&checkOptions, opts)
 	if graph != nil {

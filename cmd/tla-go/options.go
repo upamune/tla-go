@@ -193,8 +193,7 @@ func parseFingerprintOption(opts *options, args []string) (int, error) {
 	return 1, nil
 }
 
-// parseWorkersOption accepts Java TLC's worker counts. Exploration is
-// sequential regardless of the count.
+// parseWorkersOption accepts Java TLC's worker counts.
 func parseWorkersOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, commandLineError("Error: expect an integer or 'auto' for -workers option.")
@@ -216,7 +215,7 @@ func parseWorkersOption(opts *options, args []string) (int, error) {
 
 // parseCheckpointOption validates Java TLC's checkpoint interval in minutes.
 // tla-go does not write checkpoints.
-func parseCheckpointOption(_ *options, args []string) (int, error) {
+func parseCheckpointOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, commandLineError("Error: checkpoint interval required.")
 	}
@@ -229,6 +228,7 @@ func parseCheckpointOption(_ *options, args []string) (int, error) {
 	if int32(minutes)*1000*60 < 0 {
 		return 0, commandLineError("Error: expect a nonnegative integer for -checkpoint option.")
 	}
+	opts.checkpoint = true
 	return 1, nil
 }
 

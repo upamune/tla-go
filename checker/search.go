@@ -123,13 +123,14 @@ func newSearch(m *model) search {
 
 func (s *search) explore() (Result, error) {
 	next, _ := s.model.definition(s.model.cfg.Next)
+	parallel := parallelSearch{enabled: s.model.parallelEligible(next)}
 	for i := 0; i < len(s.nodes) && !s.model.tlcRuntime.stopped; i++ {
 		s.model.tlcRuntime.level = s.nodes[i].depth
 		if err := s.model.ctx.Err(); err != nil {
 			return Result{}, err
 		}
 		s.result.QueuedStates--
-		more, err := s.expandNode(i, next)
+		more, err := parallel.expand(s, i, next)
 		if err != nil {
 			return s.nextRuntimeFailure(err, i)
 		}

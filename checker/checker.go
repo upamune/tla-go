@@ -238,8 +238,11 @@ type Options struct {
 	// by element. A nonpositive value selects TLC's default of 1,000,000.
 	MaxSetSize int
 	// Workers is the -workers count that model checking reports through
-	// TLCGet("config"); exploration is sequential. A nonpositive value means 1.
+	// TLCGet("config"). Eligible BFS models can generate successors in parallel;
+	// other models use serial exploration. A nonpositive value means 1.
 	Workers int
+	// SerialExploration disables speculative BFS generation while retaining the requested worker count in TLCGet.
+	SerialExploration bool
 	// ViewStates prints trace states through the configured VIEW, as TLC's
 	// -view option does, by setting TraceStep.View.
 	ViewStates bool
