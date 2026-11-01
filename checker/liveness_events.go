@@ -2,9 +2,10 @@ package checker
 
 import "time"
 
-// startTemporalProgress only counts plain disk graphs: their nodes correspond
-// to distinct explored states. Tableau graphs need a reachable product graph,
-// which the breadth-first checker does not maintain in Java's representation.
+// startTemporalProgress counts Java's disk-graph table entries, not product
+// nodes. TableauNodePtrTable counts fingerprints, including setDone entries
+// without a consistent tableau node. Completed pure, unreduced exploration
+// visits every such fingerprint; replay of a done state cannot introduce more.
 func (s *search) startTemporalProgress() *time.Time {
 	m := s.model
 	if m.searchEvent == nil || !m.safeLivenessDiagnostic() || m.tlcRuntime.stopped {
@@ -13,21 +14,48 @@ func (s *search) startTemporalProgress() *time.Time {
 	if len(s.nodes) == 0 && s.hasNoNextActions() {
 		return nil
 	}
-	if !m.hasPlainProgressGraph() {
+	branches, tableau := m.progressBranches()
+	if !m.validProgressBranches(branches, tableau) {
 		return nil
 	}
 	started := time.Now()
-	m.emitSearchEvent(SearchEvent{Kind: TemporalCheckStart, Branches: 1, Nodes: s.result.DistinctStates, GeneratedStates: s.result.GeneratedStates, DistinctStates: s.result.DistinctStates, Level: max(s.result.Depth, 1)})
+	m.emitSearchEvent(SearchEvent{Kind: TemporalCheckStart, Branches: branches, Nodes: branches * len(s.nodes), GeneratedStates: s.result.GeneratedStates, DistinctStates: s.result.DistinctStates, Level: max(s.result.Depth, 1)})
 	return &started
 }
 
-func (m *model) hasPlainProgressGraph() bool {
-	disjuncts, err := m.liveDisjunctsBounded(1024)
-	if err != nil || len(disjuncts) == 0 {
+func (m *model) validProgressBranches(branches int, tableau bool) bool {
+	return branches > 0 && (!tableau || m.safeTableauProgress())
+}
+
+func (m *model) safeTableauProgress() bool {
+	if m.hasReduction() || m.environmentIsImpure() {
 		return false
 	}
+	// A late tableau node makes Java regenerate successors and recheck both
+	// constraints. Reject unstable definitions, including constant helpers.
+	for _, def := range m.defs {
+		if m.unsafeIncrementalExpression(def.Body) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *model) progressBranches() (int, bool) {
+	disjuncts, err := m.liveDisjunctsBounded(1024)
+	if err != nil || len(disjuncts) == 0 {
+		return 0, false
+	}
 	formulas, _, err := groupLiveFormulas(disjuncts)
-	return err == nil && len(formulas) == 1 && formulas[0] == nil
+	if err != nil {
+		return 0, false
+	}
+	for _, formula := range formulas {
+		if formula != nil {
+			return len(formulas), true
+		}
+	}
+	return len(formulas), false
 }
 
 // emitModelLiveness reports the number of normalized liveness solutions before

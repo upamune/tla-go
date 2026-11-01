@@ -72,13 +72,21 @@ func searchEventMessage(event checker.SearchEvent) (int, string) {
 	case checker.SimulationLiveness, checker.ModelCheckingLiveness:
 		return 2212, livenessBranches(event)
 	case checker.TemporalCheckStart:
-		return 2192, fmt.Sprintf("Checking temporal properties for the complete state space with %d total distinct states at (%s)", event.Nodes, toolTime())
+		return 2192, temporalStartMessage(event)
 	}
 	generated, distinct := event.GeneratedStates, event.DistinctStates
 	if generated == distinct {
 		return 2190, fmt.Sprintf("Finished computing initial states: %d distinct state%s generated at %s.", distinct, plural(distinct), toolTime())
 	}
 	return 2191, fmt.Sprintf("Finished computing initial states: %d state%s generated, with %d of them distinct at %s.", generated, plural(generated), distinct, toolTime())
+}
+
+func temporalStartMessage(event checker.SearchEvent) string {
+	branches := ""
+	if event.Branches != 1 {
+		branches = fmt.Sprintf("%d branches of ", event.Branches)
+	}
+	return fmt.Sprintf("Checking %stemporal properties for the complete state space with %d total distinct states at (%s)", branches, event.Nodes, toolTime())
 }
 
 func plural(n int) string {

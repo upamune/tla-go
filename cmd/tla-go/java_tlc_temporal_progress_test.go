@@ -29,6 +29,11 @@ func TestJavaTLCTemporalProgress(t *testing.T) {
 		{"fairness", "Init == x=0\nNext == x'=(x+1)%3\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\nP == []<>(x=1)", "SPECIFICATION Spec\nPROPERTY P", 0},
 		{"view", "Init == x=0\nNext == x'=(x+1)%4\nV == x % 2\nP == []<>(x>=0)", "PROPERTY P\nVIEW V", 0},
 		{"constraint", "Init == x=0\nNext == x'=(x+1)%4\nC == x<2\nP == []<>(x>=0)", "PROPERTY P\nCONSTRAINT C", 0},
+		{"tableau violation", "Init == x=0\nNext == x'=(x+1)%3\nP == <>(x=4)", "PROPERTY P", 13},
+		{"tableau success", "Init == x=0\nNext == x'=(x+1)%3\nP == <>(x=0)", "PROPERTY P", 0},
+		{"tableau constraint", "Init == x=0\nNext == x'=(x+1)%4\nC == x<2\nP == <>(x=3)", "PROPERTY P\nCONSTRAINT C", 13},
+		{"tableau action constraint", "Init == x=0\nNext == x'=(x+1)%4\nC == x'<2\nP == <>(x=3)", "PROPERTY P\nACTION_CONSTRAINT C", 13},
+		{"multiple branches", "Init == x=0\nNext == x'=(x+1)%3\nP == <>(x=1) /\\ <>(x=2)", "PROPERTY P", 13},
 		{"assumption", "ASSUME FALSE\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=1)", "PROPERTY P", 10},
 		{"invariant", "Init == x=0\nNext == x'=x+1\nP == <>(x=3)\nI == x<2", "PROPERTY P\nINVARIANT I", 12},
 		{"evaluation failure", "Init == x=0\nNext == x'=1 \\div x\nP == []<>(x=1)", "PROPERTY P", 255},
@@ -108,9 +113,9 @@ func TestTemporalDurationBoundaries(t *testing.T) {
 	}
 }
 
-func TestTemporalProgressOmitsTableauCount(t *testing.T) {
+func TestTemporalProgressOmitsReducedTableauCount(t *testing.T) {
 	dir := t.TempDir()
-	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=1)", "INIT Init\nNEXT Next\nPROPERTY P")
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=1)\nV == x", "INIT Init\nNEXT Next\nPROPERTY P\nVIEW V")
 	var out, errout bytes.Buffer
 	if code := run(context.Background(), []string{"-tool", filepath.Join(dir, "M.tla")}, &out, &errout); code != 13 {
 		t.Fatalf("exit %d: %s %s", code, &out, &errout)
@@ -119,5 +124,31 @@ func TestTemporalProgressOmitsTableauCount(t *testing.T) {
 		if hasToolMessage(readToolMessages(out.String()), code) {
 			t.Fatalf("unexpected message %d: %s", code, &out)
 		}
+	}
+}
+
+func TestJavaTLCTableauProgressWithInitialEffect(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == /\\ x=0 /\\ PrintT(\"init-effect\")\nNext == UNCHANGED x\nP == <>(x=1)", "INIT Init\nNEXT Next\nPROPERTY P")
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
+	var out, errout bytes.Buffer
+	goArgs := append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla"))
+	code := run(context.Background(), goArgs, &out, &errout)
+	cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+	cmd.Dir = dir
+	java, err := cmd.CombinedOutput()
+	if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+		t.Fatalf("Go exit %d stderr %s; Java %v\n%s", code, &errout, err, java)
+	}
+	// Both checkers replay the initial predicate while recovering the trace.
+	if strings.Count(out.String(), "init-effect") != 2 || strings.Count(string(java), "init-effect") != 2 {
+		t.Fatalf("effect count differs: Go %s\nJava %s", &out, java)
+	}
+	if hasToolMessage(readToolMessages(out.String()), 2192) || !hasToolMessage(readToolMessages(string(java)), 2192) {
+		t.Fatalf("expected conservative omission: Go %s\nJava %s", &out, java)
 	}
 }
