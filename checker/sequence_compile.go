@@ -29,6 +29,7 @@ func (m *model) prepareOrderedSequence(name string, expr *parser.Expression, bou
 		if !ok {
 			return errSequenceNotRecognized
 		}
+		m.applyJava17ConstantTableau(&p)
 		properties = append(properties, p)
 		return nil
 	})

@@ -53,7 +53,8 @@ func TestGeneralTemporalStateFormulas(t *testing.T) {
 		formula string
 		status  Status
 	}{
-		{"[]<>[]TRUE", Success},
+		// Java TLC 1.7.4 ignores the Boolean constant inside this tableau.
+		{"[]<>[]TRUE", LivenessViolation},
 		{"<>[]<>(x = 0)", LivenessViolation},
 		{"<>([](x = 1) \\/ [](x = 2))", LivenessViolation},
 		{"[]<>(x = 0) \\/ []<>(x = 1)", LivenessViolation},

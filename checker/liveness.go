@@ -319,6 +319,10 @@ func (m *model) addPropertyInstance(p temporalProperty, locals map[string]value.
 	instance := p
 	instance.locals = maps.Clone(locals)
 	instance.bounds = nil
+	if m.applyJava17ConstantTableau(&instance) {
+		m.storePropertyInstance(instance)
+		return nil
+	}
 	m.prepareRecurrenceCache(&instance)
 	if instance.mode == generalTemporal {
 		if err := m.compileGeneralProperty(&instance); err != nil {
