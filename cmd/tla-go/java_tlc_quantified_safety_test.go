@@ -18,6 +18,8 @@ func TestJavaTLCQuantifiedSafetyProperties(t *testing.T) {
 		{"parameterized state", `Q(2)`, 13, 2116},
 		{"quantified action", `\A v \in {2} : [][x' # v]_x`, 255, 2214},
 		{"parameterized action", `R(2)`, 255, 2214},
+		{"tla-ts quantified conjunction", `\A i \in {2, 3} : [](x < i) /\ [][x' < i]_x`, 255, 2214},
+		{"tla-ts quantified action", `\A n \in {0, 1} : [][x' # n]_x`, 255, 2214},
 		{"empty quantified state", `\A v \in {} : [](x # v)`, 77, 2253},
 		{"empty quantified action", `\A v \in {} : [][x' # v]_x`, 77, 2253},
 		{"empty inner quantifier", `\A v \in {1, 2} : \A w \in {} : [](x # w)`, 77, 2253},

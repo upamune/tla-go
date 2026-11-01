@@ -45,6 +45,15 @@ func TestUpstreamChecks(t *testing.T) {
 				sample.Want.Generated = 3
 			}
 			result, err := Check(sample.Source, sample.Config)
+			if sample.Name == "property-quantified-conjunction" || sample.Name == "property-action-quantified" {
+				// Java TLC 1.7.4 rejects an action beneath a temporal quantifier
+				// with 2214; tla-ts accepts these two fixtures.
+				validation, ok := errors.AsType[*ModelValidationError](err)
+				if !ok || validation.Code != 2214 {
+					t.Fatalf("got %#v, %v; want Java TLC error 2214", result, err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
