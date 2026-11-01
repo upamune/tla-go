@@ -41,6 +41,34 @@ func TestCheckpointTimedStopAndRecovery(t *testing.T) {
 	}
 }
 
+func TestCheckpointTimedStopNamedSpecification(t *testing.T) {
+	source := `---- MODULE M ----
+EXTENDS Naturals
+VARIABLES x, y
+Step(n) == n + 1
+Init == x = 0 /\ y \in 1..3
+Next == x < 3 /\ x' = Step(x) /\ UNCHANGED y
+Spec == Init /\ [][Next]_<<x, y>>
+====`
+	config := "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE"
+	ctx := context.Background()
+	opts := CheckpointOptions{Path: filepath.Join(t.TempDir(), "checkpoint"), Interval: time.Hour, DebugStopAfter: time.Nanosecond}
+	stopped, err := CheckWithCheckpoint(ctx, source, config, opts)
+	if err != nil || !stopped.Paused || !stopped.Stopped {
+		t.Fatalf("stop: %+v %v", stopped, err)
+	}
+	opts.Resume = true
+	opts.DebugStopAfter = 0
+	resumed, err := CheckWithCheckpoint(ctx, source, config, opts)
+	if err != nil || resumed.Paused || resumed.Stopped {
+		t.Fatalf("resume: %+v %v", resumed, err)
+	}
+	full, err := CheckWithOptions(ctx, source, config, Options{})
+	if err != nil || !reflect.DeepEqual(full, resumed.Result) {
+		t.Fatalf("full: %+v %v; resumed: %+v", full, err, resumed.Result)
+	}
+}
+
 func TestCheckpointTimedStopEmptyQueueAndFailure(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "checkpoint")
