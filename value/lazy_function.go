@@ -99,6 +99,11 @@ func (v Value) lazyCompute(key Value, keepLazy bool) (Value, error) {
 }
 
 func (v Value) lazyPairs() ([]Pair, error) {
+	// ANY accepts every lookup key, but is still a TLC overridden set, not
+	// an enumerable wildcard domain when a function is materialized.
+	if v.data.domain.kind == InfiniteSetKind {
+		return nil, &TLCError{Message: fmt.Sprintf("Attempted to compute the number of elements in the overridden value %s.", v.data.domain)}
+	}
 	var pairs []Pair
 	err := v.data.domain.Each(func(key Value) (bool, error) {
 		item, err := v.Lookup(key)
