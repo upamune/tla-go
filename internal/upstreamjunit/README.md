@@ -198,3 +198,60 @@ classes. The 322 cases have not been mapped individually to Go runs or proven
 equivalent; all remain unresolved for full differential purposes. Existing
 class-based diagnostic runs and extracted observations are not JUnit executions,
 and their counts cannot be substituted for this case denominator.
+
+## Executing one upstream JUnit case (opt-in experiment)
+
+`TestUpstreamJUnitExecution` discovers and runs exactly
+`tlc2.tool.suite.Test10#testSpec` with JUnit 4.12's `Request.method`, in a
+fresh JVM. The upstream isolated runner executes the inherited
+`SuiteTestCase.setUp`, `ModelCheckerTestCase.setUp` (including TLC and its
+recorder), the original `SuiteTestCase.testSpec` assertions including zero
+uncovered expressions, and `ModelCheckerTestCase.tearDown` exit assertion.
+JUnit's started/finished events and result must identify exactly this one case
+with no failure, ignored test, or failed assumption. A Java JUnit pass means
+those original Java assertions and lifecycle completed; it is not a Go pass.
+JUnit reports test events, not individual lifecycle callbacks; the lifecycle
+mapping above is specific to the verified pinned source and this class.
+
+The experiment checks the same commit and three jar hashes as discovery. It
+compiles the tracked upstream test sources, copies tracked model files to a
+private temporary `test-model`, and extracts standard modules from the verified
+jar into temporary classes for the upstream isolated class loader. The JVM's
+working directory, `basedir`, and temporary directory are private; TLC output
+is removed with the temporary directory. The checkout is not written. The JVM
+is terminated after JUnit finishes because TLC can leave RMI threads alive.
+
+The linked Go diagnostic is a separate invocation of the existing `RunCase`
+for the same class/model: it compares selected tool messages, exit status and
+DOT dump. It does not execute the Java assertions on Go, nor reproduce Java's
+recorder, coverage assertion, final-only liveness strategy, or lifecycle. A
+mismatch fails as a **Go mismatch**; a match is only a **partial Go diagnostic**.
+Unexpected discovery or lifecycle selection is unsupported, and ignored,
+initialization-error, assertion-failure, assumption, missing-event and process
+errors cannot become passes. The fixture exercises these cases with real JUnit.
+Only this exact case is supported; arbitrary methods, custom fixtures, parameter
+factories, overrides, and alternate lifecycle hooks need explicit analysis and
+isolation before expanding the allowlist. An eventual Go JUnit pass would need
+an adapter that executes the original assertions against Go observations and
+reproduces every relevant lifecycle effect, with negative tests proving failures
+are detected.
+
+For example, prepare the inputs with Git, a JDK (including `javac` and `jar`),
+Go, and `curl` (the hashes above are verified by the test):
+
+```sh
+git clone https://github.com/tlaplus/tlaplus.git /tmp/tlaplus-java-v1.7.4
+git -C /tmp/tlaplus-java-v1.7.4 checkout --detach 5a47802b5c391f59ecdd44117981f4ff8c0656ba
+curl -fL https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar -o /tmp/tla2tools-v1.7.4.jar
+curl -fL https://repo.maven.apache.org/maven2/junit/junit/4.12/junit-4.12.jar -o /tmp/junit-4.12.jar
+curl -fL https://repo.maven.apache.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar -o /tmp/hamcrest-core-1.3.jar
+```
+
+```sh
+TLA_GO_JUNIT_EXECUTION=1 \
+TLA_GO_JUNIT_ROOT=/tmp/tlaplus-java-v1.7.4 \
+TLA_GO_JUNIT_JAR=/tmp/tla2tools-v1.7.4.jar \
+TLA_GO_JUNIT_JUNIT=/tmp/junit-4.12.jar \
+TLA_GO_JUNIT_HAMCREST=/tmp/hamcrest-core-1.3.jar \
+go test -v ./internal/upstreamjunit -run 'Test(ValidateExecution|JUnitExecutionFixture|UpstreamJUnitExecution)$' -count=1
+```
