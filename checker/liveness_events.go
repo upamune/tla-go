@@ -13,7 +13,7 @@ import (
 // visits every such fingerprint; replay of a done state cannot introduce more.
 func (s *search) startTemporalProgress() *time.Time {
 	m := s.model
-	if m.searchEvent == nil || !m.safeLivenessDiagnostic() || m.tlcRuntime.stopped {
+	if m.searchEvent == nil || !s.safeTemporalProgress() || m.tlcRuntime.stopped {
 		return nil
 	}
 	if len(s.nodes) == 0 && s.hasNoNextActions() {
@@ -26,6 +26,64 @@ func (s *search) startTemporalProgress() *time.Time {
 	started := time.Now()
 	m.emitSearchEvent(SearchEvent{Kind: TemporalCheckStart, Branches: branches, Nodes: branches * len(s.nodes), GeneratedStates: s.result.GeneratedStates, DistinctStates: s.result.DistinctStates, Level: max(s.result.Depth, 1)})
 	return &started
+}
+
+// Without a tableau or reduction, each completely expanded state has exactly
+// one fingerprint entry in Java's single liveness graph, even if its action
+// writes output. Only use that count for the incrementally verified path.
+func (s *search) safeTemporalProgress() bool {
+	if s.model.safeLivenessDiagnostic() {
+		return true
+	}
+	return s.fairIncrementalOneSolution && !s.model.continueChecking && s.head == len(s.nodes) && s.simpleRecurrenceAlwaysTrue() && s.uniqueIncrementalFingerprints()
+}
+
+// TLC's disk graph identifies states by fingerprint. If tla-go reached two
+// distinct states with the same fingerprint, its state count is not TLC's.
+func (s *search) uniqueIncrementalFingerprints() bool {
+	if len(s.ltlFingerprints) != len(s.nodes) {
+		return false
+	}
+	seen := make(map[uint64]struct{}, len(s.ltlFingerprints))
+	for _, fingerprint := range s.ltlFingerprints {
+		if _, exists := seen[fingerprint]; exists {
+			return false
+		}
+		seen[fingerprint] = struct{}{}
+	}
+	return true
+}
+
+// A state predicate that holds for every explored state makes []<>P true on
+// every behavior. Restrict the extra scan to simple variable/integer tests;
+// arbitrary predicates may be expensive or have effects during evaluation.
+func (s *search) simpleRecurrenceAlwaysTrue() bool {
+	if len(s.model.livenessOrder) != 1 {
+		return false
+	}
+	p := s.model.livenessOrder[0]
+	if p.mode != often || !s.simpleStateComparison(p.predicate) {
+		return false
+	}
+	for _, node := range s.nodes {
+		ok, err := s.model.holdsTemporalState(p, node.state)
+		if err != nil || !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *search) simpleStateComparison(expr *parser.Expression) bool {
+	if expr == nil || expr.Kind != "Apply" || len(expr.Args) != 2 {
+		return false
+	}
+	switch expr.Text {
+	case "=", "#", "<", "<=", ">", ">=":
+	default:
+		return false
+	}
+	return expr.Args[0].Kind == "Identifier" && slices.Contains(s.model.names, expr.Args[0].Text) && expr.Args[1].Kind == "Number"
 }
 
 func (m *model) validProgressBranches(branches int, tableau bool) bool {

@@ -31,8 +31,22 @@ the Go checker reports two branches and prints 11, unchanged by this change.
 It does not reproduce all
 side effects when recovering a counterexample, when an
 assertion fails during recovery, or when constructing some tableau graphs.
-Temporal progress counts for effectful fairness remain suppressed. The `-lncheck`
-argument is still consumed without selecting a periodic graph-check strategy;
+For a completed single-solution, non-tableau and unreduced search in the
+scoped path, final progress 2192/2267 is reported if continuation is off, the
+Java fingerprints are present and distinct, and
+the sole property is `[]<>P`, where `P` is a simple variable/integer comparison
+that holds in every explored state. The checker evaluates that pure comparison
+on the completed state set before emitting the messages. This rules out
+counterexample recovery, whose effect ordering remains different. Empty
+initial state sets are supported. Tests compare the full selected temporal and
+PrintT message order with Java for deterministic and nondeterministic actions,
+state constraints, multiple initial states, empty initial states, and both
+`default` and `final`. Other effectful cases retain the prior suppression.
+For a failing recurrence, a three-state PrintT model confirms why: Java emits
+2116 before re-evaluating Next between the individual counterexample states,
+whereas Go currently emits two effects before 2116 and none between states.
+
+The `-lncheck` argument is still consumed without selecting a periodic graph-check strategy;
 the Go checker runs its final graph search after exploration. Simulation has
 separate liveness processing and is not covered by this change.
 
@@ -44,3 +58,11 @@ precise estimate; the two versions execute different numbers of effects.
 For the same graph without PrintT, three single-iteration runs measured
 44.8–48.8 ms and 33.67 MB before versus 43.9–45.1 ms and 33.67 MB after;
 the pure fairness path retains its previous cache behavior.
+
+The bounded progress check adds a simple state-predicate scan and a set for
+checking fingerprints. In three
+500 ms samples of a 1,000-state effectful cycle on an Apple M3, with other work
+running, the baseline measured 5.78–5.91 ms, 2.409–2.410 MB and 33,079–33,080
+allocations per run; the progress scan measured 5.77–5.91 ms, 2.449–2.451 MB
+and 33,156–33,157 allocations. Timing samples overlap and do not establish a
+speed difference. `BenchmarkEffectfulFairnessProgress` reproduces the model.
