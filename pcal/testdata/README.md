@@ -33,6 +33,8 @@ with the options their tests use and with several other option sets.
 
 `golden.json.gz` holds Java's exit code, standard output, and resulting
 files for each case. Files equal to an input file are recorded by name.
+`golden-case-insensitive.json` records the Java result for `cli-upper` on a
+case-insensitive filesystem, where `Upper.tla` resolves to `Upper.TLA`.
 Java ran with `LC_ALL=C.UTF-8`, because it encodes its messages in the
 locale's charset; tla-go always writes UTF-8. To compare with Java directly
 or to regenerate the file, run from the repository root:
@@ -40,6 +42,13 @@ or to regenerate the file, run from the repository root:
 ```sh
 TLC_JAR=/path/to/tla2tools.jar go test ./pcal -run TestJavaPlusCalCorpus
 TLC_JAR=/path/to/tla2tools.jar PCAL_UPDATE_GOLDEN=1 go test ./pcal -run TestJavaPlusCalCorpus
+```
+
+Regenerate the default golden on a case-sensitive filesystem. On a
+case-insensitive filesystem, regenerate the separate result with:
+
+```sh
+TLC_JAR=/path/to/tla2tools.jar PCAL_UPDATE_CASE_INSENSITIVE=1 go test ./pcal -run 'TestJavaPlusCalCorpus/cases/cli-upper'
 ```
 
 The TLA+ tools are distributed under the MIT license; see `LICENSE` in this

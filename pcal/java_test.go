@@ -80,6 +80,44 @@ func loadGolden(t *testing.T) map[string]outcome {
 	return golden
 }
 
+// Java resolves Upper.tla to Upper.TLA on case-insensitive filesystems. The
+// default golden was generated on Linux, where those are different paths.
+func useCaseInsensitiveGolden(t *testing.T, golden map[string]outcome) bool {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "CaseProbe"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := os.Stat(filepath.Join(dir, "caseprobe"))
+	if os.IsNotExist(err) {
+		return false
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile("testdata/golden-case-insensitive.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var alt outcome
+	if err := json.Unmarshal(data, &alt); err != nil {
+		t.Fatal(err)
+	}
+	golden["cli-upper"] = alt
+	return true
+}
+
+func writeCaseInsensitiveGolden(t *testing.T, value outcome) {
+	t.Helper()
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("testdata/golden-case-insensitive.json", append(data, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func writeGolden(t *testing.T, golden map[string]outcome) {
 	t.Helper()
 	var buf bytes.Buffer
@@ -257,6 +295,14 @@ func TestJavaPlusCalCorpus(t *testing.T) {
 	golden := loadGolden(t)
 	jar := os.Getenv("TLC_JAR")
 	update := jar != "" && os.Getenv("PCAL_UPDATE_GOLDEN") != ""
+	insensitive := useCaseInsensitiveGolden(t, golden)
+	if update && insensitive {
+		t.Fatal("regenerate the default golden on a case-sensitive filesystem")
+	}
+	updateInsensitive := os.Getenv("PCAL_UPDATE_CASE_INSENSITIVE") != ""
+	if updateInsensitive && (jar == "" || !insensitive) {
+		t.Fatal("updating the case-insensitive golden requires TLC_JAR and a case-insensitive filesystem")
+	}
 	var mu sync.Mutex
 	updated := map[string]outcome{}
 	t.Run("cases", func(t *testing.T) {
@@ -267,11 +313,14 @@ func TestJavaPlusCalCorpus(t *testing.T) {
 				if jar != "" {
 					java := runJava(t, jar, c)
 					compareOutcome(t, "Java", got, java)
+					if updateInsensitive && c.Name == "cli-upper" {
+						writeCaseInsensitiveGolden(t, java)
+					}
 					mu.Lock()
 					updated[c.Name] = java
 					mu.Unlock()
 				}
-				if !update {
+				if !update && !(updateInsensitive && c.Name == "cli-upper") {
 					want, ok := golden[c.Name]
 					if !ok {
 						t.Fatalf("no golden output; run with TLC_JAR and PCAL_UPDATE_GOLDEN=1")
