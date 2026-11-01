@@ -14,7 +14,7 @@ import (
 func TestCheckpointTimedStopAndRecovery(t *testing.T) {
 	ctx := context.Background()
 	opts := CheckpointOptions{Path: filepath.Join(t.TempDir(), "checkpoint"), Interval: time.Hour, DebugStopAfter: time.Nanosecond}
-	stopped, err := CheckWithCheckpoint(ctx, observerSource, observerConfig, opts)
+	stopped, err := checkWithCheckpointClock(ctx, observerSource, observerConfig, opts, advancingCheckpointClock())
 	if err != nil || !stopped.Paused || !stopped.Stopped {
 		t.Fatalf("stop: %+v %v", stopped, err)
 	}
@@ -53,7 +53,7 @@ Spec == Init /\ [][Next]_<<x, y>>
 	config := "SPECIFICATION Spec\nCHECK_DEADLOCK FALSE"
 	ctx := context.Background()
 	opts := CheckpointOptions{Path: filepath.Join(t.TempDir(), "checkpoint"), Interval: time.Hour, DebugStopAfter: time.Nanosecond}
-	stopped, err := CheckWithCheckpoint(ctx, source, config, opts)
+	stopped, err := checkWithCheckpointClock(ctx, source, config, opts, advancingCheckpointClock())
 	if err != nil || !stopped.Paused || !stopped.Stopped {
 		t.Fatalf("stop: %+v %v", stopped, err)
 	}
@@ -66,6 +66,14 @@ Spec == Init /\ [][Next]_<<x, y>>
 	full, err := CheckWithOptions(ctx, source, config, Options{})
 	if err != nil || !reflect.DeepEqual(full, resumed.Result) {
 		t.Fatalf("full: %+v %v; resumed: %+v", full, err, resumed.Result)
+	}
+}
+
+func advancingCheckpointClock() func() time.Time {
+	now := time.Unix(0, 0)
+	return func() time.Time {
+		now = now.Add(time.Nanosecond)
+		return now
 	}
 }
 

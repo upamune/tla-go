@@ -70,6 +70,12 @@ type CheckpointRun struct {
 // prepares a fresh model and validates the exact source, dependencies, config,
 // and semantic options against the checkpoint before resuming.
 func CheckWithCheckpoint(ctx context.Context, source, configuration string, options CheckpointOptions) (CheckpointRun, error) {
+	return checkWithCheckpointClock(ctx, source, configuration, options, time.Now)
+}
+
+// checkWithCheckpointClock makes time-dependent checkpoint boundaries
+// deterministic in tests, without changing the public checkpoint API.
+func checkWithCheckpointClock(ctx context.Context, source, configuration string, options CheckpointOptions, now func() time.Time) (CheckpointRun, error) {
 	var out CheckpointRun
 	if !validPublicCheckpointOptions(options) {
 		return out, fmt.Errorf("invalid checkpoint schedule")
@@ -97,7 +103,7 @@ func CheckWithCheckpoint(ctx context.Context, source, configuration string, opti
 	if !options.Resume {
 		observer.startStream(options.Stream)
 	}
-	d := &checkpointDriver{path: options.Path, interval: options.Interval, next: time.Now().Add(options.Interval), pauseOnTick: options.PauseOnCheckpoint, persistObservations: true, pauseAt: options.DebugPauseAfterExpansions, stream: options.Stream}
+	d := &checkpointDriver{path: options.Path, interval: options.Interval, next: now().Add(options.Interval), pauseOnTick: options.PauseOnCheckpoint, persistObservations: true, pauseAt: options.DebugPauseAfterExpansions, stream: options.Stream, now: now}
 	d.setDebugStopAfter(options.DebugStopAfter)
 	m.checkpointDriver = d
 	defer traceExploration(ctx)()
@@ -116,7 +122,7 @@ func CheckWithCheckpoint(ctx context.Context, source, configuration string, opti
 
 func (d *checkpointDriver) setDebugStopAfter(duration time.Duration) {
 	if duration > 0 {
-		d.stopAt = time.Now().Add(duration)
+		d.stopAt = d.clockNow().Add(duration)
 	}
 }
 

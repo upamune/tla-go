@@ -530,12 +530,12 @@ func TestCheckpointRecoveryScheduleProcess(t *testing.T) {
 	}
 	// Advance only the scheduler's clock past every tested interval. This makes
 	// elapsed-time writes deterministic without altering checkpoint contents.
-	old := "return !time.Now().Before(d.next)"
+	old := "return !d.clockNow().Before(d.next)"
 	if strings.Count(string(driver), old) != 1 {
 		t.Fatal("scheduler clock not found uniquely")
 	}
 	replacement := filepath.Join(dir, "driver.go")
-	if err := os.WriteFile(replacement, []byte(strings.Replace(string(driver), old, "return !time.Now().Add(48 * time.Hour).Before(d.next)", 1)), 0o600); err != nil {
+	if err := os.WriteFile(replacement, []byte(strings.Replace(string(driver), old, "return !d.clockNow().Add(48 * time.Hour).Before(d.next)", 1)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	overlay, err := json.Marshal(map[string]any{"Replace": map[string]string{driverPath: replacement}})
