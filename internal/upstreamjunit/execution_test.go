@@ -325,13 +325,15 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	temp := t.TempDir()
 	// Discovery compiles only tracked sources and establishes that this exact leaf exists.
-	records, err := discover(discoveryCtx, root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest"})
+	coverageClass := "tlc2.tool.coverage.BCoverageTest"
+	records, err := discover(discoveryCtx, root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest", coverageClass})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := DiscoveryRecord{"case", "tlc2.tool.suite.Test10", "testSpec(tlc2.tool.suite.Test10)", ""}
 	empty := DiscoveryRecord{"case", "tlc2.tool.EmptyTest", "testSpec(tlc2.tool.EmptyTest)", ""}
-	if len(records) != 2 || !slices.Contains(records, want) || !slices.Contains(records, empty) {
+	coverage := DiscoveryRecord{"case", coverageClass, "testSpec(" + coverageClass + ")", ""}
+	if len(records) != 3 || !slices.Contains(records, want) || !slices.Contains(records, empty) || !slices.Contains(records, coverage) {
 		t.Fatalf("unsupported lifecycle or discovery: %+v", records)
 	}
 	classes := filepath.Join(temp, "classes")
@@ -386,6 +388,18 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("Java JUnit pass: %s; events=%v", empty.Display, emptyEvents)
+	coverageDir := filepath.Join(temp, "coverage-run")
+	if err := os.Mkdir(coverageDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	coverageEvents, err := executeJUnit(classes, deps, coverageDir, runDir, coverage.Class, "testSpec")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateExecution(coverageEvents, coverage.Display); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Java JUnit pass: %s; events=%v", coverage.Display, coverageEvents)
 	binary := filepath.Join(temp, "tla-go")
 	if out, err := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)

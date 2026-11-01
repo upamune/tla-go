@@ -151,6 +151,16 @@ including short-circuiting. Invariants also support selected calls to nullary
 state operators and operators with literal numeric arguments; repeated calls to
 the same definition and other unmodeled call forms are rejected. The property
 fixtures include direct Java 1.7.4 comparisons and saved reports.
+The upstream `BCoverageTest` Boolean toggle model is also supported: a single
+variable starts as `TRUE` or `FALSE`, and each named action assigns the result
+of a unary operator whose body negates its parameter to that variable. This
+subset excludes configured invariants, constraints, constants and substitutions;
+other calls and expressions remain restricted as described below. The toggle
+actions must have distinct source locations within one module; coverage of
+multiple instances and cross-module toggles is not supported. For existing
+supported actions with distinct locations within a single module, coverage is
+reported in predicate source order even when `Next` lists them in another order.
+Cross-module ordering and shared source locations have not been established.
 Selected invariants may also quantify over `SUBSET` of a literal integer
 range and then quantify over each resulting subset. The reported secondary
 enumeration cost includes TLC's prefetch behavior; empty sets, repeated

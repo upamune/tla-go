@@ -1,7 +1,9 @@
 package checker
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/upamune/tla-go/evaluator"
@@ -183,7 +185,7 @@ func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, i
 }
 
 func coverageAtomSupported(e *parser.Expression, initial bool) bool {
-	return coverageAtomic(e) && coverageMembershipSupported(e, initial)
+	return (coverageAtomic(e) || (!initial && coverageBooleanToggleSyntax(e))) && coverageMembershipSupported(e, initial)
 }
 
 func coverageComparisonGuard(e *parser.Expression) bool {
@@ -353,6 +355,9 @@ func coverageOperandArgs(e *parser.Expression, numbers bool) bool {
 // Only permit flat conjunctions and simple aliases. In particular, evaluating
 // a nested operator or guard expression requires a separate TLC cost model.
 func (m *model) coverageBodySupported(body *parser.Expression, initial bool) bool {
+	if !initial && coverageBooleanToggleSyntax(body) && m.coverageBooleanToggleProgram() {
+		return true
+	}
 	items := []*parser.Expression{body}
 	if body.Kind == "And" {
 		items = body.Args
@@ -543,6 +548,7 @@ func (c *coverageCollector) report() []CoverageAction {
 	}
 	actions := make([]CoverageAction, len(c.actions))
 	copy(actions, c.actions)
+	c.sortCoverageActions(actions)
 	for i := range actions {
 		a := &actions[i]
 		if a.Property {
@@ -553,6 +559,58 @@ func (c *coverageCollector) report() []CoverageAction {
 		c.collapseAction(a)
 	}
 	return actions
+}
+
+// CostModelCreator.report orders next-state actions by predicate location.
+// Different modules use SANY's interned-name IDs rather than lexical ordering,
+// and identical locations may share a cost model. Until those cases are
+// modeled, preserve the previous order for them.
+func (c *coverageCollector) sortCoverageActions(actions []CoverageAction) {
+	if len(actions) < 3 {
+		return
+	}
+	end := 1
+	for end < len(actions) && !actions[end].Property {
+		end++
+	}
+	if !c.coverageActionLocationsOrderable(actions[1:end]) {
+		return
+	}
+	slices.SortStableFunc(actions[1:end], func(a, b CoverageAction) int {
+		x, y := c.bodies[a.Name].Location.Range, c.bodies[b.Name].Location.Range
+		return cmp.Or(cmp.Compare(x.Module, y.Module), cmp.Compare(x.Start.Line, y.Start.Line), cmp.Compare(x.Start.Column, y.Start.Column), cmp.Compare(x.End.Line, y.End.Line), cmp.Compare(x.End.Column, y.End.Column))
+	})
+}
+
+func (c *coverageCollector) coverageActionLocationsOrderable(actions []CoverageAction) bool {
+	var small [16]parser.Range
+	ranges := small[:0]
+	if len(actions) > len(small) {
+		ranges = make([]parser.Range, 0, len(actions))
+	}
+	for _, action := range actions {
+		body := c.bodies[action.Name]
+		if body == nil {
+			return false
+		}
+		ranges = append(ranges, body.Location.Range)
+	}
+	return coverageSameModuleDistinct(ranges)
+}
+
+func coverageSameModuleDistinct(ranges []parser.Range) bool {
+	seen := make(map[parser.Range]bool, len(ranges))
+	for _, r := range ranges {
+		if !coverageLocated(r) || r.Module != ranges[0].Module || seen[r] {
+			return false
+		}
+		seen[r] = true
+	}
+	return true
+}
+
+func coverageLocated(r parser.Range) bool {
+	return r.Module != "" && r.Start.Line > 0 && r.Start.Column > 0 && r.End.Line > 0 && r.End.Column > 0
 }
 
 // TLC collapses nodes whose nonzero descendants all have the same cost.

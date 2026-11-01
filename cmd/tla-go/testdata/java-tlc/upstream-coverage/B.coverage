@@ -1,0 +1,7 @@
+<Init line 4, col 1 to line 4, col 4 of module B>: 1:1
+  line 4, col 9 to line 4, col 17 of module B: 1
+<A line 8, col 1 to line 8, col 1 of module B>: 1:2
+  line 8, col 6 to line 8, col 19 of module B: 2
+<B line 10, col 1 to line 10, col 1 of module B>: 0:2
+  line 10, col 6 to line 10, col 19 of module B: 2
+End of statistics.
