@@ -247,7 +247,8 @@ func TestLazyFunctionProductMaterialization(t *testing.T) {
 }
 
 func TestLazyProductSizeStopsAtUnknown(t *testing.T) {
-	unknown := Sequences(Interval(1, 1))
+	base, _ := FunctionSet(Interval(1, 1), Interval(1, 1))
+	unknown := Sequences(base)
 	domain, _ := ProductSet([]Value{unknown, NaturalNumbers()})
 	if _, known, err := lazyProductSize(domain); known || err != nil {
 		t.Fatalf("size known = %v, error = %v", known, err)
@@ -308,7 +309,8 @@ func TestLazyRecordSetSizeConservative(t *testing.T) {
 
 func TestLazyFunctionSingleRecordDomain(t *testing.T) {
 	inner, _ := RecordSet([]Pair{{String("a"), Interval(1, 50000)}, {String("b"), Interval(1, 50000)}})
-	unknown, _ := RecordSet([]Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(Interval(1, 1))}})
+	complexBase, _ := FunctionSet(Interval(1, 1), Interval(1, 1))
+	unknown, _ := RecordSet([]Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(complexBase)}})
 	for _, tc := range []struct {
 		name    string
 		fields  []Pair
@@ -319,7 +321,8 @@ func TestLazyFunctionSingleRecordDomain(t *testing.T) {
 		{"overflow", []Pair{{String("a"), Interval(1, 50000)}, {String("b"), Interval(1, 50000)}}, "Overflow when computing the number of elements", 0},
 		{"nested overflow", []Pair{{String("a"), inner}, {String("b"), Interval(1, 1)}}, "Overflow when computing the number of elements", 0},
 		{"finite", []Pair{{String("a"), Interval(1, 2)}, {String("b"), Interval(1, 2)}}, "", 4},
-		{"unknown fallback", []Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(Interval(1, 1))}}, "", 0},
+		{"sequence error", []Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(Interval(1, 1))}}, "overridden value Seq(1..1)", 0},
+		{"unknown fallback", []Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(complexBase)}}, "", 0},
 		{"nested unknown fallback", []Pair{{String("a"), unknown}, {String("b"), Interval(1, 1)}}, "", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -407,5 +410,38 @@ func TestLazyProductOverflowDoesNotRenderLaterFactors(t *testing.T) {
 	fn, _ := LazyFunction(domain, func(k, _ Value) (Value, error) { calls++; return k, nil })
 	if _, err := fn.Pairs(); err == nil || calls != 0 {
 		t.Fatalf("error = %v, body calls = %d", err, calls)
+	}
+}
+
+func TestLazySequenceSetSizeConservative(t *testing.T) {
+	one, _ := Integer(1)
+	calls := 0
+	fn, _ := LazyFunction(Interval(1, 1), func(_, _ Value) (Value, error) { calls++; return one, nil })
+	singleton, _ := Set([]Value{fn})
+	complexBase, _ := FunctionSet(Interval(1, 1), Interval(1, 1))
+	strings, _ := Set([]Value{String("z"), String("a")})
+	ordered, _ := SetWithIterationOrder([]Value{one, mustLazyTestInteger(t, 2)})
+	for _, base := range []Value{singleton, complexBase, strings, ordered} {
+		_, known, err := lazyProductSize(Sequences(base))
+		if known || err != nil || calls != 0 {
+			t.Fatalf("known = %v, error = %v, body calls = %d", known, err, calls)
+		}
+	}
+}
+
+func mustLazyTestInteger(t *testing.T, n int64) Value {
+	t.Helper()
+	v, err := Integer(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+func BenchmarkLazySequenceSetSize(b *testing.B) {
+	domain, _ := RecordSet([]Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(Interval(1, 1))}})
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _, _ = lazyProductSize(domain)
 	}
 }

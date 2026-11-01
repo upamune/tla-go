@@ -167,9 +167,9 @@ overflow depending on order. Fallback can still miss the Java error, evaluate a
 body early, or enumerate a large set in these cases. Exact behavior requires
 intern provenance, including prior field names, across parsing and evaluation.
 `TestJavaTLCRecordSetMultipleErrorsInternOrder` captures three Java orderings.
-Union, set operations,
-filtered sets and sequence sets also remain unknown: determining their sizes
-may enumerate values, invoke predicates, or change errors and effects. An
+Union, set operations, filtered sets and sequence sets with complex bases remain
+unknown: determining their sizes may enumerate values, invoke predicates, or
+change errors and effects. An
 unknown factor stops the pass, so subsequent overflow is not guaranteed to be
 detected before enumeration or body evaluation. Go's overflow
 diagnostic omits the product or parameter bindings Java prints: formatting
@@ -188,7 +188,38 @@ changing their order.
 
 For a single record domain `[b : Int, a : Nat]`, Java's first cardinality
 error depends on field intern order; Go currently falls back and reports a
-generic enumeration error. For `[a : [p : {}, q : Seq({1})], b : {1}]`,
-Java reports a cardinality error for `Seq({1})`, while Go's unknown-size
-fallback can complete successfully. These cases are not resolved by the
-single-record-domain check.
+generic enumeration error. The nested record domain
+`[a : [p : {}, q : Seq({1})], b : {1}]` now reports Java's `Seq({1})` cardinality error before evaluating the body.
+Java 1.7.4 represents `Seq` as a `UserValue`; its `size()` always fails,
+even for `Seq({})`, without checking the mathematical cardinality of the
+base. It formats the value to construct the error. Oracle probes also report
+that error for `Seq(Nat)`, `Seq(SUBSET Nat)`, `Seq([{} -> Nat])`, and
+`Seq(Seq({}))`. Formatting a filtered base evaluates its predicate: for
+`Seq({i \in {1,2} : Print("predicate-marker", TRUE)})`, Java prints twice
+before the error. The function body is not evaluated.
+
+The sizing shortcut covers direct sequence domains as well as nested ones,
+when the base is an interval, overridden infinite set, explicit empty or
+singleton scalar set, or a canonically ordered homogeneous integer or Boolean
+set. Java and Go both render `Seq({2,1,2})` as `Seq({1, 2})` and
+`Seq({TRUE,FALSE})` as `Seq({FALSE, TRUE})` in the size error. Explicit
+iteration order, multiple strings or model values, symbolic sets, and sets
+containing lazy functions remain unknown: string and model ordering can depend
+on Java intern identity, and formatting complex values can have effects.
+For `[a : {}, b : Seq(SUBSET Nat)]`, Java reports the sequence size error,
+whereas Go's fallback can complete successfully. For a filtered sequence base
+whose predicate prints, both can execute the predicate, but Go can return a
+generic enumeration error instead of Java's sequence size error. When a record
+contains both `Seq({1})` and `Nat`, the
+first Java error depends on field interning, including prior record field
+names; Go leaves that combination ambiguous and can return a generic enumeration
+error. With `[a : 1..50000, b : 1..50000, c : Seq({1})]`, Java reports
+overflow, but putting `c` first makes it report the sequence error; Go falls
+back. A Go value-level test checks that inspecting unknown bases does not run
+a lazy function body; it does not guarantee that the subsequent fallback will
+avoid materialization or effects.
+
+On Apple M3, a focused benchmark of the nested record sizing path measured
+227–274 ns/op and 168 B/op (three runs). The old unknown-size path measured
+11–19 ns/op and zero allocations but returned unknown rather than constructing
+an error, so the timings represent different outcomes, not equivalent work.

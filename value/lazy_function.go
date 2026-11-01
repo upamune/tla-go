@@ -105,7 +105,7 @@ func (v Value) lazyPairs() ([]Pair, error) {
 	if v.data.domain.kind == InfiniteSetKind {
 		return nil, &TLCError{Message: fmt.Sprintf("Attempted to compute the number of elements in the overridden value %s.", v.data.domain)}
 	}
-	if v.data.domain.kind == ProductSetKind || v.data.domain.kind == FunctionSetKind || v.data.domain.kind == RecordSetKind {
+	if v.data.domain.kind == ProductSetKind || v.data.domain.kind == FunctionSetKind || v.data.domain.kind == RecordSetKind || v.data.domain.kind == SequenceSetKind {
 		_, _, err := lazyProductSize(v.data.domain)
 		if err != nil {
 			return nil, err
@@ -127,6 +127,13 @@ func (v Value) lazyPairs() ([]Pair, error) {
 // Only inspect sizes that are cheap and have no evaluation side effects; an
 // unknown factor leaves the existing enumeration path intact.
 func lazyProductSize(v Value) (int64, bool, error) {
+	if v.kind == SequenceSetKind {
+		return lazySequenceSetSize(v)
+	}
+	return lazyOtherProductSize(v)
+}
+
+func lazyOtherProductSize(v Value) (int64, bool, error) {
 	switch v.kind {
 	case InfiniteSetKind:
 		return 0, true, &TLCError{Message: fmt.Sprintf("Attempted to compute the number of elements in the overridden value %s.", v)}
@@ -145,6 +152,53 @@ func lazyProductSize(v Value) (int64, bool, error) {
 		return lazyRecordSetSize(v)
 	default:
 		return 0, false, nil
+	}
+}
+
+// Java UserValue.size always fails, but formats the sequence base first.
+// Restrict this shortcut to bases whose formatting cannot enumerate values,
+// invoke user code, or depend on Java's set ordering.
+func lazySequenceSetSize(v Value) (int64, bool, error) {
+	base := v.data.domain
+	switch base.kind {
+	case InfiniteSetKind, IntervalKind:
+	case SetKind:
+		if !lazySequenceBaseSetSafe(base) {
+			return 0, false, nil
+		}
+	default:
+		return 0, false, nil
+	}
+	return 0, true, &TLCError{Message: fmt.Sprintf("Attempted to compute the number of elements in the overridden value %s.", v)}
+}
+
+func lazySequenceBaseSetSafe(base Value) bool {
+	if len(base.data.elements) == 0 {
+		return true
+	}
+	kind := base.data.elements[0].kind
+	if len(base.data.elements) == 1 {
+		return lazySequenceScalarSafe(kind)
+	}
+	// Integer and Boolean order is independent of Java intern identity.
+	// An explicit iteration order may differ from canonical order.
+	if base.data.iteration != nil || (kind != IntegerKind && kind != BooleanKind) {
+		return false
+	}
+	for _, element := range base.data.elements[1:] {
+		if element.kind != kind {
+			return false
+		}
+	}
+	return true
+}
+
+func lazySequenceScalarSafe(kind Kind) bool {
+	switch kind {
+	case IntegerKind, BooleanKind, StringKind, ModelKind:
+		return true
+	default:
+		return false
 	}
 }
 

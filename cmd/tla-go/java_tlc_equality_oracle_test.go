@@ -607,6 +607,10 @@ func TestJavaTLCProductFunctionSizeOrder(t *testing.T) {
 
 func TestJavaTLCRecordSetSizeOrder(t *testing.T) {
 	for _, tc := range []struct{ domain, message string }{
+		{`Seq({})`, `Seq({})`},
+		{`[a : {}, b : Seq({2,1,2})]`, `Seq({1, 2})`},
+		{`[a : {}, b : Seq({TRUE,FALSE})]`, `Seq({FALSE, TRUE})`},
+		{`Seq({3,-1,2})`, `Seq({-1, 2, 3})`},
 		{`[a : {}, b : Nat]`, "overridden value Nat"},
 		{`[b : Nat, a : {}]`, "overridden value Nat"},
 		{`[a : 1..50000, b : 1..50000]`, "Overflow when computing the number of elements"},
@@ -617,7 +621,7 @@ func TestJavaTLCRecordSetSizeOrder(t *testing.T) {
 		t.Run(tc.domain, func(t *testing.T) {
 			dir := t.TempDir()
 			expr := `LET f[x \in ` + tc.domain + `, y \in {1}] == Print("body-marker", 1 \div 0) IN f = f`
-			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, TLC\nASSUME "+expr+"\n====\n", "")
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, TLC, Sequences\nASSUME "+expr+"\n====\n", "")
 			check := func(name, output string) {
 				t.Helper()
 				if !strings.Contains(output, tc.message) || strings.Contains(output, `"body-marker"`) || strings.Contains(output, "argument of \\div is 0") {
@@ -666,6 +670,78 @@ func TestJavaTLCSingleRecordFunctionDomain(t *testing.T) {
 	}
 }
 
+func TestJavaTLCSequenceSetFunctionDomainSize(t *testing.T) {
+	for _, tc := range []struct{ domain, message string }{
+		{`[a : [p : {}, q : Seq({1})], b : {1}]`, `Seq({1})`},
+		{`[a : {}, b : Seq({})]`, `Seq({})`},
+		{`[a : Seq(Nat), b : {1}]`, `Seq(Nat)`},
+		{`[a : Seq(1..2), b : {1}]`, `Seq(1..2)`},
+	} {
+		t.Run(tc.domain, func(t *testing.T) {
+			dir := t.TempDir()
+			expr := `LET f[x \in ` + tc.domain + `] == Print("body-marker", 1 \div 0) IN f = f`
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, Sequences, TLC\nASSUME "+expr+"\n====\n", "")
+			check := func(name, output string) {
+				t.Helper()
+				if !strings.Contains(output, "Attempted to compute the number of elements in the overridden value "+tc.message+".") || strings.Contains(output, `"body-marker"`) {
+					t.Fatalf("%s: %s", name, output)
+				}
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				check("Java", equalityJava(t, jar, dir, false, 10))
+			}
+			var out, stderr bytes.Buffer
+			if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 10 {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			check("Go", out.String())
+		})
+	}
+}
+
+// Multiple failing fields are intentionally oracle-only: Java orders record
+// fields by intern identity, which Go does not currently retain.
+func TestJavaTLCSequenceSetInternAndRendering(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR not set")
+	}
+	for _, tc := range []struct{ expr, first string }{
+		{`LET f[x \in [a : Seq({1}), b : Nat]] == Print("body-marker", 1) IN f = f`, `Seq({1})`},
+		{`LET f[x \in [b : Nat, a : Seq({1})]] == Print("body-marker", 1) IN f = f`, `Nat`},
+		{`LET z == [b |-> 1, a |-> 2] IN LET f[x \in [a : Seq({1}), b : Nat]] == Print("body-marker", 1) IN f = f`, `Nat`},
+	} {
+		t.Run(tc.expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, Sequences, TLC\nASSUME "+tc.expr+"\n====\n", "")
+			output := equalityJava(t, jar, dir, false, 10)
+			if !strings.Contains(output, "overridden value "+tc.first+".") || strings.Contains(output, `"body-marker"`) {
+				t.Fatalf("Java: %s", output)
+			}
+		})
+	}
+	for _, base := range []string{`SUBSET Nat`, `[{} -> Nat]`, `Seq({})`} {
+		t.Run("symbolic base "+base, func(t *testing.T) {
+			dir := t.TempDir()
+			expr := `LET f[x \in [a : Seq(` + base + `), b : {1}]] == Print("body-marker", 1) IN f = f`
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, Sequences, TLC\nASSUME "+expr+"\n====\n", "")
+			output := equalityJava(t, jar, dir, false, 10)
+			if !strings.Contains(output, "overridden value Seq("+base+").") || strings.Contains(output, `"body-marker"`) {
+				t.Fatalf("Java: %s", output)
+			}
+		})
+	}
+	t.Run("effectful sequence base", func(t *testing.T) {
+		dir := t.TempDir()
+		expr := `LET f[x \in [a : Seq({i \in {1,2} : Print("predicate-marker", TRUE)}), b : {1}]] == Print("body-marker", 1) IN f = f`
+		writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, Sequences, TLC\nASSUME "+expr+"\n====\n", "")
+		output := equalityJava(t, jar, dir, false, 10)
+		if strings.Count(output, `"predicate-marker"`) != 2 || strings.Index(output, `"predicate-marker"`) > strings.Index(output, "overridden value Seq({1, 2}).") || !strings.Contains(output, "overridden value Seq({1, 2}).") || strings.Contains(output, `"body-marker"`) {
+			t.Fatalf("Java: %s", output)
+		}
+	})
+}
+
 func TestJavaTLCSingleRecordFunctionFinite(t *testing.T) {
 	for _, expr := range []string{
 		`LET f[x \in [a : {}, b : {1}]] == 1 \div 0 IN f = f`,
@@ -683,6 +759,26 @@ func TestJavaTLCSingleRecordFunctionFinite(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestJavaTLCFiniteRecordDomainBodyEffects(t *testing.T) {
+	dir := t.TempDir()
+	expr := `LET f[x \in [a : 1..2, b : 1..2]] == Print("finite-body-marker", 1) IN f = f`
+	writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, TLC\nASSUME "+expr+"\n====\n", "")
+	check := func(name, output string) {
+		t.Helper()
+		if strings.Count(output, `"finite-body-marker"`) != 4 {
+			t.Fatalf("%s: %s", name, output)
+		}
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		check("Java", equalityJava(t, jar, dir, false, 0))
+	}
+	var out, stderr bytes.Buffer
+	if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 0 {
+		t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+	}
+	check("Go", out.String())
 }
 
 func TestJavaTLCRecordSetMultipleErrorsInternOrder(t *testing.T) {
