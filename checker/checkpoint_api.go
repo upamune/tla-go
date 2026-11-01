@@ -3,6 +3,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"runtime/trace"
 	"time"
 
 	"github.com/upamune/tla-go/config"
@@ -69,10 +70,16 @@ func CheckWithCheckpoint(ctx context.Context, source, configuration string, opti
 		return out, err
 	}
 	observer := &checkpointObserver{}
-	m, err := prepareCheckpointModelObserved(ctx, source, configuration, cfg, options.Options, observer)
+	m, err := func() (*model, error) {
+		if trace.IsEnabled() {
+			defer trace.StartRegion(ctx, "model initialization").End()
+		}
+		return prepareCheckpointModelObserved(ctx, source, configuration, cfg, options.Options, observer)
+	}()
 	if err != nil {
 		return out, err
 	}
+	defer searchHeapCapture(ctx, m)()
 	if err = m.checkpointSupported(); err != nil {
 		return out, &CheckpointUnsupportedError{Err: err}
 	}
@@ -83,6 +90,7 @@ func CheckWithCheckpoint(ctx context.Context, source, configuration string, opti
 	}
 	d := &checkpointDriver{path: options.Path, interval: options.Interval, next: time.Now().Add(options.Interval), pauseOnTick: options.PauseOnCheckpoint, persistObservations: true, pauseAt: options.DebugPauseAfterExpansions, stream: options.Stream}
 	m.checkpointDriver = d
+	defer traceExploration(ctx)()
 	result, err := d.run(m, options.Resume)
 	out.Observations = exportCheckpointObservations(observer.records)
 	out.Paused = d.paused

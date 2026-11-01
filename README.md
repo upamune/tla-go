@@ -71,6 +71,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 
 | Option | Purpose |
 | --- | --- |
+| `-debug-trace FILE`, `-debug-cpu-profile FILE`, `-debug-heap-profile FILE` | Write opt-in Go runtime diagnostics to new files; see [profiling](docs/development.md#profiling-the-cli). These are tla-go options, not Java TLC flags. |
 | `-config FILE` | Use a different TLC configuration file. As in Java TLC, `.cfg` is appended unless `FILE` already ends with it, and a relative name is also searched in the specification's directory. |
 | `-DTLA-Library=PATHS` | Search these directories for modules, in order. Separate paths with `:` on Unix or `;` on Windows. |
 | `-metadir DIR` | Create a timestamped run directory under `DIR`; remove it on success. Checkpoint recovery is not yet supported. |

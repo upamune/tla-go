@@ -6,11 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
+	"runtime/trace"
 	"slices"
 	"time"
 
 	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/evaluator"
+	"github.com/upamune/tla-go/internal/heapcapture"
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
 )
@@ -410,14 +413,16 @@ func checkParsed(ctx context.Context, module *parser.Module, cfg config.Config) 
 }
 
 func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg config.Config, options Options, sourceUnits map[string]*parser.Module) (Result, error) {
-	model, err := prepareWithSources(module, cfg, options, sourceUnits)
+	model, err := prepareTraced(ctx, module, cfg, options, sourceUnits)
 	if err != nil {
 		return Result{}, err
 	}
 	model.ctx = ctx
+	defer searchHeapCapture(ctx, model)()
 	if err := validateCoverageMode(options); err != nil {
 		return Result{}, err
 	}
+	defer traceExploration(ctx)()
 	if options.Simulation != nil {
 		result, err := model.simulateWithOptions(*options.Simulation, options.Seed)
 		if err != nil {
@@ -437,6 +442,20 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 		return result, err
 	}
 	return model.finishCoverageCheck(result, options)
+}
+
+func traceExploration(ctx context.Context) func() {
+	if !trace.IsEnabled() {
+		return func() {}
+	}
+	return trace.StartRegion(ctx, "exploration and liveness").End
+}
+
+func prepareTraced(ctx context.Context, module *parser.Module, cfg config.Config, options Options, sourceUnits map[string]*parser.Module) (*model, error) {
+	if trace.IsEnabled() {
+		defer trace.StartRegion(ctx, "model initialization").End()
+	}
+	return prepareWithSources(module, cfg, options, sourceUnits)
 }
 
 func (model *model) finishCoverageCheck(result Result, options Options) (Result, error) {
@@ -788,4 +807,21 @@ func predicateBoolean(v value.Value, err error) (bool, error) {
 		return false, fmt.Errorf("predicate must be boolean, got %s", v)
 	}
 	return b, nil
+}
+
+// searchHeapCapture does not retain the model when profiling is disabled.
+func searchHeapCapture(ctx context.Context, m *model) func() {
+	if !heapcapture.Enabled(ctx) {
+		return func() {}
+	}
+	return func() { captureSearchHeap(ctx, m) }
+}
+
+// captureSearchHeap runs only after exploration has stopped, before the model
+// and its search graph become unreachable. It does not affect callbacks.
+func captureSearchHeap(ctx context.Context, m *model) {
+	if m.tlcRuntime.search != nil || m.tlcRuntime.depthFirst != nil {
+		heapcapture.Capture(ctx)
+		runtime.KeepAlive(m)
+	}
 }

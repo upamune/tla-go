@@ -211,7 +211,8 @@ func TestCheckpointProcessRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := filepath.Join(dir, "nested", "states")
-	pause := exec.Command(binary, "-tool", "-checkpoint", "1", "-metadir", root, spec)
+	pauseHeap := filepath.Join(dir, "pause.pprof")
+	pause := exec.Command(binary, "-debug-heap-profile", pauseHeap, "-tool", "-checkpoint", "1", "-metadir", root, spec)
 	pause.Env = append(os.Environ(), "TLA_GO_DEBUG_CHECKPOINT_AFTER=2")
 	paused, err := pause.CombinedOutput()
 	if err == nil || !bytes.Contains(paused, []byte("debug checkpoint saved")) {
@@ -222,10 +223,16 @@ func TestCheckpointProcessRestart(t *testing.T) {
 		t.Fatalf("metadata: %v %v", entries, err)
 	}
 	saved := filepath.Join(root, entries[0].Name())
-	resume := exec.Command(binary, "-tool", "-recover", saved, spec)
+	resumeHeap := filepath.Join(dir, "resume.pprof")
+	resume := exec.Command(binary, "-debug-heap-profile", resumeHeap, "-tool", "-recover", saved, spec)
 	resumed, err := resume.CombinedOutput()
 	if resume.ProcessState.ExitCode() != 12 {
 		t.Fatalf("resume: %v %s", err, resumed)
+	}
+	for _, heap := range []string{pauseHeap, resumeHeap} {
+		if out, err := exec.Command("go", "tool", "pprof", "-top", binary, heap).CombinedOutput(); err != nil {
+			t.Fatalf("checkpoint heap: %v %s", err, out)
+		}
 	}
 	full := exec.Command(binary, "-tool", spec)
 	complete, err := full.CombinedOutput()
@@ -291,7 +298,8 @@ func TestCheckpointProcessRestart(t *testing.T) {
 	interruptDir := filepath.Join(interruptRoot, interruptEntries[0].Name())
 	interruptCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	interrupted := exec.CommandContext(interruptCtx, binary, "-recover", interruptDir, spec)
+	interruptHeap := filepath.Join(dir, "interrupt.pprof")
+	interrupted := exec.CommandContext(interruptCtx, binary, "-debug-heap-profile", interruptHeap, "-recover", interruptDir, spec)
 	interrupted.Env = append(os.Environ(), "TLA_GO_TEST_WAIT_FOR_INTERRUPT=1")
 	var interruptErr bytes.Buffer
 	interrupted.Stderr = &interruptErr
@@ -324,6 +332,9 @@ func TestCheckpointProcessRestart(t *testing.T) {
 	}
 	if err := interrupted.Wait(); err == nil || interruptCtx.Err() != nil || !strings.Contains(interruptErr.String(), "context canceled") {
 		t.Fatalf("interrupted recovery: %v, context: %v, stderr: %s", err, interruptCtx.Err(), &interruptErr)
+	}
+	if out, err := exec.Command("go", "tool", "pprof", "-top", binary, interruptHeap).CombinedOutput(); err != nil {
+		t.Fatalf("interrupted checkpoint heap: %v %s", err, out)
 	}
 	restarted := exec.Command(binary, "-recover", interruptDir, spec)
 	if output, err := restarted.CombinedOutput(); err != nil || !bytes.Contains(output, []byte("2001 states generated, 2001 distinct states found")) {
