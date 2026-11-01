@@ -157,6 +157,25 @@ their deadlines: Java permits spurious wakeups, so it cannot guarantee that a
 periodic report was impossible before the limit. If the limit elapses, the check
 is canceled with an error instead of producing an incomplete report. Periodic
 coverage reports are not implemented; `-coverage 0` retains its previous behavior.
+
+Java 1.7.4 starts its progress loop after initial-state generation and waits up
+to three seconds before the first progress report. Its progress report reads the
+fingerprint set size, generated count, level and queue size separately while
+workers continue. Coverage uses `LongAdder.sum()` for each counter and walks
+the action and expression tree while workers continue; even two readings of
+the same counter can differ. Thus a report is not necessarily a single
+instantaneous snapshot, and relationships between different counters cannot
+be assumed to hold at every report. Successful termination can also wake the
+wait before the tick. See Java 1.7.4's
+[`AbstractChecker`](https://github.com/tlaplus/tlaplus/blob/v1.7.4/tlatools/org.lamport.tlatools/src/tlc2/tool/AbstractChecker.java),
+[`ModelChecker`](https://github.com/tlaplus/tlaplus/blob/v1.7.4/tlatools/org.lamport.tlatools/src/tlc2/tool/ModelChecker.java),
+[`ActionWrapper`](https://github.com/tlaplus/tlaplus/blob/v1.7.4/tlatools/org.lamport.tlatools/src/tlc2/tool/coverage/ActionWrapper.java), and
+[`CounterStatistic`](https://github.com/tlaplus/tlaplus/blob/v1.7.4/tlatools/org.lamport.tlatools/src/tlc2/util/statistics/CounterStatistic.java).
+The live oracle test checks message order and presence rather than fixing
+concurrent count values. A future implementation must also serialize output
+against errors, final summaries and other callbacks; merely reading the Go
+collector concurrently would race, and waiting for a whole successor expansion
+can delay a report indefinitely.
 Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, and depth-first search. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, other operator calls,
 other action quantification, parameterized or inline actions, initial or action disjunctions,
