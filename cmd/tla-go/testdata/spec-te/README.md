@@ -14,3 +14,17 @@ invariant, a liveness loop, stuttering, deadlock, an action property, a failed
 `nomonolith`, and, in `instance`, an instantiated module next to nested
 extended modules, which SANY parses after every `EXTENDS`, and, in `long`,
 values wider than 80 columns, which Java TLC lays out over several lines.
+
+The `instance/java-partial-SpecTE.tla` fixture records a two-state Java output
+from [CI job 124854171910](https://github.com/upamune/tla-go/actions/runs/41308589763/job/124854171910).
+The model's full trace has three states, but the Java SpecTE writer can race the
+tool-output consumer and capture only the first two. The partial trace suffix
+was also reproduced with the pinned JAR's `TraceExplorer` using the complete
+tool output with the last state removed. The live Java comparison tries three
+times for the full fixture; if every produced file is the exact partial
+fixture, it reports that the live comparison is partial and does not establish
+exact compatibility. This exception requires the pinned JAR's SHA-256. A
+timed-out Java process or an unexpected exit is retried without accepting its
+generated file; if no attempt completes with the expected exit code and a
+matching file, the test fails. Other differences still fail. tla-go's generated
+output is always compared against the complete three-state fixture.
