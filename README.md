@@ -1,5 +1,16 @@
 # tla-go
 
+Breadth-first temporal-check progress (TLC messages 2192 and 2267) is
+reported for a final check with one normalized liveness branch and no
+tableau, when its diagnostic is safe to evaluate. The count is then the
+number of distinct states in that branch's liveness graph. TLC instead sums
+the sizes of all liveness disk graphs; tableau branches count reachable
+state/tableau pairs, not just states. Progress for those branches, multiple
+branches, effectful or oversized normal forms, and intermediate checks is
+omitted rather than estimated. The checker uses its own exploration-time
+liveness processing; it does not reproduce Java's periodic check scheduling.
+Simulation and depth-first checking do not use these messages.
+
 A TLA+ model checker written in Go. It aims to be compatible with the original [Java TLC](https://github.com/tlaplus/tlaplus), and runs as a standalone binary without Java.
 
 > **Experimental:** TLA+ and TLC support is incomplete. A successful check does not yet guarantee the same result as Java TLC. Verify important models with Java TLC; see [compatibility and limitations](docs/compatibility.md).

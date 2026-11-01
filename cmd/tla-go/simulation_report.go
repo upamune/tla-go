@@ -66,7 +66,12 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 			}
 		}
 	}
-	return nil
+	return func(event checker.SearchEvent) {
+		if event.Kind == checker.TemporalCheckStart {
+			fmt.Fprintln(out, temporalProgressStats(event))
+			printHumanSearch(out, event)
+		}
+	}
 }
 
 func livenessBranches(event checker.SearchEvent) string {

@@ -13,6 +13,7 @@ import (
 )
 
 func printResult(w io.Writer, result checker.Result, module *parser.Module) {
+	printTemporalEndBeforeResult(w, result)
 	if result.Failure != nil {
 		printFailure(w, result.Failure, module)
 		if result.Failure.SuppressStatistics {
@@ -20,10 +21,26 @@ func printResult(w io.Writer, result checker.Result, module *parser.Module) {
 		}
 	} else if result.Violation == nil {
 		printSuccess(w, result)
-	} else if printViolation(w, result, module) {
+	} else if printResultViolation(w, result, module) {
 		return
 	}
+	if result.Status == checker.LivenessViolation && result.TemporalCheckDuration != nil && !result.TemporalCheckReported {
+		printTemporalCheckEnd(w, false, *result.TemporalCheckDuration)
+	}
 	printStatistics(w, result)
+}
+
+func printResultViolation(w io.Writer, result checker.Result, module *parser.Module) bool {
+	if result.TemporalCheckReported && result.Status == checker.LivenessViolation {
+		return false
+	}
+	return printViolation(w, result, module)
+}
+
+func printTemporalEndBeforeResult(w io.Writer, result checker.Result) {
+	if result.Status != checker.LivenessViolation && result.TemporalCheckDuration != nil && !result.TemporalCheckReported {
+		printTemporalCheckEnd(w, false, *result.TemporalCheckDuration)
+	}
 }
 
 func printFailure(w io.Writer, failure *checker.Failure, module *parser.Module) {
