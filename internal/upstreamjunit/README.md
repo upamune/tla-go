@@ -364,6 +364,11 @@ observations are not JUnit executions.
 
 ## Executing upstream JUnit cases (opt-in experiment)
 
+The CI job **Pinned Java JUnit and bridge regression** runs this experiment
+with the pinned upstream checkout and verified dependencies. Its success checks
+the selected Java tests and bridge controls; it does not mean the upstream
+JUnit suite passes against Go.
+
 `TestUpstreamJUnitExecution` discovers and runs
 `tlc2.tool.suite.Test10#testSpec`, `tlc2.tool.EmptyTest#testSpec`, and
 `tlc2.tool.coverage.BCoverageTest#testSpec` separately with JUnit 4.12's
