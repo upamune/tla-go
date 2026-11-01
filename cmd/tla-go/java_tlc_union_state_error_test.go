@@ -44,11 +44,33 @@ func TestJavaTLCUnionStateFingerprintError(t *testing.T) {
 func unionStateErrorMessages(out string) []string {
 	var result []string
 	for _, message := range readToolMessages(out) {
-		if slices.Contains([]int{1000, 2102, 2121, 2147, 2199, 2217}, message.code) {
+		if slices.Contains([]int{1000, 2102, 2103, 2105, 2121, 2147, 2199, 2217}, message.code) {
 			result = append(result, fmt.Sprintf("%d:%d:%s", message.code, message.level, message.body))
 		}
 	}
 	return result
+}
+
+func TestJavaTLCUnionConstraintAndInvariantError(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, keyword := range []string{"CONSTRAINT", "INVARIANT"} {
+		t.Run(keyword, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nC == Cardinality(UNION {x}) > 0"
+			writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n"+keyword+" C\n")
+			args := maxSetOracleArgs()
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 75 || stderr != "" || !strings.Contains(out, "@!@!@STARTMSG 2154:0") {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != code || !reflect.DeepEqual(unionStateErrorMessages(out), unionStateErrorMessages(java)) {
+					t.Fatalf("Go exit %d output:\n%s\nJava exit %d output:\n%s", code, out, javaCode, java)
+				}
+			}
+		})
+	}
 }
 
 func TestJavaTLCUnionTersePrint(t *testing.T) {
