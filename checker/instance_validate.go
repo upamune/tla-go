@@ -58,7 +58,7 @@ func earlierDefinitionReference(definition parser.Definition, instance parser.In
 }
 
 func earlierInstanceReference(expr *parser.Expression, instance parser.Instance) bool {
-	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && strings.HasPrefix(expr.Text, instance.Name+"!") && expr.Location.Line < instance.Location.Line {
+	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && strings.HasPrefix(expr.Text, instance.Name+"!") && instanceReferencePrecedes(expr.Location.Position, instance.Location.Position) {
 		return true
 	}
 	found := false
@@ -68,6 +68,13 @@ func earlierInstanceReference(expr *parser.Expression, instance parser.Instance)
 		}
 	})
 	return found
+}
+
+func instanceReferencePrecedes(reference, instance parser.Position) bool {
+	if reference.Line == 0 || instance.Line == 0 {
+		return false
+	}
+	return positionAfter(instance, reference)
 }
 
 func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, index int) error {

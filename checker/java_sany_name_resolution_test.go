@@ -89,6 +89,8 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 		{"let instance before definition", "Good == LET I == INSTANCE A F == I!F(1) IN F", false},
 		{"instance arity", "I == INSTANCE A\nBad == I!F(1, 2)", true},
 		{"instance before declaration", "Bad == I!F(1)\nI == INSTANCE A", true},
+		{"same line instance before declaration", "Bad == I!F(1) I == INSTANCE A", true},
+		{"same line instance after declaration", "I == INSTANCE A Good == I!F(1)", false},
 	}
 	jar := os.Getenv("TLC_JAR")
 	if jar != "" {
