@@ -3,6 +3,7 @@ package upstreamjunit
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -88,7 +89,7 @@ func runJavaCase(tmp, jar, path string, timeout time.Duration, args []string) (R
 	if err := os.WriteFile(wrapper, []byte(javaWrapper), 0o600); err != nil {
 		return Result{}, err
 	}
-	return runCommand(filepath.Join(tmp, "java", path), timeout, "java", append([]string{"-cp", jar, wrapper}, args...)...)
+	return runJavaCommand(filepath.Join(tmp, "java", path), timeout, append([]string{"-cp", jar, wrapper}, args...)...)
 }
 
 func compareCase(j, g Result, c Case) ([]string, error) {
@@ -131,7 +132,7 @@ func translateCase(tmp, jar, binary string, c Case, timeout time.Duration) ([]st
 	}
 	options := append([]string{"-unixEOL"}, c.TranslationArgs...)
 	options = append(options, c.Model+".tla")
-	j, e := runCommand(filepath.Join(tmp, "java", c.Path), timeout, "java", append([]string{"-cp", jar, "pcal.trans"}, options...)...)
+	j, e := runJavaCommand(filepath.Join(tmp, "java", c.Path), timeout, append([]string{"-cp", jar, "pcal.trans"}, options...)...)
 	if e != nil {
 		return nil, j, Result{}, e
 	}
@@ -258,6 +259,20 @@ func runCommand(dir string, timeout time.Duration, name string, args ...string) 
 		}
 	}
 	return result, nil
+}
+
+// Each JVM owns its standard-module extraction directory until it exits.
+func runJavaCommand(dir string, timeout time.Duration, args ...string) (result Result, err error) {
+	tmp, err := os.MkdirTemp("", "tla-go-java-")
+	if err != nil {
+		return Result{}, fmt.Errorf("create Java temporary directory: %w", err)
+	}
+	defer func() {
+		if cleanupErr := os.RemoveAll(tmp); cleanupErr != nil {
+			err = errors.Join(err, fmt.Errorf("remove Java temporary directory: %w", cleanupErr))
+		}
+	}()
+	return runCommand(dir, timeout, "java", append([]string{"-Djava.io.tmpdir=" + tmp}, args...)...)
 }
 
 // The upstream ModelCheckerTestCase defers graph-wide liveness checks.

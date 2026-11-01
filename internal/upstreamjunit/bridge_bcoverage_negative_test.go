@@ -95,7 +95,7 @@ func checkGeneralJavaTypes(t *testing.T, modelDir, classes string, deps []string
 	t.Helper()
 	path := filepath.Join(dir, "java-general-records")
 	cp := strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator))
-	result, err := runCommand(modelDir, 30*time.Second, "java", "-cp", cp, "CaptureRecorder", path, "-tool", "-dfid", "2", "-workers", "2", "-metadir", filepath.Join(dir, "general-java-states"), "B")
+	result, err := runCommand(modelDir, 30*time.Second, "java", "-Djava.io.tmpdir="+t.TempDir(), "-cp", cp, "CaptureRecorder", path, "-tool", "-dfid", "2", "-workers", "2", "-metadir", filepath.Join(dir, "general-java-states"), "B")
 	if err != nil || result.ExitCode != 255 {
 		t.Fatalf("Java GENERAL: exit %d error %v output %s", result.ExitCode, err, result.Output)
 	}

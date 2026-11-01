@@ -56,7 +56,7 @@ func checkBRecorderAgainstJava(t *testing.T, modelDir, classes string, deps []st
 	t.Helper()
 	capture := filepath.Join(dir, "java-b-records")
 	cp := strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator))
-	javaArgs := []string{"-cp", cp, "CaptureRecorder", capture}
+	javaArgs := []string{"-Djava.io.tmpdir=" + t.TempDir(), "-cp", cp, "CaptureRecorder", capture}
 	javaArgs = append(javaArgs, args[:len(args)-1]...)
 	javaArgs = append(javaArgs, "-metadir", filepath.Join(dir, "b-java-states"), args[len(args)-1])
 	result, err := runCommand(modelDir, 30*time.Second, "java", javaArgs...)

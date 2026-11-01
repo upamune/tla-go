@@ -68,7 +68,7 @@ func TestRecordOrderModel(t *testing.T) {
 				args := []string{"-workers", "1", "-fp", "0", "-metadir", "metadata", "-dump", "dot", "graph.dot", "Probe.tla"}
 				var cmd *exec.Cmd
 				if java {
-					cmd = exec.CommandContext(ctx, "java", append([]string{"-XX:+UseParallelGC", "-jar", jar}, args...)...)
+					cmd = exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-XX:+UseParallelGC", "-jar", jar}, args...)...)
 				} else {
 					cmd = exec.CommandContext(ctx, binary, args...)
 				}

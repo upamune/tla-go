@@ -91,6 +91,17 @@ or tool. The standalone bridge test uses Bun without Java. CI installs Bun
 `mise run test` and `mise run ci` do not need Bun or Java when the optional
 comparison environment variables are unset.
 
+Java TLC and SANY extract standard modules into `java.io.tmpdir`. The Go
+comparison helpers and upstream JUnit sweep give each Java invocation a
+private directory and remove it after the process exits, including on failure
+or timeout. The CI-pinned [statechart runner](https://github.com/cursor/plugins/blob/4dd1d05818d19792e7cd6e818f1667f95f7e1dbe/pstack/skills/statechart/scripts/run.ts)
+also creates a separate Java temporary directory for each run. The test-only
+statechart bridge forwards JVM arguments unchanged; other callers must provide
+their own isolation. Java value-only probes do not load TLA+ modules.
+JUnit discovery itself does not run models, but it can construct custom JUnit
+runners. Discovery does not isolate the JVM temporary directory, so custom
+runner constructors that invoke TLC can still share that directory.
+
 The PlusCal translator can also be compared with `pcal.trans` from the same JAR. The normal test run compares tla-go with recorded Java outputs; with `TLC_JAR` set, the test also runs Java, which takes a few minutes. This direct comparison is not among the CI commands above. `PCAL_UPDATE_GOLDEN=1` rewrites the recorded outputs from Java; see [the fixture README](../pcal/testdata/README.md).
 
 ```sh
