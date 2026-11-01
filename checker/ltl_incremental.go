@@ -60,12 +60,27 @@ func (s *search) prepareIncrementalLiveness() {
 		}
 	}
 	if len(s.ltlGroups) != 0 {
-		s.ltlValues = map[ltlValueKey]bool{}
-		s.ltlSetMultiplier = 1
-		s.ltlFingerprints = map[int]uint64{}
-		s.ltlVariableOrder = s.model.symmetryVariableOrder()
+		s.ltlPureStateOnly = s.pureRecurrenceGroups()
+		if !s.ltlPureStateOnly {
+			s.ltlValues = map[ltlValueKey]bool{}
+			s.ltlSetMultiplier = 1
+			s.ltlFingerprints = map[int]uint64{}
+			s.ltlVariableOrder = s.model.symmetryVariableOrder()
+		}
 	}
 	s.fairIncrementalOneSolution = s.canEvaluateFairIncrementally()
+}
+
+func (s *search) pureRecurrenceGroups() bool {
+	if len(s.model.livenessOrder) != 1 || len(s.model.fairness) != 0 || s.model.hasReduction() || s.model.debug != nil {
+		return false
+	}
+	for _, property := range s.model.livenessOrder {
+		if property.cacheAtom == nil || s.model.propertyUsesTLC(property) {
+			return false
+		}
+	}
+	return true
 }
 
 // Re-evaluation must retain separate results for each Java liveness solution.
@@ -169,10 +184,26 @@ func (m *model) prepareRecurrenceCache(property *temporalProperty) {
 	if property.mode != often && property.mode != eventuallyAlways {
 		return
 	}
-	if !m.propertyUsesTLC(*property) || m.unsafeIncrementalExpression(property.predicate) {
+	if m.unsafeIncrementalExpression(property.predicate) {
 		return
 	}
-	property.cacheAtom = &ltlFormula{kind: ltlAtom, atom: property.predicate, locals: property.locals, baseLevel: true}
+	pure := !m.propertyUsesTLC(*property)
+	if pure && (!m.pureRecurrenceSourceSafe() || m.recurrenceHasUnstableFairness()) {
+		return
+	}
+	property.cacheAtom = &ltlFormula{kind: ltlAtom, atom: property.predicate, locals: property.locals, baseLevel: true, pureRecurrence: pure}
+}
+
+// Only reuse the liveness-DOT purity check when the original module and
+// configuration are available. A missing or unrecognized source falls back.
+func (m *model) pureRecurrenceSourceSafe() bool {
+	return m.pureLivenessDumpModel() && !hasOperatorConstants(m.module.Constants) && len(m.sourceConfig.Substitutions) == 0 && len(m.cfg.Substitutions) == 0
+}
+
+func (m *model) recurrenceHasUnstableFairness() bool {
+	return slices.ContainsFunc(m.fairness, func(fair fairnessCondition) bool {
+		return m.fairnessHasEffects(fair) || m.fairnessUsesTLCState(fair.action, map[string]bool{}) || m.fairnessUsesTLCState(fair.subscript, map[string]bool{})
+	})
 }
 
 func (property temporalProperty) recurrenceCacheGroup() ltlCheckGroup {
@@ -311,6 +342,9 @@ func (s *search) checkIncrementalLiveness(index int) (bool, error) {
 	previous := s.model.tlcRuntime.traceCurrent
 	s.model.tlcRuntime.traceCurrent = index
 	defer func() { s.model.tlcRuntime.traceCurrent = previous }()
+	if s.ltlPureStateOnly {
+		return s.checkPureRecurrences(index)
+	}
 	choices, err := s.incrementalSuccessors(index)
 	if err != nil {
 		return false, err
@@ -322,6 +356,29 @@ func (s *search) checkIncrementalLiveness(index int) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+func (s *search) checkPureRecurrences(index int) (bool, error) {
+	formula := s.model.livenessOrder[0].cacheAtom
+	result, err := s.holdsPureRecurrence(formula, s.nodes[index].state)
+	if err != nil {
+		return s.incrementalFailure(&incrementalLivenessError{cause: err, formula: formula}, index)
+	}
+	for len(s.ltlPureStateValues) <= index {
+		s.ltlPureStateValues = append(s.ltlPureStateValues, 0)
+	}
+	s.ltlPureStateValues[index] = 1
+	if result {
+		s.ltlPureStateValues[index] = 2
+	}
+	return true, nil
+}
+
+func (s *search) cachedPureRecurrence(property temporalProperty, index int) (bool, bool) {
+	if !s.ltlPureStateOnly || property.cacheAtom != s.model.livenessOrder[0].cacheAtom || index >= len(s.ltlPureStateValues) || s.ltlPureStateValues[index] == 0 {
+		return false, false
+	}
+	return s.ltlPureStateValues[index] == 2, true
 }
 
 func (s *search) evaluateIncrementalGroup(group ltlCheckGroup, index int, choices []int) error {
@@ -385,12 +442,28 @@ func (s *search) evaluateIncrementalAtom(formula *ltlFormula, index, choice int)
 }
 
 func (s *search) holdsIncrementalAtom(formula *ltlFormula, current, next evaluator.State) (bool, error) {
+	if formula.pureRecurrence {
+		return s.holdsPureRecurrence(formula, current)
+	}
 	if !s.fairIncrementalOneSolution || !formula.fairness || formula.atom.Kind != "AngleAction" {
 		return s.model.holdsLTLAtom(formula, current, next, formula.locals)
 	}
 	m := s.model
 	context := evaluator.Context{Current: current, Next: next, Constants: m.constants, Locals: formula.locals, Enabled: m.enabledCallback}
 	return m.holdsFairIncrementalAngle(formula, context)
+}
+
+func (s *search) holdsPureRecurrence(formula *ltlFormula, current evaluator.State) (bool, error) {
+	m := s.model
+	result, err := m.program.Evaluate(formula.atom, evaluator.Context{Current: current, Constants: m.constants, Locals: formula.locals, Enabled: m.enabledCallback})
+	if err != nil {
+		return false, err
+	}
+	ok, valid := result.Bool()
+	if !valid {
+		return false, &evaluator.RuntimeError{Message: "A state predicate was evaluated to a non-boolean value.", ToolCode: 2250}
+	}
+	return ok, nil
 }
 
 func (m *model) holdsFairIncrementalAngle(formula *ltlFormula, context evaluator.Context) (bool, error) {
@@ -445,6 +518,9 @@ func (s *search) incrementalFailure(err error, index int) (bool, error) {
 	if !ok {
 		return false, err
 	}
+	if wrapped.formula.pureRecurrence {
+		return s.pureRecurrenceFailure(wrapped)
+	}
 	message, code, ok := incrementalFailureDetails(wrapped)
 	if !ok {
 		return false, err
@@ -455,6 +531,21 @@ func (s *search) incrementalFailure(err error, index int) (bool, error) {
 	}
 	s.result.Status = EvaluationFailure
 	s.result.Failure = &Failure{Message: message, Trace: trace, ExitCode: code}
+	s.result.OutDegrees, s.result.HasOutDegrees = s.outDegrees, true
+	return false, nil
+}
+
+func (s *search) pureRecurrenceFailure(err *incrementalLivenessError) (bool, error) {
+	failure, ok := asRuntimeError(err.cause)
+	if !ok {
+		return false, err
+	}
+	reported := generalFailure("", failure)
+	reported.ExitCode = 255
+	s.result.Status = EvaluationFailure
+	s.result.Failure = reported
+	// Java records the outdegree only after liveness graph construction.
+	s.outDegrees[s.lastOutDegree]--
 	s.result.OutDegrees, s.result.HasOutDegrees = s.outDegrees, true
 	return false, nil
 }

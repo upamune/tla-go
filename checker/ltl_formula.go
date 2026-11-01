@@ -22,16 +22,17 @@ const (
 )
 
 type ltlFormula struct {
-	id          int
-	kind        ltlKind
-	left        *ltlFormula
-	right       *ltlFormula
-	atom        *parser.Expression
-	negative    bool
-	locals      map[string]value.Value
-	fairness    bool
-	fairEnabled bool
-	baseLevel   bool
+	id             int
+	kind           ltlKind
+	left           *ltlFormula
+	right          *ltlFormula
+	atom           *parser.Expression
+	negative       bool
+	locals         map[string]value.Value
+	fairness       bool
+	fairEnabled    bool
+	baseLevel      bool
+	pureRecurrence bool
 	// leaf identifies an atom regardless of its polarity, like the shared
 	// LiveExprNode of a TLC IF guard.
 	leaf int

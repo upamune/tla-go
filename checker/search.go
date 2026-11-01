@@ -30,8 +30,11 @@ type search struct {
 	initial                    []int
 	result                     Result
 	outDegrees                 [32]int
+	lastOutDegree              int
 	guarded                    []guardedMonitor
 	ltlGroups                  []ltlCheckGroup
+	ltlPureStateOnly           bool
+	ltlPureStateValues         []uint8
 	fairIncrementalOneSolution bool
 	ltlValues                  map[ltlValueKey]bool
 	fairChecks                 []fairCachedChecks
@@ -290,7 +293,8 @@ func (s *search) finishExpansion(index, count, before int) (bool, error) {
 	if more, err := s.checkGuardedProperties(index); err != nil || !more {
 		return more, err
 	}
-	s.outDegrees[min(s.result.DistinctStates-before, len(s.outDegrees)-1)]++
+	s.lastOutDegree = min(s.result.DistinctStates-before, len(s.outDegrees)-1)
+	s.outDegrees[s.lastOutDegree]++
 	return true, nil
 }
 

@@ -3,7 +3,11 @@ package checker
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/config"
+	"github.com/upamune/tla-go/syntax/parser"
 )
 
 func TestFairIncrementalExcludesHigherOrderOperators(t *testing.T) {
@@ -26,6 +30,120 @@ func TestFairIncrementalExcludesHigherOrderOperators(t *testing.T) {
 				t.Fatalf("single-solution path eligible = %v; want %v", s.fairIncrementalOneSolution, tc.eligible)
 			}
 		})
+	}
+}
+
+func TestPureRecurrenceSkipsUnstableFairness(t *testing.T) {
+	for _, tc := range []struct {
+		name, next string
+		cached     bool
+	}{
+		{"pure", `x'=(x+1)%2`, true},
+		{"output", `x'=(x+1)%2 /\ PrintT(x)`, false},
+		{"mutable TLC state", `x'=(x+1)%2 /\ TLCGet("level") >= 0`, false},
+		{"random", `x'=RandomElement({0,1})`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x=0\nNext == " + tc.next + "\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\nP == []<>(x=0)\n===="
+			m := prepareRecurrenceScopeTest(t, source, "SPECIFICATION Spec PROPERTY P")
+			if len(m.livenessOrder) != 1 || (m.livenessOrder[0].cacheAtom != nil) != tc.cached {
+				t.Fatalf("liveness properties %+v; want cached %t", m.livenessOrder, tc.cached)
+			}
+		})
+	}
+}
+
+func TestPureRecurrenceSkipsHigherOrderEffects(t *testing.T) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x=0\nNext == x'=x\nDo(F(_), n) == F(n)\nP == []<>(Do(PrintT, x))\n===="
+	m := prepareRecurrenceScopeTest(t, source, "INIT Init NEXT Next PROPERTY P")
+	if len(m.livenessOrder) != 1 || m.livenessOrder[0].cacheAtom != nil {
+		t.Fatalf("higher-order effect was admitted to recurrence caching: %+v", m.livenessOrder)
+	}
+	var plain, observed []string
+	for _, opts := range []Options{
+		{OnPrint: func(s string) { plain = append(plain, s) }},
+		{OnPrint: func(s string) { observed = append(observed, s) }, OnSearch: func(SearchEvent) {}},
+	} {
+		if _, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P", opts); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(plain) == 0 || !reflect.DeepEqual(plain, observed) {
+		t.Fatalf("effect output plain=%q observed=%q", plain, observed)
+	}
+}
+
+func prepareRecurrenceScopeTest(t *testing.T, source, configuration string) *model {
+	t.Helper()
+	module, err := parser.ParseModule(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Parse(configuration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := prepareWithSources(module, cfg, Options{}, map[string]*parser.Module{"M": module})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+func TestPureRecurrenceSourceProvenance(t *testing.T) {
+	for _, tc := range []struct {
+		name, extensions, extra, next string
+		substitution, missing         bool
+		want                          bool
+	}{
+		{"pure", "Naturals, TLC", "", `x'=(x+1)%3`, false, false, true},
+		{"unknown builtin", "Naturals, TLC", "", `x'=FutureBuiltin(x, 1)`, false, false, false},
+		{"JSON I/O", "Naturals, Json", "", `x'=x /\ JsonSerialize("path", x)`, false, false, false},
+		{"higher order LET", "Naturals, TLC", "", `LET Do(F(_)) == F(x) IN x'=Do(PrintT)`, false, false, false},
+		{"instance", "Naturals, TLC", "I == INSTANCE TLC", `x'=x`, false, false, false},
+		{"effectful assumption", "Naturals, TLC", "ASSUME PrintT(TRUE)", `x'=x`, false, false, false},
+		{"substitution", "Naturals, TLC", "", `x'=x`, true, false, false},
+		{"missing source", "Naturals, TLC", "", `x'=x`, false, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---- MODULE M ----\nEXTENDS " + tc.extensions + "\nVARIABLE x\nInit == x=0\nNext == " + tc.next + "\n" + tc.extra + "\nP == []<>(x=0)\n===="
+			module, err := parser.ParseModule(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m := &model{module: module, sourceUnits: map[string]*parser.Module{"M": module}, variables: map[string]bool{"x": true}, defs: map[string]parser.Definition{}}
+			for _, def := range module.Definitions {
+				m.defs[def.Name] = def
+			}
+			if tc.substitution {
+				m.sourceConfig.Substitutions = []config.Substitution{{Name: "N", Target: "Other"}}
+			}
+			if tc.missing {
+				m.sourceUnits = nil
+			}
+			if got := m.pureRecurrenceSourceSafe(); got != tc.want {
+				t.Fatalf("source safety = %t; want %t", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPureRecurrenceRejectsImpureOriginalSource(t *testing.T) {
+	const clean = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x=0\nNext == x'=x\nP == []<>(x=0)\n===="
+	resolved, err := parser.ParseModule(clean)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := parser.ParseModule(strings.Replace(clean, "VARIABLE x", "ASSUME PrintT(TRUE)\nVARIABLE x", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &model{module: resolved, sourceUnits: map[string]*parser.Module{"M": original}, variables: map[string]bool{"x": true}, defs: map[string]parser.Definition{}}
+	for _, def := range resolved.Definitions {
+		m.defs[def.Name] = def
+	}
+	if m.pureRecurrenceSourceSafe() {
+		t.Fatal("source effect hidden by resolved module was accepted")
 	}
 }
 

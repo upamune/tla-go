@@ -30,7 +30,11 @@ func (s *search) javaStabilityStates(property temporalProperty) ([]bool, bool, e
 		if err := s.model.ctx.Err(); err != nil {
 			return nil, false, err
 		}
-		holds, err := s.model.holdsProperty(property.predicate, s.nodes[node].state, property.locals)
+		holds, cached := s.cachedPureRecurrence(property, node)
+		var err error
+		if !cached {
+			holds, err = s.model.holdsProperty(property.predicate, s.nodes[node].state, property.locals)
+		}
 		if err != nil {
 			return nil, false, err
 		}

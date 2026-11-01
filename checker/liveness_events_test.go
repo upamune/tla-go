@@ -24,7 +24,7 @@ func TestModelLivenessDiagnosticDoesNotRepeatEffects(t *testing.T) {
 }
 
 func TestTemporalCheckFailureInvalidatesStart(t *testing.T) {
-	const source = "---- MODULE M ----\nEXTENDS Integers\nVARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == []<>(1 \\div (x - 1) = 0)\n===="
+	const source = "---- MODULE M ----\nEXTENDS Integers\nVARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == <>(1 \\div (x - 1) = 0)\n===="
 	var events []SearchEvent
 	_, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P CHECK_DEADLOCK FALSE", Options{OnSearch: func(e SearchEvent) { events = append(events, e) }})
 	if err == nil {
@@ -38,6 +38,24 @@ func TestTemporalCheckFailureInvalidatesStart(t *testing.T) {
 	}
 	if !reflect.DeepEqual(temporal, []SearchEventKind{TemporalCheckStart, TemporalCheckUncertain}) {
 		t.Fatalf("temporal events = %v", temporal)
+	}
+}
+
+func TestPureRecurrenceFailureDuringExploration(t *testing.T) {
+	for _, property := range []string{"[]<>(1 \\div (x - 1) = 0)", "<>[](1 \\div (x - 1) = 0)"} {
+		t.Run(property, func(t *testing.T) {
+			source := "---- MODULE M ----\nEXTENDS Integers\nVARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == " + property + "\n===="
+			var events []SearchEvent
+			result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P CHECK_DEADLOCK FALSE", Options{OnSearch: func(e SearchEvent) { events = append(events, e) }})
+			if err != nil || result.Status != EvaluationFailure || result.Failure == nil || result.Failure.NestedToolCode != 2179 || result.GeneratedStates != 3 || result.DistinctStates != 3 || result.QueuedStates != 1 {
+				t.Fatalf("result=%+v error=%v", result, err)
+			}
+			for _, event := range events {
+				if event.Kind == TemporalCheckStart || event.Kind == TemporalCheckUncertain {
+					t.Fatalf("unexpected final temporal check event: %+v", event)
+				}
+			}
+		})
 	}
 }
 

@@ -107,6 +107,9 @@ func (f *fairSearch) evaluateState(index int, node stateNode) error {
 }
 
 func (f *fairSearch) holdsCachedTemporalState(index int, node stateNode) (bool, error) {
+	if value, ok := f.search.cachedPureRecurrence(f.property, index); ok {
+		return value, nil
+	}
 	if f.property.cacheAtom != nil {
 		key := ltlValueKey{formula: f.property.cacheAtom, base: index, choice: -1}
 		if value, ok := f.search.ltlValues[key]; ok {

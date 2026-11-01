@@ -73,7 +73,7 @@ func TestJavaTLCRecorderRejectsDeferredLivenessError(t *testing.T) {
 	}
 	classes := compileSearchRecorder(t, jar)
 	dir := t.TempDir()
-	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == []<>(1\\div (x-1)=0)", "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == <>(1\\div (x-1)=0)", "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
 	args := []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "0", "-lncheck", "final", filepath.Join(dir, "M.tla")}
 	t.Setenv("TLA_GO_DEBUG_RECORDER", "")
 	var plain, plainErr bytes.Buffer
