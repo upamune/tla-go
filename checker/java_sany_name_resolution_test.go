@@ -3,6 +3,7 @@ package checker
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -91,6 +92,9 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 		{"instance before declaration", "Bad == I!F(1)\nI == INSTANCE A", true},
 		{"same line instance before declaration", "Bad == I!F(1) I == INSTANCE A", true},
 		{"same line instance after declaration", "I == INSTANCE A Good == I!F(1)", false},
+		{"local instance shadows later instance", "Good == LET I == INSTANCE A X == I!F(1) IN X I == INSTANCE A", false},
+		{"nested local instance shadows later instance", "Good == LET X == LET I == INSTANCE A Y == I!F(1) IN Y IN X I == INSTANCE A", false},
+		{"local instance operator argument shadows later instance", "Use(F(_)) == F(1) Good == LET I == INSTANCE A X == Use(I!F) IN X I == INSTANCE A", false},
 	}
 	jar := os.Getenv("TLC_JAR")
 	if jar != "" {
@@ -111,6 +115,11 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 	const cfg = "INIT Init\nNEXT Next\n"
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			forwardName := map[string]string{
+				"unused forward call": "Later",
+				"same line forward":   "Later",
+				"forward let":         "G",
+			}[tc.name]
 			source := "---- MODULE M ----\nEXTENDS Naturals, Sequences\n" + tc.definitions + "\nVARIABLE v\nInit == v = 0\nNext == UNCHANGED v\n====\n"
 			loader := func(_ context.Context, name string) (string, error) {
 				if name == "B" {
@@ -125,6 +134,11 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 			if tc.invalid {
 				if err == nil {
 					t.Fatalf("Go accepted invalid module: %+v", result)
+				}
+				if forwardName != "" {
+					if _, ok := errors.AsType[*SemanticError](err); !ok || !strings.Contains(err.Error(), "undefined symbol "+forwardName) {
+						t.Fatalf("Go returned the wrong forward-reference error: %v", err)
+					}
 				}
 			} else if err != nil || result.Status != Success {
 				t.Fatalf("Go rejected valid module: %+v, %v", result, err)
@@ -153,6 +167,9 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 			sany, sanyCode := runNameResolutionJava(t, dir, "-cp", jar, "tla2sany.SANY", "M.tla")
 			if sanyCode != 0 || strings.Contains(sany, "Semantic errors:") != tc.invalid || strings.Contains(sany, "Parse Error") {
 				t.Fatalf("SANY exit %d, invalid %t:\n%s", sanyCode, tc.invalid, sany)
+			}
+			if forwardName != "" && !strings.Contains(sany, "Unknown operator: `"+forwardName+"'.") {
+				t.Fatalf("SANY returned the wrong forward-reference error:\n%s", sany)
 			}
 			tlc, tlcCode := runNameResolutionJava(t, dir, "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 			wantCode := 0

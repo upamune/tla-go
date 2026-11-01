@@ -162,6 +162,17 @@ func positionAfter(a, b parser.Position) bool {
 	return a.Line == 0 || b.Line == 0 || a.Line > b.Line || a.Line == b.Line && a.Column > b.Column
 }
 
+// knownPositionAfter does not infer order from missing source coordinates.
+func knownPositionAfter(a, b parser.Position) bool {
+	if a.Line == 0 || b.Line == 0 {
+		return false
+	}
+	if a.Line == b.Line && (a.Column == 0 || b.Column == 0) {
+		return false
+	}
+	return positionAfter(a, b)
+}
+
 func validateRecursiveDefinition(d parser.Definition) error {
 	if err := validateRecursiveExpression(d.Body); err != nil {
 		return err

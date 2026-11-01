@@ -126,15 +126,18 @@ func localDefinitionVisible(definition, current parser.Definition) bool {
 	if a.Line == 0 || b.Line == 0 {
 		return true
 	}
+	if a.Line == b.Line && (a.Column == 0 || b.Column == 0) {
+		return true
+	}
 	if a == b {
 		return len(definition.Origins) > 0 || strings.HasPrefix(definition.Name, "!")
 	}
-	return positionAfter(b, a)
+	return knownPositionAfter(b, a)
 }
 
 func addRecursiveLocals(scope map[string]symbol, definitions []parser.Definition, declarations []parser.Declaration, position parser.Position) {
 	for _, declaration := range declarations {
-		if declaration.Location.Line != 0 && position.Line != 0 && positionAfter(declaration.Location.Position, position) {
+		if knownPositionAfter(declaration.Location.Position, position) {
 			continue
 		}
 		for _, definition := range definitions {

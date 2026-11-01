@@ -133,7 +133,7 @@ func (r *resolver) declareSourceSymbols(module *parser.Module, declarations []pa
 
 func (r *resolver) declareRecursiveSources(declarations []parser.Declaration) {
 	for _, d := range declarations {
-		if source, ok := r.sources[d.Name]; ok && source.position.Line != 0 && d.Location.Line != 0 && positionAfter(source.position, d.Location.Position) {
+		if source, ok := r.sources[d.Name]; ok && knownPositionAfter(source.position, d.Location.Position) {
 			source.position = d.Location.Position
 			r.sources[d.Name] = source
 		}
@@ -315,7 +315,7 @@ func (r *resolver) visibleGlobal(name string) bool {
 	if !ok || source.module == "" || source.module != r.reference.module || source.position.Line == 0 || r.reference.position.Line == 0 {
 		return true
 	}
-	return !positionAfter(source.position, r.reference.position)
+	return !knownPositionAfter(source.position, r.reference.position)
 }
 
 func sourceSymbolLocation(location parser.Location) sourceSymbol {

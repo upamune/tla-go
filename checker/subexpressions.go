@@ -198,7 +198,7 @@ func checkSelectorDeclarationOrder(selectors []parser.Selector, scope map[string
 	if !comparableSelectorRanges(decl, ref) {
 		return nil
 	}
-	if positionAfter(decl.End, ref.Start) {
+	if knownPositionAfter(decl.End, ref.Start) {
 		return &SemanticError{Err: fmt.Errorf("definition %s is not yet available for selection", definition.Name)}
 	}
 	return nil

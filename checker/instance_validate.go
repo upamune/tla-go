@@ -34,12 +34,12 @@ func (r *instanceResolver) validateInstanceNames() error {
 func (r *instanceResolver) validateReferenceOrder(instance parser.Instance) error {
 	for _, definition := range r.root.Definitions {
 		if earlierDefinitionReference(definition, instance) {
-			return fmt.Errorf("instance %s is referenced before its declaration", instance.Name)
+			return &SemanticError{Err: fmt.Errorf("instance %s is referenced before its declaration", instance.Name)}
 		}
 	}
 	for _, assumption := range r.root.Assumptions {
 		if earlierInstanceReference(assumption.Expression, instance) {
-			return fmt.Errorf("instance %s is referenced before its declaration", instance.Name)
+			return &SemanticError{Err: fmt.Errorf("instance %s is referenced before its declaration", instance.Name)}
 		}
 	}
 	return nil
@@ -58,6 +58,13 @@ func earlierDefinitionReference(definition parser.Definition, instance parser.In
 }
 
 func earlierInstanceReference(expr *parser.Expression, instance parser.Instance) bool {
+	if expr.Kind == "Let" {
+		for _, local := range expr.Instances {
+			if local.Name == instance.Name {
+				return false
+			}
+		}
+	}
 	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && strings.HasPrefix(expr.Text, instance.Name+"!") && instanceReferencePrecedes(expr.Location.Position, instance.Location.Position) {
 		return true
 	}
@@ -71,10 +78,7 @@ func earlierInstanceReference(expr *parser.Expression, instance parser.Instance)
 }
 
 func instanceReferencePrecedes(reference, instance parser.Position) bool {
-	if reference.Line == 0 || instance.Line == 0 {
-		return false
-	}
-	return positionAfter(instance, reference)
+	return knownPositionAfter(instance, reference)
 }
 
 func (r *instanceResolver) validateSubstitutionLevels(module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, index int) error {

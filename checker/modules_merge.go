@@ -76,6 +76,11 @@ func rememberSourceDeclaration(result, unit *parser.Module, declaration parser.D
 		result.SourceDeclarations[declaration.Name] = origin
 		return
 	}
+	if declaration.Location.Range.Module == "" && len(unit.SourceTokens) == 0 {
+		// Preserve unknown provenance even if the merged root has source tokens.
+		result.SourceDeclarations[declaration.Name] = parser.Location{}
+		return
+	}
 	result.SourceDeclarations[declaration.Name] = declarationSourceLocation(unit.Name, declaration.Location)
 }
 

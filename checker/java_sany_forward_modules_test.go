@@ -59,11 +59,12 @@ func TestJavaSANYForwardReferencesAcrossModules(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, checkErr := CheckModuleWithLoader(context.Background(), module, cfg, loader)
+			_, sourceErr := CheckWithLoader(context.Background(), source, "INIT Init\nNEXT Next\n"+tc.assignments, loader)
 			_, metadataErr := AnalyzeMetadata(context.Background(), module, loader)
 			for _, result := range []struct {
 				name string
 				err  error
-			}{{"model check", checkErr}, {"metadata", metadataErr}} {
+			}{{"model check", checkErr}, {"source model check", sourceErr}, {"metadata", metadataErr}} {
 				if (result.err != nil) != tc.invalid {
 					t.Fatalf("%s error=%v, invalid=%t", result.name, result.err, tc.invalid)
 				}
@@ -79,17 +80,78 @@ func TestJavaSANYForwardReferencesAcrossModules(t *testing.T) {
 }
 
 func TestForwardDeclarationWithoutSourceProvenance(t *testing.T) {
-	ref := parser.Location{Line: 2, Column: 6, Range: parser.Range{Module: "M", Start: parser.Position{Line: 2, Column: 6}}}
-	module := &parser.Module{
-		Name:      "M",
-		Constants: []parser.Declaration{{Name: "C", Location: parser.Location{Position: parser.Position{Line: 3, Column: 10}}}},
-		Definitions: []parser.Definition{{
-			Kind: "Operator", Name: "F", Body: &parser.Expression{Kind: "Identifier", Text: "C", Location: ref},
-			Location: parser.Location{Position: parser.Position{Line: 2, Column: 1}, Range: parser.Range{Module: "M", Start: parser.Position{Line: 2, Column: 1}}},
-		}},
+	for _, extension := range []string{"", "EXTENDS A\n"} {
+		t.Run(extension, func(t *testing.T) {
+			source := "---- MODULE M ----\n" + extension + "CONSTANT C\nF == C\nVARIABLE v\nInit == v = 0\nNext == UNCHANGED v\n====\n"
+			module, err := parser.ParseModule(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Simulate a direct API AST with a position but no source origin.
+			module.SourceTokens = nil
+			module.Constants[0].Location = parser.Location{Line: 20, Column: 10}
+			loader := func(context.Context, string) (string, error) { return "---- MODULE A ----\nA == 1\n====\n", nil }
+			cfg, err := config.Parse("CONSTANT C = 1\nINIT Init\nNEXT Next\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := AnalyzeMetadata(context.Background(), module, loader); err != nil {
+				t.Fatalf("metadata guessed unknown provenance: %v", err)
+			}
+			if _, err := CheckModuleWithLoader(context.Background(), module, cfg, loader); err != nil {
+				t.Fatalf("model checker guessed unknown provenance: %v", err)
+			}
+		})
 	}
-	if _, err := AnalyzeMetadata(context.Background(), module, nil); err != nil {
-		t.Fatalf("unknown declaration provenance must not be guessed: %v", err)
+}
+
+func TestForwardDeclarationWithUnknownColumn(t *testing.T) {
+	for _, tc := range []struct {
+		name, definitions string
+		mutate            func(*parser.Expression)
+	}{
+		{"global operator", "C == 1 Good == C", clearExpressionColumn},
+		{"global constant", "CONSTANT C Good == C", clearExpressionColumn},
+		{"local operator", "Good == LET X == 1 Y == X IN Y", func(expr *parser.Expression) {
+			expr.Definitions[1].Location.Column = 0
+			expr.Definitions[1].Location.Range.Start.Column = 0
+		}},
+		{"selector", "C == lab :: 1 Good == C!lab", clearExpressionColumn},
+		{"instance", "I == INSTANCE A Good == I!F", clearExpressionColumn},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := parser.ParseModule("---- MODULE M ----\n" + tc.definitions + "\n====\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, definition := range module.Definitions {
+				if definition.Name == "Good" {
+					tc.mutate(definition.Body)
+				}
+			}
+			loader := func(context.Context, string) (string, error) { return "---- MODULE A ----\nF == 1\n====\n", nil }
+			if _, err := AnalyzeMetadata(context.Background(), module, loader); err != nil {
+				t.Fatalf("guessed order from missing column: %v", err)
+			}
+		})
+	}
+}
+
+func clearExpressionColumn(expr *parser.Expression) {
+	expr.Location.Column = 0
+	expr.Location.Range.Start.Column = 0
+}
+
+func TestForwardInstanceWithUnknownDeclarationColumn(t *testing.T) {
+	module, err := parser.ParseModule("---- MODULE M ----\nI == INSTANCE A Good == I!F\n====\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	module.Instances[0].Location.Column = 0
+	module.Instances[0].Location.Range.Start.Column = 0
+	loader := func(context.Context, string) (string, error) { return "---- MODULE A ----\nF == 1\n====\n", nil }
+	if _, err := AnalyzeMetadata(context.Background(), module, loader); err != nil {
+		t.Fatalf("guessed order from missing declaration column: %v", err)
 	}
 }
 
