@@ -452,7 +452,8 @@ func (g *generator) coverageItemsSupported(items []*parser.Expression) bool {
 }
 
 func (g *generator) coverageActionOrderSupported(items []*parser.Expression) bool {
-	state := coverageActionOrder{assigned: map[string]bool{}}
+	init := g.model.defs[g.model.cfg.Init]
+	state := coverageActionOrder{assigned: map[string]bool{}, initialSet: coverageInitialSetMembership(init.Body, true)}
 	for _, e := range items {
 		if !state.acceptUnchangedOrder(e) {
 			return false
@@ -476,6 +477,7 @@ type coverageActionOrder struct {
 	membership, deterministicAfterMembership bool
 	deterministic                            bool
 	unchanged                                bool
+	initialSet                               bool
 }
 
 // TLC charges UNCHANGED for successful continuations. Subsequent guards or
@@ -483,7 +485,9 @@ type coverageActionOrder struct {
 func (s *coverageActionOrder) acceptUnchangedOrder(e *parser.Expression) bool {
 	if e.Kind == "Unchanged" {
 		s.unchanged = true
-		return true
+		// A previous assignment may make UNCHANGED fail, changing how TLC
+		// charges it. Do not extend this unmodeled case to set initializers.
+		return !s.initialSet || len(s.assigned) == 0
 	}
 	return !s.unchanged
 }

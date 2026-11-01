@@ -192,6 +192,29 @@ including short-circuiting. Invariants also support selected calls to nullary
 state operators and operators with literal numeric arguments; repeated calls to
 the same definition and other unmodeled call forms are rejected. The property
 fixtures include direct Java 1.7.4 comparisons and saved reports.
+
+One known limitation in the existing named-action subset occurs when an
+assignment is followed by an `UNCHANGED` guard that can fail. For example:
+
+```tla
+EXTENDS Naturals
+VARIABLE x
+Init == x \in 0..2
+A == /\ x' = 0
+     /\ UNCHANGED x
+B == UNCHANGED x
+Next == A \/ B
+```
+
+With `INIT Init`, `NEXT Next`, and `-coverage 9999 -deadlock -workers 1`,
+Java TLC 1.7.4 counts the assignment in `A` once, while tla-go counts it three
+times. The assignment is currently charged when encountered, before its
+continuation is evaluated; TLC's count in this case depends on whether the
+subsequent guard succeeds. Correcting this generally requires deferring or
+reconciling assignment charges across continuations, including multiple
+successors, early termination, and evaluation errors. This remains an existing
+compatibility gap; newly supported explicit-set initializations reject this
+assignment-then-`UNCHANGED` shape instead of reporting the wrong count.
 Another limited subset supports a disjunction of calls to parameterized named
 actions. It requires one variable, one worker, explicit INIT and NEXT, and an
 initial predicate supported by the direct UNCHANGED subset below. Arguments
