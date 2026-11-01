@@ -1,6 +1,9 @@
 package upstreamjunit
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,6 +36,57 @@ func TestValidateExecution(t *testing.T) {
 	if _, err := parseExecution("EXECUTION\tbogus\tYQ==\n"); err == nil {
 		t.Fatal("accepted invalid event")
 	}
+}
+
+func TestBridgeFailureClassification(t *testing.T) {
+	display := "observations(Bridge)"
+	failure := func(value string) []executionEvent {
+		return []executionEvent{{"started", display}, {"failure", value}, {"finished", display}, {"summary", "1,0,1"}}
+	}
+	for _, tc := range []struct {
+		name   string
+		events []executionEvent
+		want   executionOutcome
+	}{
+		{"assertion", failure("Bridge$UpstreamAssertionFailure\nBridge$UpstreamAssertionFailure: cause"), executionUpstreamAssertion},
+		{"other exception", failure("java.lang.IllegalArgumentException\ninvalid record"), executionOtherFailure},
+		{"incomplete marker", failure("Bridge$UpstreamAssertionFailure\n"), executionOtherFailure},
+		{"missing summary", failure("Bridge$UpstreamAssertionFailure\nBridge$UpstreamAssertionFailure: cause")[:3], executionInvalid},
+		{"wrong method", []executionEvent{{"started", "other(Bridge)"}, {"failure", "Bridge$UpstreamAssertionFailure\nBridge$UpstreamAssertionFailure"}, {"finished", "other(Bridge)"}, {"summary", "1,0,1"}}, executionInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := classifyBridgeExecution(tc.events); got != tc.want {
+				t.Fatalf("got %v want %v", got, tc.want)
+			}
+		})
+	}
+	for _, output := range []string{"EXECUTION\tfailure\t%%%\n", "EXECUTION\tfailure\n", "EXECUTION\tunknown\tYQ==\n"} {
+		if _, err := parseExecution(output); err == nil {
+			t.Fatalf("accepted malformed output %q", output)
+		}
+	}
+}
+
+func TestJUnitProcessFailures(t *testing.T) {
+	t.Run("start", func(t *testing.T) {
+		ctx := context.Background()
+		if _, err := runJUnitCommand(ctx, exec.CommandContext(ctx, filepath.Join(t.TempDir(), "missing"))); err == nil {
+			t.Fatal("accepted start failure")
+		}
+	})
+	t.Run("exit", func(t *testing.T) {
+		ctx := context.Background()
+		if _, err := runJUnitCommand(ctx, exec.CommandContext(ctx, "sh", "-c", "exit 7")); err == nil {
+			t.Fatal("accepted process failure")
+		}
+	})
+	t.Run("timeout", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		if _, err := runJUnitCommand(ctx, exec.CommandContext(ctx, "sleep", "5")); !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("expected timeout, got %v", err)
+		}
+	})
 }
 
 func TestJUnitExecutionFixture(t *testing.T) {
@@ -80,6 +134,102 @@ func TestJUnitExecutionFixture(t *testing.T) {
 	}
 }
 
+// The entire CLI response is intentional: partial diagnostics or additional output
+// cannot be mistaken for this one known unsupported invocation.
+const periodicCoverageRejection = `periodic -coverage reports are not yet supported; use 0
+Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-coverage 0] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...
+       tla-go -translate [pcal.trans options] file.tla
+       tla-go -sany-metadata [-I dir] file.tla
+       tla-go -version
+
+Experimental: supports a subset of TLA+ model checking and simulation.
+-dfid N checks with depth-first iterative deepening up to depth N.
+-continue reports supported violations and continues exploration.
+-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.
+-sany-metadata emits a partial SANY XML projection.
+-debug-liveness writes JSON debugging events to stderr.
+-modern-random-subsets selects the newer TLC random-subset algorithm.
+Java TLC options: [-difftrace] [-terse] [-userFile file] [-cleanup] [-fpmem num] [-fpbits num] [-gzip] [-modelcheck] [-debug] [-generateSpecTE [nomonolith]]
+`
+
+func runBridgeModel(run func(bool) (Result, error)) (Result, []bridgeRecord, []string, error) {
+	result, err := run(true)
+	if err != nil {
+		return result, nil, nil, err
+	}
+	if result.TimedOut {
+		return result, nil, nil, fmt.Errorf("coverage invocation timed out")
+	}
+	fallback := result.ExitCode == 255 && result.Output == periodicCoverageRejection
+	if fallback {
+		result, err = run(false)
+		if err != nil {
+			return result, nil, nil, err
+		}
+	}
+	if result.TimedOut || result.ExitCode != 0 {
+		return result, nil, nil, fmt.Errorf("unexpected Go invocation: timeout=%t exit=%d output=%s", result.TimedOut, result.ExitCode, result.Output)
+	}
+	records, omissions, err := projectBridge(result.Output)
+	if err != nil {
+		return result, nil, nil, fmt.Errorf("invalid Go tool output: %w", err)
+	}
+	if fallback {
+		omissions = append(omissions, "coverage-enabled invocation rejected: periodic -coverage 1 unsupported")
+	}
+	return result, records, omissions, nil
+}
+
+func TestBridgeCoverageFallbackClassification(t *testing.T) {
+	valid := "@!@!@STARTMSG 2199:0 @!@!@\n2 states generated, 1 distinct states found, 0 states left on queue.\n@!@!@ENDMSG 2199 @!@!@\n"
+	for _, tc := range []struct {
+		name      string
+		first     Result
+		firstErr  error
+		second    Result
+		secondErr error
+		calls     int
+		ok        bool
+	}{
+		{"expected rejection", Result{ExitCode: 255, Output: periodicCoverageRejection}, nil, Result{Output: valid}, nil, 2, true},
+		{"coverage succeeds", Result{Output: valid}, nil, Result{}, nil, 1, true},
+		{"malformed marker", Result{Output: valid + "@!@!@BROKEN"}, nil, Result{}, nil, 1, false},
+		{"truncated message", Result{Output: "@!@!@STARTMSG 2199:0 @!@!@\npartial"}, nil, Result{}, nil, 1, false},
+		{"truncated rejection", Result{ExitCode: 255, Output: periodicCoverageRejection[:len(periodicCoverageRejection)-1]}, nil, Result{}, nil, 1, false},
+		{"rejection with malformed output", Result{ExitCode: 255, Output: periodicCoverageRejection + "@!@!@STARTMSG"}, nil, Result{}, nil, 1, false},
+		{"unknown error", Result{ExitCode: 255, Output: "unknown error\n"}, nil, Result{}, nil, 1, false},
+		{"wrong rejection exit", Result{ExitCode: 1, Output: periodicCoverageRejection}, nil, Result{}, nil, 1, false},
+		{"rejection with success exit", Result{Output: periodicCoverageRejection}, nil, Result{}, nil, 1, false},
+		{"unexpected exit with valid output", Result{ExitCode: 7, Output: valid}, nil, Result{}, nil, 1, false},
+		{"timeout error", Result{TimedOut: true, ExitCode: 255, Output: periodicCoverageRejection}, context.DeadlineExceeded, Result{}, nil, 1, false},
+		{"timeout flag", Result{TimedOut: true, ExitCode: 255, Output: periodicCoverageRejection}, nil, Result{}, nil, 1, false},
+		{"launch error", Result{}, errors.New("launch failed"), Result{}, nil, 1, false},
+		{"fallback malformed", Result{ExitCode: 255, Output: periodicCoverageRejection}, nil, Result{Output: "@!@!@STARTMSG"}, nil, 2, false},
+		{"fallback unexpected exit", Result{ExitCode: 255, Output: periodicCoverageRejection}, nil, Result{ExitCode: 7, Output: valid}, nil, 2, false},
+		{"fallback timeout", Result{ExitCode: 255, Output: periodicCoverageRejection}, nil, Result{TimedOut: true}, context.DeadlineExceeded, 2, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			_, _, omissions, err := runBridgeModel(func(coverage bool) (Result, error) {
+				calls++
+				if coverage != (calls == 1) {
+					t.Fatal("wrong coverage flag")
+				}
+				if calls == 1 {
+					return tc.first, tc.firstErr
+				}
+				return tc.second, tc.secondErr
+			})
+			if calls != tc.calls || (err == nil) != tc.ok {
+				t.Fatalf("calls=%d err=%v", calls, err)
+			}
+			if tc.ok && (len(omissions) > 0) != (tc.calls == 2) {
+				t.Fatalf("omissions=%v", omissions)
+			}
+		})
+	}
+}
+
 func TestUpstreamJUnitExecution(t *testing.T) {
 	if os.Getenv("TLA_GO_JUNIT_EXECUTION") != "1" {
 		t.Skip("set TLA_GO_JUNIT_EXECUTION=1")
@@ -119,7 +269,11 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	deps := []string{jar, junit, hamcrest}
-	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source}
+	bridgeSource := filepath.Join(temp, "Bridge.java")
+	if err := os.WriteFile(bridgeSource, []byte(bridgeJava), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source, bridgeSource}
 	if out, err := exec.Command("javac", args...).CombinedOutput(); err != nil {
 		t.Fatalf("javac: %v\n%s", err, out)
 	}
@@ -159,5 +313,67 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	if len(differences) != 0 {
 		t.Fatalf("Go mismatch in partial diagnostic for %s: %v", want.Display, differences)
 	}
-	t.Logf("partial Go diagnostic matches selected observations for %s; Go JUnit assertions and lifecycle unsupported", want.Display)
+
+	// A separate isolated Go copy supplies the adapter; preserve every omission.
+	goDir := filepath.Join(temp, "go", "suite")
+	goResult, projected, omissions, err := runBridgeModel(func(coverage bool) (Result, error) {
+		dump := "bridge-no-coverage.dot"
+		if coverage {
+			dump = "bridge.dot"
+		}
+		return runCommand(goDir, 30*time.Second, binary, caseArgs(c, coverage, filepath.Join(temp, dump))...)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Go bridge invocation omissions: %v", omissions)
+
+	runBridge := func(records []bridgeRecord) (executionOutcome, error) {
+		data, e := encodeBridge(records)
+		if e != nil {
+			return executionInvalid, e
+		}
+		if e = os.WriteFile(filepath.Join(runDir, "bridge-records"), []byte(data), 0o600); e != nil {
+			return executionInvalid, e
+		}
+		ev, e := executeJUnit(classes, deps, runDir, runDir, "Bridge", "observations")
+		if e != nil {
+			return executionInvalid, e
+		}
+		outcome := classifyBridgeExecution(ev)
+		if outcome == executionInvalid || outcome == executionOtherFailure {
+			return outcome, fmt.Errorf("unexpected bridge events: %+v", ev)
+		}
+		return outcome, nil
+	}
+	// The original method may fail or succeed, but neither outcome is a full pass.
+	assertionOutcome, assertionErr := runBridge(projected)
+	if assertionErr != nil {
+		t.Fatal(assertionErr)
+	}
+	t.Logf("Go assertion-method result: %v; exit=%d; unrepresented observations=%v", assertionOutcome, goResult.ExitCode, omissions)
+	t.Logf("No Go JUnit pass: %v", bridgeVerdict(fmt.Errorf("outcome=%v", assertionOutcome), omissions))
+	// A malformed recorder input fails inside the bridge, before testSpec runs.
+	if err := os.WriteFile(filepath.Join(runDir, "bridge-records"), []byte("not-a-code\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	badEvents, err := executeJUnit(classes, deps, runDir, runDir, "Bridge", "observations")
+	if err != nil || classifyBridgeExecution(badEvents) != executionOtherFailure {
+		t.Fatalf("malformed bridge input: events=%v error=%v", badEvents, err)
+	}
+	// Complete synthetic records exercise the real upstream assertions, including coverage.
+	good := []bridgeRecord{{"2186", []string{"1ms"}}, {"2199", []string{"2", "1", "0"}}, {"2190", []string{"1", ""}}, {"2221", []string{"fixture", "1"}}}
+	if outcome, err := runBridge(good); err != nil || outcome != executionPassed {
+		t.Fatalf("synthetic baseline: outcome=%v error=%v", outcome, err)
+	}
+	for name, bad := range map[string][]bridgeRecord{
+		"wrong stats":      {{"2186", []string{"1ms"}}, {"2199", []string{"3", "1", "0"}}, {"2190", []string{"1", ""}}},
+		"missing finished": {{"2199", []string{"2", "1", "0"}}, {"2190", []string{"1", ""}}},
+		"zero coverage":    append(append([]bridgeRecord{}, good...), bridgeRecord{"2221", []string{"uncovered", "0"}}),
+		"general error":    append(append([]bridgeRecord{}, good...), bridgeRecord{"1000", []string{"error"}}),
+	} {
+		if outcome, err := runBridge(bad); err != nil || outcome != executionUpstreamAssertion {
+			t.Errorf("%s: expected original assertion failure, outcome=%v error=%v", name, outcome, err)
+		}
+	}
 }

@@ -40,28 +40,55 @@ type (
 // Messages parses complete TLC tool messages, including nested messages.
 func Messages(output string) (map[string][]string, error) {
 	p := messageParser{output: strings.ReplaceAll(output, "\r\n", "\n"), messages: make(map[string][]string)}
+	if err := p.parse(); err != nil {
+		return nil, err
+	}
+	if err := p.validateComplete(); err != nil {
+		return nil, err
+	}
+	return p.messages, nil
+}
+
+func (p *messageParser) parse() error {
 	for pos := 0; pos < len(p.output); {
 		n := strings.Index(p.output[pos:], "@!@!@")
 		if n < 0 {
-			break
+			return p.checkTrailingMarker(pos)
 		}
 		n += pos
 		m := marker.FindStringSubmatchIndex(p.output[n:])
 		if m == nil || m[0] != 0 {
-			return nil, fmt.Errorf("malformed tool marker at byte %d", n)
+			return fmt.Errorf("malformed tool marker at byte %d", n)
 		}
 		pos = n + m[1]
 		if err := p.consume(n, pos, m); err != nil {
-			return nil, err
+			return err
 		}
 	}
+	return nil
+}
+
+func (p *messageParser) validateComplete() error {
 	if len(p.stack) > 0 {
-		return nil, fmt.Errorf("unterminated tool message %s", p.stack[len(p.stack)-1].id)
+		return fmt.Errorf("unterminated tool message %s", p.stack[len(p.stack)-1].id)
 	}
 	if len(p.messages) == 0 {
-		return nil, fmt.Errorf("no TLC tool messages")
+		return fmt.Errorf("no TLC tool messages")
 	}
-	return p.messages, nil
+	return nil
+}
+
+// A short sentinel is ambiguous in ordinary text; recognize it only as a
+// complete trailing line outside a message. Open messages fail separately.
+func (p *messageParser) checkTrailingMarker(pos int) error {
+	lastLine := p.output[pos:]
+	if i := strings.LastIndexByte(lastLine, '\n'); i >= 0 {
+		lastLine = lastLine[i+1:]
+	}
+	if len(p.stack) == 0 && lastLine != "" && strings.HasPrefix("@!@!@", lastLine) {
+		return fmt.Errorf("truncated tool marker at byte %d", len(p.output)-len(lastLine))
+	}
+	return nil
 }
 
 func (p *messageParser) consume(n, end int, m []int) error {

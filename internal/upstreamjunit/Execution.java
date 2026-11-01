@@ -20,7 +20,7 @@ public class Execution {
             public void testFinished(Description d) { emit("finished", d.getDisplayName()); }
             public void testIgnored(Description d) { emit("ignored", d.getDisplayName()); }
             public void testAssumptionFailure(Failure f) { emit("assumption", f.toString()); }
-            public void testFailure(Failure f) { emit("failure", f.getTrace()); }
+            public void testFailure(Failure f) { emit("failure", f.getException().getClass().getName() + "\n" + f.getTrace()); }
         });
         Result result = core.run(Request.method(cls, args[1]));
         emit("summary", result.getRunCount() + "," + result.getIgnoreCount() + "," + result.getFailureCount());

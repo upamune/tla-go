@@ -255,3 +255,35 @@ TLA_GO_JUNIT_JUNIT=/tmp/junit-4.12.jar \
 TLA_GO_JUNIT_HAMCREST=/tmp/hamcrest-core-1.3.jar \
 go test -v ./internal/upstreamjunit -run 'Test(ValidateExecution|JUnitExecutionFixture|UpstreamJUnitExecution)$' -count=1
 ```
+
+## Test10 assertion-method bridge (experimental, unsupported result)
+
+The opt-in `TestUpstreamJUnitExecution` also runs Go with coverage enabled on a
+separate copied model directory. Go rejects the upstream periodic `-coverage 1`
+setting; only the exact CLI rejection (exit 255 and complete expected output)
+permits a retry without coverage. Timeouts, other exits, and malformed or
+truncated output fail the experiment. The driver records the omission and feeds
+a conservative projection of that output to a fresh upstream `Test10` instance. A JUnit wrapper invokes the
+original inherited `testSpec` method itself. It does not translate the method's
+assertions. The synthetic controls run that same method with changed statistics,
+a missing finish record, a general error and zero coverage; each must produce an
+`AssertionError` from the original method. Process errors, malformed event
+sequences and other exceptions fail the experiment rather than counting as rejection.
+The existing direct JUnit invocation runs the original Java setup, method and
+teardown separately for comparison.
+
+This is **not a Go JUnit pass**, even if the method returns successfully. The
+adapter supports only well-formed 2186, 2190, 2199 and 2221 text messages; it
+records every other code and malformed supported message as an omission. Its
+encoder rejects unknown record codes. Tool output is rendered text, not the
+complete typed MP recorder stream: message order across codes, nested messages,
+other argument types, hidden parameters and recorder calls without tool output
+are not established. In particular, absence of a complete Go coverage stream is
+not proof of zero uncovered expressions, even though upstream's recorder treats
+no 2221 records as an empty set. The wrapper does not run upstream setup or
+teardown on the bridged instance. Initial process globals, final-only liveness,
+metadir and cleanup behavior, the exact output lifecycle and exit-status
+conversion are not reproduced or verified. The Go process exit and omissions
+are reported; they cannot turn the result into a pass. A broader bridge requires
+a typed recorder interface from Go, complete lifecycle equivalence, and an
+explicit completeness contract before it can claim one.

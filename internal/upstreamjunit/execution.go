@@ -43,6 +43,38 @@ func parseExecution(output string) ([]executionEvent, error) {
 	return events, scanner.Err()
 }
 
+type executionOutcome int
+
+const (
+	executionInvalid executionOutcome = iota
+	executionPassed
+	executionUpstreamAssertion
+	executionOtherFailure
+)
+
+// classifyBridgeExecution accepts only the complete event sequences emitted for
+// this single bridge test. The marker is thrown solely around testSpec itself.
+func classifyBridgeExecution(events []executionEvent) executionOutcome {
+	const display = "observations(Bridge)"
+	if validateExecution(events, display) == nil {
+		return executionPassed
+	}
+	if !validBridgeFailure(events, display) {
+		return executionInvalid
+	}
+	if events[1].value == "" {
+		return executionInvalid
+	}
+	if strings.HasPrefix(events[1].value, "Bridge$UpstreamAssertionFailure\nBridge$UpstreamAssertionFailure") {
+		return executionUpstreamAssertion
+	}
+	return executionOtherFailure
+}
+
+func validBridgeFailure(events []executionEvent, display string) bool {
+	return len(events) == 4 && events[0] == (executionEvent{"started", display}) && events[1].kind == "failure" && events[2] == (executionEvent{"finished", display}) && events[3] == (executionEvent{"summary", "1,0,1"})
+}
+
 // A result is a pass only if JUnit reports exactly one selected test, started
 // and finished with no failure, ignore, or failed assumption.
 func validateExecution(events []executionEvent, display string) error {
@@ -58,8 +90,15 @@ func executeJUnit(classes string, deps []string, dir, basedir, class, method str
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Dbasedir="+basedir+string(os.PathSeparator), "-Djava.io.tmpdir="+dir, "-cp", cp, "Execution", class, method)
 	cmd.Dir = dir
+	return runJUnitCommand(ctx, cmd)
+}
+
+func runJUnitCommand(ctx context.Context, cmd *exec.Cmd) ([]executionEvent, error) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("JUnit process timeout: %w: %s", ctx.Err(), output)
+		}
 		return nil, fmt.Errorf("JUnit process: %w: %s", err, output)
 	}
 	events, err := parseExecution(string(output))
