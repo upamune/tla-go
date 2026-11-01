@@ -77,6 +77,7 @@ func decodeLine(line []byte) (Event, error) {
 		Code     int               `json:"code"`
 		Array    string            `json:"array"`
 		Values   []json.RawMessage `json:"values"`
+		Reason   string            `json:"reason"`
 	}
 	decoder := json.NewDecoder(bytes.NewReader(line))
 	decoder.DisallowUnknownFields()
@@ -95,7 +96,7 @@ func decodeLine(line []byte) (Event, error) {
 	if raw.Kind == "record" && raw.Values == nil {
 		return Event{}, fmt.Errorf("recorder values must be an array")
 	}
-	event := Event{Kind: raw.Kind, Version: raw.Version, Complete: *raw.Complete, Code: raw.Code, Array: raw.Array}
+	event := Event{Kind: raw.Kind, Version: raw.Version, Complete: *raw.Complete, Code: raw.Code, Array: raw.Array, Reason: raw.Reason}
 	values, err := decodeValues(raw.Values)
 	event.Values = values
 	return event, err
@@ -154,6 +155,8 @@ func validateFieldSet(keys map[string]bool, kind string) error {
 		required = []string{"kind", "version", "complete"}
 	case "record":
 		required = []string{"kind", "complete", "code", "array", "values"}
+	case "omission":
+		required = []string{"kind", "complete", "code", "reason"}
 	default:
 		return fmt.Errorf("unsupported recorder kind %q", kind)
 	}
@@ -178,7 +181,7 @@ func addRecorderKey(seen map[string]bool, name string) error {
 
 func allowedRecorderKey(name string) bool {
 	switch name {
-	case "kind", "version", "complete", "code", "array", "values":
+	case "kind", "version", "complete", "code", "array", "values", "reason":
 		return true
 	default:
 		return false
@@ -189,10 +192,20 @@ func validate(event Event, index int) error {
 	if index == 0 {
 		return validateHeader(event)
 	}
+	if event.Kind == "omission" {
+		return validateOmission(event)
+	}
 	if event.Kind != "record" || event.Version != 0 || event.Complete || event.Array != "strings" {
 		return fmt.Errorf("unsupported recorder event")
 	}
 	return validateRecordPayload(event)
+}
+
+func validateOmission(event Event) error {
+	if event.Version == 0 && !event.Complete && event.Code == 2193 && event.Reason == SuccessProbabilityOmission && event.Array == "" && len(event.Values) == 0 {
+		return nil
+	}
+	return fmt.Errorf("unsupported recorder omission")
 }
 
 func validateRecordPayload(event Event) error {

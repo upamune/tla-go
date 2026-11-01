@@ -101,3 +101,24 @@ func TestDecodeSearchRecords(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeSuccessProbabilityOmission(t *testing.T) {
+	header := `{"kind":"header","version":1,"complete":false}` + "\n"
+	omission := `{"kind":"omission","complete":false,"code":2193,"reason":"observed-fingerprint-probability-unavailable"}` + "\n"
+	events, err := Decode(strings.NewReader(header + omission))
+	if err != nil || len(events) != 1 || events[0].Kind != "omission" || events[0].Code != 2193 || events[0].Reason != SuccessProbabilityOmission {
+		t.Fatalf("events=%+v error=%v", events, err)
+	}
+	for _, bad := range []string{
+		strings.Replace(omission, `2193`, `2199`, 1),
+		strings.Replace(omission, `"complete":false`, `"complete":true`, 1),
+		strings.Replace(omission, `observed-fingerprint-probability-unavailable`, `unknown`, 1),
+		strings.Replace(omission, `"reason"`, `"Reason"`, 1),
+		strings.Replace(omission, `"reason"`, `"reason":"fake","reason"`, 1),
+		strings.Replace(omission, `"reason"`, `"values":[],"reason"`, 1),
+	} {
+		if _, err := Decode(strings.NewReader(header + bad)); err == nil {
+			t.Fatalf("accepted invalid omission %q", bad)
+		}
+	}
+}

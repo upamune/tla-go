@@ -2,6 +2,7 @@ package upstreamjunit
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/upamune/tla-go/internal/recorderdebug"
@@ -26,5 +27,12 @@ func TestEmptyRecorderUsesDirectValues(t *testing.T) {
 	projected[3].values = []string{"val = 1.0"}
 	if _, err := replaceEmptyRecorderValues(projected, events); err == nil {
 		t.Fatal("accepted a changed success probability")
+	}
+}
+
+func TestEmptyRecorderRejectsOmission(t *testing.T) {
+	events := []recorderdebug.Event{{Code: 2220}, {Code: 2219}, {Code: 2185}, {Code: 2189}, {Code: 2190}, {Kind: "omission", Code: 2193, Reason: recorderdebug.SuccessProbabilityOmission}, {Code: 2199}, {Code: 2194}, {Code: 2186}}
+	if _, err := replaceEmptyRecorderValues(nil, events); err == nil || !strings.Contains(err.Error(), recorderdebug.SuccessProbabilityOmission) {
+		t.Fatalf("unexpected omission error: %v", err)
 	}
 }

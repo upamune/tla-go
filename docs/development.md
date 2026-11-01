@@ -114,11 +114,20 @@ The file is created exclusively with mode 0600. Translation, metadata,
 version, help, simulation, and DFID modes reject the variable without creating
 a file. JSON lines start with a version 1 header marking the stream incomplete,
 followed by selected observations in emission order: SANY start/end, starting,
-initial-state start/progress/completion, statistics, search depth, and finish.
+initial-state start/progress/completion, selected success probabilities, statistics,
+search depth, and finish.
 Their `strings` arrays come from Go events and results rather than parsed tool
 text. A Java TLC 1.7.4 recorder probe compares these selected calls and argument
 types across successful and failing models, in tool and non-tool mode; finish
 durations naturally differ.
+
+For success message 2193, Java 1.7.4 records a second probability when its
+unrounded optimistic probability is at least `1e-10`. That second value depends
+on the Java fingerprint set's minimum distance, which tla-go does not yet
+compute for breadth-first checking. In that case the debug stream emits an
+`omission` for 2193 instead of a partial single-argument record; the stream's
+header remains incomplete in all cases. The normal and tool outputs still
+omit Java's observed probability.
 
 The selected recorder calls are compared against Java TLC 1.7.4, not 1.8.0.
 For example, on an empty specification, 1.8.0 records search depth 2194 as

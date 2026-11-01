@@ -151,6 +151,7 @@ func checkOriginalEmptyControls(t *testing.T, adapter, classes string, deps []st
 		{"Go nonzero exit", "success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, true},
 		{"missing success diagnostic", "missing-success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
 		{"changed success diagnostic", "wrong-success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
+		{"unavailable success diagnostic", "omitted-success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			goBinary, goModel := binary, model
@@ -163,6 +164,8 @@ func checkOriginalEmptyControls(t *testing.T, adapter, classes string, deps []st
 				expectHelperLog = "incomplete Empty recorder observations"
 			} else if tc.mode == "wrong-success" {
 				expectHelperLog = "success observation does not match tool message"
+			} else if tc.mode == "omitted-success" {
+				expectHelperLog = "incomplete Empty recorder observation: observed-fingerprint-probability-unavailable"
 			} else if !tc.omitted {
 				goBinary = filepath.Join(t.TempDir(), "missing-tla-go")
 			}

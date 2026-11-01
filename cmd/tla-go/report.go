@@ -74,8 +74,11 @@ func printSuccess(w io.Writer, result checker.Result) {
 }
 
 func successProbability(result checker.Result) string {
-	probability := float64(result.DistinctStates) * (float64(result.GeneratedStates-result.DistinctStates) / 18446744073709551616.0)
-	return formatProbability(probability)
+	return formatProbability(successCollisionProbability(result))
+}
+
+func successCollisionProbability(result checker.Result) float64 {
+	return float64(result.DistinctStates) * (float64(result.GeneratedStates-result.DistinctStates) / 18446744073709551616.0)
 }
 
 // printViolation returns true when TLC suppresses statistics for the result.

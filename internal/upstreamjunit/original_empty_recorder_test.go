@@ -16,6 +16,9 @@ func replaceEmptyRecorderValues(records []bridgeRecord, events []recorderdebug.E
 		return nil, fmt.Errorf("incomplete Empty recorder observations")
 	}
 	for i, code := range codes {
+		if events[i].Kind == "omission" {
+			return nil, fmt.Errorf("incomplete Empty recorder observation: %s", events[i].Reason)
+		}
 		if events[i].Code != code {
 			return nil, fmt.Errorf("unexpected Empty recorder observation order")
 		}

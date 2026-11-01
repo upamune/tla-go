@@ -327,17 +327,24 @@ func TestRecorderDebugRejectsCollidingPaths(t *testing.T) {
 }
 
 func TestRecorderDebugPropagatesWriteAndCloseFailure(t *testing.T) {
-	f, err := os.CreateTemp(t.TempDir(), "recorder")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
-	profile := &profileFile{file: f}
-	recordStrings(&recorderConfig{file: profile}, 2186, "1ms")
-	if profile.err == nil || (&profiles{recorder: profile}).close() == nil {
-		t.Fatal("recorder write or close error was discarded")
+	for _, write := range []func(*recorderConfig){
+		func(recorder *recorderConfig) { recordStrings(recorder, 2186, "1ms") },
+		func(recorder *recorderConfig) {
+			recordOmission(recorder, 2193, recorderdebug.SuccessProbabilityOmission)
+		},
+	} {
+		f, err := os.CreateTemp(t.TempDir(), "recorder")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+		profile := &profileFile{file: f}
+		write(&recorderConfig{file: profile})
+		if profile.err == nil || (&profiles{recorder: profile}).close() == nil {
+			t.Fatal("recorder write or close error was discarded")
+		}
 	}
 }
 

@@ -105,6 +105,20 @@ func recordStatistics(recorder *recorderConfig, result checker.Result) {
 	recordStrings(recorder, 2199, strconv.Itoa(result.GeneratedStates), strconv.Itoa(result.DistinctStates), strconv.Itoa(result.QueuedStates))
 }
 
+func recordSuccess(recorder *recorderConfig, result checker.Result) {
+	if result.DistinctStates < 0 || result.GeneratedStates < result.DistinctStates || successCollisionProbability(result) >= 1e-10 {
+		recordOmission(recorder, 2193, recorderdebug.SuccessProbabilityOmission)
+		return
+	}
+	recordStrings(recorder, 2193, "val = "+successProbability(result))
+}
+
+func recordOmission(recorder *recorderConfig, code int, reason string) {
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
+	_ = json.NewEncoder(recorder.file).Encode(recorderdebug.Event{Kind: "omission", Code: code, Reason: reason})
+}
+
 func recordSearchEvent(recorder *recorderConfig, event checker.SearchEvent) {
 	if recorder == nil {
 		return

@@ -566,6 +566,10 @@ retains its metadir, fingerprint and trace files because the original setup
 vetoes cleanup; the experiment checks their presence and compares the empty
 DOT bytes with Go's separately located dump. It does not reproduce or compare
 the contents of those Java state files with Go.
+For larger successful searches, the diagnostic explicitly marks message 2193
+as omitted when Java would include an observed fingerprint probability that Go
+does not calculate. The bridge rejects an omission instead of accepting it as
+a complete recorder call.
 
 Negative controls reject altered worker/dump arguments, missing arguments,
 wrong statistics, a missing FINISHED record, a GENERAL record, a nonzero

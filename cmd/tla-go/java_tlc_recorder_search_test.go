@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -325,4 +326,106 @@ func sanyToolMessages(output string) []toolMessage {
 		}
 	}
 	return result
+}
+
+// 42949 and 42950 straddle Java's unrounded 1e-10 collision-probability
+// threshold. Above it Java reports a second, fingerprint-distance-based value.
+func TestJavaTLCRecorderSuccessThreshold(t *testing.T) {
+	jar := pinnedFairnessEffectJar(t)
+	if jar == "" {
+		t.Skip("set TLC_JAR to pinned Java TLC 1.7.4")
+	}
+	jar, err := filepath.Abs(jar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	classes := compileSearchRecorder(t, jar)
+	for _, tc := range []struct {
+		states     int
+		optimistic string
+		omitted    bool
+	}{
+		{42949, "val = 10.0E-11", false},
+		{42950, "val = 1.0E-10", true},
+	} {
+		t.Run(strconv.Itoa(tc.states), func(t *testing.T) {
+			dir := t.TempDir()
+			model := fmt.Sprintf("---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x \\in 1..%d\nNext == UNCHANGED x\n====\n", tc.states)
+			for name, content := range map[string]string{"M.tla": model, "M.cfg": "INIT Init\nNEXT Next\n"} {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			path := filepath.Join(dir, "go.jsonl")
+			t.Setenv("TLA_GO_DEBUG_RECORDER", path)
+			var out, errout bytes.Buffer
+			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			defer cancel()
+			code := run(ctx, []string{"-tool", "-workers", "1", "-fp", "0", filepath.Join(dir, "M.tla")}, &out, &errout)
+			if code != 0 || ctx.Err() != nil || errout.Len() != 0 {
+				t.Fatalf("Go exit=%d context=%v stderr=%s", code, ctx.Err(), &errout)
+			}
+			java := runSearchRecorderJava(t, jar, classes, dir, 0, 1, true, false)
+			checkSuccessThresholdEvents(t, readSearchRecorder(t, path), java, tc.states, tc.optimistic, tc.omitted)
+			if tc.omitted {
+				checkSuccessThresholdOutput(t, filepath.Join(dir, "M.tla"), out.String())
+			}
+		})
+	}
+}
+
+func checkSuccessThresholdOutput(t *testing.T, model, debugOutput string) {
+	t.Helper()
+	t.Setenv("TLA_GO_DEBUG_RECORDER", "")
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	var out, errout bytes.Buffer
+	code := run(ctx, []string{"-tool", "-workers", "1", "-fp", "0", model}, &out, &errout)
+	if code != 0 || ctx.Err() != nil || errout.Len() != 0 || normalizeRecorderToolOutput(out.String()) != normalizeRecorderToolOutput(debugOutput) {
+		t.Fatalf("diagnostics changed user output: exit=%d context=%v stderr=%s\ndebug=%s\nplain=%s", code, ctx.Err(), &errout, debugOutput, &out)
+	}
+}
+
+func checkSuccessThresholdEvents(t *testing.T, goEvents []recorderdebug.Event, java []string, states int, optimistic string, omitted bool) {
+	t.Helper()
+	var success []string
+	for _, event := range java {
+		if strings.HasPrefix(event, "2193\t") {
+			success = strings.Split(event, "\t")
+		}
+	}
+	wantLen := 2
+	if omitted {
+		wantLen = 3
+	}
+	if len(success) != wantLen || success[1] != optimistic || omitted && !strings.HasPrefix(success[2], "val = ") {
+		t.Fatalf("Java success event=%v", success)
+	}
+	wantStats := fmt.Sprintf("2199\t%d\t%d\t0", states*2, states)
+	if !slices.Contains(java, wantStats) {
+		t.Fatalf("Java missing statistics %s: %v", wantStats, java)
+	}
+	count := 0
+	for _, event := range goEvents {
+		if event.Code != 2193 {
+			continue
+		}
+		count++
+		if omitted {
+			if event.Kind != "omission" || event.Reason != recorderdebug.SuccessProbabilityOmission || len(event.Values) != 0 {
+				t.Fatalf("Go must omit unrepresentable event: %+v", event)
+			}
+		} else if event.Kind != "record" || !slices.Equal(event.Values, []string{optimistic}) {
+			t.Fatalf("Go success event=%+v", event)
+		}
+	}
+	if count != 1 {
+		t.Fatalf("expected one success record or omission, got %d", count)
+	}
+	for _, event := range goEvents {
+		if event.Code == 2199 && slices.Equal(event.Values, []string{strconv.Itoa(states * 2), strconv.Itoa(states), "0"}) {
+			return
+		}
+	}
+	t.Fatalf("Go missing statistics %s: %+v", wantStats, goEvents)
 }

@@ -11,4 +11,8 @@ type Event struct {
 	Code     int      `json:"code,omitempty"`
 	Array    string   `json:"array,omitempty"`
 	Values   []string `json:"values,omitempty"`
+	Reason   string   `json:"reason,omitempty"`
 }
+
+// SuccessProbabilityOmission signals that TLC's fingerprint distance is unavailable.
+const SuccessProbabilityOmission = "observed-fingerprint-probability-unavailable"

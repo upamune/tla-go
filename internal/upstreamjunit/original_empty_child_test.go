@@ -45,6 +45,13 @@ func originalEmptyGoHelper() error {
 			}
 		}
 	}
+	if mode == "omitted-success" {
+		for i := range observed {
+			if observed[i].Code == 2193 {
+				observed[i] = recorderdebug.Event{Kind: "omission", Code: 2193, Reason: recorderdebug.SuccessProbabilityOmission}
+			}
+		}
+	}
 	records, omissions, err := projectEmpty(emptyInvocation(), result)
 	if err != nil {
 		return err
