@@ -58,3 +58,34 @@ func TestJavaTLCEmptyQuantifiedSafetyWithOtherProperty(t *testing.T) {
 		compareJavaToolMessages(t, jar, dir, code, messages)
 	}
 }
+
+// Java 1.8.0 splits quantified safety properties differently from 1.7.4.
+func TestJavaTLCModernQuantifiedSafetyVersionDifference(t *testing.T) {
+	jar := os.Getenv("TLC_MODERN_JAR")
+	if jar == "" {
+		t.Skip("TLC_MODERN_JAR is not set")
+	}
+	for _, tc := range []struct {
+		name, property         string
+		goCode, javaCode       int
+		goMessage, javaMessage int
+	}{
+		{"state", `\A v \in {2} : [](x # v)`, 13, 12, 2116, 2110},
+		{"action", `\A v \in {2} : [][x' # v]_x`, 255, 13, 2214, 2112},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == " + tc.property
+			writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nPROPERTY P\n")
+			args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
+			got, code, stderr := runGoToolInDir(t, dir, args)
+			if code != tc.goCode || stderr != "" || !hasToolMessage(got, tc.goMessage) {
+				t.Fatalf("Go exit %d, messages %+v, stderr %s", code, got, stderr)
+			}
+			java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+			if javaCode != tc.javaCode || !hasToolMessage(readToolMessages(java), tc.javaMessage) {
+				t.Fatalf("Java exit %d, output %s", javaCode, java)
+			}
+		})
+	}
+}
