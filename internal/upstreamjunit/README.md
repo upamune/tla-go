@@ -221,6 +221,15 @@ execute JUnit lifecycle methods, or establish the requested 336-test denominator
 
 ## Diagnostic snapshot (2026-11-01)
 
+The full diagnostic sweep at `aadcf4ba4d9e07bd03c6d06c6086da1bfe123c29`
+attempted 309 of 340 recovered candidates. Of these, 255 had no differences
+in the selected observations, 39 had selected differences, and 15 could not
+be compared. The other 31 had unsafe or unresolved setup. All 340 candidates
+remain unresolved by this diagnostic; these numbers are not JUnit passes.
+The class-by-class record and its pinned source hash are in
+`testdata/snapshots/sweep-aadcf4ba.json`. Execution order and timeouts can
+affect availability, so comparisons with earlier snapshots are not pass rates.
+
 Against the verified Java TLC 1.7.4 checkout and jar, the lexical inventory
 reported 340 non-abstract candidates, 236 with a recovered spec, and 340
 unresolved candidates. This is not JUnit discovery and cannot establish the

@@ -14,6 +14,7 @@ func TestCommitForSourceHash(t *testing.T) {
 		{"65e957a50c1a58779f5982458ca42adb3d4ed16e0884229dd7bbe752aa298765", "e81f221f7ba59b833244e7613bd149f836532c86"},
 		{"e548e0fba387f59c1278069d2bb0bcd7196475e36a6049003336d2616bb13000", "9f5816269083eb7c9d44e5477695e95e6bf68059"},
 		{"606f46f5a51d30125f9b980a8eafccc03c40b219faff0194933eca28ac135598", "51c3a77c6c4cbc02c6f388b0c90047cc895f9869"},
+		{"c4f95b37f08cb2be7b59a887333a14f0a3ec14af2f95f2525b698cb875bf01fa", "aadcf4ba4d9e07bd03c6d06c6086da1bfe123c29"},
 	} {
 		got, err := commitForSourceHash(tc.hash)
 		if err != nil || got != tc.commit {
@@ -37,6 +38,10 @@ func TestRegenerate9F58162Snapshot(t *testing.T) {
 
 func TestRegenerate51C3A77Snapshot(t *testing.T) {
 	checkRegeneration(t, "TLA_GO_51C3A77_SWEEP_LOG", "/tmp/tla-51c3a77-sweep.log", "sweep-51c3a77c.json")
+}
+
+func TestRegenerateAADCF4BSnapshot(t *testing.T) {
+	checkRegeneration(t, "TLA_GO_AADCF4B_SWEEP_LOG", "/tmp/tla-aadcf4b-sweep.log", "sweep-aadcf4ba.json")
 }
 
 func checkRegeneration(t *testing.T, env, defaultPath, snapshot string) {
