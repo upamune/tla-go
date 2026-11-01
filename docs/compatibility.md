@@ -124,11 +124,16 @@ named, nullary actions with simple conjunctions, assignments, comparisons,
 `\in Nat` guards, range membership assignments, and `UNCHANGED`. Range
 assignment coverage counts enumerated members and domain evaluations separately;
 independent, dependent, singleton, and empty initial ranges and next-state
-range assignments have Java 1.7.4 differential fixtures. It rejects invariants, properties, action
-constraints, symmetry, VIEW, continuation, simulation, depth-first search,
+range assignments have Java 1.7.4 differential fixtures. State invariants
+support a limited expression subset: conjunctions and binary disjunctions,
+comparisons and membership with simple operands, and nested single-bound
+quantifiers over literal integer ranges. Counts are recorded during evaluation,
+including short-circuiting; other invariant forms are rejected. The property
+fixtures include direct Java 1.7.4 comparisons and saved reports.
+Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, depth-first search,
 and nonzero periodic intervals. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, operator calls,
-quantification, parameterized or inline actions, initial or action disjunctions,
+action quantification, parameterized or inline actions, initial or action disjunctions,
 substituted instances, nested cost-model expressions, and coverage during error
 replay and liveness are not implemented or fully checked. The upstream `C`
 model therefore remains unsupported for coverage. Reporting for arbitrary

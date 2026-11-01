@@ -14,6 +14,7 @@ type CoverageAction struct {
 	Name                string
 	Range               parser.Range
 	Distinct, Generated int
+	Property            bool
 	Expressions         []CoverageExpression
 }
 
@@ -34,6 +35,7 @@ type coverageCollector struct {
 	guards                map[string]map[parser.Range]int
 	memberships           map[string]map[parser.Range]int
 	assignmentMemberships map[string]map[parser.Range]int
+	properties            map[string]*coverageNode
 }
 
 func (m *model) newCoverage() (*coverageCollector, error) {
@@ -52,7 +54,7 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 	if !ok {
 		return nil, false
 	}
-	c := &coverageCollector{byName: map[string]int{}, bodies: map[string]*parser.Expression{}, expressions: map[string]map[parser.Range]int{}, guards: map[string]map[parser.Range]int{}, memberships: map[string]map[parser.Range]int{}, assignmentMemberships: map[string]map[parser.Range]int{}, initial: init.Name}
+	c := &coverageCollector{byName: map[string]int{}, bodies: map[string]*parser.Expression{}, expressions: map[string]map[parser.Range]int{}, guards: map[string]map[parser.Range]int{}, memberships: map[string]map[parser.Range]int{}, assignmentMemberships: map[string]map[parser.Range]int{}, properties: map[string]*coverageNode{}, initial: init.Name}
 	if !m.coverageBodySupported(init.Body, true) || !c.add(init, true) {
 		return nil, false
 	}
@@ -61,7 +63,16 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 			return nil, false
 		}
 	}
-	return c, true
+	return c, m.addCoverageProperties(c)
+}
+
+func (m *model) addCoverageProperties(c *coverageCollector) bool {
+	for _, name := range m.cfg.Invariants {
+		if !m.addCoverageProperty(c, name) {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *model) coverageRoots() (parser.Definition, parser.Definition, bool) {
@@ -71,7 +82,7 @@ func (m *model) coverageRoots() (parser.Definition, parser.Definition, bool) {
 }
 
 func (m *model) coverageConfigSupported() bool {
-	return !m.continueChecking && len(m.cfg.Invariants)+len(m.cfg.Properties)+len(m.cfg.ActionConstraints)+len(m.cfg.Postconditions)+len(m.cfg.Possible) == 0 && m.cfg.Symmetry == "" && m.cfg.View == ""
+	return !m.continueChecking && len(m.cfg.Properties)+len(m.cfg.ActionConstraints)+len(m.cfg.Postconditions)+len(m.cfg.Possible) == 0 && m.cfg.Symmetry == "" && m.cfg.View == ""
 }
 
 func (m *model) addCoverageAction(c *coverageCollector, branch *parser.Expression) bool {
@@ -470,6 +481,10 @@ func (m *model) attachCoverage(result *Result) {
 func (c *coverageCollector) finish() {
 	for i := range c.actions {
 		a := &c.actions[i]
+		if a.Property {
+			a.Expressions = c.properties[a.Name].report(nil, 0)
+			continue
+		}
 		a.Expressions = c.finishAction(a)
 		c.collapseAction(a)
 	}
