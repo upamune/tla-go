@@ -198,11 +198,23 @@ started for coverage today, and an absent `-coverage` flag enables no coverage
 output. Any future checker option or callback must also preserve checkpoint
 option validation and caller context cancellation.
 
+`Options.LiveProgress` can opt a coverage check into publishing copies of its
+generated, distinct, queued and depth counters. A fresh `LiveProgress` belongs
+to one check, and its `Snapshot` can be read concurrently or after a failure
+or cancellation. It starts at zero, including when setup fails before search;
+`InitialComplete` is published before the corresponding search event. The
+counts follow the existing search result's mutations, including failure replay;
+updates to different counters are not a single state transition. Queue excludes
+the state being expanded, and depth is the existing result's maximum depth,
+not a guarantee of Java's independently sampled level. Successful empty search
+publishes its final depth of one. There is no completion signal: callers must
+coordinate check completion and stop and join their own observers. These
+snapshots do not read the mutable result or queue from the observer. The option
+requires coverage and is unsupported with checkpoints, simulation and DFID.
+It does not change the existing integer overflow behavior of those counters.
+
 The remaining integration obstacle is broader than the coverage collector.
-`search.result` and the search queue are mutated without synchronization, so a
-timer cannot safely read the generated, distinct, queue, and depth values for
-message 2200. Reading only at expansion boundaries is insufficient: a single
-successor evaluation can outlast a reporting interval. The CLI also writes
+The CLI writes
 multi-part tool messages and coverage reports through callbacks as well as after
 the checker returns. A timer therefore needs a shared message-level output
 boundary, a race-free source of live progress values, and a stop-and-join

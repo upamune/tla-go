@@ -34,6 +34,7 @@ func (s *search) incompleteSuccessorFailure(incomplete *incompleteState, index i
 	}
 	step, message := s.model.incompleteSuccessor(incomplete)
 	s.result.GeneratedStates++
+	s.publishProgress()
 	s.result.Status = EvaluationFailure
 	s.result.Failure = &Failure{Message: message, Trace: append(trace, step), ExitCode: 75, ToolCode: 2109}
 	return s.result, nil

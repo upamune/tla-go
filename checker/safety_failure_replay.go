@@ -68,6 +68,7 @@ func (s *search) replaySafetyCandidate(parent int, state evaluator.State, action
 func (s *search) queueReplayCandidate(inModel, unseen bool) {
 	if inModel && unseen {
 		s.result.QueuedStates++
+		s.publishProgress()
 	}
 }
 
@@ -93,6 +94,7 @@ func (s *search) markReplayCandidate(key string, inModel bool, seen map[string]b
 	}
 	seen[key] = true
 	s.result.DistinctStates++
+	s.publishProgress()
 	return true
 }
 
