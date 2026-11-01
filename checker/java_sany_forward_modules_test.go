@@ -155,6 +155,17 @@ func TestForwardInstanceWithUnknownDeclarationColumn(t *testing.T) {
 	}
 }
 
+func TestInstanceOrderBeforeLocalShadow(t *testing.T) {
+	module, err := parser.ParseModule("---- MODULE M ----\nI == INSTANCE A\nGood == LET X == I!F(1) I == INSTANCE A IN X\n====\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver := instanceResolver{root: module}
+	if err := resolver.validateReferenceOrder(module.Instances[0]); err != nil {
+		t.Fatalf("rejected reference to outer instance before local shadow: %v", err)
+	}
+}
+
 func compareForwardJava(t *testing.T, source, auxiliary, instance string, invalid bool) {
 	t.Helper()
 	jar := os.Getenv("TLC_JAR")

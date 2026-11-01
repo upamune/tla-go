@@ -58,23 +58,55 @@ func earlierDefinitionReference(definition parser.Definition, instance parser.In
 }
 
 func earlierInstanceReference(expr *parser.Expression, instance parser.Instance) bool {
+	return earlierInstanceReferenceScoped(expr, instance, nil)
+}
+
+type instanceReferenceScope struct {
+	instance parser.Instance
+	parent   *instanceReferenceScope
+}
+
+func earlierInstanceReferenceScoped(expr *parser.Expression, instance parser.Instance, scope *instanceReferenceScope) bool {
 	if expr.Kind == "Let" {
-		for _, local := range expr.Instances {
-			if local.Name == instance.Name {
-				return false
-			}
+		var found bool
+		scope, found = letInstanceReferenceScope(expr, instance, scope)
+		if found {
+			return true
 		}
 	}
-	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && strings.HasPrefix(expr.Text, instance.Name+"!") && instanceReferencePrecedes(expr.Location.Position, instance.Location.Position) {
+	if (expr.Kind == "Identifier" || expr.Kind == "Apply") && strings.HasPrefix(expr.Text, instance.Name+"!") && instanceReferencePrecedes(expr.Location.Position, visibleInstancePosition(expr.Location.Position, instance, scope)) {
 		return true
 	}
 	found := false
 	walkChildren(expr, func(child *parser.Expression) {
-		if !found && earlierInstanceReference(child, instance) {
+		if !found && earlierInstanceReferenceScoped(child, instance, scope) {
 			found = true
 		}
 	})
 	return found
+}
+
+func letInstanceReferenceScope(expr *parser.Expression, instance parser.Instance, scope *instanceReferenceScope) (*instanceReferenceScope, bool) {
+	for _, local := range expr.Instances {
+		for _, substitution := range local.Substitutions {
+			if earlierInstanceReferenceScoped(substitution.Expression, instance, scope) {
+				return scope, true
+			}
+		}
+		if local.Name == instance.Name {
+			scope = &instanceReferenceScope{instance: local, parent: scope}
+		}
+	}
+	return scope, false
+}
+
+func visibleInstancePosition(reference parser.Position, instance parser.Instance, scope *instanceReferenceScope) parser.Position {
+	for ; scope != nil; scope = scope.parent {
+		if !knownPositionAfter(scope.instance.Location.Position, reference) {
+			return scope.instance.Location.Position
+		}
+	}
+	return instance.Location.Position
 }
 
 func instanceReferencePrecedes(reference, instance parser.Position) bool {

@@ -73,3 +73,29 @@ func TestJavaTLCInstanceReferenceOrder(t *testing.T) {
 		})
 	}
 }
+
+// Java accepts this shadow with a warning; tla-go still reports a duplicate.
+func TestJavaTLCInstanceShadowKnownGap(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"M.tla": "---- MODULE M ----\nEXTENDS Naturals\nI == INSTANCE A\nGood == LET X == I!F(1) I == INSTANCE A IN X\nVARIABLE v\nInit == v = 0\nNext == UNCHANGED v\n====\n",
+		"A.tla": "---- MODULE A ----\nF(x) == x\n====\n",
+		"M.cfg": "INIT Init\nNEXT Next\n",
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), []string{"-tool", filepath.Join(dir, "M.tla")}, &out, &errout)
+	if code != 255 || !strings.Contains(out.String(), "Multiply-defined symbol 'I!F'") {
+		t.Fatalf("Go exit %d, stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, []string{"-tool", "-workers", "1", "-fp", "0", "M.tla"})
+		if javaCode != 0 || !strings.Contains(java, "Multiple declarations or definitions for symbol I") {
+			t.Fatalf("Java TLC exit %d:\n%s", javaCode, java)
+		}
+	}
+}

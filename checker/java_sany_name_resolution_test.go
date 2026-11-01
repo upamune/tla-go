@@ -95,6 +95,10 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 		{"local instance shadows later instance", "Good == LET I == INSTANCE A X == I!F(1) IN X I == INSTANCE A", false},
 		{"nested local instance shadows later instance", "Good == LET X == LET I == INSTANCE A Y == I!F(1) IN Y IN X I == INSTANCE A", false},
 		{"local instance operator argument shadows later instance", "Use(F(_)) == F(1) Good == LET I == INSTANCE A X == Use(I!F) IN X I == INSTANCE A", false},
+		{"local instance referenced before shadow", "Bad == LET X == I!F(1) I == INSTANCE A IN X I == INSTANCE A", true},
+		{"nested local instance referenced before shadow", "Bad == LET X == LET Y == I!F(1) I == INSTANCE A IN Y IN X I == INSTANCE A", true},
+		{"local instance self substitution before outer", "Bad == LET I == INSTANCE B WITH C <- I!F IN I!F I == INSTANCE B", true},
+		{"local instance referenced in prior definition", "Bad == LET X == I!F I == INSTANCE B WITH C <- 1 IN X I == INSTANCE B", true},
 	}
 	jar := os.Getenv("TLC_JAR")
 	if jar != "" {
