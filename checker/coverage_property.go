@@ -47,10 +47,12 @@ type propertyBuilder struct {
 	model       *model
 	vars, bound map[string]bool
 	seen        *bool
+	calls       map[string]bool
+	params      map[string]bool
 }
 
 func (m *model) propertyCoverageNode(e *parser.Expression, vars, bound map[string]bool, seen *bool) (*coverageNode, bool) {
-	return (&propertyBuilder{model: m, vars: vars, bound: bound, seen: seen}).node(e)
+	return (&propertyBuilder{model: m, vars: vars, bound: bound, seen: seen, calls: map[string]bool{}, params: map[string]bool{}}).node(e)
 }
 
 func (b *propertyBuilder) node(e *parser.Expression) (*coverageNode, bool) {
@@ -63,9 +65,9 @@ func (b *propertyBuilder) node(e *parser.Expression) (*coverageNode, bool) {
 	n := &coverageNode{expr: e}
 	switch e.Kind {
 	case "Identifier":
-		return n, b.identifier(e.Text)
+		return n, b.identifierNode(n)
 	case "Apply":
-		return n, b.apply(n)
+		return n, b.applyNode(n)
 	case "And", "Or":
 		if !e.Bulleted && len(e.Args) != 2 {
 			return nil, false
@@ -73,6 +75,67 @@ func (b *propertyBuilder) node(e *parser.Expression) (*coverageNode, bool) {
 		return n, b.children(n, e.Args)
 	}
 	return b.boundNode(n)
+}
+
+func (b *propertyBuilder) identifierNode(n *coverageNode) bool {
+	name := n.expr.Text
+	if d, ok := b.model.defs[name]; ok && !b.vars[name] && !b.bound[name] {
+		return b.call(n, d)
+	}
+	return b.identifier(name)
+}
+
+func (b *propertyBuilder) applyNode(n *coverageNode) bool {
+	if d, ok := b.model.defs[n.expr.Text]; ok {
+		return b.call(n, d)
+	}
+	return b.apply(n)
+}
+
+// Each definition may occur once per property tree: observations identify
+// expressions, but do not carry a call stack to disambiguate shared bodies.
+// Literal arguments avoid attributing lazy argument evaluations to the wrong
+// branch of the cost tree.
+func (b *propertyBuilder) call(n *coverageNode, d parser.Definition) bool {
+	if !b.callSupported(n, d) {
+		return false
+	}
+	b.calls[d.Name] = true
+	for _, p := range d.Params {
+		b.bound[p.Name] = true
+		b.params[p.Name] = true
+	}
+	outerSeen := b.seen
+	localSeen := false
+	b.seen = &localSeen
+	ok := b.children(n, []*parser.Expression{d.Body})
+	b.seen = outerSeen
+	*outerSeen = *outerSeen || localSeen
+	for _, p := range d.Params {
+		delete(b.bound, p.Name)
+		delete(b.params, p.Name)
+	}
+	// Constant nullary definitions may be cached outside this evaluation.
+	return ok && (len(d.Params) > 0 || localSeen)
+}
+
+func (b *propertyBuilder) callSupported(n *coverageNode, d parser.Definition) bool {
+	if b.calls[d.Name] || d.Kind != "Operator" || d.Recursive || d.InstanceSubstituted || b.model.trueConfigured[d.Name] || len(d.Params) != len(n.expr.Args) {
+		return false
+	}
+	if _, overridden := b.model.constants[d.Name]; overridden {
+		return false
+	}
+	return b.callArgumentsSupported(n, d)
+}
+
+func (b *propertyBuilder) callArgumentsSupported(n *coverageNode, d parser.Definition) bool {
+	for i, p := range d.Params {
+		if p.Arity != 0 || b.vars[p.Name] || b.bound[p.Name] || n.expr.Args[i].Kind != "Number" {
+			return false
+		}
+	}
+	return true
 }
 
 func (b *propertyBuilder) boundNode(n *coverageNode) (*coverageNode, bool) {
@@ -148,7 +211,11 @@ func (b *propertyBuilder) boundSupported(bound parser.Bound) bool {
 }
 
 func (b *propertyBuilder) literalRange(e *parser.Expression) bool {
-	return e != nil && e.Kind == "Apply" && e.Text == ".." && len(e.Args) == 2 && e.Args[0].Kind == "Number" && e.Args[1].Kind == "Number"
+	return e != nil && e.Kind == "Apply" && e.Text == ".." && len(e.Args) == 2 && b.rangeEndpoint(e.Args[0]) && b.rangeEndpoint(e.Args[1])
+}
+
+func (b *propertyBuilder) rangeEndpoint(e *parser.Expression) bool {
+	return e.Kind == "Number" || (e.Kind == "Identifier" && b.params[e.Text])
 }
 
 func (n *coverageNode) observe(expr *parser.Expression) {
