@@ -256,6 +256,7 @@ type Options struct {
 	// State and Order must be copied by callers that retain them after the call.
 	OnGraph func(GraphEvent) error
 	// DOTGraph enables Java DOT writer fingerprint evaluation and rank events.
+	// DOTGraph and TextGraph are mutually exclusive, including when OnGraph is nil.
 	DOTGraph bool
 	// TextGraph follows Java text dumps without computing graph fingerprints.
 	TextGraph bool
@@ -454,6 +455,9 @@ func CheckModuleWithOptions(ctx context.Context, module *parser.Module, cfg conf
 }
 
 func checkParsedWithOptions(ctx context.Context, module *parser.Module, cfg config.Config, options Options) (Result, error) {
+	if options.DOTGraph && options.TextGraph {
+		return Result{}, fmt.Errorf("DOTGraph and TextGraph are mutually exclusive")
+	}
 	session := newInstanceSession(module.Name)
 	session.sourceUnits[module.Name] = module
 	module, err := resolveExtensionsScoped(ctx, module, options.Loader, session)

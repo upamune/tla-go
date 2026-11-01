@@ -141,3 +141,45 @@ Next == UNCHANGED s
 		t.Fatalf("got %+v, initial %d, error %v", got, len(initial), err)
 	}
 }
+
+// Graph writer modes cannot be combined; rejection precedes model side effects.
+func TestGraphOutputModes(t *testing.T) {
+	const source = `---- MODULE M ----
+EXTENDS TLC
+VARIABLE x
+Init == IF PrintT("init") THEN x = 0 ELSE FALSE
+Next == UNCHANGED x
+====`
+	const cfg = "INIT Init NEXT Next CHECK_DEADLOCK FALSE"
+	for _, mode := range []struct {
+		name                        string
+		dot, text, callback, reject bool
+	}{
+		{"generic", false, false, true, false},
+		{"generic nil", false, false, false, false},
+		{"dot", true, false, true, false},
+		{"text", false, true, true, false},
+		{"nil dot", true, false, false, false},
+		{"nil text", false, true, false, false},
+		{"both", true, true, true, true},
+		{"both nil", true, true, false, true},
+	} {
+		t.Run(mode.name, func(t *testing.T) {
+			prints, graphs := 0, 0
+			opts := Options{DOTGraph: mode.dot, TextGraph: mode.text, OnPrint: func(string) { prints++ }}
+			if mode.callback {
+				opts.OnGraph = func(GraphEvent) error { graphs++; return nil }
+			}
+			result, err := CheckWithOptions(context.Background(), source, cfg, opts)
+			if mode.reject {
+				if err == nil || err.Error() != "DOTGraph and TextGraph are mutually exclusive" || prints != 0 || graphs != 0 {
+					t.Fatalf("result %+v, err %v, prints %d, graphs %d", result, err, prints, graphs)
+				}
+				return
+			}
+			if err != nil || result.Status != Success || prints == 0 || mode.callback != (graphs > 0) {
+				t.Fatalf("result %+v, err %v, prints %d, graphs %d", result, err, prints, graphs)
+			}
+		})
+	}
+}
