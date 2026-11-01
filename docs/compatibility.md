@@ -43,6 +43,9 @@ conversion to such bounds.
 Function constructors evaluate each source bound once, including a bound shared
 by several names, and enumerate the first variable fastest, matching Java TLC
 in the tested cases with `TLCSet` and `PrintT` effects.
+The internal bound-group identity is not preserved by JSON serialization of
+the parser AST, so evaluating an AST reconstructed from JSON can differ when
+such a bound has side effects.
 Some mixed tuple and grouped-name bounds still differ: Java TLC 1.7.4 can
 throw a `ClassCastException` where tla-go accepts the constructor.
 Java's `FcnParams.Enumerator` initializes a tuple bound using the source-bound
