@@ -5,6 +5,7 @@ import java.util.Base64;
 import org.junit.Test;
 import tlc2.TestMPRecorder;
 import tlc2.tool.CommonTestCase;
+import tlc2.tool.EmptyTest;
 import tlc2.tool.suite.Test10;
 
 // Executes the original inherited assertion method on a fresh Test10 instance.
@@ -15,7 +16,11 @@ public class Bridge {
     }
 
     @Test public void observations() throws Exception {
-        Test10 test = new Test10();
+        String target = new String(Files.readAllBytes(Paths.get("bridge-target")), StandardCharsets.UTF_8);
+        CommonTestCase test;
+        if (target.equals("Test10")) { test = new Test10(); }
+        else if (target.equals("EmptyTest")) { test = new EmptyTest(); }
+        else { throw new IllegalArgumentException("unsupported target"); }
         java.lang.reflect.Field field = CommonTestCase.class.getDeclaredField("recorder");
         field.setAccessible(true);
         TestMPRecorder recorder = (TestMPRecorder) field.get(test);
@@ -32,7 +37,8 @@ public class Bridge {
             recorder.record(code, (Object[]) values);
         }
         try {
-            test.testSpec();
+            if (test instanceof Test10) { ((Test10) test).testSpec(); }
+            else { ((EmptyTest) test).testSpec(); }
         } catch (AssertionError failure) {
             throw new UpstreamAssertionFailure(failure);
         }

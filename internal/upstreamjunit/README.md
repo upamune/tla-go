@@ -229,7 +229,7 @@ mismatch fails as a **Go mismatch**; a match is only a **partial Go diagnostic**
 Unexpected discovery or lifecycle selection is unsupported, and ignored,
 initialization-error, assertion-failure, assumption, missing-event and process
 errors cannot become passes. The fixture exercises these cases with real JUnit.
-Only this exact case is supported; arbitrary methods, custom fixtures, parameter
+Only the explicitly analyzed cases are supported; arbitrary methods, custom fixtures, parameter
 factories, overrides, and alternate lifecycle hooks need explicit analysis and
 isolation before expanding the allowlist. An eventual Go JUnit pass would need
 an adapter that executes the original assertions against Go observations and
@@ -288,3 +288,28 @@ conversion are not reproduced or verified. The Go process exit and omissions
 are reported; they cannot turn the result into a pass. A broader bridge requires
 a typed recorder interface from Go, complete lifecycle equivalence, and an
 explicit completeness contract before it can claim one.
+
+## EmptyTest assertion-method bridge
+
+The same opt-in experiment discovers and executes the pinned
+`tlc2.tool.EmptyTest#testSpec` through its actual JUnit runner. Its inherited
+setup invokes Java TLC, and its teardown checks the converted exit status. This
+Java JUnit pass is separate from the Go observation experiment.
+
+The Go invocation checks the harness's deadlock, fingerprint, worker,
+checkpoint and duplicate `-coverage 1` arguments. Tool mode is added and its
+DOT destination differs from the harness's metadir path. The experiment requires
+exit zero and an empty-model output without a coverage report, projects the
+FINISHED and state-count messages into string recorder arguments, preserves
+GENERAL presence, and calls the original `EmptyTest.testSpec` on a fresh
+instance. Unknown and otherwise unrepresented messages are reported. Synthetic
+altered counts, missing FINISHED and GENERAL must fail the original assertion;
+disabled coverage, malformed output, unexpected coverage, errors and timeouts
+are rejected by the driver.
+
+A successful assertion is a partial match, not a Go JUnit pass. Rendered tool
+messages do not establish the complete Java recorder calls or argument types;
+the bridged instance does not run the original setup or teardown, and Java
+process globals, side effects, metadir and dump behavior are not reproduced.
+Absence of a coverage report for this empty model does not establish general
+coverage equivalence. The experiment does not claim lifecycle completeness.

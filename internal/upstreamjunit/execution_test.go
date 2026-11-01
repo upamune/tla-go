@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -322,12 +323,13 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	temp := t.TempDir()
 	// Discovery compiles only tracked sources and establishes that this exact leaf exists.
-	records, err := discover(root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10"})
+	records, err := discover(root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := DiscoveryRecord{"case", "tlc2.tool.suite.Test10", "testSpec(tlc2.tool.suite.Test10)"}
-	if len(records) != 1 || records[0] != want {
+	empty := DiscoveryRecord{"case", "tlc2.tool.EmptyTest", "testSpec(tlc2.tool.EmptyTest)"}
+	if len(records) != 2 || !slices.Contains(records, want) || !slices.Contains(records, empty) {
 		t.Fatalf("unsupported lifecycle or discovery: %+v", records)
 	}
 	classes := filepath.Join(temp, "classes")
@@ -368,6 +370,14 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("Java JUnit pass: %s#testSpec (inherited setup, assertion and teardown); events=%v", want.Class, events)
+	emptyEvents, err := executeJUnit(classes, deps, runDir, runDir, empty.Class, "testSpec")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateExecution(emptyEvents, empty.Display); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Java JUnit pass: %s; events=%v", empty.Display, emptyEvents)
 	binary := filepath.Join(temp, "tla-go")
 	if out, err := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
@@ -395,6 +405,9 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	t.Logf("Go bridge invocation omissions: %v", omissions)
 
+	if err := os.WriteFile(filepath.Join(runDir, "bridge-target"), []byte("Test10"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	runBridge := func(records []bridgeRecord) (executionOutcome, error) {
 		data, e := encodeBridge(records)
 		if e != nil {
@@ -441,6 +454,46 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	} {
 		if outcome, err := runBridge(bad); err != nil || outcome != executionUpstreamAssertion {
 			t.Errorf("%s: expected original assertion failure, outcome=%v error=%v", name, outcome, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "bridge-target"), []byte("EmptyTest"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	emptyArgs := emptyInvocation()
+	emptyResult, err := runCommand(filepath.Join(temp, "go"), 30*time.Second, binary, emptyArgs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	disabledArgs := slices.Clone(emptyArgs)
+	for i := range disabledArgs {
+		if disabledArgs[i] == "-coverage" {
+			disabledArgs[i+1] = "0"
+		}
+	}
+	disabledResult, err := runCommand(filepath.Join(temp, "go"), 30*time.Second, binary, disabledArgs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := projectEmpty(disabledArgs, disabledResult); err == nil {
+		t.Fatal("accepted disabled coverage")
+	}
+	emptyRecords, emptyOmissions, err := projectEmpty(emptyArgs, emptyResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := runBridge(emptyRecords)
+	if err != nil || outcome != executionPassed {
+		t.Fatalf("EmptyTest assertion: %v %v", outcome, err)
+	}
+	t.Logf("EmptyTest original assertion matches projected Go observations; args=%v exit=%d omissions=%v; no Go JUnit pass: %v", emptyArgs, emptyResult.ExitCode, emptyOmissions, bridgeVerdict(nil, emptyOmissions))
+	goodEmpty := []bridgeRecord{{"2186", []string{"1ms"}}, {"2199", []string{"0", "0", "0"}}}
+	for name, bad := range map[string][]bridgeRecord{
+		"wrong stats":      {{"2186", []string{"1ms"}}, {"2199", []string{"1", "0", "0"}}},
+		"missing finished": {{"2199", []string{"0", "0", "0"}}},
+		"general":          append(slices.Clone(goodEmpty), bridgeRecord{"1000", []string{"error"}}),
+	} {
+		if got, e := runBridge(bad); e != nil || got != executionUpstreamAssertion {
+			t.Errorf("%s: outcome=%v error=%v", name, got, e)
 		}
 	}
 }
