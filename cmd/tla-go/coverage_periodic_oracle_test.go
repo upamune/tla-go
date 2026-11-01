@@ -48,9 +48,10 @@ func TestJavaTLCCoveragePeriodicOracle(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			// The expensive bounded choice slows state generation and the modulo
-			// bounds the state space while TLC waits for the progress thread.
-			source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = (x + (CHOOSE n \\in 1..10000 : n = (x % 10000) + 1)) % 1000000000\n====\n"
+			// Each successor increases x by one. The bounded choice slows state
+			// generation to keep the fingerprint set small while waiting for the
+			// progress thread, without introducing a short cycle.
+			source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = x + 1 + ((CHOOSE n \\in 1..10000 : n = (x % 10000) + 1) % 1)\n====\n"
 			if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(source), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -83,6 +84,11 @@ func TestJavaTLCCoveragePeriodicOracle(t *testing.T) {
 				t.Fatalf("Java stopped before the expected report (context: %v, error: %v):\n%s", ctx.Err(), err, out.buf.String())
 			}
 			text := out.buf.String()
+			// A final report and final progress are not periodic output. Reject a
+			// completed model even if its output happened to satisfy the marker.
+			if strings.Contains(text, "Model checking completed.") {
+				t.Fatalf("Java finished the model before the expected periodic output:\n%s", text)
+			}
 			cycle := text
 			if !tc.coverage {
 				// Java may emit coverage immediately after the second progress
