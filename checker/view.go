@@ -10,24 +10,17 @@ import (
 	"github.com/upamune/tla-go/value"
 )
 
-// TLC evaluates the view before constraints, including on duplicate candidates.
+// TLC checks constraints before fingerprinting a candidate. An excluded state
+// is still checked for invariants and action properties, but has no view key.
 func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (string, bool, error) {
-	if s.model.hasReduction() {
-		key, err := s.model.stateKey(state)
-		if err != nil {
-			return "", false, markUnionKeyFailure(err)
-		}
-		inModel, err := s.satisfiesConstraints(state, parent)
-		if err == nil {
-			s.normalizeStateMembership(state, parent)
-		}
-		return key, inModel, err
-	}
 	inModel, err := s.satisfiesConstraints(state, parent)
 	if err != nil {
 		return "", false, err
 	}
-	if s.boundedProduct(state, parent, inModel) {
+	if !inModel && s.model.hasReduction() {
+		return "", false, nil
+	}
+	if !s.model.hasReduction() && s.boundedProduct(state, parent, inModel) {
 		return s.boundedProductKey(state, parent)
 	}
 	key, err := s.model.stateKey(state)

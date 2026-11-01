@@ -85,7 +85,7 @@ Inv == PrintT(<<"invariant",x>>)
 ====`
 	var printed []string
 	got, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next VIEW View CONSTRAINT Bound INVARIANT Inv CHECK_DEADLOCK FALSE", Options{OnPrint: func(s string) { printed = append(printed, s) }})
-	want := []string{`<<"view", 0>>  0`, `<<"constraint", 0>>`, `<<"invariant", 0>>`, `<<"view", 1>>  1`, `<<"constraint", 1>>`, `<<"invariant", 1>>`, `<<"view", 0>>  0`, `<<"constraint", 0>>`, `<<"view", 1>>  1`, `<<"constraint", 1>>`, `<<"view", 1>>  1`, `<<"constraint", 1>>`, `<<"view", 2>>  2`, `<<"constraint", 2>>`, `<<"invariant", 2>>`}
+	want := []string{`<<"constraint", 0>>`, `<<"view", 0>>  0`, `<<"invariant", 0>>`, `<<"constraint", 1>>`, `<<"view", 1>>  1`, `<<"invariant", 1>>`, `<<"constraint", 0>>`, `<<"view", 0>>  0`, `<<"constraint", 1>>`, `<<"view", 1>>  1`, `<<"constraint", 1>>`, `<<"view", 1>>  1`, `<<"constraint", 2>>`, `<<"view", 2>>  2`, `<<"invariant", 2>>`}
 	if err != nil || got.Status != Success || got.GeneratedStates != 6 || got.DistinctStates != 3 || got.Depth != 2 || !reflect.DeepEqual(printed, want) {
 		t.Fatalf("got %+v, %v, %q; want %q", got, err, printed, want)
 	}

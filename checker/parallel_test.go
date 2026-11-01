@@ -153,6 +153,7 @@ func TestParallelFallbacks(t *testing.T) {
 		{"tlc effects", strings.Replace(strings.Replace(heavyParallelModel(), "EXTENDS Naturals", "EXTENDS Naturals, TLC", 1), "Next ==", `Next == /\ PrintT(x) /\`, 1), "INIT Init NEXT Next", Options{Workers: 4}},
 		{"liveness", strings.Replace(heavyParallelModel(), "====", "Live == <> (x = 1)\n====", 1), "INIT Init NEXT Next PROPERTY Live", Options{Workers: 4}},
 		{"view", heavyParallelModel(), "INIT Init NEXT Next", Options{Workers: 4, ViewStates: true}},
+		{"view reduction", strings.Replace(heavyParallelModel(), "====", "V == x\n====", 1), "INIT Init NEXT Next VIEW V", Options{Workers: 4}},
 		{"coverage", heavyParallelModel(), "INIT Init NEXT Next", Options{Workers: 4, Coverage: true}},
 		{"checkpoint serial", heavyParallelModel(), "INIT Init NEXT Next", Options{Workers: 4, SerialExploration: true}},
 	}
