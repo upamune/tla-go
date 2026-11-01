@@ -89,7 +89,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-difftrace` | In error traces, print only the variables that changed from the previous state, following Java TLC's rules for which states are printed in full. |
 | `-terse` | Print `SUBSET`, function-set, record-set, and Cartesian-product values as formulas instead of enumerating them in `Print`/`PrintT` output, traces, and state dumps. |
 | `-userFile FILE` | Write `Print` and `PrintT` output to `FILE` instead of standard output. |
-| `-cleanup` | Remove the `states` directory in the working directory before checking. |
+| `-cleanup` | Remove the `states` directory in the working directory before checking, except when recovering. |
 | `-generateSpecTE [nomonolith]` | Enable `-tool` and, after a breadth-first model-checking error with a trace, write a trace-exploration specification `SpecTE.tla` and `SpecTE.cfg` beside the specification, as Java TLC does. `nomonolith` keeps dependent modules in `EXTENDS` instead of embedding them. |
 | `-fpmem X`, `-fpbits N`, `-gzip`, `-modelcheck`, `-debug` | Accepted with Java TLC's argument checks. They configure Java TLC internals and have no effect, except that `-fpmem` above 1 prints Java's deprecation notice. |
 | `-version`, `-help` | Show the version or usage. |
@@ -185,9 +185,13 @@ older tla-go versions fail closed on snapshots containing string values.
 Checkpoint creation and recovery require valid UTF-8 in model names and source,
 configuration source, and all effective configuration strings. Invalid UTF-8
 is rejected with a diagnostic; stored state strings still preserve their bytes.
-The diagnostic identifies the timestamped directory beneath `-metadir` (or
-`states` beside the specification). Resume with `-recover directory` and the
-same model, configuration, and semantic options. Missing, damaged, incompatible,
+The diagnostic identifies the timestamped directory beneath `-metadir`. With
+an absolute specification path the default is `states` beside the specification;
+with a relative path it is `states` in the working directory. Resume with
+`-recover directory` and the same model, configuration, and semantic options.
+Recovery does not support state dumps, user files, coverage, simulation, DFID,
+or other unsupported checkpoint options; tla-go rejects these before creating
+output files. Java TLC supports more combinations. Missing, damaged, incompatible,
 or unsupported checkpoints fail rather than starting over. Output is streamed
 in order during each run; recovery does not replay output from before the saved
 checkpoint. Output emitted after the last checkpoint can be repeated after a

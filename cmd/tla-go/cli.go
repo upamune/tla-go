@@ -80,11 +80,19 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	return runWithProfileStarter(ctx, args, input, out, errout, startProfiles)
 }
 
-func runWithProfileStarter(ctx context.Context, args []string, input io.Reader, out, errout io.Writer, start func(options) (*profiles, error)) (code int) {
+func parseValidatedOptions(args []string, out io.Writer) (options, error) {
 	opts, err := parseOptions(args)
+	if err == nil {
+		err = validateRecoveryOptions(opts)
+	}
 	if err == nil {
 		err = configureDiagnosticOptions(&opts, out)
 	}
+	return opts, err
+}
+
+func runWithProfileStarter(ctx context.Context, args []string, input io.Reader, out, errout io.Writer, start func(options) (*profiles, error)) (code int) {
+	opts, err := parseValidatedOptions(args, out)
 	if err != nil {
 		return reportOptionErrorWithTranslateHint(opts, err, out, errout)
 	}

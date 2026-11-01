@@ -133,7 +133,7 @@ func startCompatOutput(opts *options, out io.Writer) (io.Writer, func(), error) 
 	if opts.compat.fpmemDeprecated {
 		fmt.Fprintln(out, fpmemDeprecation)
 	}
-	if opts.compat.cleanup {
+	if opts.compat.cleanup && opts.recoverDir == "" {
 		_ = os.RemoveAll("states")
 	}
 	closeUserFile, err := openUserFile(&opts.compat)
