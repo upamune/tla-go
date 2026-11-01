@@ -13,6 +13,7 @@ func TestCommitForSourceHash(t *testing.T) {
 		{"fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5", "56336d54f659dbb744aff66ffa8e653a6117c06a"},
 		{"65e957a50c1a58779f5982458ca42adb3d4ed16e0884229dd7bbe752aa298765", "e81f221f7ba59b833244e7613bd149f836532c86"},
 		{"e548e0fba387f59c1278069d2bb0bcd7196475e36a6049003336d2616bb13000", "9f5816269083eb7c9d44e5477695e95e6bf68059"},
+		{"606f46f5a51d30125f9b980a8eafccc03c40b219faff0194933eca28ac135598", "51c3a77c6c4cbc02c6f388b0c90047cc895f9869"},
 	} {
 		got, err := commitForSourceHash(tc.hash)
 		if err != nil || got != tc.commit {
@@ -32,6 +33,10 @@ func TestRegenerateE81Snapshot(t *testing.T) {
 
 func TestRegenerate9F58162Snapshot(t *testing.T) {
 	checkRegeneration(t, "TLA_GO_9F58162_SWEEP_LOG", "/tmp/tla-9f58162-diagnostic-sweep.log", "sweep-9f581626.json")
+}
+
+func TestRegenerate51C3A77Snapshot(t *testing.T) {
+	checkRegeneration(t, "TLA_GO_51C3A77_SWEEP_LOG", "/tmp/tla-51c3a77-sweep.log", "sweep-51c3a77c.json")
 }
 
 func checkRegeneration(t *testing.T, env, defaultPath, snapshot string) {
