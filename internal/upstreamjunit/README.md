@@ -503,6 +503,19 @@ per-code order in the pinned `TestMPRecorder`, including rejection of malformed
 input. This transport supports more than the text projection can infer: it does
 not manufacture TLCStateInfo, exceptions or other Java objects from printed
 text. Each text-projected record is explicitly a `String[]` hypothesis.
+The typed transport also accepts selected safety calls 2110, 2114 and 2121.
+They can feed upstream assertions about an invariant violation, deadlock and the
+start of a behavior; they do not supply state objects or establish that the
+remaining recorder calls, coverage or JUnit lifecycle are complete.
+The opt-in execution test discovers and runs Java's original `ETest3` lifecycle.
+Separately, it feeds typed calls from a Go run into that original assertion
+method through the generic class bridge. Go currently rejects the model with
+the required `-coverage 1`, so the assertion experiment omits coverage and is
+always reported incomplete: an empty coverage record list does not establish
+zero uncovered expressions. Negative controls remove or alter observed calls and
+inject a zero-coverage record to check the original assertion's sensitivity.
+This experiment does not run the original setup or teardown against Go and is
+not an upstream JUnit pass.
 
 For the upstream B coverage model, the experiment also compares selected Go typed
 2190, 2194, 2199, 2221 and 2772–2775 records, including order, duplicates,

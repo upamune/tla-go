@@ -11,7 +11,8 @@ func checkTypedRecorderFixture(t *testing.T, classes string, deps []string, dir 
 	t.Helper()
 	same := recorderRecord{"2199", "strings", []recorderValue{{"s", "first\n\t😀"}, {"s", ""}}}
 	mixed := recorderRecord{"2199", "objects", []recorderValue{{"s", "mixed"}, {"i", "-7"}, {"l", "2147483648"}, {"b", "true"}, {"n", ""}}}
-	data, err := encodeRecorder([]recorderRecord{same, mixed, same})
+	safety := []recorderRecord{{"2110", "strings", []recorderValue{{"s", "Inv"}}}, {"2114", "strings", nil}, {"2121", "strings", nil}}
+	data, err := encodeRecorder(append([]recorderRecord{same, mixed, same}, safety...))
 	if err != nil {
 		t.Fatal(err)
 	}

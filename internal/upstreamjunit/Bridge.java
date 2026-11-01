@@ -3,6 +3,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
+import java.lang.reflect.InvocationTargetException;
 import org.junit.Test;
 import tlc2.TestMPRecorder;
 import tlc2.tool.CommonTestCase;
@@ -27,6 +28,11 @@ public class Bridge {
         else if (target.equals("BCoverageTest")) { test = new BCoverageTest(); }
         else if (target.equals("GCoverageTest")) { test = new GCoverageTest(); }
         else if (target.equals("CoverageStatisticsTest")) { test = new CoverageStatisticsTest(); }
+        else if (target.startsWith("class:tlc2.tool.")) {
+            Object instance = Class.forName(target.substring("class:".length())).getDeclaredConstructor().newInstance();
+            if (!(instance instanceof CommonTestCase)) { throw new IllegalArgumentException("unsupported target class"); }
+            test = (CommonTestCase) instance;
+        }
         else { throw new IllegalArgumentException("unsupported target"); }
         java.lang.reflect.Field field = CommonTestCase.class.getDeclaredField("recorder");
         field.setAccessible(true);
@@ -37,9 +43,13 @@ public class Bridge {
             else if (test instanceof EmptyTest) { ((EmptyTest) test).testSpec(); }
             else if (test instanceof BCoverageTest) { ((BCoverageTest) test).testSpec(); }
             else if (test instanceof GCoverageTest) { ((GCoverageTest) test).testSpec(); }
-            else { ((CoverageStatisticsTest) test).testSpec(); }
+            else if (test instanceof CoverageStatisticsTest) { ((CoverageStatisticsTest) test).testSpec(); }
+            else { test.getClass().getMethod("testSpec").invoke(test); }
         } catch (AssertionError failure) {
             throw new UpstreamAssertionFailure(failure);
+        } catch (InvocationTargetException failure) {
+            if (failure.getCause() instanceof AssertionError) { throw new UpstreamAssertionFailure((AssertionError) failure.getCause()); }
+            throw failure;
         }
     }
 
@@ -48,7 +58,7 @@ public class Bridge {
             String[] parts = line.split("\\t", -1);
             int code = Integer.parseInt(parts[0]);
             if (!Integer.toString(code).equals(parts[0])) { throw new IllegalArgumentException("invalid code encoding"); }
-            if (!(code == 2185 || code == 2186 || code == 2189 || code == 2190 || code == 2192 || code == 2193 || code == 2194 || code == 2199 || code == 2212 || code == 1000 || code == 2221 || code == 2269 || (code >= 2772 && code <= 2776))) {
+            if (!(code == 1000 || code == 2110 || code == 2114 || code == 2121 || code == 2185 || code == 2186 || code == 2189 || code == 2190 || code == 2191 || code == 2192 || code == 2193 || code == 2194 || code == 2199 || code == 2212 || code == 2219 || code == 2220 || code == 2221 || code == 2269 || (code >= 2772 && code <= 2776))) {
                 throw new IllegalArgumentException("unsupported code " + code);
             }
             if (parts.length < 2 || !(parts[1].equals("strings") || parts[1].equals("objects"))) {

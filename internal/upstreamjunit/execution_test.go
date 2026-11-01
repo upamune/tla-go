@@ -330,7 +330,8 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	statisticsClass := "tlc2.tool.coverage.CoverageStatisticsTest"
 	gCoverageClass := "tlc2.tool.coverage.GCoverageTest"
 	loopClass := "tlc2.tool.liveness.LoopTestWeakFair"
-	records, err := discover(discoveryCtx, root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest", coverageClass, statisticsClass, gCoverageClass, loopClass})
+	safetyClass := "tlc2.tool.suite.ETest3"
+	records, err := discover(discoveryCtx, root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest", coverageClass, statisticsClass, gCoverageClass, loopClass, safetyClass})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +341,8 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	statistics := DiscoveryRecord{"case", statisticsClass, "testSpec(" + statisticsClass + ")", ""}
 	gCoverage := DiscoveryRecord{"case", gCoverageClass, "testSpec(" + gCoverageClass + ")", ""}
 	loop := DiscoveryRecord{"case", loopClass, "testSpec(" + loopClass + ")", ""}
-	if len(records) != 6 || !slices.Contains(records, want) || !slices.Contains(records, empty) || !slices.Contains(records, coverage) || !slices.Contains(records, statistics) || !slices.Contains(records, gCoverage) || !slices.Contains(records, loop) {
+	safety := DiscoveryRecord{"case", safetyClass, "testSpec(" + safetyClass + ")", ""}
+	if len(records) != 7 || !slices.Contains(records, want) || !slices.Contains(records, empty) || !slices.Contains(records, coverage) || !slices.Contains(records, statistics) || !slices.Contains(records, gCoverage) || !slices.Contains(records, loop) || !slices.Contains(records, safety) {
 		t.Fatalf("unsupported lifecycle or discovery: %+v", records)
 	}
 	classes := filepath.Join(temp, "classes")
@@ -443,10 +445,18 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	checkJavaStatisticsJUnit(t, classes, deps, temp, runDir, statistics)
 	checkJavaGCoverageJUnit(t, classes, deps, temp, runDir, gCoverage)
 	checkJavaLoopJUnit(t, classes, deps, temp, runDir, loop)
+	javaSafety, err := executeJUnit(classes, deps, t.TempDir(), runDir, safety.Class, "testSpec")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateExecution(javaSafety, safety.Display); err != nil {
+		t.Fatalf("original Java ETest3 lifecycle: %v", err)
+	}
 	binary := filepath.Join(temp, "tla-go")
 	if out, err := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
+	checkSafetyAssertionBridge(t, binary, filepath.Join(temp, "go", "suite"), classes, deps, runDir, safetyClass)
 	c := Case{Name: want.Class, Model: "test10", Path: "suite", Coverage: true, Dump: true, IDs: []string{"2199", "2190"}, PresenceIDs: []string{"2186", "1000"}}
 	_, _, differences, err := RunCase(root, jar, binary, c, 30*time.Second)
 	if err != nil {

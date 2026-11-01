@@ -16,5 +16,10 @@ public class RecorderFixture {
         assertArrayEquals(new Object[] {"mixed", Integer.valueOf(-7), Long.valueOf(2147483648L), Boolean.TRUE, null}, (Object[]) records.get(1));
         assertEquals(String[].class, records.get(2).getClass());
         assertArrayEquals(new String[] {"first\n\t😀", ""}, (String[]) records.get(2));
+        assertTrue(recorder.recordedWithStringValues(2110, "Inv"));
+        assertTrue(recorder.recorded(2114));
+        assertTrue(recorder.recorded(2121));
+        assertEquals(String[].class, recorder.getRecords(2114).get(0).getClass());
+        assertEquals(0, ((String[]) recorder.getRecords(2114).get(0)).length);
     }
 }
