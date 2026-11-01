@@ -9,6 +9,12 @@ import (
 // SetOperation reduces intersections of explicit sets or intervals and keeps
 // other set operations lazy.
 func SetOperation(operator string, left, right Value) (Value, error) {
+	return SetOperationBounded(operator, left, right, nil)
+}
+
+// SetOperationBounded checks each element of an eagerly reduced intersection
+// before allocating it. A nil check leaves the operation unrestricted.
+func SetOperationBounded(operator string, left, right Value, check func(int64) error) (Value, error) {
 	if !isSet(left) || !isSet(right) {
 		return Value{}, fmt.Errorf("set operation requires two sets")
 	}
@@ -19,14 +25,19 @@ func SetOperation(operator string, left, right Value) (Value, error) {
 		return right, nil
 	}
 	if candidate, other, ok := reducibleIntersection(operator, left, right); ok {
-		return reduceIntersection(candidate, other)
+		return reduceIntersection(candidate, other, check)
 	}
 	return lazySetOperation(operator, left, right)
 }
 
 // SetOperationWithSource records the source of a newly reduced intersection.
 func SetOperationWithSource(operator string, left, right Value, source *parser.Expression) (Value, error) {
-	result, err := SetOperation(operator, left, right)
+	return SetOperationWithSourceBounded(operator, left, right, source, nil)
+}
+
+// SetOperationWithSourceBounded also checks eager intersection growth.
+func SetOperationWithSourceBounded(operator string, left, right Value, source *parser.Expression, check func(int64) error) (Value, error) {
+	result, err := SetOperationBounded(operator, left, right, check)
 	if err == nil && operator == "\\cap" && result.kind == SetKind {
 		result.data.source = source
 	}
@@ -55,9 +66,9 @@ func reducibleIntersection(operator string, left, right Value) (Value, Value, bo
 	return Value{}, Value{}, false
 }
 
-func reduceIntersection(candidate, other Value) (Value, error) {
+func reduceIntersection(candidate, other Value, check func(int64) error) (Value, error) {
 	if candidate.kind == IntervalKind && other.kind == IntervalKind {
-		return intersectIntervals(candidate, other), nil
+		return intersectIntervals(candidate, other, check)
 	}
 	var members []Value
 	err := candidate.Each(func(item Value) (bool, error) {
@@ -66,6 +77,11 @@ func reduceIntersection(candidate, other Value) (Value, error) {
 			return false, err
 		}
 		if included {
+			if check != nil {
+				if err := check(int64(len(members)) + 1); err != nil {
+					return false, err
+				}
+			}
 			members = append(members, item)
 		}
 		return true, nil
@@ -79,15 +95,21 @@ func reduceIntersection(candidate, other Value) (Value, error) {
 	return Set(members)
 }
 
-func intersectIntervals(left, right Value) Value {
+func intersectIntervals(left, right Value, check func(int64) error) (Value, error) {
 	low := max(int64(left.number), int64(right.number))
 	high := min(int64(left.high), int64(right.high))
-	capacity := min(max(high-low+1, 0), 1024)
+	size := max(high-low+1, 0)
+	if check != nil {
+		if err := check(size); err != nil {
+			return Value{}, err
+		}
+	}
+	capacity := min(size, 1024)
 	members := make([]Value, 0, int(capacity))
 	for n := low; n <= high; n++ {
 		members = append(members, Value{kind: IntegerKind, number: int32(n)})
 	}
-	return Value{kind: SetKind, data: &payload{elements: members}}
+	return Value{kind: SetKind, data: &payload{elements: members}}, nil
 }
 
 func validSetOperator(operator string) bool {
