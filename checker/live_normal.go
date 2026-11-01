@@ -171,23 +171,33 @@ func (n *liveNode) disjunctionToDNF() *liveNode {
 func (n *liveNode) flattenSingleJunctions() *liveNode {
 	switch n.kind {
 	case liveNeg:
-		if n.body.kind == liveNeg {
-			return n.body.body.flattenSingleJunctions()
-		}
-		return liveUnary(liveNeg, n.body.flattenSingleJunctions())
+		return n.flattenNegation()
 	case liveConj, liveDisj:
-		if len(n.items) == 1 {
-			return n.items[0].flattenSingleJunctions()
-		}
-		result := &liveNode{kind: n.kind}
-		for _, item := range n.items {
-			result.add(item.flattenSingleJunctions())
-		}
-		return result
+		return n.flattenJunction()
 	case liveEven, liveAll, liveNext:
 		return liveUnary(n.kind, n.body.flattenSingleJunctions())
 	}
 	return n
+}
+
+// flattenNegation removes a double negation while flattening its operand.
+func (n *liveNode) flattenNegation() *liveNode {
+	if n.body.kind == liveNeg {
+		return n.body.body.flattenSingleJunctions()
+	}
+	return liveUnary(liveNeg, n.body.flattenSingleJunctions())
+}
+
+// flattenJunction replaces a one-item junction by its item.
+func (n *liveNode) flattenJunction() *liveNode {
+	if len(n.items) == 1 {
+		return n.items[0].flattenSingleJunctions()
+	}
+	result := &liveNode{kind: n.kind}
+	for _, item := range n.items {
+		result.add(item.flattenSingleJunctions())
+	}
+	return result
 }
 
 func (n *liveNode) makeBinary() *liveNode {
@@ -195,20 +205,28 @@ func (n *liveNode) makeBinary() *liveNode {
 	case liveNeg, liveEven, liveAll, liveNext:
 		return liveUnary(n.kind, n.body.makeBinary())
 	case liveConj, liveDisj:
-		if len(n.items) == 1 {
-			return n.items[0].makeBinary()
-		}
-		middle := len(n.items) / 2
-		left, right := &liveNode{kind: n.kind}, &liveNode{kind: n.kind}
-		for _, item := range n.items[:middle] {
-			left.add(item)
-		}
-		for _, item := range n.items[middle:] {
-			right.add(item)
-		}
-		return liveJunction(n.kind, left.makeBinary(), right.makeBinary())
+		return n.binaryJunction()
 	}
 	return n
+}
+
+// binaryJunction splits a junction in half, as TLC's makeBinary does.
+func (n *liveNode) binaryJunction() *liveNode {
+	if len(n.items) == 1 {
+		return n.items[0].makeBinary()
+	}
+	middle := len(n.items) / 2
+	left, right := n.junctionOf(n.items[:middle]), n.junctionOf(n.items[middle:])
+	return liveJunction(n.kind, left.makeBinary(), right.makeBinary())
+}
+
+// junctionOf builds a junction of the same kind as n from items.
+func (n *liveNode) junctionOf(items []*liveNode) *liveNode {
+	result := &liveNode{kind: n.kind}
+	for _, item := range items {
+		result.add(item)
+	}
+	return result
 }
 
 func (n *liveNode) extractPromises(promises *livePar) {
