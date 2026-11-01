@@ -1,5 +1,144 @@
 # Upstream JUnit differential sweep (incomplete)
 
+## Final liveness strategy investigation (2026-11-01)
+
+No strategy change was made. In pinned Java 1.7.4, `-lncheck final`
+sets `TLCGlobals.lnCheck`; `doLiveness()` prevents ordinary periodic
+`LiveCheck.check` calls from checking an incomplete graph. The JUnit base
+class instead sets `livenessThreshold` to `Double.MAX_VALUE`: ordinary
+periodic checks use a graph-growth ratio and are normally suppressed. A
+management-requested `forceCheck` bypasses both settings, so it does not
+establish a difference between them. The source initializes the previous graph
+size to one, but `recordSize()` can update it. If it were zero at an ordinary
+check, positive growth would yield infinity and zero growth NaN; infinity exceeds
+even `Double.MAX_VALUE`, while NaN does not. Reachability of a zero previous
+size at such a check has not been established. This is a source-level potential
+distinction, not a demonstrated behavioral difference. Both paths construct
+the liveness graph during exploration, including stuttering edges and
+state/action evaluation;
+`ModelChecker` invokes `finalCheck` after a successful search without an
+error state. Simulation instead invokes `LiveCheck1.checkTrace` on traces.
+
+Go currently consumes and ignores the strategy argument. Its
+`checkIncrementalLiveness` evaluates and caches temporal leaves during each
+expansion; the final graph algorithm runs in `finishLiveness`. This is not the
+same operation as Java's periodic SCC check. Disabling it for `final` would
+therefore also change evaluation timing, errors and effects, rather than just
+defer Java's periodic graph check. Java's tableau can regenerate successors
+and re-evaluate constraints and effects for late nodes. Go deliberately omits
+2192 and 2267 when its progress count cannot safely reproduce this behavior.
+Changing the option or printing a count derived from explored states would not
+fix the observed effectful cases safely. Default, simulation, `-continue`,
+and forced-check behavior would need separate compatibility work.
+
+Reproduced with `/tmp/tlaplus-java-v1.7.4` at commit
+`5a47802b5c391f59ecdd44117981f4ff8c0656ba` and the pinned
+`/tmp/tla2tools-v1.7.4.jar` (SHA-256
+`936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`).
+The existing pinned partial differential reproduced Java 2192 counts 12, 13,
+13, 16, 9 and 94 for Factorial2, EvenOdd, EvenOddBad, InnerLabeledIf,
+NoLoop2 and Euclid3, while Go omitted 2192 and 2267 in those six runs. The
+pure CCallReturn1 control reported 8 on both sides. These tests compare
+selected observations and translation/dump output, not JUnit execution.
+
+An additional three-state model with `WF_x(Next)` and the false eventuality
+`<>(x = 4)` produced exit 13, 2192 count 3, a loop back to state 1, and
+statistics 4 generated / 3 distinct / 0 queued under Java's max-threshold
+launcher, Java `-lncheck final`, and Go `-lncheck final`. Java simulation
+with either max threshold or `-lncheck final`, seed 1 and depth 5 also exited
+13 with a loop back to state 1; this is one example, not proof of equivalence.
+The model defines `Init == x = 0`, `Next == x' = (x + 1) % 3`,
+`Spec == Init /\ [][Next]_x /\ WF_x(Next)` and `P == <>(x = 4)`;
+the config selects `SPECIFICATION Spec`, `PROPERTY P` and
+`CHECK_DEADLOCK FALSE`. Both model-checking commands used `-tool -workers 1
+-fp 0`; the simulation commands additionally used `-simulate num=1 -seed 1
+-depth 5`. The max-threshold launcher uses the same assignment as the sweep's
+`javaWrapper` before calling `TLC.main`.
+
+To reproduce this standalone experiment, run the following from the repository
+root with a JDK, Go, `mise`, `curl`, and `shasum` installed. It downloads the
+pinned release jar and checks its SHA-256 before executing it. It creates a new
+temporary directory, leaves its outputs there for inspection, and does not
+overwrite existing models. Each run is finite; exit 13 is the expected liveness
+violation, not a shell failure. Output timestamps and durations vary.
+
+```sh
+repo_dir=$(pwd)
+experiment_dir=$(mktemp -d "${TMPDIR:-/tmp}/tla-liveness-XXXXXX") || exit 1
+curl -fL https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar -o "$experiment_dir/tla2tools.jar" || exit 1
+printf '%s  %s\n' 936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88 "$experiment_dir/tla2tools.jar" | shasum -a 256 -c || exit 1
+mise exec -- go build -o "$experiment_dir/tla-go" ./cmd/tla-go || exit 1
+cd "$experiment_dir" || exit 1
+cat > M.tla <<'EOF'
+---- MODULE M ----
+EXTENDS Naturals
+VARIABLE x
+Init == x = 0
+Next == x' = (x + 1) % 3
+Spec == Init /\ [][Next]_x /\ WF_x(Next)
+P == <> (x = 4)
+Inv == x < 2
+====
+EOF
+cat > M.cfg <<'EOF'
+SPECIFICATION Spec
+PROPERTY P
+CHECK_DEADLOCK FALSE
+EOF
+cat > Max.java <<'EOF'
+public class Max {
+  public static void main(String[] args) throws Exception {
+    tlc2.TLCGlobals.livenessThreshold = Double.MAX_VALUE;
+    tlc2.TLC.main(args);
+  }
+}
+EOF
+javac -cp tla2tools.jar Max.java || exit 1
+
+run_case() {
+  name=$1
+  shift
+  "$@" > "$name.out" 2>&1
+  status=$?
+  printf '%s exit: %s\n' "$name" "$status"
+  [ "$status" -eq 13 ] || return 1
+}
+run_case max java -cp .:tla2tools.jar Max -tool -workers 1 -fp 0 -metadir meta-max M || exit 1
+run_case final java -cp tla2tools.jar tlc2.TLC -tool -workers 1 -fp 0 -lncheck final -metadir meta-final M || exit 1
+run_case go-final ./tla-go -tool -workers 1 -fp 0 -lncheck final -metadir meta-go M || exit 1
+run_case sim-max java -cp .:tla2tools.jar Max -tool -workers 1 -fp 0 -simulate num=1 -seed 1 -depth 5 -metadir meta-sim-max M || exit 1
+run_case sim-final java -cp tla2tools.jar tlc2.TLC -tool -workers 1 -fp 0 -lncheck final -simulate num=1 -seed 1 -depth 5 -metadir meta-sim-final M || exit 1
+printf 'Outputs: %s\n' "$experiment_dir"
+cd "$repo_dir" || exit 1
+```
+
+Inspect `max.out`, `final.out`, and `go-final.out` for message 2192 (3 total
+distinct states), the loop back to state 1, and the 4 / 3 / 0 statistics. Inspect
+`sim-max.out` and `sim-final.out` for their loop back to state 1. These are
+selected observations, not a comparison of the entire output.
+
+The pinned Java comparison tests for temporal progress include success,
+fairness, stuttering/tableau violations, constraints, invariant and evaluation
+errors; model and simulation `-continue` and simulation liveness tests also
+passed. These tests compare selected messages, and most `-continue` and
+simulation cases use their default strategy rather than `-lncheck final`.
+Tests for newer Java postconditions were skipped without `TLC_MODERN_JAR`.
+
+Reproduction commands for the checked-in partial comparisons:
+
+```sh
+TLA_GO_JUNIT_ROOT=/tmp/tlaplus-java-v1.7.4 TLA_GO_JUNIT_JAR=/tmp/tla2tools-v1.7.4.jar \
+  mise exec -- go test ./internal/upstreamjunit -run 'TestPinned(CCallReturn1TemporalProgress|EffectfulPlusCalTableauProgressGuard)$' -v -count=1
+TLC_JAR=/tmp/tla2tools-v1.7.4.jar mise exec -- go test ./cmd/tla-go \
+  -run 'Test(JavaTLCTemporalProgress|PinnedJavaFairnessProgressEffects|JavaTLCSimulationLiveness|JavaTLCSimulationContinue|JavaTLCModelContinue|JavaTLCTraceStyle|JavaTLCLivenessBranches)$' -count=1
+```
+
+These observations do not classify all 14 snapshot differences, prove general
+strategy equivalence, or establish JUnit parity. A scoped implementation needs
+Java-compatible graph insertion and late tableau replay with ordered effects,
+plus comparisons covering forced checks, safety errors, `-continue`, simulation,
+stuttering and statistics before connecting a strategy flag to it.
+
 This is not a 336-test sweep and no match count is claimed. Inventory is a
 lexical candidate inventory, not JUnit discovery. It can include non-tests and
 miss tests. Resolution follows literal constructor delegation and inherited
