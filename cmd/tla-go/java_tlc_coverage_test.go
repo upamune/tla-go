@@ -358,7 +358,7 @@ func coverageMessages(messages []toolMessage) []toolMessage {
 		case 2201:
 			m.body = "The coverage statistics at <time>"
 			result = append(result, m)
-		case 2202, 2221, 2772, 2773, 2774:
+		case 2202, 2221, 2772, 2773, 2774, 2775:
 			result = append(result, m)
 		}
 	}

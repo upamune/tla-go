@@ -24,6 +24,7 @@ type CoverageExpression struct {
 	Range parser.Range
 	Depth int
 	Count int
+	Cost  int
 }
 
 type coverageCollector struct {

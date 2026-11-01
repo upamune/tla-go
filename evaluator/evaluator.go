@@ -26,6 +26,8 @@ type Context struct {
 	OnPrint       func(string)
 	// OnEvaluate observes actual expression evaluations when requested by a caller.
 	OnEvaluate func(*parser.Expression)
+	// OnBoundVisit observes a bound enumeration and each value visited.
+	OnBoundVisit func(*parser.Expression, bool)
 	// UncachedArguments matches TLC's evaluation of ENABLED predicates.
 	UncachedArguments bool
 	// UncachedConstants evaluates configuration overrides before constant precomputation.

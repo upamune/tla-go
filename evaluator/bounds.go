@@ -57,7 +57,7 @@ func (e *evaluator) walk(w *boundWalk, bounds []parser.Bound) error {
 	if err != nil {
 		return err
 	}
-	return domain.Each(func(item value.Value) (bool, error) {
+	visit := func(item value.Value) (bool, error) {
 		mark := e.frames.mark()
 		frame, err := e.boundFrame(bound, item)
 		if err != nil {
@@ -71,7 +71,15 @@ func (e *evaluator) walk(w *boundWalk, bounds []parser.Bound) error {
 		*e = saved
 		e.frames.release(mark)
 		return !w.stopped, err
-	})
+	}
+	if observe := e.context.OnBoundVisit; observe != nil {
+		observe(bound.Set, true)
+		return domain.Each(func(item value.Value) (bool, error) {
+			observe(bound.Set, false)
+			return visit(item)
+		})
+	}
+	return domain.Each(visit)
 }
 
 func (e *evaluator) bind(bound parser.Bound, item value.Value) (*evaluator, error) {

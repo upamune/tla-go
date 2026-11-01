@@ -8,9 +8,11 @@ import (
 // coverageNode mirrors the subset of TLC's OpApplNode cost tree used for
 // state predicates. Numeric literals are not OpApplNodes in SANY.
 type coverageNode struct {
-	expr     *parser.Expression
-	count    int
-	children []*coverageNode
+	expr       *parser.Expression
+	count      int
+	cost       int
+	boundCosts map[*parser.Expression]*coverageNode
+	children   []*coverageNode
 }
 
 func (m *model) addCoverageProperty(c *coverageCollector, name string) bool {
@@ -49,10 +51,17 @@ type propertyBuilder struct {
 	seen        *bool
 	calls       map[string]bool
 	params      map[string]bool
+	subsets     map[string]*coverageNode
+	costs       map[*parser.Expression]*coverageNode
 }
 
 func (m *model) propertyCoverageNode(e *parser.Expression, vars, bound map[string]bool, seen *bool) (*coverageNode, bool) {
-	return (&propertyBuilder{model: m, vars: vars, bound: bound, seen: seen, calls: map[string]bool{}, params: map[string]bool{}}).node(e)
+	b := &propertyBuilder{model: m, vars: vars, bound: bound, seen: seen, calls: map[string]bool{}, params: map[string]bool{}, subsets: map[string]*coverageNode{}, costs: map[*parser.Expression]*coverageNode{}}
+	n, ok := b.node(e)
+	if n != nil {
+		n.boundCosts = b.costs
+	}
+	return n, ok
 }
 
 func (b *propertyBuilder) node(e *parser.Expression) (*coverageNode, bool) {
@@ -151,7 +160,7 @@ func (b *propertyBuilder) identifier(name string) bool {
 		return true
 	}
 	if b.bound[name] {
-		return true
+		return b.subsets[name] == nil
 	}
 	if name != "Nat" {
 		return false
@@ -176,15 +185,26 @@ func (b *propertyBuilder) children(n *coverageNode, exprs []*parser.Expression) 
 
 func (b *propertyBuilder) apply(n *coverageNode) bool {
 	e := n.expr
+	if b.subsetRange(e) {
+		return b.children(n, e.Args)
+	}
 	if len(e.Args) != 2 || !propertyOperator(e.Text) {
 		return false
 	}
 	for _, arg := range e.Args {
-		if arg.Kind != "Number" && arg.Kind != "Identifier" {
+		if !b.simpleOperand(e.Text, arg) {
 			return false
 		}
 	}
 	return b.children(n, e.Args)
+}
+
+func (b *propertyBuilder) subsetRange(e *parser.Expression) bool {
+	return e.Text == "SUBSET" && len(e.Args) == 1 && b.literalRange(e.Args[0])
+}
+
+func (b *propertyBuilder) simpleOperand(op string, arg *parser.Expression) bool {
+	return arg.Kind == "Number" || arg.Kind == "Identifier" || (op == "\\in" && b.literalRange(arg))
 }
 
 func propertyOperator(op string) bool {
@@ -197,17 +217,56 @@ func (b *propertyBuilder) quantifier(n *coverageNode) bool {
 		return false
 	}
 	bound := e.Bounds[0]
-	if !b.boundSupported(bound) {
+	if !b.quantifierBoundSupported(bound) {
+		return false
+	}
+	subset, ok := b.quantifierDomain(bound)
+	if !ok {
 		return false
 	}
 	b.bound[bound.Names[0]] = true
-	ok := b.children(n, e.Args)
+	ok = b.children(n, e.Args)
 	delete(b.bound, bound.Names[0])
-	return ok && b.children(n, []*parser.Expression{bound.Set})
+	if subset != nil {
+		delete(b.subsets, bound.Names[0])
+		n.children = append(n.children, subset)
+		return ok
+	}
+	return ok && b.quantifierDomainChild(n, bound.Set)
 }
 
-func (b *propertyBuilder) boundSupported(bound parser.Bound) bool {
-	return len(bound.Names) == 1 && !bound.Tuple && b.literalRange(bound.Set) && !b.vars[bound.Names[0]] && !b.bound[bound.Names[0]]
+func (b *propertyBuilder) quantifierDomainChild(n *coverageNode, domain *parser.Expression) bool {
+	if domain.Kind == "Identifier" && b.costs[domain] != nil {
+		n.children = append(n.children, &coverageNode{expr: domain})
+		return true
+	}
+	return b.children(n, []*parser.Expression{domain})
+}
+
+func (b *propertyBuilder) quantifierBoundSupported(bound parser.Bound) bool {
+	return len(bound.Names) == 1 && !bound.Tuple && !b.vars[bound.Names[0]] && !b.bound[bound.Names[0]]
+}
+
+func (b *propertyBuilder) quantifierDomain(bound parser.Bound) (*coverageNode, bool) {
+	domain := bound.Set
+	if domain == nil {
+		return nil, false
+	}
+	if domain.Kind == "Identifier" && b.subsets[domain.Text] != nil {
+		b.costs[domain] = b.subsets[domain.Text]
+		return nil, true
+	}
+	if b.literalRange(domain) {
+		return nil, true
+	}
+	if domain.Kind != "Apply" || !b.subsetRange(domain) {
+		return nil, false
+	}
+	subset, ok := b.node(domain)
+	if ok {
+		b.subsets[bound.Names[0]] = subset
+	}
+	return subset, ok
 }
 
 func (b *propertyBuilder) literalRange(e *parser.Expression) bool {
@@ -246,15 +305,19 @@ func (n *coverageNode) report(out []CoverageExpression, depth int) []CoverageExp
 	}
 	if len(counts) == 0 {
 		if n.count > 0 {
-			out = append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: n.count})
+			out = append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: n.count, Cost: n.cost})
 		}
 		return out
 	}
 	if count, ok := n.collapsedCount(counts); ok {
-		return append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: count})
+		cost := 0
+		if n.count == count {
+			cost = n.cost
+		}
+		return append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: count, Cost: cost})
 	}
 	if n.count > 0 {
-		out = append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: n.count})
+		out = append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: n.count, Cost: n.cost})
 		depth++
 	}
 	for _, child := range n.children {
@@ -279,7 +342,7 @@ func (m *model) holdsInvariant(name string, expr *parser.Expression, state evalu
 		return m.holds(expr, state, nil)
 	}
 	root := m.coverage.properties[name]
-	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: m.enabledCallback, OnEvaluate: root.observe})
+	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: m.enabledCallback, OnEvaluate: root.observe, OnBoundVisit: root.observeBound})
 	if err != nil {
 		return false, err
 	}
@@ -287,4 +350,11 @@ func (m *model) holdsInvariant(name string, expr *parser.Expression, state evalu
 		return b, nil
 	}
 	return false, m.nonBooleanPredicateError(expr, v)
+}
+
+// TLC prefetches the next bound value before evaluating the current one.
+func (n *coverageNode) observeBound(domain *parser.Expression, _ bool) {
+	if target := n.boundCosts[domain]; target != nil {
+		target.cost++
+	}
 }

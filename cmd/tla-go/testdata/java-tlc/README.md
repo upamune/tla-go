@@ -109,3 +109,9 @@ elements into it as the upstream `Github432Test` does.
 models and configurations from `test-model/Continue` and
 `test-model/DoInitFunctor` at the pinned commit. They are used by the upstream
 `ContinueTest` and `DoInitFunctorInvariantContinueTest`, respectively.
+
+`upstream-coverage/subset-*.coverage` records the complete human-readable
+coverage reports from Java TLC 1.7.4 for the generated models in
+`TestJavaTLCCoverageSubsetInvariant`. These exercise empty and small interval
+powersets, repeated invariant evaluation, and existential short-circuiting.
+The test also compares the complete coverage message sequence in `-tool` mode.

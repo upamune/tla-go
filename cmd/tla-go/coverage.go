@@ -26,7 +26,7 @@ func printCoverage(w io.Writer, actions []checker.CoverageAction) {
 			fmt.Fprintf(w, "<%s %s>: %d:%d\n", a.Name, coverageLocation(a.Range), a.Distinct, a.Generated)
 		}
 		for _, e := range a.Expressions {
-			fmt.Fprintf(w, "  %s%s: %d\n", strings.Repeat("|", e.Depth), coverageLocation(e.Range), e.Count)
+			fmt.Fprintf(w, "  %s%s\n", strings.Repeat("|", e.Depth), coverageExpression(e))
 		}
 	}
 	fmt.Fprintln(w, "End of statistics.")
@@ -48,8 +48,24 @@ func printToolCoverage(t toolOutput, actions []checker.CoverageAction) {
 			t.message(code, 0, fmt.Sprintf("<%s %s>: %d:%d", a.Name, coverageLocation(a.Range), a.Distinct, a.Generated))
 		}
 		for _, e := range a.Expressions {
-			t.message(2221, 0, fmt.Sprintf("  %s%s: %d", strings.Repeat("|", e.Depth), coverageLocation(e.Range), e.Count))
+			printToolCoverageExpression(t, e)
 		}
 	}
 	t.message(2202, 0, "End of statistics.")
+}
+
+func coverageExpression(e checker.CoverageExpression) string {
+	result := fmt.Sprintf("%s: %d", coverageLocation(e.Range), e.Count)
+	if e.Cost > 0 {
+		result += fmt.Sprintf(":%d", e.Cost)
+	}
+	return result
+}
+
+func printToolCoverageExpression(t toolOutput, e checker.CoverageExpression) {
+	code := 2221
+	if e.Cost > 0 {
+		code = 2775
+	}
+	t.message(code, 0, fmt.Sprintf("  %s%s", strings.Repeat("|", e.Depth), coverageExpression(e)))
 }
