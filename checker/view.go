@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -14,7 +15,7 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 	if s.model.hasReduction() {
 		key, err := s.model.stateKey(state)
 		if err != nil {
-			return "", false, err
+			return "", false, markUnionKeyFailure(err)
 		}
 		inModel, err := s.satisfiesConstraints(state, parent)
 		if err == nil {
@@ -30,11 +31,26 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 		return s.boundedProductKey(state, parent)
 	}
 	key, err := s.model.stateKey(state)
-	if err == nil {
-		s.normalizeStateMembership(state, parent)
+	if err != nil {
+		return "", false, markUnionKeyFailure(err)
 	}
-	return key, inModel, err
+	s.normalizeStateMembership(state, parent)
+	return key, inModel, nil
 }
+
+// A higher-order UNION may have no source expression, but a failure raised
+// from state-key construction still belongs to the candidate, not the action.
+func markUnionKeyFailure(err error) error {
+	if _, ok := errors.AsType[*value.UnionFirstElementError](err); ok {
+		return &unionKeyError{err}
+	}
+	return err
+}
+
+type unionKeyError struct{ cause error }
+
+func (e *unionKeyError) Error() string { return e.cause.Error() }
+func (e *unionKeyError) Unwrap() error { return e.cause }
 
 func (s *search) boundedProduct(state evaluator.State, parent int, inModel bool) bool {
 	m := s.model

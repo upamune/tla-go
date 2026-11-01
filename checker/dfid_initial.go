@@ -1,8 +1,11 @@
 package checker
 
 import (
+	"errors"
+
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
+	"github.com/upamune/tla-go/value"
 )
 
 // initialize is DFIDModelChecker.doInit. TLC computes every initial state,
@@ -118,6 +121,9 @@ func (s *dfidSearch) initialViolation(result Result) (Result, bool, error) {
 // reports it, replays doInit for a call stack, and prints statistics. The
 // exit status is 0 unless the replay fails as well.
 func (s *dfidSearch) initialFailure(err error, state evaluator.State) (Result, bool, error) {
+	if failure := s.initialUnionRenderFailure(err, state); failure != nil {
+		return s.publish(Result{Status: EvaluationFailure, Failure: failure}), true, nil
+	}
 	failure, ok := asRuntimeError(err)
 	if !ok {
 		return Result{}, true, err
@@ -140,6 +146,13 @@ func (s *dfidSearch) initialFailure(err error, state evaluator.State) (Result, b
 		result.ExitCode = 75
 	}
 	return s.counts(Result{Status: EvaluationFailure, Failure: result}), true, nil
+}
+
+func (s *dfidSearch) initialUnionRenderFailure(err error, state evaluator.State) *Failure {
+	if _, ok := errors.AsType[*value.UnionFirstElementError](err); ok && state != nil && !s.replaying {
+		return s.model.initialUnionRenderFailure(state)
+	}
+	return nil
 }
 
 func (s *dfidSearch) replayInitial() error {

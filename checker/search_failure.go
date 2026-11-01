@@ -178,6 +178,9 @@ func candidateFailure(err error, state evaluator.State, parent int) error {
 	if _, ok := errors.AsType[*value.FingerprintError](err); ok {
 		return &candidateFingerprintError{cause: err, state: state, parent: parent}
 	}
+	if _, ok := errors.AsType[*unionKeyError](err); ok {
+		return &candidateFingerprintError{cause: err, state: state, parent: parent}
+	}
 	if failure, ok := errors.AsType[*evaluator.RuntimeError](err); ok && (failure.ToolCode == 2215 || failure.ToolCode == 2154) {
 		return &candidateConstraintError{cause: err, state: state, parent: parent}
 	}

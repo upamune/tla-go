@@ -86,6 +86,9 @@ func (m *model) check() (Result, error) {
 }
 
 func (s *search) initialGenerationError(err error) (Result, error) {
+	if result, ok := s.initialUnionFingerprintFailure(err); ok {
+		return result, nil
+	}
 	if bound, ok := errors.AsType[*value.InitialProductBoundError](err); ok {
 		s.result.Status = EvaluationFailure
 		s.result.Failure = &Failure{Message: wrongInvocationMessage(bound.Error()), ToolCode: 1000, ExitCode: 255, SuppressStatistics: true}

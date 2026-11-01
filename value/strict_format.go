@@ -115,6 +115,9 @@ func (v Value) strictLazySet(terse bool) (string, error) {
 // symbolicSetKind reports whether Java TLC keeps v as a lazy set value whose
 // unexpanded form is a formula.
 func (v Value) symbolicSetKind() bool {
+	if v.kind == UnionKind {
+		return !v.tlcUnionEnumerated()
+	}
 	switch v.kind {
 	case SubsetKind, FunctionSetKind, RecordSetKind, ProductSetKind:
 		return true

@@ -50,6 +50,20 @@ the error stack, whereas Go does not. Membership in an invalid UNION is also a
 separate path: for `1 \in UNION {1}`, Java reports a fingerprint error and Go
 still emits a generic enumeration error.
 
+When the invalid UNION itself is stored in an initial state, Java first fails
+fingerprinting and then tries to print that state. Ordinary printing attempts
+the same enumeration again; this second failure replaces the fingerprint
+report and exits 255 without statistics. With `-terse`, the UNION prints
+symbolically and Java instead reports the initial state and fingerprint stack
+with exit 75. A successor fingerprint failure also exits 75. Go follows those
+paths for the tested initial and successor states, including the exact-key and
+FP64 checker paths. For nested records and tuples, the parent record or tuple
+source is not yet retained, so the Go fingerprint stack can lack the outer
+frame. A failing VIEW also still reports a different evaluation stack.
+An operator-argument UNION does not yet retain the call-site source, so its
+fingerprint error may lack a source stack even though the initial-state exit
+and rendering failure are handled as above.
+
 An experimental implementation counted deferred UNION and set-operation
 elements before deduplication and stopped at the bound. It correctly handled
 some uncached duplicate cases, but incorrectly failed the cached comparison,

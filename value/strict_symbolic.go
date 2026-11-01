@@ -78,6 +78,9 @@ func (v Value) strictProductExpand() (bool, error) {
 
 func (v Value) strictSymbolicSet(terse bool) (string, error) {
 	switch v.kind {
+	case UnionKind:
+		base, err := v.data.domain.render(terse)
+		return "UNION(" + base + ")", err
 	case SubsetKind:
 		// Java TLC 1.7.4's IntervalValue.toString adds no parentheses;
 		// Java TLC 1.8.0 and tla-ts print SUBSET (1..7).

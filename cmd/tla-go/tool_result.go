@@ -65,6 +65,9 @@ func printToolInitialEvaluationFailure(t toolOutput, failure *checker.Failure) b
 	fmt.Fprintf(&body, "%s\nWhile working on the initial state:\n", failure.Message)
 	printStateOrdered(&body, failure.InitialState, failure.InitialStateOrder)
 	t.message(2102, 1, body.String())
+	if failure.FingerprintDetail != "" {
+		printToolFingerprintDetail(t, failure)
+	}
 	printToolEvaluationDetail(t, failure)
 	return true
 }

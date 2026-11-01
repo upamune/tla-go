@@ -1,6 +1,7 @@
 package value
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -55,10 +56,15 @@ func (v Value) SubsetOf(other Value) (bool, error) {
 
 // Union returns the union of the members of a set of sets.
 func Union(base Value) (Value, error) {
+	return UnionWithSource(base, nil)
+}
+
+// UnionWithSource retains the expression for fingerprint diagnostics.
+func UnionWithSource(base Value, source *parser.Expression) (Value, error) {
 	if !isSet(base) {
 		return Value{}, fmt.Errorf("UNION requires a set")
 	}
-	return Value{kind: UnionKind, data: &payload{domain: base}}, nil
+	return Value{kind: UnionKind, data: &payload{domain: base, source: source}}, nil
 }
 
 func (v Value) containsSetOperator(element Value) (bool, error) {
@@ -193,6 +199,9 @@ func (v Value) eachUnion(visit func(Value) (bool, error)) error {
 		})
 	})
 	if err != nil {
+		if _, ok := errors.AsType[*UnionFirstElementError](err); ok {
+			return v.withFingerprintSource(err)
+		}
 		return err
 	}
 	result, err := Set(elements)

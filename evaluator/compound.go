@@ -163,10 +163,14 @@ func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {
 	if expr.Text == "SUBSET" {
 		return value.SubsetsWithSource(v, expr)
 	}
-	result, err := unary(expr.Text, v)
-	if err == nil && expr.Text == "UNION" {
-		err = e.program.checkUnion(v, result)
+	if expr.Text == "UNION" {
+		result, err := value.UnionWithSource(v, expr)
+		if err == nil {
+			err = e.program.checkUnion(v, result)
+		}
+		return result, err
 	}
+	result, err := unary(expr.Text, v)
 	if err != nil && expr.Text == "~" {
 		message := fmt.Sprintf("Attempted to apply the operator ~ to a non-boolean\n(%s)", v.TLCKindDescription())
 		return value.Value{}, booleanRuntimeError(message, expr, nil)
