@@ -7,6 +7,17 @@ import (
 )
 
 func comparisonCheckedBinary(name string, left, right value.Value, naturalOnly bool) (value.Value, error) {
+	if name == "\\div" && naturalOnly {
+		a, err := integer(left)
+		if err != nil {
+			return value.Value{}, err
+		}
+		b, err := integer(right)
+		if err != nil {
+			return value.Value{}, err
+		}
+		return naturalDivide(a, b)
+	}
 	if isComparisonOperator(name) {
 		if err := checkComparisonArguments(name, left, right, naturalOnly); err != nil {
 			return value.Value{}, err
