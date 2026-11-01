@@ -162,7 +162,6 @@ func TestCheckpointSearchRejectsInvalid(t *testing.T) {
 		{"constraint", source, cfg + " CONSTRAINT Inv"},
 		{"liveness", source, cfg + " PROPERTY Inv"},
 		{"effect", "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0\nNext == /\\ PrintT(x) /\\ x' = x + 1\n====", "INIT Init NEXT Next"},
-		{"operator call", "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nStep == x' = x\nNext == Step\n====", "INIT Init NEXT Next"},
 		{"set-valued successor", "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nNext == x' = {1}\n====", "INIT Init NEXT Next"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

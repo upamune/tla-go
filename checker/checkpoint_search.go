@@ -31,19 +31,20 @@ func checkpointPreflight(module *parser.Module, sources map[string]*parser.Modul
 }
 
 func (m *model) checkpointPreparationDefinitions(spec string) error {
+	validator := newCheckpointExpressionValidator(m)
 	for _, d := range m.module.Definitions {
-		if d.Name != spec && !m.checkpointPreparationExpression(d.Body) {
+		if d.Name != spec && !validator.preparationDefinition(d) {
 			return fmt.Errorf("unsupported checkpoint preparation expression in %q", d.Name)
 		}
 	}
 	return nil
 }
 
-func (m *model) checkpointPreparationExpression(e *parser.Expression) bool {
+func (v *checkpointExpressionValidator) preparationExpression(e *parser.Expression, params map[string]bool) bool {
 	if e == nil {
 		return false
 	}
-	if m.checkpointExpression(e) {
+	if v.expression(e, params) {
 		return true
 	}
 	// Pure EXCEPT expressions can produce preparation warnings. Restrict their
@@ -52,7 +53,7 @@ func (m *model) checkpointPreparationExpression(e *parser.Expression) bool {
 		return false
 	}
 	ok := true
-	walkChildren(e, func(child *parser.Expression) { ok = ok && m.checkpointPreparationExpression(child) })
+	walkChildren(e, func(child *parser.Expression) { ok = ok && v.preparationExpression(child, params) })
 	return ok
 }
 
@@ -160,28 +161,7 @@ func (m *model) checkpointUnsupportedMode() bool {
 }
 
 func (m *model) checkpointExpression(e *parser.Expression) bool {
-	if e == nil || parallelExtraChildren(e) {
-		return false
-	}
-	if checkpointMembership(e) {
-		return m.checkpointExpression(e.Args[0]) && m.checkpointSetElements(e.Args[1])
-	}
-	if e.Kind == "String" || m.checkpointConstantIdentifier(e) {
-		return len(e.Args) == 0
-	}
-	if !m.parallelExpressionKind(e) {
-		return false
-	}
-	return m.checkpointArguments(e.Args)
-}
-
-func (m *model) checkpointArguments(args []*parser.Expression) bool {
-	for _, arg := range args {
-		if !m.checkpointExpression(arg) {
-			return false
-		}
-	}
-	return true
+	return newCheckpointExpressionValidator(m).expression(e, nil)
 }
 
 func (m *model) checkpointConstantIdentifier(e *parser.Expression) bool {
@@ -196,17 +176,8 @@ func (m *model) checkpointConstantIdentifier(e *parser.Expression) bool {
 	return false
 }
 
-func (m *model) checkpointSetElements(e *parser.Expression) bool {
-	for _, item := range e.Args {
-		if !m.checkpointExpression(item) {
-			return false
-		}
-	}
-	return true
-}
-
 func checkpointSetMembership(e *parser.Expression) bool {
-	return e.Kind == "Apply" && e.Text == "\\in" && len(e.Args) == 2 && e.Args[1].Kind == "SetEnumeration"
+	return e.Kind == "Apply" && e.Text == "\\in" && len(e.Args) == 2 && e.Args[1] != nil && e.Args[1].Kind == "SetEnumeration"
 }
 
 func checkpointMembership(e *parser.Expression) bool {

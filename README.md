@@ -170,9 +170,10 @@ without it return an error. Durability depends on the filesystem.
 Explicit `-checkpoint N` (positive minutes) supports a restricted pure serial
 breadth-first search: integer, Boolean, and string states, scalar string
 configuration constants, and a restricted pure expression subset with INIT/NEXT
-and invariants. Inline `SPECIFICATION` conjunctions containing pure initial
-predicates and a single `[][action]_vars` formula are also supported; the
-predicates and action cannot refer to user-defined operators. String
+and invariants. `SPECIFICATION` conjunctions containing pure initial
+predicates and a single `[][action]_vars` formula are also supported. Named
+initial predicates, actions, and nonrecursive pure operators with scalar
+parameters are allowed within the same expression subset. String
 literals, equality, inequality, finite enumeration and integer interval
 membership are supported within that subset; string operations and other
 constant forms remain unsupported. Unsupported models or options
