@@ -43,7 +43,7 @@ jobs:
       - run: mise run test
   java-tlc:
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 85
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,7 +63,7 @@ jobs:
         env:
           TLC_JAR: ${{ runner.temp }}/tla2tools.jar
           TLC_MODERN_JAR: ${{ runner.temp }}/tla2tools-1.8.0.jar
-        run: mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
+        run: mise exec -- go test ./checker ./cmd/tla-go -run '^TestJava(TLC|SANYRecursiveDeclaration)' -count=1 -timeout=60m
       - name: Fetch the pinned statechart corpus
         run: |
           set -eu
