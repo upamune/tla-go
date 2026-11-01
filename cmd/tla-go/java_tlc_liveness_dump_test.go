@@ -63,7 +63,7 @@ P == []<>(x = 0)`
 }
 
 func TestLivenessDOTOutputSafety(t *testing.T) {
-	for _, mode := range []string{"input alias", "destination directory", "profile alias", "unrelated symlink", "unrelated hardlink", "existing graph"} {
+	for _, mode := range []string{"input alias", "destination directory", "profile alias", "user file alias", "unrelated symlink", "unrelated hardlink", "existing graph"} {
 		t.Run(mode, func(t *testing.T) {
 			dir := t.TempDir()
 			writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nP == <>[](x = 0)", "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
@@ -80,6 +80,8 @@ func TestLivenessDOTOutputSafety(t *testing.T) {
 				}
 			case "profile alias":
 				args = append([]string{"-debug-cpu-profile", "out_liveness.dot"}, args...)
+			case "user file alias":
+				args = append([]string{"-userFile", "out_liveness.dot"}, args...)
 			case "unrelated symlink", "unrelated hardlink":
 				if err := os.WriteFile(filepath.Join(dir, "other"), []byte("preserve"), 0o600); err != nil {
 					t.Fatal(err)
@@ -132,6 +134,12 @@ func TestLivenessDOTOutputSafety(t *testing.T) {
 				got, err := os.ReadFile(path)
 				if err != nil || len(got) < 2 || got[0] != 0x1f || got[1] != 0x8b {
 					t.Fatalf("CPU profile was overwritten: %q, %v", got, err)
+				}
+			}
+			if mode == "user file alias" {
+				got, err := os.ReadFile(path)
+				if err != nil || len(got) != 0 {
+					t.Fatalf("user output file was overwritten: %q, %v", got, err)
 				}
 			}
 			files, err := filepath.Glob(filepath.Join(dir, ".tla-liveness-*.tmp"))

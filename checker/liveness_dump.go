@@ -1,7 +1,5 @@
 package checker
 
-import "github.com/upamune/tla-go/syntax/parser"
-
 func (s *search) emitResultLivenessGraph(result Result) error {
 	if result.Status != Success && result.Status != LivenessViolation {
 		return nil
@@ -41,10 +39,8 @@ func (s *search) canReconstructLivenessGraph() bool {
 	if len(m.livenessOrder) == 0 || !s.completedLivenessGraphEligible() {
 		return false
 	}
-	for _, def := range m.module.Definitions {
-		if hasHigherOrderParameters(def) || m.unsafeIncrementalExpression(def.Body) || containsDeferredExpression(def.Body) {
-			return false
-		}
+	if !m.pureLivenessDumpModel() {
+		return false
 	}
 	return m.hasSinglePlainLivenessSolution()
 }
@@ -65,22 +61,6 @@ func (s *search) completedLivenessGraphEligible() bool {
 
 func (s *search) safeLivenessGraphBindings() bool {
 	return !hasOperatorConstants(s.model.module.Constants) && len(s.model.cfg.Substitutions) == 0 && len(s.model.module.Instances) == 0
-}
-
-func containsDeferredExpression(expr *parser.Expression) bool {
-	if expr == nil {
-		return false
-	}
-	if expr.Kind == "Apply" && tlcOperatorName(expr) == "TLCDefer" {
-		return true
-	}
-	found := false
-	walkChildren(expr, func(child *parser.Expression) {
-		if !found {
-			found = containsDeferredExpression(child)
-		}
-	})
-	return found
 }
 
 func (s *search) emitLivenessInitial(index int) error {

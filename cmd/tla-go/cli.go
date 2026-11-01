@@ -241,7 +241,7 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 }
 
 func checkModelNormally(ctx context.Context, opts options, module *parser.Module, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
-	graph, liveGraph, err := prepareGraphDumps(opts)
+	graph, liveGraph, err := prepareGraphDumps(opts, module)
 	if err != nil {
 		return checker.Result{}, err
 	}

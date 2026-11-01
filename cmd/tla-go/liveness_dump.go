@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/upamune/tla-go/checker"
+	"github.com/upamune/tla-go/syntax/parser"
 )
 
 // livenessDump stages the graph so unsupported models and incomplete searches
@@ -17,16 +18,17 @@ type livenessDump struct {
 	dump            *dotDump
 	failure         error
 	opts            options
+	module          *parser.Module
 	checked, skip   bool
 }
 
-func prepareGraphDumps(opts options) (stateDump, *livenessDump, error) {
+func prepareGraphDumps(opts options, module *parser.Module) (stateDump, *livenessDump, error) {
 	graph, err := openStateDump(opts.dumpPath, opts.dumpDOT)
 	path := livenessDumpPath(opts)
 	if err != nil || path == "" {
 		return graph, nil, err
 	}
-	return graph, &livenessDump{opts: opts}, nil
+	return graph, &livenessDump{opts: opts, module: module}, nil
 }
 
 func finishGraphDumps(graph stateDump, live *livenessDump, result checker.Result, err error) error {
@@ -50,7 +52,7 @@ func livenessDumpPath(opts options) string {
 	return strings.TrimSuffix(opts.dumpPath, ".dot") + "_liveness.dot"
 }
 
-func safeLivenessDumpPath(opts options) (string, error) {
+func safeLivenessDumpPath(opts options, module *parser.Module) (string, error) {
 	path := livenessDumpPath(opts)
 	if path == "" {
 		return "", nil
@@ -59,7 +61,11 @@ func safeLivenessDumpPath(opts options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, other := range []string{opts.dumpPath, spec, cfg} {
+	inputs := livenessDumpInputs(opts, module, spec, cfg)
+	for _, other := range inputs {
+		if other == "" {
+			continue
+		}
 		alias, err := outputAliases(path, other)
 		if err != nil {
 			return "", err
@@ -74,10 +80,26 @@ func safeLivenessDumpPath(opts options) (string, error) {
 	return path, nil
 }
 
+func livenessDumpInputs(opts options, module *parser.Module, spec, cfg string) []string {
+	inputs := []string{opts.dumpPath, opts.compat.userFile, spec, cfg}
+	roots := append([]string{filepath.Dir(spec)}, opts.libraryPaths...)
+	for _, root := range roots {
+		if filepath.Dir(spec) == "." {
+			inputs = append(inputs, filepath.Join(root, spec))
+		}
+		if module != nil {
+			for _, name := range module.Extends {
+				inputs = append(inputs, filepath.Join(root, name+".tla"))
+			}
+		}
+	}
+	return inputs
+}
+
 func (d *livenessDump) event(event checker.GraphEvent) error {
 	if !d.checked {
 		d.checked = true
-		path, err := safeLivenessDumpPath(d.opts)
+		path, err := safeLivenessDumpPath(d.opts, d.module)
 		if err != nil || path == "" || protectProfileOutput(d.opts, path) != nil {
 			d.skip = true
 		} else {
