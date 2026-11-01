@@ -2,6 +2,7 @@ package checker
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -27,7 +28,11 @@ type CoverageExpression struct {
 	Cost  int
 }
 
+// The schema is immutable after construction. mu protects every runtime update
+// and the entire report, including property trees. No evaluator or user callback
+// runs while mu is held.
 type coverageCollector struct {
+	mu                    sync.Mutex
 	actions               []CoverageAction
 	byName                map[string]int
 	expressions           map[string]map[parser.Range]int
@@ -211,6 +216,8 @@ func coverageNat(e *parser.Expression) bool {
 
 func (g *generator) cover(expr *parser.Expression, action string) {
 	c := g.model.coverage
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if g.initial {
 		action = c.initial
 	}
@@ -249,6 +256,8 @@ func (g *generator) coverAssignmentMember(expr *parser.Expression, partial evalu
 		return
 	}
 	c := g.model.coverage
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if g.initial {
 		action = c.initial
 	}
@@ -265,6 +274,8 @@ func (g *generator) coverAssignmentDomain(expr *parser.Expression, name string, 
 		return
 	}
 	c := g.model.coverage
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if g.initial {
 		action = c.initial
 	}
@@ -278,6 +289,8 @@ func (g *generator) coverGuardSuccess(expr *parser.Expression, action string) {
 	if c == nil || g.initial {
 		return
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if i, ok := c.guards[action][expr.Location.Range]; ok {
 		c.actions[c.byName[action]].Expressions[i].Count++
 	}
@@ -287,6 +300,8 @@ func (g *generator) coverGuardSuccess(expr *parser.Expression, action string) {
 }
 
 func (c *coverageCollector) generated(action string, initial bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if initial {
 		action = c.initial
 	}
@@ -296,6 +311,8 @@ func (c *coverageCollector) generated(action string, initial bool) {
 }
 
 func (c *coverageCollector) distinct(action string, initial bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if initial {
 		action = c.initial
 	}
@@ -513,8 +530,10 @@ func (m *model) attachCoverage(result *Result) {
 }
 
 // report leaves the collector's counters and update indices intact. Callers
-// must prevent updates while it reads the collector; it does not synchronize.
+// may run concurrently with updates. Each report reflects one instant between updates.
 func (c *coverageCollector) report() []CoverageAction {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.actions == nil {
 		return nil
 	}
@@ -709,8 +728,16 @@ func (g *generator) coverExistentialDomain(expr *parser.Expression, action strin
 		return
 	}
 	c := g.model.coverage
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if i, ok := c.existentialDomains[action][expr.Location.Range]; ok {
 		c.evaluatedExistential = true
 		c.actions[c.byName[action]].Expressions[i].Count++
 	}
+}
+
+func (c *coverageCollector) existentialEvaluated() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.evaluatedExistential
 }

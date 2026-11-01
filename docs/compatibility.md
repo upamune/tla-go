@@ -173,19 +173,20 @@ wait before the tick. See Java 1.7.4's
 [`CounterStatistic`](https://github.com/tlaplus/tlaplus/blob/v1.7.4/tlatools/org.lamport.tlatools/src/tlc2/util/statistics/CounterStatistic.java).
 The live oracle test checks message order and presence rather than fixing
 concurrent count values. A future implementation must also serialize output
-against errors, final summaries and other callbacks; merely reading the Go
-collector concurrently would race, and waiting for a whole successor expansion
-can delay a report indefinitely.
+against errors, final summaries and other callbacks; waiting for a whole
+successor expansion can delay a report indefinitely.
 
 The final-report path creates a non-destructive report: action expressions are
 collapsed in a separate result, and property cost trees remain available for
 subsequent updates. Repeated reports without intervening updates agree, and
-later updates do not alter earlier reports. This operation does not synchronize
-with updates and is not safe to call concurrently. Periodic reporting still
-needs consistent ownership or synchronization for every read and update, and
-serialization of complete messages with all existing output callbacks and
-termination paths. It must also start the progress schedule after initial-state
-generation, not at the CLI's current conservative cancellation deadline, and
+later updates do not alter earlier reports. The collector synchronizes reports
+with individual update operations, so each report is a snapshot at one instant
+between updates, including when called concurrently. A state transition can
+involve several updates, however, and is not atomic with respect to a report.
+Periodic reporting still needs a timer and serialization of complete messages
+with all existing output callbacks and termination paths. It must also start
+the progress schedule after initial-state generation, not at the CLI's current
+conservative cancellation deadline, and
 must account for long-running evaluations without silently skipping reports.
 Those requirements have not yet been established even for a smaller class of
 the currently accepted models; the deadline restriction above remains in place
