@@ -67,7 +67,7 @@ func TestJavaTLCCoverageParameterizedActionsBoundary(t *testing.T) {
 			}
 			args := coverageAArgs("M.tla", true)
 			out, code, stderr := runGoInDir(t, dir, args)
-			if tc.name == "range" || tc.name == "guard" {
+			if tc.name == "guard" {
 				if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
 					t.Fatalf("coverage should remain rejected: exit %d stderr %s output %s", code, stderr, out)
 				}

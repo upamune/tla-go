@@ -238,8 +238,12 @@ predicate locations must be distinct within one module; repeated calls to the
 same predicate share a root. Invariants, constraints, configuration constants
 and substitutions, INSTANCE-substituted definitions, and mixed parameterized
 and nullary calls, graph output and a custom `-maxSetSize` are rejected for
-this subset. Guard expressions, range
-assignments and nested cost nodes remain unsupported. The declaration-head
+this subset. The body may also assign a variable from an interval whose
+endpoints are numeric literals or value parameters supplied with numeric
+literals, with the upper endpoint below Java's maximum 32-bit integer. TLC's
+separate interval evaluation and successful member counts
+are reported. Guard expressions, other range endpoints, and other nested cost
+nodes remain unsupported. The declaration-head
 range comes from parse-time source tokens, so the JSON AST projection without
 those tokens is rejected in coverage mode. Java 1.7.4 comparisons exercise
 repeated calls, argument values, declaration spacing, imported definitions and

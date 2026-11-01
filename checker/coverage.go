@@ -287,7 +287,12 @@ func (g *generator) cover(expr *parser.Expression, action string) {
 		return
 	}
 	if !g.initial && g.coverageRoot != nil {
-		c.actions[g.coverageRoot.action].Expressions[0].Count++
+		a := &c.actions[g.coverageRoot.action]
+		if len(a.Expressions) == 1 {
+			a.Expressions[0].Count++
+		} else {
+			c.coverExpression(expr, action)
+		}
 		return
 	}
 	if g.initial {

@@ -1,14 +1,16 @@
 package checker
 
 import (
+	"math"
 	"slices"
+	"strconv"
 
 	"github.com/upamune/tla-go/syntax"
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
 // A call occurrence selects a root; repeated calls of one predicate share it.
-// This subset has a single cost-bearing expression under each root.
+// The predicate may contain a separate cost-bearing interval expression.
 type coverageParameterizedRoot struct {
 	predicate *parser.Expression
 	action    int
@@ -89,7 +91,47 @@ func (m *model) coverageParameterizedDefinition(d parser.Definition, call *parse
 	if len(d.Params) == 0 || len(d.Params) != len(call.Args) || !m.coverageParameterizedArguments(d.Params, call.Args) {
 		return false
 	}
-	return m.coverageParameterizedBody(d)
+	return m.coverageParameterizedBody(d) && coverageParameterizedBodyArguments(d, call)
+}
+
+func coverageParameterizedBodyArguments(d parser.Definition, call *parser.Expression) bool {
+	if d.Body.Kind == "Apply" && d.Body.Text == "\\in" {
+		return coverageParameterizedIntervalArguments(d.Params, call.Args, d.Body)
+	}
+	return true
+}
+
+func coverageParameterizedIntervalArguments(params []parser.Declaration, args []*parser.Expression, body *parser.Expression) bool {
+	if len(body.Args) != 2 || body.Args[1] == nil || !coverageParameterizedInterval(params, body.Args[1]) {
+		return false
+	}
+	for _, end := range body.Args[1].Args {
+		if !coverageParameterizedEndpointArgument(params, args, end) {
+			return false
+		}
+	}
+	return coverageParameterizedFiniteUpper(params, args, body.Args[1].Args[1])
+}
+
+// TLC 1.7.4 wraps its interval enumerator after MaxInt32 rather than stopping.
+func coverageParameterizedFiniteUpper(params []parser.Declaration, args []*parser.Expression, end *parser.Expression) bool {
+	for i, param := range params {
+		if end.Kind == "Identifier" && end.Text == param.Name {
+			end = args[i]
+			break
+		}
+	}
+	n, err := strconv.ParseUint(end.Text, 10, 31)
+	return err == nil && n < math.MaxInt32
+}
+
+func coverageParameterizedEndpointArgument(params []parser.Declaration, args []*parser.Expression, end *parser.Expression) bool {
+	for i, param := range params {
+		if end.Kind == "Identifier" && end.Text == param.Name {
+			return coverageInitialNumber(args[i])
+		}
+	}
+	return true
 }
 
 func coverageParameterizedOperator(d parser.Definition) bool {
@@ -119,6 +161,9 @@ func (m *model) coverageParameterizedBody(d parser.Definition) bool {
 	if !coverageParameterizedAssignment(e, m.names[0]) {
 		return false
 	}
+	if e.Text == "\\in" {
+		return coverageParameterizedInterval(d.Params, e.Args[1])
+	}
 	if coverageInitialLiteral("=", e.Args[1]) {
 		return true
 	}
@@ -126,7 +171,19 @@ func (m *model) coverageParameterizedBody(d parser.Definition) bool {
 }
 
 func coverageParameterizedAssignment(e *parser.Expression, name string) bool {
-	return e.Kind == "Apply" && e.Text == "=" && len(e.Args) == 2 && e.Args[0] != nil && e.Args[1] != nil && coveragePrimeVariable(e.Args[0], name)
+	return e.Kind == "Apply" && (e.Text == "=" || e.Text == "\\in") && len(e.Args) == 2 && e.Args[0] != nil && e.Args[1] != nil && coveragePrimeVariable(e.Args[0], name)
+}
+
+func coverageParameterizedInterval(params []parser.Declaration, e *parser.Expression) bool {
+	if e.Kind != "Apply" || e.Text != ".." || len(e.Args) != 2 {
+		return false
+	}
+	for _, end := range e.Args {
+		if !coverageInitialNumber(end) && !coverageParameterizedFormal(params, end) {
+			return false
+		}
+	}
+	return true
 }
 
 func coverageParameterizedFormal(params []parser.Declaration, expr *parser.Expression) bool {

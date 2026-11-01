@@ -22,6 +22,12 @@ func TestJavaTLCCoverageParameterizedValues(t *testing.T) {
 		{"range-init", "x \\in 0..2", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
 		{"set-init", "x \\in {0,1,1,2}", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
 		{"empty-set-init", "x \\in {}", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
+		{"range-values", "x=0", "A(n) == x' \\in 0..n\nB(n,m) == x' \\in n..m\nNext == A(2) \\/ B(1,3)"},
+		{"range-unused-bool", "x=0", "A(n,b) == x' \\in n..2\nNext == A(0,TRUE) \\/ A(1,FALSE)"},
+		{"range-singleton", "x=0", "A(n) == x' \\in n..n\nNext == A(0) \\/ A(1)"},
+		{"range-empty", "x=0", "A(n) == x' \\in n..0\nNext == A(1) \\/ A(2)"},
+		{"range-repeat", "x \\in 0..2", "A(n) == x' \\in 0..n\nNext == A(2) \\/ A(1) \\/ A(2)"},
+		{"range-empty-init", "x \\in 1..0", "A(n) == x' \\in 0..n\nNext == A(1) \\/ A(2)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -69,7 +75,10 @@ func TestCoverageRejectsUnmodeledParameterizedCalls(t *testing.T) {
 		{"argument-error", "A(n) == x'=n\nNext == A(1 \\div 0) \\/ A(1)", ""},
 		{"body-error", "A(n) == x'=(1 \\div 0)\nNext == A(1) \\/ A(2)", ""},
 		{"guard", "A(n) == /\\ x<n\n        /\\ x'=n\nNext == A(1) \\/ A(2)", ""},
-		{"range", "A(n) == x' \\in 0..n\nNext == A(1) \\/ A(2)", ""},
+		{"range-state", "A(n) == x' \\in x..n\nNext == A(1) \\/ A(2)", ""},
+		{"range-boolean", "A(n) == x' \\in 0..n\nNext == A(TRUE) \\/ A(2)", ""},
+		{"range-wrap", "A(n) == x' \\in 2147483647..n\nNext == A(2147483647) \\/ A(2)", ""},
+		{"range-wrap-literal", "A(n) == x' \\in n..2147483647\nNext == A(1) \\/ A(2)", ""},
 		{"mixed-action-shapes", "A(n) == x'=n\nB == x'=1\nNext == A(1) \\/ B", ""},
 		{"constraint", "A(n) == x'=n\nNext == A(1) \\/ A(2)\nLimit == x < 2", "CONSTRAINT Limit\n"},
 		{"invariant", "A(n) == x'=n\nNext == A(1) \\/ A(2)\nInv == x < 3", "INVARIANT Inv\n"},
