@@ -145,7 +145,7 @@ func (r *instanceResolver) instanceModule(instance parser.Instance) (*parser.Mod
 		return binding.module, nil
 	}
 	if r.hasUnpreparedNested(instance.Module) {
-		return nil, fmt.Errorf("nested module %s is not yet defined", instance.Module)
+		return nil, r.unpreparedNestedError(instance.Module)
 	}
 	if module, ok := r.cache[instance.Module]; ok {
 		return module, nil
@@ -156,6 +156,13 @@ func (r *instanceResolver) instanceModule(instance parser.Instance) (*parser.Mod
 	}
 	r.cache[instance.Module] = module
 	return module, nil
+}
+
+func (r *instanceResolver) unpreparedNestedError(name string) error {
+	if _, err := r.loadInstanceModule(name); err != nil {
+		return err
+	}
+	return &SemanticError{Err: fmt.Errorf("duplicate nested module %s", name)}
 }
 
 func (r *instanceResolver) hasUnpreparedNested(name string) bool {
