@@ -346,7 +346,15 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	if err := os.WriteFile(bridgeSource, []byte(bridgeJava), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source, bridgeSource}
+	goEmptySource := filepath.Join(temp, "GoEmptyTest.java")
+	if err := os.WriteFile(goEmptySource, []byte(goEmptyTestJava), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	goSuiteSource := filepath.Join(temp, "GoSuiteTest10.java")
+	if err := os.WriteFile(goSuiteSource, []byte(goSuiteTest10Java), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"-proc:none", "-cp", strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator)), "-d", classes, source, bridgeSource, goEmptySource, goSuiteSource}
 	if out, err := exec.Command("javac", args...).CombinedOutput(); err != nil {
 		t.Fatalf("javac: %v\n%s", err, out)
 	}
@@ -455,6 +463,7 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	t.Logf("Go assertion-method result: %v; exit=%d; unrepresented observations=%v", assertionOutcome, goResult.ExitCode, omissions)
 	t.Logf("No Go JUnit pass: %v", bridgeVerdict(fmt.Errorf("outcome=%v", assertionOutcome), omissions))
+	checkBridgeLifecycle(t, classes, deps, runDir, "GoSuiteTest10", "tlc2.tool.suite.SuiteTestCase.testSpec", projected, goResult.ExitCode)
 	// A malformed recorder input fails inside the bridge, before testSpec runs.
 	if err := os.WriteFile(filepath.Join(runDir, "bridge-records"), []byte("not-a-code\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -518,4 +527,5 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 			t.Errorf("%s: outcome=%v error=%v", name, got, e)
 		}
 	}
+	checkBridgeLifecycle(t, classes, deps, runDir, "GoEmptyTest", "tlc2.tool.EmptyTest.testSpec", emptyRecords, emptyResult.ExitCode)
 }

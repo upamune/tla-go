@@ -460,6 +460,20 @@ are reported; they cannot turn the result into a pass. A broader bridge requires
 a typed recorder interface from Go, complete lifecycle equivalence, and an
 explicit completeness contract before it can claim one.
 
+The experiment additionally runs two test subclasses, `GoSuiteTest10` and
+`GoEmptyTest`, through JUnit itself. Their inherited upstream `testSpec` and
+`ModelCheckerTestCase.tearDown` execute on Go's projected records and exit
+status. The subclass replaces the upstream setup with an adapter and consumes
+the already completed Go invocation; it does not run Java TLC. Negative
+controls verify that a wrong state count fails in the original test method and
+a nonzero exit fails in the inherited exit-status assertion. The Test10
+invocation currently retries without coverage if the exact documented
+unsupported-coverage response occurs, so its zero-uncovered assertion on this
+projection is not evidence that Go collected complete coverage. For both
+subclasses, missing recorder events, upstream globals, setup, the JUnit-selected
+class identity and cleanup behavior remain unresolved. A successful adapted
+run is not an upstream JUnit pass for tla-go.
+
 ## EmptyTest assertion-method bridge
 
 The same opt-in experiment discovers and executes the pinned

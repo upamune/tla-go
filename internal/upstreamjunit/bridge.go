@@ -12,6 +12,12 @@ import (
 //go:embed Bridge.java
 var bridgeJava string
 
+//go:embed GoEmptyTest.java
+var goEmptyTestJava string
+
+//go:embed GoSuiteTest10.java
+var goSuiteTest10Java string
+
 type bridgeRecord struct {
 	code   string
 	values []string

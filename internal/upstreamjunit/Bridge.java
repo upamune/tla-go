@@ -24,6 +24,16 @@ public class Bridge {
         java.lang.reflect.Field field = CommonTestCase.class.getDeclaredField("recorder");
         field.setAccessible(true);
         TestMPRecorder recorder = (TestMPRecorder) field.get(test);
+        loadRecords(recorder);
+        try {
+            if (test instanceof Test10) { ((Test10) test).testSpec(); }
+            else { ((EmptyTest) test).testSpec(); }
+        } catch (AssertionError failure) {
+            throw new UpstreamAssertionFailure(failure);
+        }
+    }
+
+    static void loadRecords(TestMPRecorder recorder) throws Exception {
         for (String line : Files.readAllLines(Paths.get("bridge-records"), StandardCharsets.UTF_8)) {
             String[] parts = line.split("\\t", -1);
             int code = Integer.parseInt(parts[0]);
@@ -36,11 +46,9 @@ public class Bridge {
             }
             recorder.record(code, (Object[]) values);
         }
-        try {
-            if (test instanceof Test10) { ((Test10) test).testSpec(); }
-            else { ((EmptyTest) test).testSpec(); }
-        } catch (AssertionError failure) {
-            throw new UpstreamAssertionFailure(failure);
-        }
+    }
+
+    static int loadExit() throws Exception {
+        return Integer.parseInt(new String(Files.readAllBytes(Paths.get("bridge-exit")), StandardCharsets.UTF_8));
     }
 }
