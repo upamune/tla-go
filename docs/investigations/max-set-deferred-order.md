@@ -64,6 +64,25 @@ An operator-argument UNION does not yet retain the call-site source, so its
 fingerprint error may lack a source stack even though the initial-state exit
 and rendering failure are handled as above.
 
+These matching exit codes do not imply matching side effects. With `-terse`,
+putting `UNION {i \in 1..3 : PrintT(i)}` in an initial or successor state
+prints `1`, `2`, `3` twice in Java, which replays evaluation while building
+the error report; Go prints them once. This discrepancy predates the error
+classification change. Likewise, for `UNION {SUBSET Nat}` with `-terse`,
+Java exits 75 and Go exits 255, both before and after that change. Java's
+`Enumerable` interface does not imply that every particular value can actually
+be enumerated. By contrast, the tested `UNION {Nat}`, `UNION {Int}`, and
+`UNION {STRING}` errors match in normal and terse output.
+
+For an initial VIEW `V == IF x = 0 THEN UNION {1} ELSE {}`, Java reports
+messages 2102, 2103, and 2199 with exit 75; Go reports 2102, 2147, and 2199
+with the same exit code. With a source-less VIEW, Go omits both 2103 and 2147.
+For a successor VIEW `V == IF x = 0 THEN 0 ELSE UNION {1}` and
+`Next == x' = x + 1`, Java reports 1000, 2103, and 2199; Go substitutes 2147
+for 2103, both exiting 75. The tested VIEW containing `Cardinality` and the
+state-constraint case match; these observations do not establish general VIEW
+compatibility.
+
 An experimental implementation counted deferred UNION and set-operation
 elements before deduplication and stopped at the bound. It correctly handled
 some uncached duplicate cases, but incorrectly failed the cached comparison,
