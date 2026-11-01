@@ -9,6 +9,7 @@ import tlc2.tool.CommonTestCase;
 import tlc2.tool.EmptyTest;
 import tlc2.tool.suite.Test10;
 import tlc2.tool.coverage.BCoverageTest;
+import tlc2.tool.coverage.CoverageStatisticsTest;
 
 // Executes the original inherited assertion method on a fresh Test10 instance.
 // Setup and teardown are intentionally not claimed by this projection.
@@ -23,6 +24,7 @@ public class Bridge {
         if (target.equals("Test10")) { test = new Test10(); }
         else if (target.equals("EmptyTest")) { test = new EmptyTest(); }
         else if (target.equals("BCoverageTest")) { test = new BCoverageTest(); }
+        else if (target.equals("CoverageStatisticsTest")) { test = new CoverageStatisticsTest(); }
         else { throw new IllegalArgumentException("unsupported target"); }
         java.lang.reflect.Field field = CommonTestCase.class.getDeclaredField("recorder");
         field.setAccessible(true);
@@ -31,7 +33,8 @@ public class Bridge {
         try {
             if (test instanceof Test10) { ((Test10) test).testSpec(); }
             else if (test instanceof EmptyTest) { ((EmptyTest) test).testSpec(); }
-            else { ((BCoverageTest) test).testSpec(); }
+            else if (test instanceof BCoverageTest) { ((BCoverageTest) test).testSpec(); }
+            else { ((CoverageStatisticsTest) test).testSpec(); }
         } catch (AssertionError failure) {
             throw new UpstreamAssertionFailure(failure);
         }

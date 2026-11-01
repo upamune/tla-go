@@ -36,7 +36,7 @@ func checkBNegativeAssertions(t *testing.T, binary, modelDir, classes string, de
 		{"action coverage", "BCoverageTest.java:53", alterBridgeRecord(t, records, "2772", 1, "999")},
 		{"zero coverage", "BCoverageTest.java:53", alterBridgeRecord(t, records, "2221", 1, "0")},
 	} {
-		checkOriginalBFailure(t, classes, deps, dir, tc.name, tc.line, tc.records)
+		checkOriginalBridgeFailure(t, classes, deps, dir, tc.name, tc.line, tc.records)
 	}
 }
 
@@ -76,7 +76,7 @@ func alterBridgeRecord(t *testing.T, records []bridgeRecord, code string, index 
 	return result
 }
 
-func checkOriginalBFailure(t *testing.T, classes string, deps []string, dir, name, line string, records []bridgeRecord) {
+func checkOriginalBridgeFailure(t *testing.T, classes string, deps []string, dir, name, line string, records []bridgeRecord) {
 	t.Helper()
 	data, err := encodeBridge(records)
 	if err != nil {

@@ -27,7 +27,7 @@ func checkBridgeBCoverage(t *testing.T, binary, modelDir, classes string, deps [
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkBRecorderAgainstJava(t, modelDir, classes, deps, dir, args, records)
+	checkCoverageRecorderAgainstJava(t, modelDir, classes, deps, dir, "b", args, records)
 	omissions = append(omissions, "upstream metadir dump path and setup were not reproduced", "tool projection cannot establish complete typed recorder calls")
 	if err := os.WriteFile(filepath.Join(dir, "bridge-target"), []byte("BCoverageTest"), 0o600); err != nil {
 		t.Fatal(err)
@@ -53,25 +53,25 @@ func checkBridgeBCoverage(t *testing.T, binary, modelDir, classes string, deps [
 	t.Fatalf("B report missing action coverage: %s", strings.Join(omissions, "; "))
 }
 
-func checkBRecorderAgainstJava(t *testing.T, modelDir, classes string, deps []string, dir string, args []string, projected []bridgeRecord) {
+func checkCoverageRecorderAgainstJava(t *testing.T, modelDir, classes string, deps []string, dir, label string, args []string, projected []bridgeRecord) {
 	t.Helper()
-	capture := filepath.Join(dir, "java-b-records")
+	capture := filepath.Join(dir, "java-"+label+"-records")
 	cp := strings.Join(append([]string{classes}, deps...), string(os.PathListSeparator))
 	javaArgs := []string{"-Djava.io.tmpdir=" + t.TempDir(), "-cp", cp, "CaptureRecorder", capture}
 	dumpIndex := slices.Index(args, "-dump")
 	if dumpIndex < 0 || dumpIndex+2 >= len(args) || args[dumpIndex+1] != "dot" {
-		t.Fatalf("missing B DOT argument: %v", args)
+		t.Fatalf("missing coverage DOT argument: %v", args)
 	}
-	goDump, javaDump := args[dumpIndex+2], filepath.Join(dir, "b-java.dot")
+	goDump, javaDump := args[dumpIndex+2], filepath.Join(dir, label+"-java.dot")
 	javaOptions := slices.Clone(args[:len(args)-1])
 	javaOptions[dumpIndex+2] = javaDump
 	javaArgs = append(javaArgs, javaOptions...)
-	javaArgs = append(javaArgs, "-metadir", filepath.Join(dir, "b-java-states"), args[len(args)-1])
+	javaArgs = append(javaArgs, "-metadir", filepath.Join(dir, label+"-java-states"), args[len(args)-1])
 	result, err := runCommand(modelDir, 30*time.Second, "java", javaArgs...)
 	if err != nil || result.ExitCode != 0 || result.TimedOut {
 		t.Fatalf("Java recorder capture: result %+v error %v", result, err)
 	}
-	compareBDumps(t, goDump, javaDump)
+	compareCoverageDumps(t, goDump, javaDump)
 	actual, err := os.ReadFile(capture)
 	if err != nil {
 		t.Fatal(err)
@@ -89,11 +89,11 @@ func checkBRecorderAgainstJava(t *testing.T, modelDir, classes string, deps []st
 	}
 }
 
-func compareBDumps(t *testing.T, goPath, javaPath string) {
+func compareCoverageDumps(t *testing.T, goPath, javaPath string) {
 	t.Helper()
 	goDump, goErr := os.ReadFile(goPath)
 	javaDump, javaErr := os.ReadFile(javaPath)
 	if goErr != nil || javaErr != nil || !strings.Contains(string(goDump), " -> ") || string(goDump) != string(javaDump) {
-		t.Fatalf("B DOT: Go error %v, Java error %v\nGo %s\nJava %s", goErr, javaErr, goDump, javaDump)
+		t.Fatalf("coverage DOT: Go error %v, Java error %v\nGo %s\nJava %s", goErr, javaErr, goDump, javaDump)
 	}
 }

@@ -517,6 +517,16 @@ action count must fail the original coverage assertion. Other recorder events,
 setup and lifecycle effects remain unverified, so this is not an upstream JUnit
 pass for Go.
 
+The same experiment discovers and runs the original Java
+`CoverageStatisticsTest` with its inherited setup and teardown, then runs Go
+with coverage and DOT enabled. The selected typed recorder calls are compared
+in order against Java, and the nonempty DOT files are compared byte for byte.
+The upstream assertion method and inherited teardown run against the projected
+Go records; negative controls change the depth, statistics, action and
+expression counts, remove a coverage record or FINISHED, inject GENERAL, and
+change the exit status. The upstream metadir path, original setup, and complete
+recorder calls remain unverified. This is a partial bridge, not a Go JUnit pass.
+
 ## EmptyTest assertion-method bridge
 
 The same opt-in experiment discovers and executes the pinned
