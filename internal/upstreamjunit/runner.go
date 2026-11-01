@@ -25,6 +25,7 @@ type Case struct {
 	Translate       bool
 	PresenceIDs     []string
 	Workers         string
+	Coverage, Dump  bool
 	Unresolved      string
 }
 
@@ -46,17 +47,40 @@ func RunCase(root, jar, binary string, c Case, timeout time.Duration) (Result, R
 	if err != nil {
 		return j, g, translationDiffs, err
 	}
-	args := caseArgs(c)
-	j, err = runJavaCase(tmp, jar, c.Path, timeout, args)
+	j, g, diffs, err := runModelCase(tmp, jar, binary, c, timeout)
+	return j, g, append(translationDiffs, diffs...), err
+}
+
+func runModelCase(tmp, jar, binary string, c Case, timeout time.Duration) (Result, Result, []string, error) {
+	jargs := caseArgs(c, true, filepath.Join(tmp, "java.dot"))
+	gargs := caseArgs(c, false, filepath.Join(tmp, "go.dot"))
+	j, err := runJavaCase(tmp, jar, c.Path, timeout, jargs)
 	if err != nil {
 		return j, Result{}, nil, err
 	}
-	g, err = runCommand(filepath.Join(tmp, "go", c.Path), timeout, binary, args...)
+	g, err := runCommand(filepath.Join(tmp, "go", c.Path), timeout, binary, gargs...)
 	if err != nil {
 		return j, g, nil, err
 	}
 	diffs, err := compareCase(j, g, c)
-	return j, g, append(translationDiffs, diffs...), err
+	if err == nil && c.Dump {
+		var dumpDiff []string
+		dumpDiff, err = compareDump(tmp)
+		diffs = append(diffs, dumpDiff...)
+	}
+	return j, g, diffs, err
+}
+
+func compareDump(tmp string) ([]string, error) {
+	j, je := os.ReadFile(filepath.Join(tmp, "java.dot"))
+	g, ge := os.ReadFile(filepath.Join(tmp, "go.dot"))
+	if je != nil || ge != nil {
+		return []string{fmt.Sprintf("dump:unavailable java=%v go=%v", je, ge)}, nil
+	}
+	if !bytes.Equal(j, g) {
+		return []string{"dump:content"}, nil
+	}
+	return nil, nil
 }
 
 func runJavaCase(tmp, jar, path string, timeout time.Duration, args []string) (Result, error) {
@@ -76,7 +100,7 @@ func compareCase(j, g Result, c Case) ([]string, error) {
 	return append(diffs, presence...), err
 }
 
-func caseArgs(c Case) []string {
+func caseArgs(c Case, java bool, dumpPath string) []string {
 	workers, checkpoint := c.Workers, c.Checkpoint
 	if workers == "" {
 		workers = "1"
@@ -88,7 +112,15 @@ func caseArgs(c Case) []string {
 	if !c.Deadlock {
 		args = append(args, "-deadlock")
 	}
-	args = append(args, "-fp", "0", "-workers", workers, "-checkpoint", checkpoint)
+	args = append(args, "-fp", "0")
+	// Go coverage is under independent integration and is deliberately omitted.
+	if c.Coverage && java {
+		args = append(args, "-coverage", "1")
+	}
+	args = append(args, "-workers", workers, "-checkpoint", checkpoint)
+	if c.Dump {
+		args = append(args, "-dump", "dot", dumpPath)
+	}
 	args = append(args, c.Args...)
 	return append(args, c.Model)
 }
