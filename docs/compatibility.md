@@ -156,7 +156,10 @@ but the limit is 63 seconds. This calculation assumes TLC's timed waits run to
 their deadlines: Java permits spurious wakeups, so it cannot guarantee that a
 periodic report was impossible before the limit. If the limit elapses, the check
 is canceled with an error instead of producing an incomplete report. Periodic
-coverage reports are not implemented; `-coverage 0` retains its previous behavior.
+coverage reports are not implemented. `-coverage 0` has no timeout and still
+prints its final coverage report, but unlike Java it does not print periodic
+progress or coverage during a long run. The same applies to an argument whose
+32-bit millisecond conversion wraps to zero.
 
 Java 1.7.4 starts its progress loop after initial-state generation and waits up
 to three seconds before the first progress report. Its progress report reads the
@@ -194,6 +197,20 @@ rather than emitting an unverified approximation. No progress goroutine is
 started for coverage today, and an absent `-coverage` flag enables no coverage
 output. Any future checker option or callback must also preserve checkpoint
 option validation and caller context cancellation.
+
+The remaining integration obstacle is broader than the coverage collector.
+`search.result` and the search queue are mutated without synchronization, so a
+timer cannot safely read the generated, distinct, queue, and depth values for
+message 2200. Reading only at expansion boundaries is insufficient: a single
+successor evaluation can outlast a reporting interval. The CLI also writes
+multi-part tool messages and coverage reports through callbacks as well as after
+the checker returns. A timer therefore needs a shared message-level output
+boundary, a race-free source of live progress values, and a stop-and-join
+boundary before final or error output, including cancellation and panic paths.
+The existing `InitialComplete` event identifies where a schedule can start, but
+does not provide a live snapshot or manage that lifecycle. Until those pieces
+are integrated and tested together, removing the positive-interval deadline
+would silently omit Java's periodic output.
 Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, and depth-first search. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, other operator calls,
 other action quantification, parameterized or inline actions, initial or action disjunctions,
