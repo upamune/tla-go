@@ -177,6 +177,8 @@ type model struct {
 	// propertyCalls counts the parameterized operators being expanded in a
 	// property; TLC does not split a property below such a call.
 	propertyCalls         int
+	java17PureChecked     bool
+	java17Pure            bool
 	emptyTemporalProperty bool
 	safety                []temporalProperty
 	guarded               []temporalProperty

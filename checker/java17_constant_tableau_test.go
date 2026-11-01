@@ -58,6 +58,11 @@ func TestJava17TableauModelPurity(t *testing.T) {
 			if got := m.java17PureEnvironment(); got != tc.want {
 				t.Fatalf("java17PureEnvironment = %t, want %t", got, tc.want)
 			}
+			for range 2 {
+				if got := m.cachedJava17PureEnvironment(); got != tc.want {
+					t.Fatalf("cachedJava17PureEnvironment = %t, want %t", got, tc.want)
+				}
+			}
 		})
 	}
 }

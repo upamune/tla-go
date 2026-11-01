@@ -20,7 +20,11 @@ func (m *model) applyJava17ConstantTableau(p *temporalProperty) bool {
 	if err != nil {
 		return false
 	}
-	node = liveUnary(liveNeg, node).simplify().toDNF()
+	node = liveUnary(liveNeg, node).simplify()
+	if !liveDNFWithinLimit(node, 1024) {
+		return false
+	}
+	node = node.toDNF()
 	if node.kind == liveDisj || node.kind == liveBool {
 		return false
 	}
@@ -38,7 +42,7 @@ func (m *model) java17ConstantCandidate(p *temporalProperty) bool {
 	if m.tlcRuntime.simulation || m.hasReduction() || p.mode == stateAlways || p.mode == actionAlways || p.mode == initialOnly {
 		return false
 	}
-	if !m.java17PureEnvironment() {
+	if !m.cachedJava17PureEnvironment() {
 		return false
 	}
 	return (&search{model: m}).pureConstantTemporalSource(p.source, p.locals)

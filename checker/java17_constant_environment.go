@@ -7,6 +7,17 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
+// Property preparation runs after binding constants and loading source units.
+// Those inputs do not change during property expansion, so all properties can
+// share the model-wide purity result. Preparation is sequential.
+func (m *model) cachedJava17PureEnvironment() bool {
+	if !m.java17PureChecked {
+		m.java17Pure = m.java17PureEnvironment()
+		m.java17PureChecked = true
+	}
+	return m.java17Pure
+}
+
 // Limit the alternate lasso search to a closed, side-effect-free language.
 // Rechecking fairness and successor states is observable for TLC runtime,
 // random, file I/O and higher-order operators, including through aliases.
