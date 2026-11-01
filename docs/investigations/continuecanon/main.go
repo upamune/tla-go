@@ -1,6 +1,6 @@
-// Command canonical converts the restricted DOT emitted for Continue into
-// sorted vertices and directed edge records. It rejects unrecognized syntax;
-// this is not a general DOT parser.
+// Command canonical converts the restricted DOT emitted for the investigated
+// models into sorted vertices and directed edge records. It rejects
+// unrecognized syntax; this is not a general DOT parser.
 package main
 
 import (
@@ -15,7 +15,7 @@ import (
 var (
 	vertex = regexp.MustCompile(`^(-?[0-9]+) \[label="((?:\\.|[^"\\])*)"(,style = filled)?\];?$`)
 	edge   = regexp.MustCompile(`^(-?[0-9]+) -> (-?[0-9]+) \[label="",color="black",fontcolor="black"\];$`)
-	rank   = regexp.MustCompile(`^\{rank = same; (-?[0-9]+);\}$`)
+	rank   = regexp.MustCompile(`^\{rank = same; (-?[0-9]+(?:;-?[0-9]+)*);\}$`)
 	header = [...]string{"strict digraph DiskGraph {", "nodesep=0.35;", "subgraph cluster_graph {", `color="white";`}
 )
 
@@ -109,7 +109,7 @@ func (g *graph) consumeBody(line string) error {
 		return nil
 	}
 	if m := rank.FindStringSubmatch(line); m != nil {
-		g.ranks = append(g.ranks, m[1])
+		g.ranks = append(g.ranks, strings.Split(m[1], ";")...)
 		return nil
 	}
 	return fmt.Errorf("unrecognized DOT line: %s", line)
