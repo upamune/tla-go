@@ -82,7 +82,16 @@ CI downloads the official Java TLC 1.7.4 and 1.8.0 JARs, verifies their SHA-256 
 TLC_JAR=/absolute/path/to/tla2tools-1.7.4.jar TLC_MODERN_JAR=/absolute/path/to/tla2tools-1.8.0.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
 ```
 
-The PlusCal translator is compared with `pcal.trans` from the same JAR. The normal test run compares tla-go with recorded Java outputs; with `TLC_JAR` set, the test also runs Java, which takes a few minutes. `PCAL_UPDATE_GOLDEN=1` rewrites the recorded outputs from Java; see [the fixture README](../pcal/testdata/README.md).
+CI also fetches a pinned external statechart corpus and runs selected
+`TestJavaTLCStatechart...` and `TestJavaSANY...` tests with `TLC_JAR` and
+`STATECHART_DIR` set. The Java comparisons use TLC/SANY; the statechart
+corpus and bridge tests also invoke Bun to run the external statechart parser
+or tool. The standalone bridge test uses Bun without Java. CI installs Bun
+1.3.11 for this step. Locally these checks are optional: the ordinary
+`mise run test` and `mise run ci` do not need Bun or Java when the optional
+comparison environment variables are unset.
+
+The PlusCal translator can also be compared with `pcal.trans` from the same JAR. The normal test run compares tla-go with recorded Java outputs; with `TLC_JAR` set, the test also runs Java, which takes a few minutes. This direct comparison is not among the CI commands above. `PCAL_UPDATE_GOLDEN=1` rewrites the recorded outputs from Java; see [the fixture README](../pcal/testdata/README.md).
 
 ```sh
 TLC_JAR=/absolute/path/to/tla2tools-1.7.4.jar mise exec -- go test ./pcal -run '^TestJavaPlusCalCorpus$' -count=1
@@ -98,7 +107,7 @@ For supported reduced tableau checks, `-debug-liveness` emits `tableau-node` eve
 
 Additional lexer, parser, evaluator, and checker fixtures come from tla-ts commit `19c763f07fda4b098e8a24405301628a424547c0`. They provide regression coverage but do not establish Java TLC compatibility. See the fixture READMEs and [UPSTREAM-LICENSE](../UPSTREAM-LICENSE).
 
-The auxiliary TypeScript generators call tla-ts directly and are not used by the normal Go build or CI. See [scripts/README.md](../scripts/README.md) for their purpose and usage.
+The auxiliary TypeScript generators call tla-ts and are not run by the normal Go build or CI. See [scripts/README.md](../scripts/README.md) for their purpose and usage.
 
 ## Releases
 
