@@ -2,7 +2,6 @@ package checker
 
 import (
 	"github.com/upamune/tla-go/evaluator"
-	"github.com/upamune/tla-go/value"
 )
 
 // GraphEvent describes a state or transition emitted during state exploration.
@@ -80,30 +79,7 @@ func (s *search) graphTransition(state evaluator.State, parent int, action strin
 }
 
 func (s *search) graphFingerprint(state evaluator.State) (uint64, error) {
-	values, err := s.graphFingerprintValues(state)
-	if err != nil {
-		return 0, err
-	}
-	rank := func(text string) (int, bool) { n, ok := s.model.valueRanks[text]; return n, ok }
-	return s.model.fingerprintAlgorithm.Fingerprint(values, rank, s.model.compareOrderedValues)
-}
-
-// graphFingerprintValues follows TLCStateMut.fingerPrint, which fingerprints
-// the value of VIEW instead of the variables when a VIEW is configured.
-func (s *search) graphFingerprintValues(state evaluator.State) ([]value.Value, error) {
-	if s.model.cfg.View != "" {
-		expr, err := s.model.definition(s.model.cfg.View)
-		if err != nil {
-			return nil, err
-		}
-		v, err := s.model.eval(expr, state, nil)
-		return []value.Value{v}, err
-	}
-	values := make([]value.Value, len(s.graphOrder))
-	for i, name := range s.graphOrder {
-		values[i] = state[name]
-	}
-	return values, nil
+	return s.model.javaFingerprint(state, s.graphOrder)
 }
 
 // graphView returns the text of a state under -view, which Java TLC's

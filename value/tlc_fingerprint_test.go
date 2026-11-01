@@ -61,3 +61,33 @@ func TestTLCFingerprintMatchesReference(t *testing.T) {
 		t.Fatal("model value fingerprint should report unsupported intern order")
 	}
 }
+
+// Java 1.7.4 FP64.Init(0), RecordValue.fingerPrint and
+// FcnRcdValue.fingerPrint, with "op" interned before "adr".
+func TestTLCFingerprintJavaRecordAndFunction(t *testing.T) {
+	one, _ := Integer(1)
+	pairs := []Pair{{String("adr"), one}, {String("op"), String("Rd")}}
+	record, err := Record(pairs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	function, err := Function(pairs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ranks := map[string]int{"op": 0, "adr": 1, "Rd": 2}
+	compare := func(a, b Value) (int, error) {
+		x, xok := a.Text()
+		y, yok := b.Text()
+		if xok && yok && a.Kind() == b.Kind() {
+			return ranks[x] - ranks[y], nil
+		}
+		return Compare(a, b)
+	}
+	for _, v := range []Value{record, function} {
+		got, err := TLCFingerprintWithOrdering([]Value{v}, nil, compare)
+		if err != nil || got != 0x56131a998eb0afd4 {
+			t.Fatalf("%v: %x, %v", v, got, err)
+		}
+	}
+}
