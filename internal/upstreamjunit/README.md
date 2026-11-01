@@ -399,6 +399,49 @@ or nondeterministic rerun remains unresolved. Comparing category names alone
 also cannot detect changes in the underlying differing values. Use the snapshot
 as an index for targeted reproduction, not a complete parity guard.
 
+## Liveness DOT investigation
+
+Using tla-go revision `75220398a63252c9afc6ddc6edd756d97333b5de` and the
+pinned upstream commit and jar SHA-256 above, the snapshot's NQTest,
+OneBitMutexTest, SymmetryTableauModelCheckerTest and TwoPhaseCommitTest were
+reproduced in separate copies of the tracked `test-model` tree. The sweep
+uses respectively `symmetry/NQ/MC`, `symmetry/OneBitMutex/OneBitMutexMC`,
+`symmetry/SymmetryLivenessTableauMC` and `symmetry/TwoPhaseCommit/MC`.
+No PlusCal translation was requested: OneBitMutex's dependency contains a
+PlusCal algorithm and its checked-in translation. The other model files and
+their dependencies were also used as checked in. Each invocation used `-tool
+-deadlock -fp 0 -workers 1 -checkpoint 0 -dump dot graph.dot`; Java also used
+`-coverage 1` and the sweep's wrapper sets `TLCGlobals.livenessThreshold` to
+`Double.MAX_VALUE`. Go coverage is omitted. JUnit itself uses a metadata dump
+path and has additional setup and teardown; OneBitMutexTest is `@Ignore`.
+These runs are partial diagnostics, not JUnit results.
+
+Two Java runs per case produced identical DOT bytes in this environment; all
+four Go dumps differed from Java, and two Go OneBitMutex runs also matched each
+other byte for byte. Java and Go exited 13 for the first three and 0 for
+TwoPhaseCommit. This small sample does not establish stable ordering under
+different scheduling or environments. For instance, OneBitMutex prints the
+same state label with Java node ID `-3946579319044950398` and Go ID
+`-4001293080066318631`; NQ likewise differs in IDs for equal labels.
+SymmetryTableau differs both in IDs and in the order of record fields, such as
+Java's `[op |-> "Rd", adr |-> e]` versus Go's `[adr |-> e, op |-> "Rd"]`.
+TwoPhaseCommit has differing IDs for equal labels as well. These observations
+cannot be explained solely by reordering complete DOT lines.
+
+All four configurations enable symmetry. In upstream `TLCStateMut.fingerPrint`,
+Java chooses a symmetry representative for fingerprinting and, when the
+representative differs from the original, calls `deepNormalize` on the
+original values. That mutation is a possible contributor to the observed
+representation and fingerprint differences; the experiments do not isolate it
+as the sole cause. Changing representative comparison, normalization or shared
+value mutation can affect exploration, liveness and output beyond DOT, so no
+general fix is justified by these observations alone. The opt-in
+`TestPinnedLivenessDumpOracle` checks selected Java node witnesses and common
+initial nodes without asserting full graph order or requiring the mismatch to
+persist. `TestCompareDumpDetectsByteDifferences` checks equal bytes and an
+order-only negative case. Existing dump-format and liveness comparisons provide
+additional controls.
+
 ## Investigation of snapshot 56336d54 PlusCal 2192 differences
 
 The snapshot records 14 `pcal` classes with `message:2192`, not 13:
