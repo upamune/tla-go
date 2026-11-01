@@ -6,6 +6,8 @@ The e81 sweep recorded `pcal.SimpleMultiProcTest` as unavailable because the
 Go process hit its 30-second timeout. The 9f sweep recorded no differences in
 its selected messages and exits. Neither is a JUnit pass. This investigates
 whether the changed record establishes an improvement or a compatibility bug.
+For the later 51c3a77 timeout and a CodePlex Java timeout, see the
+[bounded follow-up](sweep-51c3a77-timeouts.md).
 
 The pinned upstream checkout is `5a47802b5c391f59ecdd44117981f4ff8c0656ba`;
 the oracle jar SHA-256 is
