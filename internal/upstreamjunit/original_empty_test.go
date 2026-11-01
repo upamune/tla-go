@@ -156,6 +156,9 @@ func checkOriginalEmptyControls(t *testing.T, adapter, classes string, deps []st
 		{"missing success diagnostic", "missing-success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
 		{"changed success diagnostic", "wrong-success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
 		{"unavailable success diagnostic", "omitted-success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
+		{"changed typed statistics", "wrong-observed-stats", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
+		{"changed tool statistics", "wrong-tool-stats", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
+		{"unexpected tool error", "extra-tool-general", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			goBinary, goModel := binary, model
@@ -167,9 +170,13 @@ func checkOriginalEmptyControls(t *testing.T, adapter, classes string, deps []st
 			} else if tc.mode == "missing-success" {
 				expectHelperLog = "incomplete Empty recorder observations"
 			} else if tc.mode == "wrong-success" {
-				expectHelperLog = "success observation does not match tool message"
+				expectHelperLog = "recorder observation does not match tool message"
 			} else if tc.mode == "omitted-success" {
 				expectHelperLog = "incomplete Empty recorder observation: observed-fingerprint-probability-unavailable"
+			} else if tc.mode == "wrong-observed-stats" || tc.mode == "wrong-tool-stats" {
+				expectHelperLog = "recorder observation does not match tool message"
+			} else if tc.mode == "extra-tool-general" {
+				expectHelperLog = "recorder observations do not match tool messages"
 			} else if !tc.omitted {
 				goBinary = filepath.Join(t.TempDir(), "missing-tla-go")
 			}

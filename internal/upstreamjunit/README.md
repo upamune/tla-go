@@ -570,12 +570,14 @@ without a subclass or modified upstream source. Its original inherited
 setup creates this adapter in place of Java TLC. It checks the exact upstream
 argument list, the installed `TestMPRecorder`, user directory, cleanup-veto
 property and liveness threshold. Its `process` starts a Go test helper, which
-runs the built tla-go binary on a separate copy of `Empty`, parses its tool
-output with `projectEmpty`, and writes records and omissions. SANY, starting,
-initial-state, success probability, statistics, depth, and finish observations come from the partial
-`TLA_GO_DEBUG_RECORDER` stream; the helper verifies the retained events' order
-against the tool messages. It removes tool-only SANY events before invoking the original
-non-tool assertions. The finish duration is the tool-mode value, which differs
+runs the built tla-go binary on a separate copy of `Empty`. It builds the input
+to the original assertion solely from the partial `TLA_GO_DEBUG_RECORDER`
+events: starting, initial-state, success probability, statistics, depth, and
+finish. Each event must have the expected code, string-array type, arity,
+ordering and values. Independently, `projectEmpty` parses the tool output and
+the helper rejects a missing, additional or mismatched projected record. Tool
+output does not supply the assertion values. The tool-only SANY events are
+removed before invoking the original non-tool assertions. The finish duration is the tool-mode value, which differs
 from Java's non-tool duration format; the original EmptyTest checks only the
 record's presence. Other recorder calls remain unobserved or text projections.
 The adapter loads those records into the recorder installed by the original
@@ -602,6 +604,7 @@ a complete recorder call.
 Negative controls reject altered worker/dump arguments, missing arguments,
 wrong statistics, a missing FINISHED record, a GENERAL record, a nonzero
 adapter error code, malformed records, a missing or changed success diagnostic,
+changed typed statistics, changed tool statistics, an extra tool error,
 an unavailable Go executable, and a
 real nonzero Go CLI exit caused by a missing model. The nonzero adapter error
 code is synthetic: it checks the original `@After` exit assertion, but does
@@ -621,8 +624,8 @@ sandbox and child processes may outlive a killed parent.
 
 This is still **not a Go JUnit pass**. The adapter replaces Java TLC's
 constructor, option processing and model checker, adds `-tool`, and uses a
-different DOT path. The text projection cannot establish recorder completeness,
-array types or hidden calls. Some Java globals, output, dump, cleanup, error
+different DOT path. The partial diagnostic stream and text cross-check cannot
+establish recorder completeness or hidden calls. Some Java globals, output, dump, cleanup, error
 and liveness semantics remain unverified. The experiment carries the omission
 list forward and `bridgeVerdict` rejects a pass even when the original
 assertions return successfully. This adapter accepts only the verified

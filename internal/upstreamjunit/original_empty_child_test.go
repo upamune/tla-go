@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -52,11 +53,28 @@ func originalEmptyGoHelper() error {
 			}
 		}
 	}
-	records, omissions, err := projectEmpty(emptyInvocation(), result)
+	if mode == "wrong-observed-stats" {
+		for i := range observed {
+			if observed[i].Code == 2199 {
+				observed[i].Values = []string{"1", "0", "0"}
+			}
+		}
+	}
+	if mode == "wrong-tool-stats" {
+		old := "0 states generated, 0 distinct states found, 0 states left on queue."
+		if !strings.Contains(result.Output, old) {
+			return fmt.Errorf("missing tool statistics for negative control")
+		}
+		result.Output = strings.ReplaceAll(result.Output, old, "1 states generated, 0 distinct states found, 0 states left on queue.")
+	}
+	if mode == "extra-tool-general" {
+		result.Output += "@!@!@STARTMSG 1000:1 @!@!@\nsynthetic error\n@!@!@ENDMSG 1000 @!@!@\n"
+	}
+	projected, omissions, err := projectEmpty(emptyInvocation(), result)
 	if err != nil {
 		return err
 	}
-	records, err = replaceEmptyRecorderValues(records, observed)
+	records, err := emptyRecorderRecords(projected, observed)
 	if err != nil {
 		return err
 	}
