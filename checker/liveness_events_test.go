@@ -23,6 +23,24 @@ func TestModelLivenessDiagnosticDoesNotRepeatEffects(t *testing.T) {
 	}
 }
 
+func TestTemporalCheckFailureInvalidatesStart(t *testing.T) {
+	const source = "---- MODULE M ----\nEXTENDS Integers\nVARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == []<>(1 \\div (x - 1) = 0)\n===="
+	var events []SearchEvent
+	_, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P CHECK_DEADLOCK FALSE", Options{OnSearch: func(e SearchEvent) { events = append(events, e) }})
+	if err == nil {
+		t.Fatal("expected liveness evaluation failure")
+	}
+	var temporal []SearchEventKind
+	for _, event := range events {
+		if event.Kind == TemporalCheckStart || event.Kind == TemporalCheckUncertain {
+			temporal = append(temporal, event.Kind)
+		}
+	}
+	if !reflect.DeepEqual(temporal, []SearchEventKind{TemporalCheckStart, TemporalCheckUncertain}) {
+		t.Fatalf("temporal events = %v", temporal)
+	}
+}
+
 func TestTableauProgressDoesNotReplayEffects(t *testing.T) {
 	const source = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0\nNext == /\\ x' = (x + 1) % 2 /\\ PrintT(x)\nP == <>(x = 2)\n===="
 	var baseline, observed []string

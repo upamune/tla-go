@@ -74,12 +74,18 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 	}
 	if opts.tool {
 		if opts.recorder == nil {
-			return func(event checker.SearchEvent) { printToolSearch(out, event) }
+			return func(event checker.SearchEvent) {
+				if event.Kind != checker.TemporalCheckUncertain {
+					printToolSearch(out, event)
+				}
+			}
 		}
 		recorder := opts.recorder
 		return func(event checker.SearchEvent) {
 			recordSearchEvent(recorder, event)
-			printToolSearch(out, event)
+			if event.Kind != checker.TemporalCheckUncertain {
+				printToolSearch(out, event)
+			}
 		}
 	}
 	if opts.simulate {

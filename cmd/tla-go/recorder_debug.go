@@ -126,6 +126,8 @@ func recordSearchEvent(recorder *recorderConfig, event checker.SearchEvent) {
 	switch event.Kind {
 	case checker.ModelCheckingLiveness, checker.TemporalCheckStart:
 		recordLivenessSearch(recorder, event)
+	case checker.TemporalCheckUncertain:
+		recordOmission(recorder, 2192, recorderdebug.TemporalCheckUncertain)
 	default:
 		recordInitialSearch(recorder, event)
 	}

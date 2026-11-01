@@ -202,10 +202,17 @@ func validate(event Event, index int) error {
 }
 
 func validateOmission(event Event) error {
-	if event.Version == 0 && !event.Complete && event.Code == 2193 && event.Reason == SuccessProbabilityOmission && event.Array == "" && len(event.Values) == 0 {
+	if event.Code == 2192 && event.Reason == TemporalCheckUncertain {
+		return fmt.Errorf("recorder stream rejected: temporal check start is uncertain")
+	}
+	if validProbabilityOmission(event) {
 		return nil
 	}
 	return fmt.Errorf("unsupported recorder omission")
+}
+
+func validProbabilityOmission(event Event) bool {
+	return event.Version == 0 && !event.Complete && event.Code == 2193 && event.Reason == SuccessProbabilityOmission && event.Array == "" && len(event.Values) == 0
 }
 
 func validateRecordPayload(event Event) error {

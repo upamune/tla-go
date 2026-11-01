@@ -21,6 +21,9 @@ const (
 	ModelCheckingLiveness SearchEventKind = "model-checking-liveness"
 	// TemporalCheckStart reports a final, complete-space liveness check.
 	TemporalCheckStart SearchEventKind = "temporal-check-start"
+	// TemporalCheckUncertain invalidates the preceding start observation when
+	// Go's deferred liveness evaluation fails after reporting it.
+	TemporalCheckUncertain SearchEventKind = "temporal-check-uncertain"
 )
 
 // SearchEvent describes initial-state generation and depth-first iterations

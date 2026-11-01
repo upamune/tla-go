@@ -28,6 +28,12 @@ func (s *search) startTemporalProgress() *time.Time {
 	return &started
 }
 
+func (s *search) invalidateTemporalProgress(started *time.Time, result Result, err error) {
+	if started != nil && (err != nil || result.Failure != nil) {
+		s.model.emitSearchEvent(SearchEvent{Kind: TemporalCheckUncertain})
+	}
+}
+
 // Without a tableau or reduction, each completely expanded state has exactly
 // one fingerprint entry in Java's single liveness graph, even if its action
 // writes output. Only use that count for the incrementally verified path.

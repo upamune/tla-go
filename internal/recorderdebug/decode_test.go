@@ -175,3 +175,12 @@ func TestDecodeSuccessProbabilityOmission(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeRejectsInvalidatedTemporalStart(t *testing.T) {
+	stream := `{"kind":"header","version":1,"complete":false}` + "\n" +
+		`{"kind":"record","complete":false,"code":2192,"array":"strings","values":["complete","3",""]}` + "\n" +
+		`{"kind":"omission","complete":false,"code":2192,"reason":"temporal-check-start-invalidated"}` + "\n"
+	if events, err := Decode(strings.NewReader(stream)); err == nil || events != nil {
+		t.Fatalf("invalidated event accepted: %v, %v", events, err)
+	}
+}

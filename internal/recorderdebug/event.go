@@ -16,3 +16,6 @@ type Event struct {
 
 // SuccessProbabilityOmission signals that TLC's fingerprint distance is unavailable.
 const SuccessProbabilityOmission = "observed-fingerprint-probability-unavailable"
+
+// TemporalCheckUncertain marks an earlier 2192 observation as unsafe to use.
+const TemporalCheckUncertain = "temporal-check-start-invalidated"

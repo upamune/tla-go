@@ -650,6 +650,14 @@ and liveness duration, intermediate checks, traces and other recorder calls
 are not captured. Single- and multi-branch success and violation examples
 compare the selected calls with the pinned Java 1.7.4 MPRecorder.
 
+Go evaluates some liveness predicates later than Java. If that evaluation or
+the final graph emission fails after Go reported a temporal check start, the
+recorder appends an uncertainty marker and its strict decoder rejects the
+entire stream. In particular, no JUnit assertion can consume the possibly
+incorrect 2192 call through this decoder. Existing `-tool` output can still
+contain an extra 2192 in this case; matching Java's evaluation timing and tool
+output remains open.
+
 The opt-in upstream experiment runs Java's original `LoopTestWeakFair` setup,
 assertion and teardown. Separately, it runs tla-go on the pinned `SystemLoop`
 model with the original configuration and final-only liveness checking, then
