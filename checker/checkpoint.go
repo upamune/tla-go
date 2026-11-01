@@ -1,8 +1,8 @@
 package checker
 
-// This codec is deliberately private and is not connected to a running search.
-// A caller must freeze the search at an expansion boundary before constructing
-// a snapshot. It must also identify all model dependencies and relevant options.
+// This codec is deliberately private. The search adapter accepts only a
+// restricted model and a caller-supplied identity; it does not establish
+// dependency-aware identity or provide CLI recovery.
 
 import (
 	"bytes"
@@ -41,9 +41,10 @@ type checkpointCounters struct {
 	OutDegrees                                  [32]int
 }
 type checkpointSnapshot struct {
-	Identity checkpointIdentity
-	Nodes    []checkpointNode
-	Head     int
+	Identity        checkpointIdentity
+	Nodes           []checkpointNode
+	Head            int
+	InitialComplete bool
 	// Keys are the exact keys in search.visited, including binary state keys.
 	Visited  map[string]bool
 	Counters checkpointCounters
@@ -61,18 +62,19 @@ type checkpointWireNode struct {
 	Depth       int
 }
 type checkpointWire struct {
-	Identity checkpointIdentity
-	Nodes    []checkpointWireNode
-	Head     int
-	Visited  [][]byte
-	Counters checkpointCounters
+	Identity        checkpointIdentity
+	Nodes           []checkpointWireNode
+	Head            int
+	InitialComplete bool
+	Visited         [][]byte
+	Counters        checkpointCounters
 }
 
 func checkpointEncode(s checkpointSnapshot) ([]byte, error) {
 	if err := validateCheckpoint(s); err != nil {
 		return nil, err
 	}
-	w := checkpointWire{Identity: s.Identity, Head: s.Head, Visited: checkpointKeys(s.Visited), Counters: s.Counters, Nodes: make([]checkpointWireNode, len(s.Nodes))}
+	w := checkpointWire{Identity: s.Identity, Head: s.Head, InitialComplete: s.InitialComplete, Visited: checkpointKeys(s.Visited), Counters: s.Counters, Nodes: make([]checkpointWireNode, len(s.Nodes))}
 	for i, node := range s.Nodes {
 		state, err := checkpointEncodeState(node.State)
 		if err != nil {
@@ -164,7 +166,7 @@ func checkpointPayload(data []byte) ([]byte, error) {
 
 func checkpointFromWire(w checkpointWire) (checkpointSnapshot, error) {
 	var empty checkpointSnapshot
-	s := checkpointSnapshot{Identity: w.Identity, Head: w.Head, Visited: make(map[string]bool, len(w.Visited)), Counters: w.Counters, Nodes: make([]checkpointNode, len(w.Nodes))}
+	s := checkpointSnapshot{Identity: w.Identity, Head: w.Head, InitialComplete: w.InitialComplete, Visited: make(map[string]bool, len(w.Visited)), Counters: w.Counters, Nodes: make([]checkpointNode, len(w.Nodes))}
 	for _, key := range w.Visited {
 		if s.Visited[string(key)] {
 			return empty, fmt.Errorf("duplicate visited key")
