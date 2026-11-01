@@ -3,19 +3,22 @@ package checker
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/upamune/tla-go/config"
 )
 
-// checkpointDriver uses expansion counts as deterministic ticks. PauseAt is an
-// absolute expansion count and must coincide with a tick; zero never pauses.
-// Observations belong to this invocation, not the snapshot. The caller owns
-// their delivery and must retain them across a pause to preserve output order.
+// checkpointDriver supports elapsed-time and deterministic expansion ticks.
+// pauseAt is an absolute expansion count; zero disables deterministic pauses.
 type checkpointDriver struct {
-	path    string
-	every   int
-	pauseAt int
-	paused  bool
+	path                string
+	every               int
+	pauseAt             int
+	paused              bool
+	interval            time.Duration
+	next                time.Time
+	pauseOnTick         bool
+	persistObservations bool
 }
 
 func (s *search) checkpointBoundary() (bool, error) {
@@ -28,18 +31,32 @@ func (s *search) checkpointBoundary() (bool, error) {
 }
 
 func (d *checkpointDriver) boundary(s *search) error {
-	if s.head%d.every != 0 {
+	if !d.due(s.head) {
 		return nil
 	}
 	snapshot, err := s.checkpoint(*s.model.checkpointIdentity)
 	if err != nil {
 		return err
 	}
+	if d.persistObservations {
+		snapshot.ObservationLog = true
+		snapshot.Observations = exportCheckpointObservations(s.model.checkpointObserver.records)
+	}
 	if err := checkpointWrite(d.path, snapshot); err != nil {
 		return err
 	}
-	d.paused = s.head == d.pauseAt
+	d.paused = d.pauseOnTick || (d.pauseAt != 0 && s.head == d.pauseAt)
+	if d.interval > 0 {
+		d.next = time.Now().Add(d.interval)
+	}
 	return nil
+}
+
+func (d *checkpointDriver) due(head int) bool {
+	if d.interval > 0 {
+		return !time.Now().Before(d.next)
+	}
+	return head%d.every == 0
 }
 
 // runCheckpointSearch always prepares a fresh model. Resume reads and validates
@@ -83,9 +100,26 @@ func (d *checkpointDriver) run(m *model, resume bool) (Result, error) {
 	if d.pauseAt != 0 && d.pauseAt <= snapshot.Head {
 		return Result{}, fmt.Errorf("pause tick already passed")
 	}
+	if err := d.restoreObservations(m, snapshot); err != nil {
+		return Result{}, err
+	}
 	s, err := m.restoreCheckpoint(snapshot, *m.checkpointIdentity)
 	if err != nil {
 		return Result{}, err
 	}
 	return s.explore()
+}
+
+func (d *checkpointDriver) restoreObservations(m *model, snapshot checkpointSnapshot) error {
+	if !d.persistObservations {
+		return nil
+	}
+	if !snapshot.ObservationLog {
+		return fmt.Errorf("checkpoint has no observation log")
+	}
+	if err := validateCheckpointObservations(snapshot.Observations); err != nil {
+		return err
+	}
+	m.checkpointObserver.records = importCheckpointObservations(snapshot.Observations)
+	return nil
 }

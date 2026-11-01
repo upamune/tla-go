@@ -46,8 +46,10 @@ type checkpointSnapshot struct {
 	Head            int
 	InitialComplete bool
 	// Keys are the exact keys in search.visited, including binary state keys.
-	Visited  map[string]bool
-	Counters checkpointCounters
+	Visited        map[string]bool
+	Counters       checkpointCounters
+	Observations   []CheckpointObservation
+	ObservationLog bool
 }
 type checkpointValue struct {
 	Kind    string
@@ -68,13 +70,15 @@ type checkpointWire struct {
 	InitialComplete bool
 	Visited         [][]byte
 	Counters        checkpointCounters
+	Observations    []CheckpointObservation
+	ObservationLog  bool
 }
 
 func checkpointEncode(s checkpointSnapshot) ([]byte, error) {
 	if err := validateCheckpoint(s); err != nil {
 		return nil, err
 	}
-	w := checkpointWire{Identity: s.Identity, Head: s.Head, InitialComplete: s.InitialComplete, Visited: checkpointKeys(s.Visited), Counters: s.Counters, Nodes: make([]checkpointWireNode, len(s.Nodes))}
+	w := checkpointWire{Identity: s.Identity, Head: s.Head, InitialComplete: s.InitialComplete, Visited: checkpointKeys(s.Visited), Counters: s.Counters, Observations: s.Observations, ObservationLog: s.ObservationLog, Nodes: make([]checkpointWireNode, len(s.Nodes))}
 	for i, node := range s.Nodes {
 		state, err := checkpointEncodeState(node.State)
 		if err != nil {
@@ -166,7 +170,7 @@ func checkpointPayload(data []byte) ([]byte, error) {
 
 func checkpointFromWire(w checkpointWire) (checkpointSnapshot, error) {
 	var empty checkpointSnapshot
-	s := checkpointSnapshot{Identity: w.Identity, Head: w.Head, InitialComplete: w.InitialComplete, Visited: make(map[string]bool, len(w.Visited)), Counters: w.Counters, Nodes: make([]checkpointNode, len(w.Nodes))}
+	s := checkpointSnapshot{Identity: w.Identity, Head: w.Head, InitialComplete: w.InitialComplete, Visited: make(map[string]bool, len(w.Visited)), Counters: w.Counters, Observations: w.Observations, ObservationLog: w.ObservationLog, Nodes: make([]checkpointNode, len(w.Nodes))}
 	for _, key := range w.Visited {
 		if s.Visited[string(key)] {
 			return empty, fmt.Errorf("duplicate visited key")
