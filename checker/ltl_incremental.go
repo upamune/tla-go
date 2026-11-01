@@ -189,34 +189,61 @@ func (m *model) prepareRecurrenceCache(property *temporalProperty) {
 		return
 	}
 	pure := !m.propertyUsesTLC(*property)
-	if pure && (!m.cachedPureRecurrenceSourceSafe() || m.recurrenceHasConditional(property.predicate, map[string]bool{}) || m.recurrenceHasUnstableFairness()) {
+	if pure && (!m.cachedPureRecurrenceSourceSafe() || m.recurrenceNeedsNormalizationFallback(property.predicate, map[string]bool{}) || m.recurrenceHasUnstableFairness()) {
 		return
 	}
 	property.cacheAtom = &ltlFormula{kind: ltlAtom, atom: property.predicate, locals: property.locals, baseLevel: true, pureRecurrence: pure}
 }
 
-// TLC can evaluate an IF branch while normalizing liveness before exploration.
-// Until that order is implemented, keep conditional predicates on the old path.
-func (m *model) recurrenceHasConditional(expr *parser.Expression, seen map[string]bool) bool {
+// TLC descends into Boolean junctions while normalizing liveness and evaluates
+// constant atoms then. State-dependent ordinary operators remain state atoms.
+func (m *model) recurrenceNeedsNormalizationFallback(expr *parser.Expression, seen map[string]bool) bool {
+	if expr == nil {
+		return true
+	}
+	switch expr.Kind {
+	case "If":
+		return true
+	case "And", "Or":
+	case "Apply":
+		if !slices.Contains([]string{"~", "=>", "/\\", "\\/"}, expr.Text) {
+			return m.recurrenceConstantAtom(expr, seen)
+		}
+	default:
+		return m.recurrenceConstantAtom(expr, seen)
+	}
+	return slices.ContainsFunc(expr.Args, func(arg *parser.Expression) bool {
+		return m.recurrenceNeedsNormalizationFallback(arg, seen)
+	})
+}
+
+func (m *model) recurrenceConstantAtom(expr *parser.Expression, seen map[string]bool) bool {
+	if isBooleanLiteral(expr, "TRUE") || isBooleanLiteral(expr, "FALSE") {
+		return false
+	}
+	return !m.recurrenceAtomReadsState(expr, seen)
+}
+
+func (m *model) recurrenceAtomReadsState(expr *parser.Expression, seen map[string]bool) bool {
 	if expr == nil {
 		return false
 	}
-	if expr.Kind == "If" {
+	if expr.Kind == "Identifier" && m.variables[expr.Text] {
 		return true
 	}
-	if m.recurrenceDefinitionHasConditional(expr, seen) {
+	if m.recurrenceDefinitionReadsState(expr, seen) {
 		return true
 	}
 	found := false
 	walkChildren(expr, func(child *parser.Expression) {
 		if !found {
-			found = m.recurrenceHasConditional(child, seen)
+			found = m.recurrenceAtomReadsState(child, seen)
 		}
 	})
 	return found
 }
 
-func (m *model) recurrenceDefinitionHasConditional(expr *parser.Expression, seen map[string]bool) bool {
+func (m *model) recurrenceDefinitionReadsState(expr *parser.Expression, seen map[string]bool) bool {
 	if expr.Kind != "Apply" && expr.Kind != "Identifier" {
 		return false
 	}
@@ -224,42 +251,42 @@ func (m *model) recurrenceDefinitionHasConditional(expr *parser.Expression, seen
 	if !ok {
 		return false
 	}
-	if cached, ok := m.cachedConditionalDefinition(expr.Text); ok {
-		return cached
+	cache := m.recurrenceSourceCache
+	if result, ok := cache.lookupState(expr.Text); ok {
+		return result
 	}
 	if seen[expr.Text] {
-		return true
+		return false
 	}
 	seen[expr.Text] = true
-	found := m.recurrenceHasConditional(def.Body, seen)
+	result := m.recurrenceAtomReadsState(def.Body, seen)
 	delete(seen, expr.Text)
-	m.rememberConditionalDefinition(expr.Text, found)
-	return found
+	cache.rememberState(expr.Text, result)
+	return result
 }
 
 type recurrenceSourceCache struct {
-	checked     bool
-	safe        bool
-	conditional map[string]bool
+	checked bool
+	safe    bool
+	state   map[string]bool
 }
 
-func (m *model) cachedConditionalDefinition(name string) (bool, bool) {
-	if m.recurrenceSourceCache == nil {
+func (c *recurrenceSourceCache) lookupState(name string) (bool, bool) {
+	if c == nil {
 		return false, false
 	}
-	result, ok := m.recurrenceSourceCache.conditional[name]
+	result, ok := c.state[name]
 	return result, ok
 }
 
-func (m *model) rememberConditionalDefinition(name string, result bool) {
-	cache := m.recurrenceSourceCache
-	if cache == nil {
+func (c *recurrenceSourceCache) rememberState(name string, result bool) {
+	if c == nil {
 		return
 	}
-	if cache.conditional == nil {
-		cache.conditional = map[string]bool{}
+	if c.state == nil {
+		c.state = map[string]bool{}
 	}
-	cache.conditional[name] = result
+	c.state[name] = result
 }
 
 func (m *model) cachedPureRecurrenceSourceSafe() bool {

@@ -73,22 +73,35 @@ func TestPureRecurrenceSkipsHigherOrderEffects(t *testing.T) {
 	}
 }
 
-func TestPureRecurrenceSkipsConditionalPredicates(t *testing.T) {
-	for _, extra := range []string{
-		"P == []<>(IF x=0 THEN TRUE ELSE 1)",
-		"Q == IF x=0 THEN TRUE ELSE 1\nP == []<>(Q)",
-		"Q == IF x=0 THEN {1} ELSE 1\nP == []<>(1 \\in Q)",
+func TestPureRecurrenceConditionalContexts(t *testing.T) {
+	for _, tc := range []struct {
+		extra  string
+		cached bool
+	}{
+		{"P == []<>(IF x=0 THEN TRUE ELSE 1)", false},
+		{"P == []<>(TRUE /\\ (IF x=0 THEN TRUE ELSE 1))", false},
+		{"P == []<>(~(IF x=0 THEN TRUE ELSE 1))", false},
+		{"P == []<>(TRUE => (IF x=0 THEN TRUE ELSE 1))", false},
+		{"P == []<>((IF x=0 THEN {1} ELSE 1) = 1)", true},
+		{"P == []<>(((IF x=0 THEN {1} ELSE 1) = 1) /\\ 1)", false},
+		{"P == []<>(((IF x=0 THEN {1} ELSE 1) = 1) /\\ (1 \\div 0 = 0))", false},
+		{"P == []<>(((IF x=0 THEN {1} ELSE 1) = 1) /\\ TRUE)", true},
+		{"Q == 1\nP == []<>(((IF x=0 THEN {1} ELSE 1) = 1) /\\ Q)", false},
+		{"Q == x=0\nP == []<>(((IF x=0 THEN {1} ELSE 1) = 1) /\\ Q)", true},
+		{"P == []<>((IF x=0 THEN TRUE ELSE 1) <=> TRUE)", true},
+		{"Q == IF x=0 THEN TRUE ELSE 1\nP == []<>(Q)", true},
+		{"Q == IF x=0 THEN {1} ELSE 1\nP == []<>(1 \\in Q)", true},
 	} {
-		source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x=0\nNext == x'=x\n" + extra + "\n===="
+		source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x=0\nNext == x'=x\n" + tc.extra + "\n===="
 		m := prepareRecurrenceScopeTest(t, source, "INIT Init NEXT Next PROPERTY P")
-		if len(m.livenessOrder) != 1 || m.livenessOrder[0].cacheAtom != nil {
-			t.Fatalf("conditional recurrence was admitted: %+v", m.livenessOrder)
+		if len(m.livenessOrder) != 1 || (m.livenessOrder[0].cacheAtom != nil) != tc.cached {
+			t.Fatalf("conditional recurrence %q cached = %t; properties %+v", tc.extra, tc.cached, m.livenessOrder)
 		}
 	}
 	const shared = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x=0\nNext == x'=x\nQ == IF x=0 THEN TRUE ELSE 1\nP1 == []<>(Q)\nP2 == []<>(Q)\n===="
 	m := prepareRecurrenceScopeTest(t, shared, "INIT Init NEXT Next PROPERTY P1 PROPERTY P2")
-	if len(m.livenessOrder) != 2 || m.livenessOrder[0].cacheAtom != nil || m.livenessOrder[1].cacheAtom != nil {
-		t.Fatalf("shared conditional recurrence was admitted: %+v", m.livenessOrder)
+	if len(m.livenessOrder) != 2 || m.livenessOrder[0].cacheAtom == nil || m.livenessOrder[1].cacheAtom == nil {
+		t.Fatalf("shared conditional atom was not cached: %+v", m.livenessOrder)
 	}
 }
 
@@ -102,15 +115,14 @@ func TestPureRecurrenceSourceCacheEndsAfterPreparation(t *testing.T) {
 	if m.cachedPureRecurrenceSourceSafe() {
 		t.Fatal("stale cached purity was reused after the configuration changed")
 	}
-}
-
-func TestPureRecurrenceConditionalCycleFallsBack(t *testing.T) {
-	m := &model{defs: map[string]parser.Definition{
-		"A": {Body: &parser.Expression{Kind: "Identifier", Text: "B"}},
-		"B": {Body: &parser.Expression{Kind: "Identifier", Text: "A"}},
-	}, recurrenceSourceCache: &recurrenceSourceCache{}}
-	if !m.recurrenceHasConditional(&parser.Expression{Kind: "Identifier", Text: "A"}, map[string]bool{}) {
-		t.Fatal("cyclic definitions were considered safe for early evaluation")
+	alias := &parser.Expression{Kind: "Identifier", Text: "Alias"}
+	m.defs["Alias"] = parser.Definition{Body: &parser.Expression{Kind: "Identifier", Text: "x"}}
+	if !m.recurrenceAtomReadsState(alias, map[string]bool{}) {
+		t.Fatal("state dependency was not recognized")
+	}
+	delete(m.variables, "x")
+	if m.recurrenceAtomReadsState(alias, map[string]bool{}) {
+		t.Fatal("stale state dependency was reused after preparation")
 	}
 }
 
