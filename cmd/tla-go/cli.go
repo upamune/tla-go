@@ -190,15 +190,26 @@ func runModelWithMeta(ctx context.Context, opts options, out, errout io.Writer) 
 				_ = os.RemoveAll(metaDir)
 			}
 		}()
-		if after, ok := strings.CutPrefix(opts.dumpPath, "${metadir}"); ok {
-			opts.dumpPath = metaDir + after
-		}
+	}
+	metadataDump := strings.HasPrefix(opts.dumpPath, "${metadir}")
+	if metadataDump {
+		opts.dumpPath = opts.metaDir + strings.TrimPrefix(opts.dumpPath, "${metadir}")
 	}
 	if err := protectProfileOutput(opts, opts.dumpPath); err != nil {
 		fmt.Fprintln(errout, err)
 		return 255
 	}
+	if err := checkResolvedMetadataDump(opts, metadataDump, out); err != nil {
+		return reportOptionError(opts, err, out, errout)
+	}
 	return runConfiguredModel(ctx, opts, out, errout)
+}
+
+func checkResolvedMetadataDump(opts options, metadataDump bool, out io.Writer) error {
+	if !metadataDump {
+		return nil
+	}
+	return checkDumpPath(opts.dumpPath, opts.dumpDOT, out)
 }
 
 func needsMetaDir(opts options) bool {
@@ -213,7 +224,7 @@ func defaultMetaRoot(path string) string {
 }
 
 func checkpointMetaError(ctx context.Context, opts options, out, errout io.Writer, err error) int {
-	if opts.metaRoot == "" && opts.checkpointInterval > 0 && opts.debugStopAfter == 0 {
+	if opts.metaRoot == "" && opts.checkpointInterval > 0 && opts.debugStopAfter == 0 && !strings.HasPrefix(opts.dumpPath, "${metadir}") {
 		fmt.Fprintf(errout, "Checkpointing unavailable (cannot create metadata directory: %s); checking normally without checkpoints.\n", err)
 		opts.checkpointInterval = 0
 		return runConfiguredModel(ctx, opts, out, errout)
