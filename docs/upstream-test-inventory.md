@@ -43,10 +43,11 @@ now inventories candidate test classes from the pinned Git tree and compares
 selected Java and Go observations. Its November 2026 snapshot found 340 lexical
 non-abstract candidates, all with a recovered specification name after direct
 suite resolution; 31 still have unsafe or unresolved invocation setup. These are
-not a JUnit test count. An opt-in JUnit 4.12 runner discovery now finds 322
-executable cases within those candidate classes, with 20 ignored method descriptions
-and one ignored class; this is not the full upstream suite. The individual case-to-Go
-mapping remains unresolved. Selected inherited suite assertions are compared, but
+not a JUnit test count. An opt-in JUnit 4.12 runner discovery reports 322 case
+descriptions, 20 uncertain descriptions carrying ignore annotations under custom
+runners, and one ignored class. Descriptions do not guarantee execution, and this
+is not the full upstream suite. The individual case-to-Go mapping remains unresolved.
+Selected inherited suite assertions are compared, but
 coverage, error substring assertions, setup and other behavior remain unresolved,
 so it cannot yet verify the proposed 336-case sweep or the
 earlier reported match count. The opt-in diagnostic deliberately fails until
