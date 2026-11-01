@@ -121,7 +121,8 @@ func (s *dfidSearch) continueViolation(result Result) {
 }
 
 // presentTrace prepares a depth-first trace as presentTraces does, without
-// ALIAS, which TLC's depth-first checker does not apply.
+// ALIAS. Java TLC 1.7.4 rejects ALIAS; 1.8.0 accepts it but does not
+// apply it in the tested depth-first traces.
 func (s *dfidSearch) presentTrace(result *Result) {
 	s.model.applyTraceOrder(result)
 	s.model.applyActionRanges(result)
