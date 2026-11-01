@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/evaluator"
@@ -82,6 +83,11 @@ type Result struct {
 	// collision probability on success, when HasFingerprintDistance is set.
 	FingerprintDistance    int64
 	HasFingerprintDistance bool
+	// TemporalCheckDuration is present when a final liveness progress message
+	// was emitted. It lets callers place the end message after a counterexample.
+	TemporalCheckDuration *time.Duration
+	// TemporalCheckReported indicates that OnTemporalCheck completed reporting.
+	TemporalCheckReported bool
 }
 
 // Failure describes an evaluation that stopped exploration.
@@ -219,6 +225,11 @@ type Options struct {
 	OnGraph func(GraphEvent) error
 	// OnSearch receives synchronous initial-state progress events when set.
 	OnSearch func(SearchEvent)
+	// OnTemporalCheck receives the completed liveness result; on a violation,
+	// postconditions run between OnTemporalViolation and OnTemporalCheck.
+	OnTemporalCheck func(Result)
+	// OnTemporalViolation receives the counterexample before postconditions.
+	OnTemporalViolation func(Result)
 	// MaxSetSize is Java TLC's -maxSetSize bound on sets that are built element
 	// by element. A nonpositive value selects TLC's default of 1,000,000.
 	MaxSetSize int
@@ -410,23 +421,53 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 		return result, err
 	}
 	model.adjustContinuedEvaluationFailure(&result)
-	return model.finalizeCheckResult(result)
+	return model.finalizeCheckResult(result, options.OnTemporalCheck, options.OnTemporalViolation)
 }
 
-func (m *model) finalizeCheckResult(result Result) (Result, error) {
+func (m *model) finalizeCheckResult(result Result, onTemporalCheck, onTemporalViolation func(Result)) (Result, error) {
 	if m.needsViewRecovery(result) {
-		if err := m.recoverViewResult(&result); err != nil {
-			return result, err
-		}
-		if err := m.updateRecoveredTableauProperties(&result); err != nil {
+		if err := m.recoverTemporalView(&result); err != nil {
 			return result, err
 		}
 	}
 	m.presentTraces(&result)
-	if result.Status == AssumptionViolation || result.Status == EvaluationFailure || m.noStateSearch() {
+	if reportTemporalViolation(result, onTemporalCheck, onTemporalViolation) {
+		return m.finishTemporalViolation(result, onTemporalCheck, onTemporalViolation)
+	}
+	if result.TemporalCheckDuration != nil && onTemporalCheck != nil {
+		onTemporalCheck(result)
+		result.TemporalCheckReported = true
+	}
+	if m.skipPostconditions(result) {
 		return result, nil
 	}
 	return m.checkPostconditions(result)
+}
+
+func (m *model) skipPostconditions(result Result) bool {
+	return result.Status == AssumptionViolation || result.Status == EvaluationFailure || m.noStateSearch()
+}
+
+func (m *model) recoverTemporalView(result *Result) error {
+	if err := m.recoverViewResult(result); err != nil {
+		return err
+	}
+	return m.updateRecoveredTableauProperties(result)
+}
+
+func reportTemporalViolation(result Result, onTemporalCheck, onTemporalViolation func(Result)) bool {
+	return result.TemporalCheckDuration != nil && result.Status == LivenessViolation && onTemporalCheck != nil && onTemporalViolation != nil
+}
+
+func (m *model) finishTemporalViolation(result Result, onTemporalCheck, onTemporalViolation func(Result)) (Result, error) {
+	onTemporalViolation(result)
+	updated, err := m.checkPostconditions(result)
+	if err != nil {
+		return updated, err
+	}
+	onTemporalCheck(updated)
+	updated.TemporalCheckReported = true
+	return updated, nil
 }
 
 func (m *model) needsViewRecovery(result Result) bool {

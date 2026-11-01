@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -137,7 +138,16 @@ func (s *search) explore() (Result, error) {
 		}
 	}
 	s.debugLivenessGraph()
+	return s.finishLiveness()
+}
+
+func (s *search) finishLiveness() (Result, error) {
+	started := s.startTemporalProgress()
 	result, err := s.checkLiveness()
+	if started != nil && err == nil && result.Failure == nil {
+		duration := time.Since(*started)
+		result.TemporalCheckDuration = &duration
+	}
 	if err == nil && result.Status == Success {
 		s.finishSuccessfulResult(&result)
 	}

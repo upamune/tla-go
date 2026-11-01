@@ -50,6 +50,9 @@ func toolTime() string { return time.Now().Format("2006-01-02 15:04:05") }
 
 func printToolSearch(out io.Writer, event checker.SearchEvent) {
 	t := toolOutput{out: out}
+	if event.Kind == checker.TemporalCheckStart {
+		t.message(2200, 0, temporalProgressStats(event))
+	}
 	code, text := searchEventMessage(event)
 	t.message(code, 0, text)
 }
@@ -68,6 +71,8 @@ func searchEventMessage(event checker.SearchEvent) (int, string) {
 		return 2189, "Computing initial states..."
 	case checker.SimulationLiveness, checker.ModelCheckingLiveness:
 		return 2212, livenessBranches(event)
+	case checker.TemporalCheckStart:
+		return 2192, fmt.Sprintf("Checking temporal properties for the complete state space with %d total distinct states at (%s)", event.Nodes, toolTime())
 	}
 	generated, distinct := event.GeneratedStates, event.DistinctStates
 	if generated == distinct {
@@ -153,10 +158,13 @@ func toolModelError(t toolOutput, err error) int {
 }
 
 func printToolResult(t toolOutput, result checker.Result, module *parser.Module) {
+	if result.Status != checker.LivenessViolation && result.TemporalCheckDuration != nil && !result.TemporalCheckReported {
+		printTemporalCheckEnd(t.out, true, *result.TemporalCheckDuration)
+	}
 	if result.Failure != nil {
 		printToolFailure(t, result.Failure, module)
 	} else if result.Violation != nil {
-		printToolViolation(t, result, module)
+		printToolResultViolation(t, result, module)
 	} else {
 		var body bytes.Buffer
 		printSuccess(&body, result)
@@ -164,6 +172,16 @@ func printToolResult(t toolOutput, result checker.Result, module *parser.Module)
 	}
 	if toolHasStatistics(result) {
 		printToolStatistics(t, result)
+	}
+}
+
+func printToolResultViolation(t toolOutput, result checker.Result, module *parser.Module) {
+	if result.TemporalCheckReported && result.Status == checker.LivenessViolation {
+		return
+	}
+	printToolViolation(t, result, module)
+	if result.Status == checker.LivenessViolation && result.TemporalCheckDuration != nil {
+		printTemporalCheckEnd(t.out, true, *result.TemporalCheckDuration)
 	}
 }
 

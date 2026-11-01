@@ -19,6 +19,8 @@ const (
 	// ModelCheckingLiveness reports the number of liveness solutions before
 	// breadth-first model checking computes the initial states.
 	ModelCheckingLiveness SearchEventKind = "model-checking-liveness"
+	// TemporalCheckStart reports a final, complete-space liveness check.
+	TemporalCheckStart SearchEventKind = "temporal-check-start"
 )
 
 // SearchEvent describes initial-state generation and depth-first iterations
@@ -30,6 +32,8 @@ type SearchEvent struct {
 	Level int
 	// Branches is the solution count of a liveness event.
 	Branches int
+	// Nodes is the total number of nodes across the liveness graphs.
+	Nodes int
 }
 
 func (m *model) emitSearchEvent(event SearchEvent) {
