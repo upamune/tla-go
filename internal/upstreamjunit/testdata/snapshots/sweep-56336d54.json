@@ -1,0 +1,4570 @@
+{
+  "schema": 1,
+  "tla_go_commit": "56336d54f659dbb744aff66ffa8e653a6117c06a",
+  "upstream_commit": "5a47802b5c391f59ecdd44117981f4ff8c0656ba",
+  "jar_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+  "source_log_sha256": "fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5",
+  "counts": {
+    "candidates": 340,
+    "attempted": 309,
+    "unsafe": 31,
+    "compared": 293,
+    "no_selected_differences": 236,
+    "selected_differences": 57,
+    "unavailable": 16
+  },
+  "classes": [
+    {
+      "class": "pcal.BakeryTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Bug051003Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Bug051210aTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Bug051216bTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Bug051231Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Bug060125Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.CBakeryTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.CCallReturn1Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.CDiningPhilosophersTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.CEither1Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.CMultiprocDefineTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.CallReturn1Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.CallReturn2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.DetlefSpecTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.DetlefsTest",
+      "status": "unavailable",
+      "unavailable": "java_timeout"
+    },
+    {
+      "class": "pcal.Dijkstra1Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.DiningPhilosophersTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Either1Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Either2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Either3Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Either4Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Either5Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Euclid2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Euclid3Test",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.EuclidTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.EvenOddBadTest",
+      "status": "compared",
+      "differences": [
+        "message:2192",
+        "presence:2267"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2267"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.EvenOddTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Factorial2Test",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FactorialTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FairSeq2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FairSeqTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FastMutex2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FastMutex3Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FastMutexTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FastMutexWithGoto2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FastMutexWithGotoTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.FischerTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.InnerLabeledIfTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.MPFactorial2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.MPFactorialTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.MPNoParamsTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.MacroQuicksortTest",
+      "status": "unavailable",
+      "unavailable": "java_timeout"
+    },
+    {
+      "class": "pcal.MacroRealQuicksortTest",
+      "status": "unavailable",
+      "unavailable": "java_timeout"
+    },
+    {
+      "class": "pcal.MergeSortTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.MultiAssignmentTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.MultiProc2Test",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.MultiprocDefineTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.NestedMacrosTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.NoLoop2Test",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.NoLoopTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.NoParamsTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.NotSoSimpleLoopTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.PcalPaxosTest",
+      "status": "unavailable",
+      "unavailable": "java_timeout"
+    },
+    {
+      "class": "pcal.PetersonTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.Quicksort2ProcsTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.QuicksortMacroTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.QuicksortTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.RABTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "pcal.RealQuicksort2Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.RealQuicksortTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.ReallySimpleMultiProcTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.SBBTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "pcal.SemaphoreMutexTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.SimpleLoopTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.SimpleLoopWithProcedureTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.SimpleMultiProcTest",
+      "status": "unavailable",
+      "unavailable": "java_timeout"
+    },
+    {
+      "class": "pcal.StackTestTest",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 14,
+      "go_exit": 14
+    },
+    {
+      "class": "pcal.StarkMutexTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.SubSubTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.SyncConsTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.TestPCandStackTest",
+      "status": "unavailable",
+      "unavailable": "translation_failed_java_255_go_255"
+    },
+    {
+      "class": "pcal.TestReplaceTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.TestTabsTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.TestTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.TreeBarrierTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.ULCallReturn1Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.ULEuclidTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.ULEvenOddTest",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.ULFactorial2Test",
+      "status": "compared",
+      "differences": [
+        "message:2192"
+      ],
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.ULQuicksortMacroTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "pcal.UniprocDefineTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.ASTest",
+      "status": "compared",
+      "presence": [
+        "2115"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.AssertExpressionStack",
+      "status": "compared",
+      "bodies": [
+        "2103"
+      ],
+      "presence": [
+        "2121",
+        "2128",
+        "2186"
+      ],
+      "java_exit": 14,
+      "go_exit": 14
+    },
+    {
+      "class": "tlc2.tool.AssignmentInitExpensiveTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.AssignmentInitNegTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.AssignmentInitTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.AssignmentNext2Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.AssignmentNext3Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.AssignmentNextTest",
+      "status": "compared",
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.BagsTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.BugzillaBug279Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2114",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 11,
+      "go_exit": 11
+    },
+    {
+      "class": "tlc2.tool.CodePlexBug21Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.ContinueTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "2186",
+        "2217"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.DepthFirstDieHardTest",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.DepthFirstErrorTraceTest",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.DepthFirstTerminate",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.DiameterTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "message:2194"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.DistributedTrace",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.DumpAsDotTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.EmptySubsetEqTest",
+      "status": "compared",
+      "bodies": [
+        "1000",
+        "2199"
+      ],
+      "presence": [
+        "2186",
+        "2217"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.EmptyTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.EvaluatingValueTest",
+      "status": "compared",
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2264"
+      ],
+      "java_exit": 76,
+      "go_exit": 76
+    },
+    {
+      "class": "tlc2.tool.FingerprintExceptionInitTest",
+      "status": "compared",
+      "bodies": [
+        "2147"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.FingerprintExceptionNextTest",
+      "status": "compared",
+      "bodies": [
+        "2147",
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.Github179aTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2154"
+      ],
+      "presence": [
+        "2186"
+      ],
+      "java_exit": 10,
+      "go_exit": 10
+    },
+    {
+      "class": "tlc2.tool.Github179bTest",
+      "status": "compared",
+      "bodies": [
+        "2103",
+        "2154"
+      ],
+      "presence": [
+        "2186"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.Github179cTest",
+      "status": "compared",
+      "bodies": [
+        "2103",
+        "2154"
+      ],
+      "presence": [
+        "2186"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.Github361Test",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.Github362Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.Github391Test",
+      "status": "compared",
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.Github407Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.Github432Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.Github461Test",
+      "status": "compared",
+      "bodies": [
+        "2103",
+        "2132"
+      ],
+      "presence": [
+        "2217"
+      ],
+      "java_exit": 14,
+      "go_exit": 14
+    },
+    {
+      "class": "tlc2.tool.Github798ITest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 255,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.Github798NTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 255,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.IncompleteNextMultipleActionsTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2109",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.IncompleteNextTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2109",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.InliningTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.MinimalSetOfInitStatesTest",
+      "status": "compared",
+      "bodies": [
+        "2191",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.MinimalSetOfNextStatesTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.MinimumDiameterTest",
+      "status": "compared",
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.PrintTraceRaceTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2121",
+        "2186"
+      ],
+      "java_exit": 76,
+      "go_exit": 76
+    },
+    {
+      "class": "tlc2.tool.RandomElementT4Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.RandomElementTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.RandomElementXandYTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.RandomSubsetATest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.RandomSubsetBTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.RandomSubsetNextT4Test",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "presence": [
+        "2121",
+        "2128",
+        "2186"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.RandomSubsetNextTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.RandomSubsetSetOfFcnsTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.RandomSubsetTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2190",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.SetPredValueTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.StandardModulesTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.SubsetEqTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2217"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.TLCGetLevelTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.TLCGetNamedUndefinedTest",
+      "status": "compared",
+      "presence": [
+        "2145",
+        "2186",
+        "2281"
+      ],
+      "java_exit": 151,
+      "go_exit": 151
+    },
+    {
+      "class": "tlc2.tool.TLCGetNonDeterminismTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "presence:1000",
+        "presence:2186",
+        "presence:2217"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 1,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.TLCSetInitTest",
+      "status": "compared",
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.TLCSetTest",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.TSnapShotTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "presence": [
+        "1000",
+        "2121",
+        "2128",
+        "2186"
+      ],
+      "java_exit": 76,
+      "go_exit": 76
+    },
+    {
+      "class": "tlc2.tool.TraceWithLargeSetOfInitialStatesTest",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2121",
+        "2128",
+        "2186"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.UserModuleOverrideAnnotationTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2400",
+        "2402",
+        "2403"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.UserModuleOverrideFromJarTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.UserModuleOverrideTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.ViewMapTest",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2121",
+        "2128",
+        "2186"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.checkpoint.CheckpointOnViolationTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.checkpoint.CheckpointWhenTimeBoundTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.coverage.ACoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.BCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.CCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.CoverageStatisticsTest",
+      "status": "compared",
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.coverage.DCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.ECoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.FCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.GCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.Github314CoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.Github377CoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.HCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.ICoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.JCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.KCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.coverage.LCoverageTest",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2194",
+        "message:2199",
+        "presence:1000"
+      ],
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2776"
+      ],
+      "java_exit": 0,
+      "go_exit": 255
+    },
+    {
+      "class": "tlc2.tool.distributed.DistributedDoInitFunctorEvalExceptionTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.distributed.DistributedDoInitFunctorInvariantContinueTest",
+      "status": "compared",
+      "bodies": [
+        "2107",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.distributed.DistributedDoInitFunctorInvariantTest",
+      "status": "compared",
+      "bodies": [
+        "2107"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2199"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.distributed.TLCSetTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.doinitfunctor.DoInitFunctorEvalExceptionTest",
+      "status": "compared",
+      "bodies": [
+        "2102"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2199"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.doinitfunctor.DoInitFunctorInvariantContinueTest",
+      "status": "compared",
+      "bodies": [
+        "2107",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.doinitfunctor.DoInitFunctorInvariantMinimalErrorStackTest",
+      "status": "compared",
+      "bodies": [
+        "2103",
+        "2199",
+        "2266"
+      ],
+      "presence": [
+        "2186"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.doinitfunctor.DoInitFunctorInvariantNoContinueTest",
+      "status": "compared",
+      "bodies": [
+        "2107"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2199"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.doinitfunctor.DoInitFunctorInvariantTest",
+      "status": "compared",
+      "bodies": [
+        "2107"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2199"
+      ],
+      "java_exit": 12,
+      "go_exit": 12
+    },
+    {
+      "class": "tlc2.tool.doinitfunctor.DoInitFunctorPropertyTest",
+      "status": "compared",
+      "bodies": [
+        "2108"
+      ],
+      "presence": [
+        "1000",
+        "2186",
+        "2199"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.evalorder.InitEvalOrder1Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.evalorder.InitEvalOrder2Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.evalorder.InitEvalOrder3Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.evalorder.InitEvalOrder4Test",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.evalorder.InitEvalOrderBasicTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.April20aTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.April20bTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.April21Test",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.April22Test",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.April25Test",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.April29Test",
+      "status": "compared",
+      "presence": [
+        "2116",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.April29dTest",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.BidirectionalTransitions1BxTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.BidirectionalTransitions1ByTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.BidirectionalTransitions1Test",
+      "status": "compared",
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.BidirectionalTransitions2CxTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.BidirectionalTransitions2CyTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.BidirectionalTransitions2Test",
+      "status": "compared",
+      "bodies": [
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.ChooseTableauSymmetryTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.ChooseTableauSymmetryTestA",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08AgentRingTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08EWD840FL1Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08EWD840FL2FromCheckpointTest",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08EWD840FL2Test",
+      "status": "unavailable",
+      "unavailable": "java_timeout"
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08EWD840FL3Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08EWD840FL4Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08Test",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.CodePlexBug08aTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.EmptyOrderOfSolutionsTest",
+      "status": "compared",
+      "presence": [
+        "2253"
+      ],
+      "java_exit": 77,
+      "go_exit": 77
+    },
+    {
+      "class": "tlc2.tool.liveness.ErrorTraceConstructionTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.LivenessConstraintWarning",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2186",
+        "2284"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.LivenessSymmetryWarning",
+      "status": "compared",
+      "presence": [
+        "1000",
+        "2186",
+        "2279"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.LoopTest",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.LoopTestForcedPartial",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.LoopTestWeakFair",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2192",
+        "2194",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.May09Test",
+      "status": "compared",
+      "presence": [
+        "2116",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.May09dTest",
+      "status": "compared",
+      "presence": [
+        "2116",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.NQTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.NQaTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.NoSymmetryTableauModelCheckerTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2190",
+        "2199",
+        "2212"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.OneBitMutexNoSymmetryTest",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.OneBitMutexTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.SymmetryModelCheckerTest3",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.SymmetryModelCheckerTest3a",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.SymmetryModelCheckerTestLong",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.SymmetryModelCheckerTestLonga",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.SymmetryTableauModelCheckerTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "1000",
+        "2191",
+        "2199",
+        "2212"
+      ],
+      "presence": [
+        "2116",
+        "2186",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.TableauSymmetryTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.Test3",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.TwoPhaseCommitTest",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.UnsymmetricModelCheckerTestA",
+      "status": "compared",
+      "bodies": [
+        "2191",
+        "2199",
+        "2212"
+      ],
+      "presence": [
+        "1000",
+        "2116",
+        "2186",
+        "2217",
+        "2264"
+      ],
+      "java_exit": 13,
+      "go_exit": 13
+    },
+    {
+      "class": "tlc2.tool.liveness.UnsymmetricModelCheckerTestB",
+      "status": "compared",
+      "bodies": [
+        "2191",
+        "2199",
+        "2212"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.Example1Test",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.Example2Test",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.LiveCheckExample1Test",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.LiveCheckExample2Test",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.LiveCheckSimulationTest2",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.LiveCheckSimulationTest2a",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.SimulationTest2",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.SimulationTest2a",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.SimulationTestAssumption",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.liveness.simulation.StutteringTest",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.simulation.NQSpecTest",
+      "status": "unavailable",
+      "unavailable": "java_timeout"
+    },
+    {
+      "class": "tlc2.tool.suite.ETest1",
+      "status": "compared",
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.ETest10",
+      "status": "compared",
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.suite.ETest11",
+      "status": "compared",
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.suite.ETest12",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "java_exit": 10,
+      "go_exit": 10
+    },
+    {
+      "class": "tlc2.tool.suite.ETest13",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "java_exit": 10,
+      "go_exit": 10
+    },
+    {
+      "class": "tlc2.tool.suite.ETest14",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "java_exit": 10,
+      "go_exit": 10
+    },
+    {
+      "class": "tlc2.tool.suite.ETest15",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "java_exit": 10,
+      "go_exit": 10
+    },
+    {
+      "class": "tlc2.tool.suite.ETest16",
+      "status": "compared",
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.ETest2",
+      "status": "compared",
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.ETest3",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2114",
+        "2186"
+      ],
+      "java_exit": 11,
+      "go_exit": 11
+    },
+    {
+      "class": "tlc2.tool.suite.ETest4",
+      "status": "compared",
+      "bodies": [
+        "2103",
+        "2199"
+      ],
+      "presence": [
+        "2186"
+      ],
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.suite.ETest5",
+      "status": "compared",
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.ETest6",
+      "status": "compared",
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.suite.ETest7",
+      "status": "compared",
+      "bodies": [
+        "2281"
+      ],
+      "java_exit": 151,
+      "go_exit": 151
+    },
+    {
+      "class": "tlc2.tool.suite.ETest8",
+      "status": "unavailable",
+      "unavailable": "go_no_tool_messages"
+    },
+    {
+      "class": "tlc2.tool.suite.ETest9",
+      "status": "compared",
+      "java_exit": 75,
+      "go_exit": 75
+    },
+    {
+      "class": "tlc2.tool.suite.Test1",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test10",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test11",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test12",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test13",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test14",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test15",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test16",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test17",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test18",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test19",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test2",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test20",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test201",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test202",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test203",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test204",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test205",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test206",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test207",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test208",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test209",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test21",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test210",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.Test212",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.Test213",
+      "status": "compared",
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.Test214",
+      "status": "compared",
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.Test215",
+      "status": "compared",
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.Test216",
+      "status": "compared",
+      "bodies": [
+        "2191",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test217",
+      "status": "compared",
+      "presence": [
+        "1000"
+      ],
+      "java_exit": 150,
+      "go_exit": 150
+    },
+    {
+      "class": "tlc2.tool.suite.Test219",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test22",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test220",
+      "status": "compared",
+      "bodies": [
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2114",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test23",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test24",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test25",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test26",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test27",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test28",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test29",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test3",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test30",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test31",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test32",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test33",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test34",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test35",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test36",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test37",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test38",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test39",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test4",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test40",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test41",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test42",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test43",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test44",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test45",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test46",
+      "status": "compared",
+      "differences": [
+        "dump:content"
+      ],
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test47",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test48",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test49",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test5",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test50",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test51",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test52",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test53",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test54",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test55",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test56",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test57",
+      "status": "unsafe_setup"
+    },
+    {
+      "class": "tlc2.tool.suite.Test58",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test59",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test6",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test60",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test61",
+      "status": "compared",
+      "differences": [
+        "dump:content",
+        "exit",
+        "message:2190",
+        "message:2199"
+      ],
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 151,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test62",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test63",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test63a",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test64",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test64a",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test65",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test65a",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test7",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test8",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test9",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test99",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.Test999",
+      "status": "compared",
+      "bodies": [
+        "2190",
+        "2199"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 0,
+      "go_exit": 0
+    },
+    {
+      "class": "tlc2.tool.suite.TestInvalidInvariant",
+      "status": "compared",
+      "bodies": [
+        "2146"
+      ],
+      "presence": [
+        "1000",
+        "2186"
+      ],
+      "java_exit": 76,
+      "go_exit": 76
+    }
+  ]
+}

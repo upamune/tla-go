@@ -354,6 +354,28 @@ Recreate the snapshot from that exact log with:
 go run ./internal/upstreamjunit/cmd/snapshot /path/to/tla-integration-sweep-full.log > snapshot.json
 ```
 
+The later [`testdata/snapshots/sweep-56336d54.json`](testdata/snapshots/sweep-56336d54.json)
+comes from `/tmp/tla-profiling-sweep-latest.log`, using the actual tla-go
+binary revision `56336d54f659dbb744aff66ffa8e653a6117c06a` and the same
+pinned upstream and jar documented above. Its exact raw source SHA-256 is
+`fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5`.
+While the ephemeral source log is available, reproduce it with:
+
+```sh
+go run ./internal/upstreamjunit/cmd/snapshot /tmp/tla-profiling-sweep-latest.log > snapshot.json
+```
+
+Of 340 unresolved candidates, 309 were attempted and 31 had unsafe or
+unresolved setup. Of the attempts, 293 comparisons completed: 236 had no
+selected differences and 57 had selected differences; 16 comparisons were
+unavailable. These are diagnostic observations, not JUnit passes.
+Nondeterminism, timeouts and environmental differences mean that changes in
+these counts alone are not evidence of improvements or regressions.
+
+The extractor recognizes only the two documented source hashes and associates
+each with its recorded binary revision; the logs themselves do not establish
+the binary revision. Unknown or modified logs are rejected.
+
 The extractor checks the source hash, the completion marker, and the source
 summary against the individual records. It strips raw output, temporary paths,
 times and generated values. The JSON records selected message-body and presence
@@ -370,7 +392,7 @@ full compatibility. These are neither JUnit executions nor JUnit pass counts.
 The sweep still deliberately fails even when enabled: its lifecycle, coverage,
 assertion and liveness omissions have not been resolved.
 
-This single observation is not a sound automatic mismatch allowlist: scheduling,
+These observations do not constitute a permissive baseline rule or a sound automatic mismatch allowlist: scheduling,
 model behavior, dump order, timeouts and infrastructure can vary. A new or
 changed difference needs investigation, not automatic acceptance; an unavailable
 or nondeterministic rerun remains unresolved. Comparing category names alone
