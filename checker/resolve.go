@@ -151,6 +151,8 @@ func (r *resolver) declareDefinition(d parser.Definition) error {
 	r.positions[d.Name] = d.Location.Position
 	if len(d.Origins) == 0 {
 		r.sources[d.Name] = sourceSymbolLocation(d.Location)
+	} else if d.InstanceRange.Module != "" {
+		r.sources[d.Name] = sourceSymbol{module: d.InstanceRange.Module, position: d.InstanceRange.Start}
 	}
 	return nil
 }

@@ -46,6 +46,13 @@ func (r *resolver) operatorArgument(expr *parser.Expression, arity int, scope ma
 	}
 	name := expr.Text
 	sym, ok := r.operatorSymbol(name, scope)
+	if !ok && !r.visibleGlobal(name) {
+		return &SemanticError{Err: fmt.Errorf("undefined symbol %s", name)}
+	}
+	return validateOperatorArgument(name, arity, sym, ok)
+}
+
+func validateOperatorArgument(name string, arity int, sym symbol, ok bool) error {
 	if !ok || sym.arity != arity {
 		return fmt.Errorf("operator %s must have arity %d", name, arity)
 	}

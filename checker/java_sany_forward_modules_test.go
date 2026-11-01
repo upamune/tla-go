@@ -3,6 +3,7 @@ package checker
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -36,6 +37,35 @@ func TestJavaSANYForwardReferencesAcrossModules(t *testing.T) {
 		{"instance module forward", "I == INSTANCE A", "Bad == Later\nLater == 1", "", true},
 		{"instance after extension", "EXTENDS A\nEarlier == 1\nI == INSTANCE B WITH C <- Earlier", "Base == 1", "", false},
 		{"instance forward after extension", "EXTENDS A\nI == INSTANCE B WITH C <- Later\nLater == 1", "Base == 1", "", true},
+		{"anonymous before instance", "Bad == F\nINSTANCE A", "F == 1", "", true},
+		{"anonymous after instance", "INSTANCE A\nGood == F", "F == 1", "", false},
+		{"local anonymous before instance", "Bad == F\nLOCAL INSTANCE A", "F == 1", "", true},
+		{"local anonymous after instance", "LOCAL INSTANCE A\nGood == F", "F == 1", "", false},
+		{"same line anonymous before instance", "Bad == F INSTANCE A", "F == 1", "", true},
+		{"same line anonymous after instance", "INSTANCE A Good == F", "F == 1", "", false},
+		{"anonymous selector before instance", "Bad == F!lab\nINSTANCE A", "F == lab :: 1", "", true},
+		{"anonymous selector after instance", "INSTANCE A\nGood == F!lab", "F == lab :: 1", "", false},
+		{"same line anonymous selector before", "Bad == F!lab INSTANCE A", "F == lab :: 1", "", true},
+		{"same line anonymous selector after", "INSTANCE A Good == F!lab", "F == lab :: 1", "", false},
+		{"theorem before anonymous instance", "THEOREM F = 1\nINSTANCE A", "F == 1", "", true},
+		{"theorem after anonymous instance", "INSTANCE A\nTHEOREM F = 1", "F == 1", "", false},
+		{"theorem selector before named instance", "THEOREM I!F!lab = 1\nI == INSTANCE A", "F == lab :: 1", "", true},
+		{"theorem selector after named instance", "I == INSTANCE A\nTHEOREM I!F!lab = 1", "F == lab :: 1", "", false},
+		{"second instance before", "I == INSTANCE B WITH C <- 1\nBad == F\nINSTANCE A", "F == 1", "", true},
+		{"second instance after", "I == INSTANCE B WITH C <- 1\nINSTANCE A\nGood == F", "F == 1", "", false},
+		{"two anonymous instances forward substitution", "INSTANCE B WITH C <- G\nINSTANCE A", "G == 1", "", true},
+		{"two anonymous instances backward substitution", "INSTANCE A\nINSTANCE B WITH C <- G\nGood == F", "G == 1", "", false},
+		{"extended anonymous instance", "EXTENDS A\nGood == F", "INSTANCE B WITH C <- 1", "", false},
+		{"anonymous instance operator argument before", "Use(Op(_)) == Op(1)\nBad == Use(F)\nINSTANCE A", "F(x) == x", "", true},
+		{"anonymous instance operator argument after", "INSTANCE A\nUse(Op(_)) == Op(1)\nGood == Use(F)", "F(x) == x", "", false},
+		{"let shadows later anonymous import", "Good == LET F == 2 IN F\nINSTANCE A", "F == 1", "", false},
+		{"bound shadows later anonymous import", "Good == \\A F \\in {1}: F = 1\nINSTANCE A", "F == 1", "", false},
+		{"parameter shadows later anonymous import", "Good(F) == F\nINSTANCE A", "F == 1", "", false},
+		{"implicit constant after anonymous instance", "INSTANCE A\nCONSTANT C", "CONSTANT C\nF == C", "CONSTANT C = 1\n", true},
+		{"implicit constant before anonymous instance", "CONSTANT C\nINSTANCE A", "CONSTANT C\nF == C", "CONSTANT C = 1\n", false},
+		{"unused implicit constant after instance", "INSTANCE A\nCONSTANT C", "CONSTANT C\nF == 1", "CONSTANT C = 1\n", true},
+		{"implicit operator after anonymous instance", "Op(x) == x\nINSTANCE A\nCONSTANT C(_)", "CONSTANT C(_)\nF == C(1)", "CONSTANT C <- Op\n", true},
+		{"implicit operator before anonymous instance", "Op(x) == x\nCONSTANT C(_)\nINSTANCE A", "CONSTANT C(_)\nF == C(1)", "CONSTANT C <- Op\n", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			source := "---- MODULE M ----\n" + tc.root + "\nVARIABLE v\nInit == v = 0\nNext == UNCHANGED v\n====\n"
@@ -101,6 +131,93 @@ func TestForwardDeclarationWithoutSourceProvenance(t *testing.T) {
 			if _, err := CheckModuleWithLoader(context.Background(), module, cfg, loader); err != nil {
 				t.Fatalf("model checker guessed unknown provenance: %v", err)
 			}
+		})
+	}
+}
+
+func TestInstanceReferenceWithoutSourceProvenance(t *testing.T) {
+	for _, tc := range []struct {
+		name, source string
+	}{
+		{"anonymous instance", "Bad == F\nINSTANCE A"},
+		{"named instance in theorem", "THEOREM I!F = 1\nI == INSTANCE A"},
+		{"anonymous selector", "Bad == F!lab\nINSTANCE A"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := parser.ParseModule("---- MODULE M ----\n" + tc.source + "\n====\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			// A direct API caller may supply an AST without instance coordinates.
+			module.Instances[0].Location = parser.Location{}
+			loader := func(context.Context, string) (string, error) {
+				return "---- MODULE A ----\nF == lab :: 1\n====\n", nil
+			}
+			if _, err := AnalyzeMetadata(context.Background(), module, loader); err != nil {
+				t.Fatalf("unknown instance location must not be guessed: %v", err)
+			}
+		})
+	}
+}
+
+func TestAnonymousInstanceReferenceJSONRoundTrip(t *testing.T) {
+	for _, tc := range []struct {
+		name, source string
+		invalid      bool
+	}{
+		{"forward import", "Bad == F\nINSTANCE A", true},
+		{"backward import", "INSTANCE A\nGood == F", false},
+		{"forward selector", "Bad == F!lab\nINSTANCE A", true},
+		{"backward selector", "INSTANCE A\nGood == F!lab", false},
+		{"forward theorem", "THEOREM I!F = 1\nI == INSTANCE A", true},
+		{"backward theorem", "I == INSTANCE A\nTHEOREM I!F = 1", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := parser.ParseModule("---- MODULE M ----\n" + tc.source + "\n====\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := json.Marshal(module)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var restored parser.Module
+			if err := json.Unmarshal(data, &restored); err != nil {
+				t.Fatal(err)
+			}
+			loader := func(context.Context, string) (string, error) {
+				return "---- MODULE A ----\nF == lab :: 1\n====\n", nil
+			}
+			_, err = AnalyzeMetadata(context.Background(), &restored, loader)
+			if (err != nil) != tc.invalid {
+				t.Fatalf("round-trip error %v, invalid=%t", err, tc.invalid)
+			}
+		})
+	}
+}
+
+func TestJavaSANYForwardImplicitVariableOrder(t *testing.T) {
+	const auxiliary = "---- MODULE A ----\nVARIABLE v\nF == v\n====\n"
+	for _, tc := range []struct {
+		name, declarations string
+		invalid            bool
+	}{
+		{"forward", "INSTANCE A\nVARIABLE v", true},
+		{"backward", "VARIABLE v\nINSTANCE A", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---- MODULE M ----\n" + tc.declarations + "\nInit == v = 0\nNext == UNCHANGED v\n====\n"
+			loader := func(context.Context, string) (string, error) { return auxiliary, nil }
+			result, err := CheckWithLoader(context.Background(), source, "INIT Init\nNEXT Next\n", loader)
+			if (err != nil) != tc.invalid || !tc.invalid && result.Status != Success {
+				t.Fatalf("result %+v, error %v, invalid %t", result, err, tc.invalid)
+			}
+			if tc.invalid {
+				if _, ok := errors.AsType[*SemanticError](err); !ok {
+					t.Fatalf("expected semantic error: %v", err)
+				}
+			}
+			compareForwardJava(t, source, auxiliary, "---- MODULE B ----\n====\n", tc.invalid)
 		})
 	}
 }

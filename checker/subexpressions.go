@@ -191,7 +191,7 @@ func checkSelectorDeclarationOrder(selectors []parser.Selector, scope map[string
 		return nil
 	}
 	definition, ok := scope[selectors[0].Name]
-	if !ok || len(definition.Origins) != 0 {
+	if !ok {
 		return nil
 	}
 	decl, ref := selectorDefinitionRange(definition), location.Range
@@ -205,6 +205,9 @@ func checkSelectorDeclarationOrder(selectors []parser.Selector, scope map[string
 }
 
 func selectorDefinitionRange(definition parser.Definition) parser.Range {
+	if len(definition.Origins) != 0 {
+		return definition.InstanceRange
+	}
 	decl := definition.Location.Range
 	if definition.Body != nil && definition.Body.Location.Range.Module == decl.Module && definition.Body.Location.Range.End.Line != 0 {
 		decl.End = definition.Body.Location.Range.End

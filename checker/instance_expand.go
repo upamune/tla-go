@@ -119,7 +119,7 @@ func instanceReplacements(module *parser.Module, instance parser.Instance, index
 	replacements := make(map[string]*parser.Expression)
 	declarations := append(append([]parser.Declaration(nil), module.Constants...), module.Variables...)
 	for _, declaration := range declarations {
-		replacements[declaration.Name] = &parser.Expression{Kind: "Identifier", Text: declaration.Name}
+		replacements[declaration.Name] = &parser.Expression{Kind: "Identifier", Text: declaration.Name, Location: instance.Location}
 	}
 	if err := applyInstanceSubstitutions(replacements, instance.Substitutions); err != nil {
 		return nil, err
