@@ -243,15 +243,18 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 		})
 	}
 	if graph != nil {
-		if closeErr := graph.close(graphShouldFinish(result, err, graph)); err == nil {
+		if closeErr := graph.close(graphShouldFinish(result, err)); err == nil {
 			err = closeErr
 		}
 	}
 	return result, err
 }
 
-func graphShouldFinish(result checker.Result, err error, graph stateDump) bool {
-	return err == nil && !(result.Violation != nil && initialViolation(result)) && !(result.Failure != nil && graph.empty())
+func graphShouldFinish(result checker.Result, err error) bool {
+	// Incomplete initial states and initial violations take TLC's early return
+	// path; exceptions during initial evaluation close the writer instead.
+	return err == nil && !(result.Violation != nil && initialViolation(result)) &&
+		!(result.Failure != nil && result.Failure.IncompleteInitialState)
 }
 
 func reportModelError(out, errout io.Writer, err error) int {

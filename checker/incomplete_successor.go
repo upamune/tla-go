@@ -23,7 +23,7 @@ func (e *incompleteState) Error() string { return "state is not completely speci
 func (s *search) incompleteInitialFailure(incomplete *incompleteState) Result {
 	s.model.addUnassigned(incomplete.state)
 	s.result.Status = EvaluationFailure
-	s.result.Failure = &Failure{Message: "current state is not a legal state", InitialState: incomplete.state, ExitCode: 255, SuppressStatistics: true}
+	s.result.Failure = &Failure{Message: "current state is not a legal state", InitialState: incomplete.state, ExitCode: 255, SuppressStatistics: true, IncompleteInitialState: true}
 	return s.result
 }
 

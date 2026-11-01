@@ -54,8 +54,6 @@ func (d *textDump) event(event checker.GraphEvent) error {
 	return nil
 }
 
-func (d *textDump) empty() bool { return d.states == 0 }
-
 // styledGraphEvents renders dumped states tersely under -terse, because Java
 // TLC's state writers print states with TLCStateMut.toString.
 func styledGraphEvents(event func(checker.GraphEvent) error, style traceStyle) func(checker.GraphEvent) error {

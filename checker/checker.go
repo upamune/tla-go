@@ -98,6 +98,8 @@ type Failure struct {
 	InitialState      evaluator.State
 	InitialStateOrder []string
 	ExitCode          int
+	// IncompleteInitialState identifies an initial predicate that emitted a partial state.
+	IncompleteInitialState bool
 	// ToolCode is the Java TLC error message code when known.
 	ToolCode int
 	// NestedToolCode identifies the nested evaluation message when known.

@@ -15,7 +15,6 @@ type stateDump interface {
 	event(checker.GraphEvent) error
 	// close writes any trailer when finish is true and closes the file.
 	close(finish bool) error
-	empty() bool
 }
 
 // dotFormat holds the options of Java TLC's DotStateWriter.
@@ -152,8 +151,6 @@ func (d *dotDump) addRank(level int, fingerprint uint64) {
 	}
 	d.levels[level].add(fingerprint)
 }
-
-func (d *dotDump) empty() bool { return len(d.levels) == 0 }
 
 func (d *dotDump) close(finish bool) error {
 	if finish {
