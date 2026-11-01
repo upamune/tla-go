@@ -37,22 +37,21 @@ func TestJavaTLCTimedCheckpoint(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "InfiniteStateSpace.cfg"), []byte("SPECIFICATION Spec\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	binary := buildTimedStopTestCLI(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Xmx256m", "-Dtlc2.TLC.stopAfter=1", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-checkpoint", "35791", "-metadir", filepath.Join(dir, "java"), spec)
 	javaOut, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Java TLC: %v\n%s", err, javaOut)
 	}
-	t.Setenv("TLA_GO_DEBUG_STOP_AFTER", "1ns")
-	var out, errout bytes.Buffer
-	code := run(ctx, []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "35791", "-metadir", filepath.Join(dir, "go"), spec}, &out, &errout)
-	if code != 255 || !strings.Contains(errout.String(), "search incomplete") {
-		t.Fatalf("tla-go: %d\n%s\n%s", code, &out, &errout)
+	code, out, errout := runTimedStopTestCLI(ctx, binary, "1ns", "-tool", "-workers", "1", "-fp", "0", "-checkpoint", "35791", "-metadir", filepath.Join(dir, "go"), spec)
+	if code != 255 || !strings.Contains(errout, "search incomplete") {
+		t.Fatalf("tla-go: %d\n%s\n%s", code, out, errout)
 	}
 	for _, marker := range []string{"STARTMSG 2195:", "STARTMSG 2196:", "STARTMSG 2186:"} {
-		if !bytes.Contains(javaOut, []byte(marker)) || !strings.Contains(out.String(), marker) {
-			t.Errorf("missing %s\nJava: %s\nGo: %s", marker, javaOut, &out)
+		if !bytes.Contains(javaOut, []byte(marker)) || !strings.Contains(out, marker) {
+			t.Errorf("missing %s\nJava: %s\nGo: %s", marker, javaOut, out)
 		}
 	}
 }
