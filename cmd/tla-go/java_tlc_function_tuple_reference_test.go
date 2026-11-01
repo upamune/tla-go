@@ -61,3 +61,25 @@ Next == UNCHANGED x`
 		t.Fatalf("direct application: exit %d\n%s", code, output)
 	}
 }
+
+// SetPredValue.size caches the enumerated set before the buggy function
+// enumerator runs. Failed function rendering falls back to the source form;
+// neither step repeats the predicate's observable effects.
+func TestJavaTLCFunctionTupleBoundDeferredEffectsReference(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	dir := t.TempDir()
+	body := `VARIABLE x
+D == {z \in SUBSET {1,2} : PrintT(z)}
+F == [a,b \in D, <<i,j>> \in {<<3,4>>,<<5,6>>} |-> 0]
+Init == x = 0 /\ PrintT(F)
+Next == UNCHANGED x`
+	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n")
+	output, code := runJavaTLCArgs(t, jar, dir, []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "0", "M.tla"})
+	prints := "{}\n{1}\n{2}\n{1, 2}\n[a \\in {{}, {1}, {2}, {1, 2}}, <<i, j>> \\in {<<3, 4>>, <<5, 6>>} |-> <expression 0>]"
+	if code != 0 || strings.Count(output, prints) != 1 || strings.Count(output, "\n{1, 2}\n") != 1 {
+		t.Fatalf("deferred function effects: exit %d\n%s", code, output)
+	}
+}

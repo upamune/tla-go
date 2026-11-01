@@ -56,7 +56,13 @@ contents, TLC may instead encounter a `NullPointerException` or an
 normally. Applying the function directly can also succeed because it does not
 materialize the function. `TestJavaTLCFunctionTupleBoundReference` and
 `TestJavaTLCFunctionTupleBoundDirectApplicationReference` record these Java-only
-observations; they do not establish tla-go compatibility.
+observations; they do not establish tla-go compatibility. With a deferred
+filtered set in a grouped bound, Java TLC caches the set while computing its
+size and does not repeat predicate effects when a failed function rendering
+falls back to a description. `TestJavaTLCFunctionTupleBoundDeferredEffectsReference`
+records this Java-only behavior. Function materialization, rendering, and
+copying must preserve the timing and sharing of those effects; tla-go does not
+yet match this case.
 
 As in Java TLC, a configured `INIT` or `NEXT` that reads no variable is rejected as a constant (message 2233), also in a model without variables; such operators reached through `SPECIFICATION` are not yet reported as Java TLC reports them. In `-tool` mode, initial-state generation reports Java TLC's progress messages (2269) before the third, fifth, ninth, and later initial states; the plain output keeps the format of the tla-ts fixtures and omits Java TLC's initial-state messages.
 
