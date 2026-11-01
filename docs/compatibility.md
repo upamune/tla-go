@@ -203,8 +203,11 @@ collector reports two. Tests compare the direct action's normal and tool
 coverage with Java, including empty initial ranges, reordered definitions,
 `SPECIFICATION`, supported invariants, and separately defined modules. The
 direct UNCHANGED action is supported in the forms described below.
-The upstream `GCoverageTest` is supported, including its alias for the full
-variable tuple, repeated `UNCHANGED` conjuncts, and `ENABLED Next` invariant.
+For the upstream `GCoverageTest` model, the coverage report matches Java's,
+including its alias for the full variable tuple, repeated `UNCHANGED`
+conjuncts, and `ENABLED Next` invariant. The original JUnit assertion and
+teardown have also been run on projected Go records, but the complete JUnit
+setup and recorder stream have not been reproduced.
 For this form every conjunct must independently preserve every variable, and
 the invariant must directly name that next-state action. Comparisons cover
 multiple variables, initial states, and both normal and tool output. Other
