@@ -148,19 +148,29 @@ For evaluation failures, failures after this existential has been evaluated,
 or failures with a successor trace, coverage is omitted because TLC can charge
 replay to its cost model; the diagnostic and exit status are retained. Failures
 before evaluation that do not require replay retain their normal coverage behavior.
-For positive effective intervals, checks must complete before a conservative limit
-derived from Java 1.7.4's 32-bit millisecond overflow and progress counter. The limit
-is the earlier of the effective interval and three seconds plus that interval rounded
-down to whole minutes. For example, `-coverage 71584` wraps to 72.704 seconds,
-but the limit is 63 seconds. This calculation assumes TLC's timed waits run to
-their deadlines: Java permits spurious wakeups, so it cannot guarantee that a
-periodic report was impossible before the limit. If the limit elapses, the check
-is canceled with an error instead of producing an incomplete report. Periodic
-coverage reports are not implemented. `-coverage 0` has no timeout and still
-prints its final coverage report, but unlike Java it does not print periodic
-progress or coverage during a long run. The same applies to an argument whose
-32-bit millisecond conversion wraps to zero.
+For positive effective intervals, the standard breadth-first CLI can emit
+periodic progress and coverage when both output sinks are `os.File`s whose
+`Stat` reports regular files, and
+checkpoint/recovery, debugging/profiling, state dumps, user output files,
+SpecTE, simulation, DFID and continuation are absent. Coverage model validation
+still applies. The timer begins after initial-state generation, first reports
+progress after three seconds and then at one-minute ticks. It reports coverage
+after the tick count derived from Java's 32-bit millisecond interval, including
+wrapped positive intervals. Reports and exploration callbacks are committed as
+whole output transactions; the reporting goroutine is stopped and joined before
+final or error output. The counts and coverage are sampled separately, while
+exploration continues, so their values need not describe the same instant.
 
+Other positive-interval cases retain the conservative deadline: the earlier of
+the effective interval and three seconds plus that interval rounded down to
+whole minutes. If it elapses, checking is canceled with an error. `-coverage 0`
+and arguments whose 32-bit millisecond conversion wraps to zero retain their
+previous behavior: no timeout and a final coverage report, but no periodic
+output. Java can wake its timed waits spuriously, so exact reporting times are
+not guaranteed.
+Pipes, terminals, other non-regular files, and files that cannot be statted use
+the deadline path: a blocked periodic write cannot otherwise be canceled and
+joined safely. Ordinary CLI writes can still block if their consumer stops reading.
 Java 1.7.4 starts its progress loop after initial-state generation and waits up
 to three seconds before the first progress report. Its progress report reads the
 fingerprint set size, generated count, level and queue size separately while
@@ -175,28 +185,12 @@ wait before the tick. See Java 1.7.4's
 [`ActionWrapper`](https://github.com/tlaplus/tlaplus/blob/v1.7.4/tlatools/org.lamport.tlatools/src/tlc2/tool/coverage/ActionWrapper.java), and
 [`CounterStatistic`](https://github.com/tlaplus/tlaplus/blob/v1.7.4/tlatools/org.lamport.tlatools/src/tlc2/util/statistics/CounterStatistic.java).
 The live oracle test checks message order and presence rather than fixing
-concurrent count values. A future implementation must also serialize output
-against errors, final summaries and other callbacks; waiting for a whole
-successor expansion can delay a report indefinitely.
-
-The final-report path creates a non-destructive report: action expressions are
-collapsed in a separate result, and property cost trees remain available for
-subsequent updates. Repeated reports without intervening updates agree, and
-later updates do not alter earlier reports. The collector synchronizes reports
-with individual update operations, so each report is a snapshot at one instant
-between updates, including when called concurrently. A state transition can
-involve several updates, however, and is not atomic with respect to a report.
-Periodic reporting still needs a timer and serialization of complete messages
-with all existing output callbacks and termination paths. It must also start
-the progress schedule after initial-state generation, not at the CLI's current
-conservative cancellation deadline, and
-must account for long-running evaluations without silently skipping reports.
-Those requirements have not yet been established even for a smaller class of
-the currently accepted models; the deadline restriction above remains in place
-rather than emitting an unverified approximation. No progress goroutine is
-started for coverage today, and an absent `-coverage` flag enables no coverage
-output. Any future checker option or callback must also preserve checkpoint
-option validation and caller context cancellation.
+concurrent count values. The checker publishes progress counters at its own
+search mutation points; its depth is the maximum discovered depth, which can
+differ from Java's independently sampled reporting level. The coverage report
+uses a synchronized snapshot of individual collector updates, while Java's
+report can sample counters independently. No replay is performed for a periodic
+report, and a slow successor evaluation does not hold the collector lock.
 
 `Options.LiveProgress` can opt a coverage check into publishing copies of its
 generated, distinct, queued and depth counters. A fresh `LiveProgress` belongs
@@ -213,16 +207,6 @@ snapshots do not read the mutable result or queue from the observer. The option
 requires coverage and is unsupported with checkpoints, simulation and DFID.
 It does not change the existing integer overflow behavior of those counters.
 
-The remaining integration obstacle is broader than the coverage collector.
-The CLI writes
-multi-part tool messages and coverage reports through callbacks as well as after
-the checker returns. A timer therefore needs a shared message-level output
-boundary, a race-free source of live progress values, and a stop-and-join
-boundary before final or error output, including cancellation and panic paths.
-The existing `InitialComplete` event identifies where a schedule can start, but
-does not provide a live snapshot or manage that lifecycle. Until those pieces
-are integrated and tested together, removing the positive-interval deadline
-would silently omit Java's periodic output.
 Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, and depth-first search. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, other operator calls,
 other action quantification, parameterized or inline actions, initial or action disjunctions,

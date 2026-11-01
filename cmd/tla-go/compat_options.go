@@ -19,6 +19,7 @@ import (
 // output are presented, and options that are accepted for compatibility.
 type compatOptions struct {
 	diffTrace, terse bool
+	debug            bool
 	cleanup          bool
 	userFile         string
 	userFileTool     bool // -tool preceded -userFile, so its error is message 1102.
@@ -39,7 +40,7 @@ var compatFlags = map[string]func(*compatOptions){
 	// mode, and internal debugging output, none of which tla-go has.
 	"-gzip":       func(*compatOptions) {},
 	"-modelcheck": func(*compatOptions) {},
-	"-debug":      func(*compatOptions) {},
+	"-debug":      func(c *compatOptions) { c.debug = true },
 }
 
 var compatValues = map[string]func(*compatOptions, []string) (int, error){

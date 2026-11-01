@@ -13,8 +13,8 @@ import (
 )
 
 // coordinatedEventOutput serializes the listed callback transactions within one
-// check. Final/error output, checkpoint output, debug output and timers are not
-// coordinated; this is not a whole-run output lock. Graph and user-file writes
+// check. Eligible periodic reports use the same boundary and stop before final
+// or error output. Checkpoint, debug, graph and user-file writes
 // remain separate. Custom writers, including SpecTE's MultiWriter, retain the
 // original path because their Write methods may call back recursively. Positive
 // coverage currently rejects -continue, -dfid and -simulate.
@@ -49,7 +49,7 @@ func (c *coordinatedEventOutput) render(format func(io.Writer)) {
 	c.commit(buf.Bytes())
 }
 
-func coordinateCallbacks(checkOpts *checker.Options, opts options, module *parser.Module, out io.Writer) {
+func coordinateCallbacks(checkOpts *checker.Options, opts options, module *parser.Module, out io.Writer) *coordinatedEventOutput {
 	c := &coordinatedEventOutput{out: out}
 	checkOpts.OnSearch = func(event checker.SearchEvent) {
 		c.render(func(w io.Writer) { configuredSearchOutput(opts, w)(event) })
@@ -85,6 +85,7 @@ func coordinateCallbacks(checkOpts *checker.Options, opts options, module *parse
 	checkOpts.OnTemporalCheck = func(result checker.Result) {
 		c.render(func(w io.Writer) { temporalCheckOutput(opts, w)(result) })
 	}
+	return c
 }
 
 func temporalViolationOutput(opts options, module *parser.Module, out io.Writer) func(checker.Result) {

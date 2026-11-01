@@ -248,26 +248,43 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 	checkOptions.OnWarning = configuredWarningOutput(opts, out)
 	checkOptions.OnTemporalViolation = temporalViolationOutput(opts, module, out)
 	checkOptions.OnTemporalCheck = temporalCheckOutput(opts, out)
+	var coordinator *coordinatedEventOutput
 	if coordinateEventOutput(opts.coverageInterval, out) {
-		coordinateCallbacks(&checkOptions, opts, module, out)
+		coordinator = coordinateCallbacks(&checkOptions, opts, module, out)
 	}
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}
-	var result checker.Result
-	if opts.coverageInterval == 0 {
-		result, err = checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
-	} else {
-		result, err = checkWithCoverageDeadline(ctx, opts.coverageInterval, context.WithTimeout, func(ctx context.Context) (checker.Result, error) {
-			return checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
-		})
-	}
+	result, err := checkCoverageMode(ctx, opts, module, parsed, checkOptions, coordinator, out, errout)
 	if graph != nil {
 		if closeErr := graph.close(graphShouldFinish(result, err)); err == nil {
 			err = closeErr
 		}
 	}
 	return result, err
+}
+
+func checkCoverageMode(ctx context.Context, opts options, module *parser.Module, parsed config.Config, checkOptions checker.Options, coordinator *coordinatedEventOutput, out, errout io.Writer) (checker.Result, error) {
+	if periodicCoverageEligible(opts, out, errout) {
+		var progress checker.LiveProgress
+		checkOptions.LiveProgress = &progress
+		periodic := newPeriodicCoverage(ctx, opts, &progress, coordinator, realPeriodicTimer)
+		search := checkOptions.OnSearch
+		checkOptions.OnSearch = func(event checker.SearchEvent) {
+			search(event)
+			if event.Kind == checker.InitialComplete {
+				periodic.start()
+			}
+		}
+		defer periodic.stop()
+		return checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+	}
+	if opts.coverageInterval == 0 {
+		return checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+	}
+	return checkWithCoverageDeadline(ctx, opts.coverageInterval, context.WithTimeout, func(ctx context.Context) (checker.Result, error) {
+		return checker.CheckModuleWithOptions(ctx, module, parsed, checkOptions)
+	})
 }
 
 func graphShouldFinish(result checker.Result, err error) bool {
