@@ -479,23 +479,30 @@ I == IF PrintT(<<"invariant", x>>) THEN TRUE ELSE FALSE`
 // computes its edge fingerprint; the first representative may differ.
 func TestJavaTLCViewConstraintDOTDuplicateSuccessor(t *testing.T) {
 	jar := maxSetOracleJar(t)
-	dir := t.TempDir()
-	body := `VARIABLE x
+	for _, view := range []bool{false, true} {
+		t.Run(fmt.Sprint(view), func(t *testing.T) {
+			dir := t.TempDir()
+			body := `VARIABLE x
 Init == x = 0
 Next == x' \in 0..2
 V == IF PrintT(<<"view", x>>) THEN 0 ELSE 0`
-	writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCHECK_DEADLOCK FALSE\n")
-	args := []string{"-tool", "-fp", "0", "-workers", "1", "-dump", "dot", "go.dot", "M.tla"}
-	out, code, stderr := runGoInDir(t, dir, args)
-	if code != 0 || stderr != "" {
-		t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
-	}
-	if jar != "" {
-		args[len(args)-2] = "java.dot"
-		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
-		if javaCode != 0 || !reflect.DeepEqual(viewConstraintPrints(out), viewConstraintPrints(java)) {
-			t.Fatalf("Java exit %d prints %q; Go prints %q", javaCode, viewConstraintPrints(java), viewConstraintPrints(out))
-		}
+			writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCHECK_DEADLOCK FALSE\n")
+			args := []string{"-tool", "-fp", "0", "-workers", "1", "-dump", "dot", "go.dot", "M.tla"}
+			if view {
+				args = append([]string{"-view"}, args...)
+			}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				args[len(args)-2] = "java.dot"
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 || !reflect.DeepEqual(viewConstraintPrints(out), viewConstraintPrints(java)) {
+					t.Fatalf("Java exit %d prints %q; Go prints %q", javaCode, viewConstraintPrints(java), viewConstraintPrints(out))
+				}
+			}
+		})
 	}
 }
 
