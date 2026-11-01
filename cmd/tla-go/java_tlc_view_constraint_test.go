@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -153,6 +156,34 @@ func TestJavaTLCViewConstraintsMultipleWorkers(t *testing.T) {
 		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
 		if javaCode != 0 || !strings.Contains(java, stats) || slices.Contains(viewConstraintPrints(java), `<<"view", 1>>`) {
 			t.Fatalf("Java exit %d output:\n%s", javaCode, java)
+		}
+	}
+}
+
+func TestJavaTLCViewConstraintDOT(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	dir := t.TempDir()
+	body := `VARIABLE x
+Init == x = 0
+Next == IF x = 0 THEN x' \in 0..2 ELSE UNCHANGED x
+C == x # 1
+V == IF x = 1 THEN UNION {1} ELSE x`
+	writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCONSTRAINT C\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-fp", "0", "-workers", "1", "-dump", "dot,actionlabels", "go.dot", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code != 0 || stderr != "" {
+		t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+	}
+	graph, err := os.ReadFile(filepath.Join(dir, "go.dot"))
+	if err != nil || !bytes.Contains(graph, []byte("x = 2")) || bytes.Contains(graph, []byte("x = 1")) {
+		t.Fatalf("Go graph %q, error %v", graph, err)
+	}
+	if jar != "" {
+		args[len(args)-2] = "java.dot"
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		want, err := os.ReadFile(filepath.Join(dir, "java.dot"))
+		if javaCode != 0 || err != nil || !bytes.Equal(graph, want) {
+			t.Fatalf("Java exit %d error %v output:\n%s\nJava graph:\n%s\nGo graph:\n%s", javaCode, err, java, want, graph)
 		}
 	}
 }
