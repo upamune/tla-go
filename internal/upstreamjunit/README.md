@@ -544,7 +544,7 @@ argument list, the installed `TestMPRecorder`, user directory, cleanup-veto
 property and liveness threshold. Its `process` starts a Go test helper, which
 runs the built tla-go binary on a separate copy of `Empty`, parses its tool
 output with `projectEmpty`, and writes records and omissions. SANY, starting,
-initial-state, statistics, depth, and finish observations come from the partial
+initial-state, success probability, statistics, depth, and finish observations come from the partial
 `TLA_GO_DEBUG_RECORDER` stream; the helper verifies the retained events' order
 against the tool messages. It removes tool-only SANY events before invoking the original
 non-tool assertions. The finish duration is the tool-mode value, which differs
@@ -553,9 +553,24 @@ record's presence. Other recorder calls remain unobserved or text projections.
 The adapter loads those records into the recorder installed by the original
 setup; the original upstream assertion and exit-status teardown then execute.
 
+The test separately runs the original Java `EmptyTest` and its inherited setup
+with a temporary instrumented copy of the pinned `TestMPRecorder`. The hook
+captures every call, including array type and values, without filtering. In the
+observed successful run, the complete call sequence is 2262, 2187, 2185, 2189,
+2190, 2193, 2199, 2194, 2186, each with `String[]` arguments. The test compares
+the corresponding Go diagnostic calls, including the success probability. It
+does not equate Java's version and JVM startup banner with Go's output, or
+Java's non-tool finish duration with Go's tool duration. This one successful
+run does not prove complete recording for failure paths or other models. Java
+retains its metadir, fingerprint and trace files because the original setup
+vetoes cleanup; the experiment checks their presence and compares the empty
+DOT bytes with Go's separately located dump. It does not reproduce or compare
+the contents of those Java state files with Go.
+
 Negative controls reject altered worker/dump arguments, missing arguments,
 wrong statistics, a missing FINISHED record, a GENERAL record, a nonzero
-adapter error code, malformed records, an unavailable Go executable, and a
+adapter error code, malformed records, a missing or changed success diagnostic,
+an unavailable Go executable, and a
 real nonzero Go CLI exit caused by a missing model. The nonzero adapter error
 code is synthetic: it checks the original `@After` exit assertion, but does
 not establish mapping from a Go exit to a Java error constant. A real nonzero

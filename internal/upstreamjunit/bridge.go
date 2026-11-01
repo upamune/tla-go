@@ -47,6 +47,7 @@ var (
 	bridgeAction   = regexp.MustCompile(`^(<[^\n]+>): ([0-9]+):([0-9]+)$`)
 	bridgeProperty = regexp.MustCompile(`^(<[^\n]+>)$`)
 	bridgeStarting = regexp.MustCompile(`^Starting\.\.\. \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)$`)
+	bridgeSuccess  = regexp.MustCompile(`(?s)^Model checking completed\. No error has been found\.\n  Estimates of the probability that TLC did not check all reachable states\n  because two distinct states had the same fingerprint:\n  calculated \(optimistic\):  (val = [0-9.E+-]+)$`)
 )
 
 // projectBridge is deliberately incomplete: every unrepresentable message is
@@ -80,6 +81,11 @@ func projectBridge(output string) ([]bridgeRecord, []string, error) {
 
 func projectMessage(id, body string) (bridgeRecord, string) {
 	switch id {
+	case "2193":
+		if m := bridgeSuccess.FindStringSubmatch(body); m != nil {
+			return bridgeRecord{id, m[1:]}, ""
+		}
+		return bridgeRecord{}, "unsupported arguments for message " + id
 	case "2185":
 		if bridgeStarting.MatchString(body) {
 			return bridgeRecord{id, nil}, ""

@@ -207,6 +207,9 @@ func printToolResult(t toolOutput, result checker.Result, module *parser.Module)
 	} else {
 		var body bytes.Buffer
 		printSuccess(&body, result)
+		if t.recorder != nil {
+			recordStrings(t.recorder, 2193, "val = "+successProbability(result))
+		}
 		t.message(2193, 0, strings.TrimSuffix(body.String(), "\n"))
 	}
 	if toolHasStatistics(result) {

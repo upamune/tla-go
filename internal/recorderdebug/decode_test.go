@@ -73,6 +73,8 @@ func TestDecodeSearchRecords(t *testing.T) {
 		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["0","s"]}`,
 		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["1",""]}`,
 		`{"kind":"record","complete":false,"code":2191,"array":"strings","values":["2","s","1"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["val = 5.4E-20"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["val = 0.0"]}`,
 		`{"kind":"record","complete":false,"code":2194,"array":"strings","values":["1"]}`,
 		`{"kind":"record","complete":false,"code":2269,"array":"strings","values":["2"]}`,
 	} {
@@ -86,6 +88,12 @@ func TestDecodeSearchRecords(t *testing.T) {
 		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["0",""]}`,
 		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["1","s"]}`,
 		`{"kind":"record","complete":false,"code":2191,"array":"strings","values":["2","s","x"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["val = NaN"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["val = +Inf"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["val = -1"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["val = -0.0"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["val = 1e-20"]}`,
+		`{"kind":"record","complete":false,"code":2193,"array":"strings","values":["0.0"]}`,
 		`{"kind":"record","complete":false,"code":2194,"array":"strings","values":[null]}`,
 	} {
 		if _, err := Decode(strings.NewReader(header + record + "\n")); err == nil {

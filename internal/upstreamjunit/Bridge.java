@@ -42,7 +42,7 @@ public class Bridge {
             String[] parts = line.split("\\t", -1);
             int code = Integer.parseInt(parts[0]);
             if (!Integer.toString(code).equals(parts[0])) { throw new IllegalArgumentException("invalid code encoding"); }
-            if (!(code == 2185 || code == 2186 || code == 2189 || code == 2190 || code == 2194 || code == 2199 || code == 1000 || code == 2221 || (code >= 2772 && code <= 2776))) {
+            if (!(code == 2185 || code == 2186 || code == 2189 || code == 2190 || code == 2193 || code == 2194 || code == 2199 || code == 1000 || code == 2221 || (code >= 2772 && code <= 2776))) {
                 throw new IllegalArgumentException("unsupported code " + code);
             }
             if (parts.length < 2 || !(parts[1].equals("strings") || parts[1].equals("objects"))) {

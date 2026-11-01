@@ -67,11 +67,15 @@ func printFailure(w io.Writer, failure *checker.Failure, module *parser.Module) 
 }
 
 func printSuccess(w io.Writer, result checker.Result) {
-	probability := float64(result.DistinctStates) * (float64(result.GeneratedStates-result.DistinctStates) / 18446744073709551616.0)
 	fmt.Fprintln(w, "Model checking completed. No error has been found.")
 	fmt.Fprintln(w, "  Estimates of the probability that TLC did not check all reachable states")
 	fmt.Fprintln(w, "  because two distinct states had the same fingerprint:")
-	fmt.Fprintf(w, "  calculated (optimistic):  val = %s\n", formatProbability(probability))
+	fmt.Fprintf(w, "  calculated (optimistic):  val = %s\n", successProbability(result))
+}
+
+func successProbability(result checker.Result) string {
+	probability := float64(result.DistinctStates) * (float64(result.GeneratedStates-result.DistinctStates) / 18446744073709551616.0)
+	return formatProbability(probability)
 }
 
 // printViolation returns true when TLC suppresses statistics for the result.

@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
+	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -193,10 +196,17 @@ func validate(event Event, index int) error {
 }
 
 func validateRecordPayload(event Event) error {
-	if n := recordArity(event.Code); n >= 0 && len(event.Values) == n && validRecordValues(event) {
+	if n := recordArity(event.Code); n >= 0 && len(event.Values) == n && validPayloadValues(event) {
 		return nil
 	}
 	return fmt.Errorf("unsupported recorder code or arguments: %d", event.Code)
+}
+
+func validPayloadValues(event Event) bool {
+	if event.Code == 2193 {
+		return validProbability(event.Values[0])
+	}
+	return validRecordValues(event)
 }
 
 func validRecordValues(event Event) bool {
@@ -216,6 +226,14 @@ func validRecordValues(event Event) bool {
 		}
 	}
 	return true
+}
+
+var probabilityPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]+)?(E-?[0-9]+)?$`)
+
+func validProbability(value string) bool {
+	value, ok := strings.CutPrefix(value, "val = ")
+	probability, err := strconv.ParseFloat(value, 64)
+	return ok && probabilityPattern.MatchString(value) && err == nil && !math.IsInf(probability, 0)
 }
 
 func validInitialValues(values []string) bool {
@@ -252,7 +270,7 @@ func recordArity(code int) int {
 		return 2
 	case 2191, 2199:
 		return 3
-	case 2194, 2269, 2186:
+	case 2193, 2194, 2269, 2186:
 		return 1
 	default:
 		return -1

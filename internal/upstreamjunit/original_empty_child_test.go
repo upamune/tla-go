@@ -35,6 +35,16 @@ func originalEmptyGoHelper() error {
 	if err != nil {
 		return err
 	}
+	if mode == "missing-success" {
+		observed = slices.DeleteFunc(observed, func(event recorderdebug.Event) bool { return event.Code == 2193 })
+	}
+	if mode == "wrong-success" {
+		for i := range observed {
+			if observed[i].Code == 2193 {
+				observed[i].Values = []string{"val = 1.0"}
+			}
+		}
+	}
 	records, omissions, err := projectEmpty(emptyInvocation(), result)
 	if err != nil {
 		return err
