@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
+	"github.com/upamune/tla-go/value"
 )
 
 // SimulationBehaviorError is a separate error raised while printing an
@@ -44,7 +46,8 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 	for i, node := range r.search.nodes[:visited] {
 		states[i] = node.state
 	}
-	trace, err := newLiveTrace(r.model, states, r.uncachedLiveChecks())
+	trace, err := r.newSimulationLiveTrace(states)
+	defer func() { r.liveViewExpr = nil }()
 	if err != nil {
 		return r.liveFailure(err)
 	}
@@ -58,6 +61,93 @@ func (r *simulationRun) checkTraceLiveness(visited int) (*Result, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (r *simulationRun) newSimulationLiveTrace(states []evaluator.State) (*liveTrace, error) {
+	if !r.supportsJavaViewLiveKeys(states) {
+		return newLiveTrace(r.model, states, r.uncachedLiveChecks())
+	}
+	r.liveViewExpr, _ = r.model.definition(r.model.cfg.View)
+	return newJavaViewLiveTrace(states, r.uncachedLiveChecks(), r.javaViewLiveFingerprint), nil
+}
+
+// Use FP64 keys only for a VIEW that is a scalar variable or tuple of
+// variables and scalar sampled state values.
+func (r *simulationRun) javaViewLiveKeys() bool {
+	return r.liveViewExpr != nil
+}
+
+func (r *simulationRun) supportsJavaViewLiveKeys(states []evaluator.State) bool {
+	if r.model.cfg.View == "" || r.model.cfg.Alias != "" {
+		return false
+	}
+	view, err := r.model.definition(r.model.cfg.View)
+	if err != nil || !r.model.scalarViewExpression(view) {
+		return false
+	}
+	for _, state := range states {
+		if !r.model.scalarViewState(state) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *model) scalarViewState(state evaluator.State) bool {
+	for _, name := range m.names {
+		kind := state[name].Kind()
+		if kind != value.IntegerKind && kind != value.BooleanKind {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *model) scalarViewExpression(expr *parser.Expression) bool {
+	if expr == nil {
+		return false
+	}
+	if expr.Kind == "Identifier" {
+		return slices.Contains(m.names, expr.Text)
+	}
+	if expr.Kind != "Tuple" || len(expr.Args) == 0 {
+		return false
+	}
+	for _, arg := range expr.Args {
+		if arg.Kind != "Identifier" || !slices.Contains(m.names, arg.Text) {
+			return false
+		}
+	}
+	return true
+}
+
+func (r *simulationRun) javaViewLiveFingerprint(state evaluator.State) (string, error) {
+	if !r.model.scalarViewState(state) {
+		if r.traceOrder == nil {
+			r.traceOrder = r.model.symmetryVariableOrder()
+		}
+		fingerprint, err := r.model.javaFingerprint(state, r.traceOrder)
+		return strconv.FormatUint(fingerprint, 16), err
+	}
+	view, err := r.scalarViewValue(state)
+	if err != nil {
+		return "", err
+	}
+	// Permutations only change model values, so all-scalar states are fixed
+	// by every symmetry permutation. No evaluator or rank lookup is needed.
+	fingerprint, err := r.model.fingerprintAlgorithm.Fingerprint([]value.Value{view}, nil, nil)
+	return strconv.FormatUint(fingerprint, 16), err
+}
+
+func (r *simulationRun) scalarViewValue(state evaluator.State) (value.Value, error) {
+	if r.liveViewExpr.Kind == "Identifier" {
+		return state[r.liveViewExpr.Text], nil
+	}
+	values := make([]value.Value, len(r.liveViewExpr.Args))
+	for i, arg := range r.liveViewExpr.Args {
+		values[i] = state[arg.Text]
+	}
+	return value.Tuple(values)
 }
 
 func (r *simulationRun) uncachedLiveChecks() bool {
@@ -415,10 +505,17 @@ func (r *simulationRun) recoverLiveInitial(key string) (TraceStep, error) {
 
 func (r *simulationRun) matchingState(states []evaluator.State, key string) (evaluator.State, error) {
 	for _, state := range states {
-		candidate, err := r.model.stateKey(state)
+		candidate, err := r.liveRecoveryKey(state)
 		if err != nil || candidate == key {
 			return state, err
 		}
 	}
 	return nil, nil
+}
+
+func (r *simulationRun) liveRecoveryKey(state evaluator.State) (string, error) {
+	if r.javaViewLiveKeys() {
+		return r.javaViewLiveFingerprint(state)
+	}
+	return r.model.stateKey(state)
 }

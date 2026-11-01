@@ -9,17 +9,18 @@ import (
 )
 
 type simulationRun struct {
-	model      *model
-	search     search
-	worker     simulationWorker
-	depth      int
-	current    evaluator.State
-	inModel    bool
-	deadlocked bool
-	options    SimulationOptions
-	traceIndex int
-	traceOrder []string
-	live       []liveSolution
+	model        *model
+	search       search
+	worker       simulationWorker
+	depth        int
+	current      evaluator.State
+	inModel      bool
+	deadlocked   bool
+	options      SimulationOptions
+	traceIndex   int
+	traceOrder   []string
+	live         []liveSolution
+	liveViewExpr *parser.Expression
 }
 
 // simulate checks bounded traces with one worker, like TLC's Simulator.
