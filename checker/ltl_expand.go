@@ -9,8 +9,8 @@ import (
 )
 
 type ltlBranch struct {
-	todo      []*ltlFormula
-	seen      ltlIDSet
+	todo []*ltlFormula
+	seen ltlIDSet
 	// A formula is expanded once per branch, so next contains no repeated IDs.
 	next      []*ltlFormula
 	fulfilled ltlIDSet
