@@ -150,21 +150,22 @@ type model struct {
 	livenessOrder        []temporalProperty
 	// propertyCalls counts the parameterized operators being expanded in a
 	// property; TLC does not split a property below such a call.
-	propertyCalls        int
-	safety               []temporalProperty
-	guarded              []temporalProperty
-	fairness             []fairnessCondition
-	possibleStates       []possiblePredicate
-	possibleActions      []possiblePredicate
-	debug                func(string)
-	graph                func(GraphEvent) error
-	searchEvent          func(SearchEvent)
-	warning              func(Warning)
-	livenessWarning      func(Warning) // Model checking only, as in Java TLC's AbstractChecker.
-	viewStates           bool
-	terseValues          bool // -terse: values print as Java TLC's unexpanded formulas.
-	continueChecking     bool
-	onContinuedViolation func(Result)
+	propertyCalls         int
+	emptyTemporalProperty bool
+	safety                []temporalProperty
+	guarded               []temporalProperty
+	fairness              []fairnessCondition
+	possibleStates        []possiblePredicate
+	possibleActions       []possiblePredicate
+	debug                 func(string)
+	graph                 func(GraphEvent) error
+	searchEvent           func(SearchEvent)
+	warning               func(Warning)
+	livenessWarning       func(Warning) // Model checking only, as in Java TLC's AbstractChecker.
+	viewStates            bool
+	terseValues           bool // -terse: values print as Java TLC's unexpanded formulas.
+	continueChecking      bool
+	onContinuedViolation  func(Result)
 
 	// stateKeyBuffer and valueKeyBuffer are reused to encode state keys.
 	stateKeyBuffer, valueKeyBuffer []byte
