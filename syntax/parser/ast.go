@@ -194,6 +194,9 @@ type Module struct {
 	Assumptions          []Assumption
 	Theorems             []Theorem
 	ProofDirectives      []ProofDirective `json:",omitempty"`
+	// SourceDeclarations preserves original locations through module linking.
+	// In particular, operator-valued constants omit their ranges in the JSON AST.
+	SourceDeclarations map[string]Location `json:"-"`
 	// ImportedProofFacts preserves named theorems when extension units are merged.
 	ImportedProofFacts []string `json:"-"`
 	// ProofModules retains module names after EXTENDS and INSTANCE expansion.

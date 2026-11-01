@@ -98,7 +98,7 @@ func TestCoverageRejectsUnmodeledOperatorCalls(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			src := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nA == " + tc.action + "\nB == x < 0 /\\ UNCHANGED x\nNext == A \\/ B\n" + tc.definitions + "\nInv == " + tc.invariant + "\n====\n"
+			src := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\n" + tc.definitions + "\nInit == x = 0\nA == " + tc.action + "\nB == x < 0 /\\ UNCHANGED x\nNext == A \\/ B\nInv == " + tc.invariant + "\n====\n"
 			if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(src), 0o600); err != nil {
 				t.Fatal(err)
 			}

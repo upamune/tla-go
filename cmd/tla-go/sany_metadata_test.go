@@ -33,6 +33,9 @@ func TestSANYMetadata(t *testing.T) {
 func TestSANYMetadataRejectsUnsupported(t *testing.T) {
 	for _, tc := range []struct{ name, body, message string }{
 		{"unknown symbol", "A == missing", "missing"},
+		{"forward definition", "A == Later\nLater == 1", "Later"},
+		{"forward let", "A == LET F == G G == 1 IN F", "G"},
+		{"forward selector", "A == Later!lab\nLater == lab :: 1", "Later"},
 		{"temporal enabled", "A == ENABLED ([]TRUE)", "ENABLED"},
 		{"recursive definition", "RECURSIVE F(_)\nF(n) == IF n = 0 THEN 0 ELSE F(n-1)", "recursive"},
 	} {

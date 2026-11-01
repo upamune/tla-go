@@ -13,10 +13,17 @@ type symbol struct {
 	params []int
 }
 
+type sourceSymbol struct {
+	module   string
+	position parser.Position
+}
+
 type resolver struct {
 	proofModule   *parser.Module
 	globals       map[string]symbol
 	positions     map[string]parser.Position
+	sources       map[string]sourceSymbol
+	reference     sourceSymbol
 	assumeProve   map[string]bool
 	position      parser.Position
 	proofScope    bool
@@ -44,7 +51,7 @@ var (
 )
 
 func validateResolved(module *parser.Module) error {
-	r := resolver{proofModule: module, globals: map[string]symbol{"TRUE": {}, "FALSE": {}, "BOOLEAN": {}, "STRING": {}}, positions: map[string]parser.Position{}, assumeProve: map[string]bool{}}
+	r := resolver{proofModule: module, globals: map[string]symbol{"TRUE": {}, "FALSE": {}, "BOOLEAN": {}, "STRING": {}}, positions: map[string]parser.Position{}, sources: map[string]sourceSymbol{}, assumeProve: map[string]bool{}}
 	for _, name := range module.Extends {
 		r.includeModule(name)
 	}
@@ -94,24 +101,43 @@ func standardHasNaturals(name string) bool {
 }
 
 func (r *resolver) declarations(module *parser.Module) error {
-	for _, v := range module.Variables {
-		if err := r.declare(v.Name, 0); err != nil {
-			return err
-		}
-		r.positions[v.Name] = v.Location.Position
+	if err := r.declareSourceSymbols(module, module.Variables, false); err != nil {
+		return err
 	}
-	for _, c := range module.Constants {
-		if err := r.declare(c.Name, c.Arity); err != nil {
-			return err
-		}
-		r.positions[c.Name] = c.Location.Position
+	if err := r.declareSourceSymbols(module, module.Constants, true); err != nil {
+		return err
 	}
 	for _, d := range module.Definitions {
 		if err := r.declareDefinition(d); err != nil {
 			return err
 		}
 	}
+	r.declareRecursiveSources(module.RecursiveDeclarations)
 	return nil
+}
+
+func (r *resolver) declareSourceSymbols(module *parser.Module, declarations []parser.Declaration, operators bool) error {
+	for _, declaration := range declarations {
+		arity := 0
+		if operators {
+			arity = declaration.Arity
+		}
+		if err := r.declare(declaration.Name, arity); err != nil {
+			return err
+		}
+		r.positions[declaration.Name] = declaration.Location.Position
+		r.sources[declaration.Name] = sourceDeclaration(module, declaration)
+	}
+	return nil
+}
+
+func (r *resolver) declareRecursiveSources(declarations []parser.Declaration) {
+	for _, d := range declarations {
+		if source, ok := r.sources[d.Name]; ok && source.position.Line != 0 && d.Location.Line != 0 && positionAfter(source.position, d.Location.Position) {
+			source.position = d.Location.Position
+			r.sources[d.Name] = source
+		}
+	}
 }
 
 func (r *resolver) declareDefinition(d parser.Definition) error {
@@ -123,6 +149,9 @@ func (r *resolver) declareDefinition(d parser.Definition) error {
 		r.assumeProve[d.Name] = true
 	}
 	r.positions[d.Name] = d.Location.Position
+	if len(d.Origins) == 0 {
+		r.sources[d.Name] = sourceSymbolLocation(d.Location)
+	}
 	return nil
 }
 
@@ -174,7 +203,7 @@ func (r *resolver) definition(d parser.Definition, scope map[string]symbol) erro
 
 func (r *resolver) definitionInScope(d parser.Definition, scope map[string]symbol) error {
 	previous := r.position
-	if !r.proofScope {
+	if !r.proofScope && scope == nil {
 		r.position = d.Location.Position
 	}
 	defer func() { r.position = previous }()
@@ -269,13 +298,38 @@ func (r *resolver) lookup(name string, scope map[string]symbol) (symbol, bool) {
 	if r.blockedSelf[name] {
 		return symbol{}, false
 	}
-	if arity, ok := r.globals[name]; ok {
+	if arity, ok := r.globals[name]; ok && r.visibleGlobal(name) {
 		return arity, true
 	}
 	if arity, ok := coreOperators[name]; ok {
 		return symbol{arity: arity}, true
 	}
 	return r.lookupStandard(name)
+}
+
+func (r *resolver) visibleGlobal(name string) bool {
+	if r.proofScope {
+		return true
+	}
+	source, ok := r.sources[name]
+	if !ok || source.module == "" || source.module != r.reference.module || source.position.Line == 0 || r.reference.position.Line == 0 {
+		return true
+	}
+	return !positionAfter(source.position, r.reference.position)
+}
+
+func sourceSymbolLocation(location parser.Location) sourceSymbol {
+	return sourceSymbol{module: location.Range.Module, position: location.Range.Start}
+}
+
+func sourceDeclaration(module *parser.Module, declaration parser.Declaration) sourceSymbol {
+	if location, ok := module.SourceDeclarations[declaration.Name]; ok {
+		return sourceSymbolLocation(location)
+	}
+	if declaration.Location.Range.Module == "" && len(module.SourceTokens) == 0 {
+		return sourceSymbol{}
+	}
+	return sourceSymbolLocation(declarationSourceLocation(module.Name, declaration.Location))
 }
 
 func (r *resolver) lookupStandard(name string) (symbol, bool) {

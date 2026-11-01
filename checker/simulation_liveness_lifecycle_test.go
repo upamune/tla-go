@@ -83,16 +83,16 @@ func TestSimulationToolViewEligibility(t *testing.T) {
 	}{
 		{"pure", "V == x", true},
 		{"print", `V == IF PrintT(x) THEN x ELSE x`, false},
-		{"indirect-print", "V == Helper\nHelper == IF PrintT(x) THEN x ELSE x", false},
+		{"indirect-print", "Helper == IF PrintT(x) THEN x ELSE x\nV == Helper", false},
 		{"random", "V == RandomElement({x})", false},
 		{"tlc-level", `V == <<x, TLCGet("level")>>`, false},
 		{"tlc-register", `V == <<x, TLCGet(0)>>`, false},
-		{"tlc-helper", "V == <<x, Helper>>\nHelper == TLCGet(\"level\")", false},
-		{"tlc-higher-order", "V == <<x, Read(TLCGet)>>\nRead(F(_)) == F(\"level\")", false},
+		{"tlc-helper", "Helper == TLCGet(\"level\")\nV == <<x, Helper>>", false},
+		{"tlc-higher-order", "Read(F(_)) == F(\"level\")\nV == <<x, Read(TLCGet)>>", false},
 		{"tlc-let", "V == LET Read == TLCGet(\"level\") IN <<x, Read>>", false},
 		{"tlc-instance", "T == INSTANCE TLC\nV == <<x, T!TLCGet(\"level\")>>", false},
-		{"print-higher-order", "V == F(PrintT)\nF(op(_)) == IF op(x) THEN x ELSE x", false},
-		{"pure-higher-order", "V == F(G)\nF(op(_)) == op(x)\nG(y) == y", false},
+		{"print-higher-order", "F(op(_)) == IF op(x) THEN x ELSE x\nV == F(PrintT)", false},
+		{"pure-higher-order", "G(y) == y\nF(op(_)) == op(x)\nV == F(G)", false},
 		{"local-higher-order", "V == LET F(op(_)) == op(x) IN F(PrintT)", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

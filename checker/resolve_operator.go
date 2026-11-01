@@ -35,6 +35,9 @@ func (r *resolver) argumentParameters(expr *parser.Expression, scope map[string]
 }
 
 func (r *resolver) operatorArgument(expr *parser.Expression, arity int, scope map[string]symbol) error {
+	previous := r.reference
+	r.reference = sourceSymbolLocation(expr.Location)
+	defer func() { r.reference = previous }()
 	if expr.Kind == "Lambda" {
 		return r.lambdaArgument(expr, arity, scope)
 	}

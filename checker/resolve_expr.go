@@ -11,6 +11,9 @@ func (r *resolver) expression(expr *parser.Expression, scope map[string]symbol) 
 	if expr == nil {
 		return fmt.Errorf("missing expression")
 	}
+	previous := r.reference
+	r.reference = sourceSymbolLocation(expr.Location)
+	defer func() { r.reference = previous }()
 	if expr.Kind == "AssumeProve" {
 		proofResolver := *r
 		proofResolver.proofScope = true
@@ -67,7 +70,7 @@ func (r *resolver) expressionScope(expr *parser.Expression, scope map[string]sym
 		return scope, nil
 	}
 	local := cloneScope(scope)
-	if err := r.localDefinitions(expr.Definitions, local); err != nil {
+	if err := r.localDefinitions(expr.Definitions, expr.RecursiveDeclarations, local); err != nil {
 		return nil, err
 	}
 	for _, bound := range expr.Bounds {
@@ -87,20 +90,60 @@ func (r *resolver) unboundedScope(expr *parser.Expression, scope map[string]symb
 	return scope, nil
 }
 
-func (r *resolver) localDefinitions(definitions []parser.Definition, scope map[string]symbol) error {
+func (r *resolver) localDefinitions(definitions []parser.Definition, recursive []parser.Declaration, scope map[string]symbol) error {
+	declared := cloneScope(scope)
 	for _, d := range definitions {
 		// Instance expansion creates internal names that cannot occur in source.
-		if _, ok := scope[d.Name]; !strings.HasPrefix(d.Name, "!") && (ok || r.declaredBefore(d.Name)) {
+		if _, ok := declared[d.Name]; !strings.HasPrefix(d.Name, "!") && (ok || r.declaredBefore(d.Name)) {
 			return fmt.Errorf("Multiply-defined symbol '%s' at line %d, column %d", d.Name, d.Location.Line, d.Location.Column)
 		}
-		scope[d.Name] = definitionSymbol(d)
+		declared[d.Name] = definitionSymbol(d)
 	}
 	for _, d := range definitions {
-		if err := r.definition(d, scope); err != nil {
+		visible := cloneScope(scope)
+		addEarlierLocals(visible, definitions, d)
+		addRecursiveLocals(visible, definitions, recursive, d.Location.Position)
+		if err := r.definition(d, visible); err != nil {
 			return err
 		}
 	}
+	for _, d := range definitions {
+		scope[d.Name] = definitionSymbol(d)
+	}
 	return nil
+}
+
+func addEarlierLocals(scope map[string]symbol, definitions []parser.Definition, current parser.Definition) {
+	for _, d := range definitions {
+		if d.Name != current.Name && localDefinitionVisible(d, current) {
+			scope[d.Name] = definitionSymbol(d)
+		}
+	}
+}
+
+func localDefinitionVisible(definition, current parser.Definition) bool {
+	a, b := definition.Location.Position, current.Location.Position
+	if a.Line == 0 || b.Line == 0 {
+		return true
+	}
+	if a == b {
+		return len(definition.Origins) > 0 || strings.HasPrefix(definition.Name, "!")
+	}
+	return positionAfter(b, a)
+}
+
+func addRecursiveLocals(scope map[string]symbol, definitions []parser.Definition, declarations []parser.Declaration, position parser.Position) {
+	for _, declaration := range declarations {
+		if declaration.Location.Line != 0 && position.Line != 0 && positionAfter(declaration.Location.Position, position) {
+			continue
+		}
+		for _, definition := range definitions {
+			if definition.Name == declaration.Name {
+				scope[definition.Name] = definitionSymbol(definition)
+				break
+			}
+		}
+	}
 }
 
 func (r *resolver) bound(bound parser.Bound, scope map[string]symbol) error {

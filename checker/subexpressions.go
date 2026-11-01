@@ -172,11 +172,48 @@ func (r *subexpressionResolver) rewrite(expr *parser.Expression, scope map[strin
 	if !selected {
 		return expr, nil
 	}
+	if err := checkSelectorDeclarationOrder(selectors, scope, expr.Location); err != nil {
+		return nil, err
+	}
 	body, err := r.selectExpression(selectors, pool, scope, expr.Location)
 	if err != nil {
 		return nil, err
 	}
 	return body, nil
+}
+
+// A selector requires a completed definition, even when its operator has
+// already been declared RECURSIVE. Compare only original locations in the
+// same source module; instance expansion can give generated bodies positions
+// from an unrelated source unit.
+func checkSelectorDeclarationOrder(selectors []parser.Selector, scope map[string]parser.Definition, location parser.Location) error {
+	if len(selectors) == 0 || selectors[0].Kind != "Name" {
+		return nil
+	}
+	definition, ok := scope[selectors[0].Name]
+	if !ok || len(definition.Origins) != 0 {
+		return nil
+	}
+	decl, ref := selectorDefinitionRange(definition), location.Range
+	if !comparableSelectorRanges(decl, ref) {
+		return nil
+	}
+	if positionAfter(decl.End, ref.Start) {
+		return &SemanticError{Err: fmt.Errorf("definition %s is not yet available for selection", definition.Name)}
+	}
+	return nil
+}
+
+func selectorDefinitionRange(definition parser.Definition) parser.Range {
+	decl := definition.Location.Range
+	if definition.Body != nil && definition.Body.Location.Range.Module == decl.Module && definition.Body.Location.Range.End.Line != 0 {
+		decl.End = definition.Body.Location.Range.End
+	}
+	return decl
+}
+
+func comparableSelectorRanges(declaration, reference parser.Range) bool {
+	return declaration.Module != "" && declaration.Module == reference.Module && declaration.End.Line != 0 && reference.Start.Line != 0
 }
 
 func (r *subexpressionResolver) rewriteChildren(expr *parser.Expression, scope map[string]parser.Definition) error {

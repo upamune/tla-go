@@ -17,56 +17,78 @@ import (
 
 // These original, minimal models characterize SANY and TLC 1.7.4 at upstream
 // commit 5a47802b5c391f59ecdd44117981f4ff8c0656ba. They are not upstream fixtures.
-// A gap case checks the Java result but deliberately does not enshrine Go's
-// incorrect acceptance; it can start passing Go validation after a real fix.
 func TestJavaTLCNameResolutionOrder(t *testing.T) {
 	cases := []struct {
 		name, definitions string
-		invalid, gap      bool
+		invalid           bool
 	}{
-		{"unused forward call", "Bad == Later(1)\nLater(x) == x", true, true},
-		{"unused self call", "Bad(x) == Bad(x)", true, false},
-		{"unused self value", "Bad == Bad", true, false},
-		{"self as operator argument", "Use(F(_)) == F(1)\nBad(x) == Use(Bad)", true, false},
-		{"let self call", "Bad == LET F(x) == F(x) IN 1", true, false},
-		{"forward operator argument", "Use(F(_)) == F(1)\nBad == Use(Later)\nLater(x) == x", true, true},
-		{"forward let", "Bad == LET F == G\n           G == 1\n       IN F", true, true},
-		{"unknown name", "Bad == Missing", true, false},
-		{"wrong arity", "F(x) == x\nBad == F(1, 2)", true, false},
-		{"wrong operator argument arity", "G(x, y) == x\nUse(F(_)) == F(1)\nBad == Use(G)", true, false},
-		{"builtin arity", "Bad == Len(<<1>>, <<2>>)", true, false},
-		{"existing let name", "F == 2\nBad == LET F == 1 IN F", true, false},
-		{"duplicate let in hidden definition", "F == LET F == 1\n             F == 2\n         IN F", true, false},
-		{"local operator parameter matches own name", "F == LET F(F) == F IN F(1)", true, false},
-		{"local operator parameter matches own name with arity", "F == LET F(F(_)) == F(1) IN F(LAMBDA x: x)", true, false},
-		{"later parameter matches local operator", "F == LET F(x, F) == x IN F(1, 2)", true, false},
-		{"recursive local parameter matches own name", "F == LET RECURSIVE F(_) F(F) == F IN F(1)", true, false},
-		{"different local operator parameter matches own name", "F == LET G(G) == G IN G(1)", true, false},
-		{"duplicate bound in hidden definition", "F == \\A F \\in {1}, F \\in {1}: F = 1", true, false},
-		{"nested conflict with local name", "F == LET F == 1\n             G == LET F == 2 IN F\n         IN G", true, false},
-		{"recursive name remains visible", "RECURSIVE F(_)\nF(x) == LET F == 1 IN F", true, false},
-		{"other existing bound name", "G == 1\nF == \\A G \\in {1}: G = 1", true, false},
-		{"backward call", "F(x) == x\nGood == F(1)", false, false},
-		{"recursive declaration", "RECURSIVE F(_)\nF(x) == IF x = 0 THEN 0 ELSE F(x)", false, false},
-		{"recursive let", "Good == LET RECURSIVE F(_)\n                F(x) == IF x = 0 THEN 0 ELSE F(x-1)\n            IN F(1)", false, false},
-		{"mutual recursion", "RECURSIVE Even(_), Odd(_)\nEven(x) == IF x = 0 THEN TRUE ELSE Odd(x-1)\nOdd(x) == IF x = 0 THEN FALSE ELSE Even(x-1)\nGood == Even(2)", false, false},
-		{"mutual recursion let", "Good == LET RECURSIVE Even(_), Odd(_)\n                Even(x) == IF x = 0 THEN TRUE ELSE Odd(x-1)\n                Odd(x) == IF x = 0 THEN FALSE ELSE Even(x-1)\n            IN Even(2)", false, false},
-		{"same name let", "F == LET F == 1 IN F", false, false},
-		{"same name bound", "F == \\A F \\in {1}: F = 1", false, false},
-		{"same name local parameter", "F == LET G(F) == F IN G(1)", false, false},
-		{"same name local operator distinct parameter", "F == LET F(x) == x IN F(1)", false, false},
-		{"same name local operator distinct operator parameter", "F == LET F(G(_)) == G(1) IN F(LAMBDA x: x)", false, false},
-		{"same name recursive local operator", "F == LET RECURSIVE F(_) F(x) == IF x = 0 THEN 0 ELSE F(x-1) IN F(1)", false, false},
-		{"recursive function", "F[x \\in 0..1] == IF x = 0 THEN 0 ELSE F[x-1]", false, false},
-		{"bound name", "Good == \\A x \\in {1}: x = 1", false, false},
-		{"operator argument", "F(x) == x\nUse(G(_)) == G(1)\nGood == Use(F)", false, false},
-		{"backward let", "Good == LET G == 1\n            F == G\n        IN F", false, false},
-		{"let before module name", "Good == LET F == 1 IN F\nF == 2", false, false},
-		{"builtin", "Good == Len(<<1>>)", false, false},
-		{"instance", "I == INSTANCE A\nGood == I!F(1)", false, false},
-		{"instance with substitution", "I == INSTANCE B WITH C <- 1\nGood == I!F", false, false},
-		{"instance arity", "I == INSTANCE A\nBad == I!F(1, 2)", true, false},
-		{"instance before declaration", "Bad == I!F(1)\nI == INSTANCE A", true, false},
+		{"unused forward call", "Bad == Later(1)\nLater(x) == x", true},
+		{"same line forward", "Bad == Later(1) Later(x) == x", true},
+		{"same line backward", "Earlier(x) == x Good == Earlier(1)", false},
+		{"local forward", "LOCAL Bad == Later(1)\nLater(x) == x", true},
+		{"forward variable", "Bad == v", true},
+		{"forward constant", "Bad == Later\nCONSTANT Later", true},
+		{"forward assumption", "ASSUME Later = 1\nLater == 1", true},
+		{"forward theorem", "THEOREM Later = 1\nLater == 1", true},
+		{"unused self call", "Bad(x) == Bad(x)", true},
+		{"unused self value", "Bad == Bad", true},
+		{"self as operator argument", "Use(F(_)) == F(1)\nBad(x) == Use(Bad)", true},
+		{"let self call", "Bad == LET F(x) == F(x) IN 1", true},
+		{"forward operator argument", "Use(F(_)) == F(1)\nBad == Use(Later)\nLater(x) == x", true},
+		{"forward let", "Bad == LET F == G\n           G == 1\n       IN F", true},
+		{"nested let references later parent", "Bad == LET A == LET X == B IN X B == 1 IN A", true},
+		{"nested let shadows later parent", "Good == LET X == LET B == 2 IN B B == 1 IN X", false},
+		{"forward selector", "Bad == Later!lab\nLater == lab :: 1", true},
+		{"backward selector", "Earlier == lab :: 1\nGood == Earlier!lab", false},
+		{"forward numbered selector", "Bad == Later!1\nLater == 1 + 1", true},
+		{"let forward selector", "Bad == LET F == G!lab G == lab :: 1 IN F", true},
+		{"let backward selector", "Good == LET G == lab :: 1 F == G!lab IN F", false},
+		{"recursive forward selector", "RECURSIVE F, G\nF == G!lab\nG == lab :: 1", true},
+		{"recursive own selector", "RECURSIVE F\nF == lab :: F!lab", true},
+		{"unknown name", "Bad == Missing", true},
+		{"wrong arity", "F(x) == x\nBad == F(1, 2)", true},
+		{"wrong operator argument arity", "G(x, y) == x\nUse(F(_)) == F(1)\nBad == Use(G)", true},
+		{"builtin arity", "Bad == Len(<<1>>, <<2>>)", true},
+		{"existing let name", "F == 2\nBad == LET F == 1 IN F", true},
+		{"duplicate let in hidden definition", "F == LET F == 1\n             F == 2\n         IN F", true},
+		{"local operator parameter matches own name", "F == LET F(F) == F IN F(1)", true},
+		{"local operator parameter matches own name with arity", "F == LET F(F(_)) == F(1) IN F(LAMBDA x: x)", true},
+		{"later parameter matches local operator", "F == LET F(x, F) == x IN F(1, 2)", true},
+		{"recursive local parameter matches own name", "F == LET RECURSIVE F(_) F(F) == F IN F(1)", true},
+		{"different local operator parameter matches own name", "F == LET G(G) == G IN G(1)", true},
+		{"duplicate bound in hidden definition", "F == \\A F \\in {1}, F \\in {1}: F = 1", true},
+		{"nested conflict with local name", "F == LET F == 1\n             G == LET F == 2 IN F\n         IN G", true},
+		{"recursive name remains visible", "RECURSIVE F(_)\nF(x) == LET F == 1 IN F", true},
+		{"other existing bound name", "G == 1\nF == \\A G \\in {1}: G = 1", true},
+		{"backward call", "F(x) == x\nGood == F(1)", false},
+		{"recursive declaration", "RECURSIVE F(_)\nF(x) == IF x = 0 THEN 0 ELSE F(x)", false},
+		{"recursive declaration too late", "A(x) == B(x)\nRECURSIVE B(_)\nB(x) == x", true},
+		{"unrelated recursive declaration", "RECURSIVE A(_)\nA(x) == B(x)\nB(x) == x", true},
+		{"recursive declaration visible before definition", "RECURSIVE F(_)\nGood == F(1)\nF(x) == x", false},
+		{"recursive declaration not yet visible", "Bad == F(1)\nRECURSIVE F(_)\nF(x) == x", true},
+		{"same line mutual recursion", "RECURSIVE A(_), B(_) A(x) == B(x) B(x) == x", false},
+		{"recursive let", "Good == LET RECURSIVE F(_)\n                F(x) == IF x = 0 THEN 0 ELSE F(x-1)\n            IN F(1)", false},
+		{"mutual recursion", "RECURSIVE Even(_), Odd(_)\nEven(x) == IF x = 0 THEN TRUE ELSE Odd(x-1)\nOdd(x) == IF x = 0 THEN FALSE ELSE Even(x-1)\nGood == Even(2)", false},
+		{"mutual recursion let", "Good == LET RECURSIVE Even(_), Odd(_)\n                Even(x) == IF x = 0 THEN TRUE ELSE Odd(x-1)\n                Odd(x) == IF x = 0 THEN FALSE ELSE Even(x-1)\n            IN Even(2)", false},
+		{"same name let", "F == LET F == 1 IN F", false},
+		{"same name bound", "F == \\A F \\in {1}: F = 1", false},
+		{"same name local parameter", "F == LET G(F) == F IN G(1)", false},
+		{"same name local operator distinct parameter", "F == LET F(x) == x IN F(1)", false},
+		{"same name local operator distinct operator parameter", "F == LET F(G(_)) == G(1) IN F(LAMBDA x: x)", false},
+		{"same name recursive local operator", "F == LET RECURSIVE F(_) F(x) == IF x = 0 THEN 0 ELSE F(x-1) IN F(1)", false},
+		{"recursive function", "F[x \\in 0..1] == IF x = 0 THEN 0 ELSE F[x-1]", false},
+		{"bound name", "Good == \\A x \\in {1}: x = 1", false},
+		{"operator argument", "F(x) == x\nUse(G(_)) == G(1)\nGood == Use(F)", false},
+		{"backward let", "Good == LET G == 1\n            F == G\n        IN F", false},
+		{"let before module name", "Good == LET F == 1 IN F\nF == 2", false},
+		{"builtin", "Good == Len(<<1>>)", false},
+		{"instance", "I == INSTANCE A\nGood == I!F(1)", false},
+		{"instance with substitution", "I == INSTANCE B WITH C <- 1\nGood == I!F", false},
+		{"instance with forward substitution", "I == INSTANCE B WITH C <- Later\nLater == 1", true},
+		{"instance with backward substitution", "Earlier == 1\nI == INSTANCE B WITH C <- Earlier", false},
+		{"let instance before definition", "Good == LET I == INSTANCE A F == I!F(1) IN F", false},
+		{"instance arity", "I == INSTANCE A\nBad == I!F(1, 2)", true},
+		{"instance before declaration", "Bad == I!F(1)\nI == INSTANCE A", true},
 	}
 	jar := os.Getenv("TLC_JAR")
 	if jar != "" {
@@ -98,11 +120,7 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 				return auxiliary, nil
 			}
 			result, err := CheckWithLoader(context.Background(), source, cfg, loader)
-			if tc.gap {
-				if err == nil {
-					t.Log("known gap: Go accepted a Java semantic error")
-				}
-			} else if tc.invalid {
+			if tc.invalid {
 				if err == nil {
 					t.Fatalf("Go accepted invalid module: %+v", result)
 				}
@@ -118,7 +136,7 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 				t.Fatal(err)
 			}
 			direct, directErr := CheckModuleWithLoader(context.Background(), module, parsedConfig, loader)
-			if !tc.gap && ((directErr != nil) != tc.invalid || !tc.invalid && direct.Status != Success) {
+			if (directErr != nil) != tc.invalid || !tc.invalid && direct.Status != Success {
 				t.Fatalf("direct API: result %+v, error %v, invalid %t", direct, directErr, tc.invalid)
 			}
 			if jar == "" {
@@ -133,9 +151,6 @@ func TestJavaTLCNameResolutionOrder(t *testing.T) {
 			sany, sanyCode := runNameResolutionJava(t, dir, "-cp", jar, "tla2sany.SANY", "M.tla")
 			if sanyCode != 0 || strings.Contains(sany, "Semantic errors:") != tc.invalid || strings.Contains(sany, "Parse Error") {
 				t.Fatalf("SANY exit %d, invalid %t:\n%s", sanyCode, tc.invalid, sany)
-			}
-			if tc.gap && !strings.Contains(sany, "Unknown operator:") {
-				t.Fatalf("SANY did not report an unknown operator:\n%s", sany)
 			}
 			tlc, tlcCode := runNameResolutionJava(t, dir, "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 			wantCode := 0

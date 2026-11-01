@@ -7,6 +7,7 @@ func mergeExtensions(root *parser.Module, units []*parser.Module, standard []str
 	result.Extends = standard
 	result.Constants = nil
 	result.Variables = nil
+	result.SourceDeclarations = nil
 	result.Definitions = nil
 	result.Assumptions = nil
 	result.ProofDirectives = nil
@@ -37,10 +38,12 @@ func mergeExtensionUnit(result, unit *parser.Module, offset int) {
 	addProofModules(result, unit.ProofModules...)
 	addInstanceStandardModules(result, unit.InstanceStandardModules...)
 	for _, declaration := range unit.Constants {
+		rememberSourceDeclaration(result, unit, declaration)
 		declaration.Location.Line += offset
 		result.Constants = append(result.Constants, declaration)
 	}
 	for _, declaration := range unit.Variables {
+		rememberSourceDeclaration(result, unit, declaration)
 		declaration.Location.Line += offset
 		result.Variables = append(result.Variables, declaration)
 	}
@@ -63,6 +66,25 @@ func mergeExtensionUnit(result, unit *parser.Module, offset int) {
 		}
 	}
 	result.RecursiveDeclarations = append(result.RecursiveDeclarations, unit.RecursiveDeclarations...)
+}
+
+func rememberSourceDeclaration(result, unit *parser.Module, declaration parser.Declaration) {
+	if result.SourceDeclarations == nil {
+		result.SourceDeclarations = make(map[string]parser.Location)
+	}
+	if origin, ok := unit.SourceDeclarations[declaration.Name]; ok {
+		result.SourceDeclarations[declaration.Name] = origin
+		return
+	}
+	result.SourceDeclarations[declaration.Name] = declarationSourceLocation(unit.Name, declaration.Location)
+}
+
+func declarationSourceLocation(module string, location parser.Location) parser.Location {
+	if location.Range.Module == "" && location.Line != 0 {
+		location.Range.Module = module
+		location.Range.Start = location.Position
+	}
+	return location
 }
 
 func extensionLastLine(module *parser.Module) int {

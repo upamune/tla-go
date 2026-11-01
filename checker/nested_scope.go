@@ -5,6 +5,7 @@ import "github.com/upamune/tla-go/syntax/parser"
 // Nested modules may refer to enclosing declarations that precede them.
 func nestedScope(module, parent *parser.Module) parser.Module {
 	result := *module
+	result.SourceDeclarations = nil
 	result.Extends = append(append([]string(nil), module.Extends...), parent.Extends...)
 	result.ProofModules = append([]string(nil), module.ProofModules...)
 	addProofModules(&result, parent.ProofModules...)
@@ -14,8 +15,30 @@ func nestedScope(module, parent *parser.Module) parser.Module {
 	line := module.Location.Range.Start.Line
 	result.Constants = append(declarationsBefore(parent.Constants, parent.Name, line), module.Constants...)
 	result.Variables = append(declarationsBefore(parent.Variables, parent.Name, line), module.Variables...)
+	for _, declaration := range result.Constants {
+		rememberNestedSource(&result, module, parent, declaration)
+	}
+	for _, declaration := range result.Variables {
+		rememberNestedSource(&result, module, parent, declaration)
+	}
 	result.Definitions = append(definitionsBefore(parent.Definitions, parent.Name, line), module.Definitions...)
 	return result
+}
+
+func rememberNestedSource(result, module, parent *parser.Module, declaration parser.Declaration) {
+	if _, ok := module.SourceDeclarations[declaration.Name]; ok {
+		rememberSourceDeclaration(result, module, declaration)
+		return
+	}
+	if _, ok := parent.SourceDeclarations[declaration.Name]; ok {
+		rememberSourceDeclaration(result, parent, declaration)
+		return
+	}
+	owner := module
+	if declaration.Location.Range.Module == parent.Name || declaration.Location.Range.Module == "" && declaration.Location.Line < module.Location.Range.Start.Line {
+		owner = parent
+	}
+	rememberSourceDeclaration(result, owner, declaration)
 }
 
 func declarationsBefore(declarations []parser.Declaration, parent string, line int) []parser.Declaration {
