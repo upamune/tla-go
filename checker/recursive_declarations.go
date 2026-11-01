@@ -9,7 +9,7 @@ import (
 // Check source scopes before EXTENDS and INSTANCE expansion can combine or
 // rename their definitions. LET declarations belong only to their own LET.
 func validateRecursiveModule(module *parser.Module) error {
-	if err := validateRecursiveDeclarations(module.RecursiveDeclarations, module.Definitions); err != nil {
+	if err := validateRecursiveModuleDeclarations(module); err != nil {
 		return fmt.Errorf("module %s: %w", module.Name, err)
 	}
 	for _, d := range module.Definitions {
@@ -29,6 +29,13 @@ func validateRecursiveModule(module *parser.Module) error {
 		}
 	}
 	return nil
+}
+
+func validateRecursiveModuleDeclarations(module *parser.Module) error {
+	if err := validateRecursiveSection(module); err != nil {
+		return err
+	}
+	return validateRecursiveDeclarations(module.RecursiveDeclarations, module.Definitions)
 }
 
 func validateRecursiveAssertions(module *parser.Module) error {
