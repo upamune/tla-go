@@ -23,7 +23,7 @@ func (t systemPeriodicTimer) C() <-chan time.Time     { return t.Timer.C }
 func realPeriodicTimer(d time.Duration) periodicTimer { return systemPeriodicTimer{time.NewTimer(d)} }
 
 func periodicCoverageEligible(o options, out, errout io.Writer) bool {
-	return o.coverage && coordinateEventOutput(o.coverageInterval, out) && regularOutputFile(out) && regularOutputFile(errout) &&
+	return o.coverage && o.coverageInterval >= 0 && regularOutputFile(out) && regularOutputFile(errout) &&
 		periodicModeEligible(o) && periodicOutputEligible(o)
 }
 

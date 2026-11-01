@@ -41,6 +41,7 @@ func TestJavaTLCCoveragePeriodicOracle(t *testing.T) {
 		tool, coverage bool
 	}{
 		{"zero-tool", "0", true, true},
+		{"zero-plain", "0", false, true},
 		{"minute-tool", "1", true, false},
 		{"wrapped-plain", "71583", false, true},
 		{"wrapped-tool", "71583", true, true},

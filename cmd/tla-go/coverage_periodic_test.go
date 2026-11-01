@@ -67,7 +67,7 @@ func TestPeriodicCoverageBlockedCheck(t *testing.T) {
 	const source = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nA == /\\ x < 2\n     /\\ x' = x + 1\nB == x' = x\nNext == A \\/ B\n===="
 	const cfg = "INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n"
 	for _, tool := range []bool{false, true} {
-		for _, interval := range []time.Duration{12704 * time.Millisecond, time.Minute, 72704 * time.Millisecond} {
+		for _, interval := range []time.Duration{0, 12704 * time.Millisecond, time.Minute, 72704 * time.Millisecond} {
 			t.Run(fmtTestName(tool, interval), func(t *testing.T) {
 				requests, timer := testTimers()
 				output := &synchronizedOutput{writes: make(chan string, 10)}
@@ -174,14 +174,26 @@ func TestPeriodicCoverageEligibility(t *testing.T) {
 	if !periodicCoverageEligible(base, file, file) {
 		t.Fatal("normal file output ineligible")
 	}
+	zero := base
+	zero.coverageInterval = 0
+	if !periodicCoverageEligible(zero, file, file) {
+		t.Fatal("explicit zero ineligible")
+	}
+	zero.coverage = false
+	if periodicCoverageEligible(zero, file, file) {
+		t.Fatal("absent coverage eligible")
+	}
 	for name, mutate := range map[string]func(*options){
-		"zero": func(o *options) { o.coverageInterval = 0 }, "disabled": func(o *options) { o.coverage = false }, "checkpoint": func(o *options) { o.checkpoint = true }, "recover": func(o *options) { o.recoverDir = "x" }, "graph": func(o *options) { o.dumpPath = "x" }, "debug": func(o *options) { o.compat.debug = true }, "profile": func(o *options) { o.cpuPath = "x" }, "userFile": func(o *options) { o.compat.userFile = "x" }, "simulate": func(o *options) { o.simulate = true }, "dfid": func(o *options) { o.dfid = true }, "continue": func(o *options) { o.continuation = true }, "specTE": func(o *options) { o.compat.specTE = &specTE{} },
+		"disabled": func(o *options) { o.coverage = false }, "checkpoint": func(o *options) { o.checkpoint = true }, "recover": func(o *options) { o.recoverDir = "x" }, "graph": func(o *options) { o.dumpPath = "x" }, "debug": func(o *options) { o.compat.debug = true }, "profile": func(o *options) { o.cpuPath = "x" }, "userFile": func(o *options) { o.compat.userFile = "x" }, "simulate": func(o *options) { o.simulate = true }, "dfid": func(o *options) { o.dfid = true }, "continue": func(o *options) { o.continuation = true }, "specTE": func(o *options) { o.compat.specTE = &specTE{} },
 	} {
 		t.Run(name, func(t *testing.T) {
-			o := base
-			mutate(&o)
-			if periodicCoverageEligible(o, file, file) {
-				t.Fatal("eligible")
+			for _, interval := range []time.Duration{0, time.Minute} {
+				o := base
+				o.coverageInterval = interval
+				mutate(&o)
+				if periodicCoverageEligible(o, file, file) {
+					t.Fatal("eligible")
+				}
 			}
 		})
 	}
@@ -206,8 +218,66 @@ func TestPeriodicCoverageEligibility(t *testing.T) {
 	closed.Close()
 	for name, sink := range map[string]*os.File{"pipe": writer, "device": device, "stat-error": closed, "nil": nil} {
 		t.Run(name, func(t *testing.T) {
-			if periodicCoverageEligible(base, sink, file) || periodicCoverageEligible(base, file, sink) {
-				t.Fatal("unsafe sink eligible")
+			for _, interval := range []time.Duration{0, time.Minute} {
+				o := base
+				o.coverageInterval = interval
+				if periodicCoverageEligible(o, sink, file) || periodicCoverageEligible(o, file, sink) {
+					t.Fatal("unsafe sink eligible")
+				}
+			}
+		})
+	}
+}
+
+func TestPeriodicCoverageZeroOutputFallback(t *testing.T) {
+	dir := t.TempDir()
+	source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nA == /\\ x < 1000000000\n     /\\ x' = x + 1\nB == x' = x\nNext == A \\/ B\n====\n"
+	if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, customStdout := range []bool{false, true} {
+		t.Run(fmt.Sprint(customStdout), func(t *testing.T) {
+			t.Parallel()
+			file, err := os.CreateTemp(t.TempDir(), "output")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			var custom bytes.Buffer
+			var out, errout io.Writer = file, &custom
+			if customStdout {
+				out, errout = &custom, file
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan int, 1)
+			go func() {
+				done <- runWithInput(ctx, []string{"-coverage", "0", filepath.Join(dir, "M.tla")}, strings.NewReader(""), out, errout)
+			}()
+			select {
+			case code := <-done:
+				t.Fatalf("zero interval stopped before cancellation: %d", code)
+			case <-time.After(3500 * time.Millisecond):
+			}
+			cancel()
+			select {
+			case code := <-done:
+				if code == 0 {
+					t.Fatal("canceled check succeeded")
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("canceled check did not stop")
+			}
+			data, err := os.ReadFile(file.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			output := string(data) + custom.String()
+			if strings.Contains(output, "Progress(") || strings.Contains(output, "The coverage statistics at ") || strings.Contains(output, "-coverage interval elapsed") {
+				t.Fatalf("unexpected fallback output: %s", output)
 			}
 		})
 	}
@@ -250,6 +320,7 @@ func TestPeriodicCoverageUnreadPipeInterrupt(t *testing.T) {
 	implementations := []implementation{
 		{"go-deadline", []string{binary, "-workers", "1", "-coverage", "71583", "M.tla"}, false, true},
 		{"go-interrupt", []string{binary, "-workers", "1", "-coverage", "1", "M.tla"}, false, false},
+		{"go-zero-interrupt", []string{binary, "-workers", "1", "-coverage", "0", "M.tla"}, false, false},
 	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		implementations = append(implementations, implementation{"java", []string{"java", "-XX:+UseParallelGC", "-Xmx512m", "-cp", jar, "tlc2.TLC", "-workers", "1", "-coverage", "71583", "M.tla"}, true, false})
@@ -420,16 +491,59 @@ func TestPeriodicCoveragePipeFinalBytes(t *testing.T) {
 	}
 }
 
+func TestPeriodicCoverageZeroShortRegularFile(t *testing.T) {
+	dir := t.TempDir()
+	source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nA == /\\ x < 2\n     /\\ x' = x + 1\nB == x' = x\nNext == A \\/ B\n====\n"
+	if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err := os.CreateTemp(dir, "out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer out.Close()
+	errout, err := os.CreateTemp(dir, "err")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer errout.Close()
+	args := []string{"-workers", "1", "-coverage", "0", filepath.Join(dir, "M.tla")}
+	if code := runWithInput(context.Background(), args, strings.NewReader(""), out, errout); code != 0 {
+		t.Fatalf("regular file exit: %d", code)
+	}
+	data, err := os.ReadFile(out.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fallback, stderr bytes.Buffer
+	if code := runWithInput(context.Background(), args, strings.NewReader(""), &fallback, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("fallback exit: %d, stderr: %s", code, stderr.String())
+	}
+	if strings.Contains(string(data), "Progress(") || coverageReport(t, string(data)) != coverageReport(t, fallback.String()) {
+		t.Fatalf("short regular-file output differs from fallback: %s", data)
+	}
+}
+
 func BenchmarkPeriodicCoverageEligibility(b *testing.B) {
 	file, err := os.CreateTemp(b.TempDir(), "output")
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer file.Close()
-	opts := options{coverage: true, coverageInterval: time.Minute}
-	b.ReportAllocs()
-	for b.Loop() {
-		_ = periodicCoverageEligible(opts, file, file)
+	for name, opts := range map[string]options{
+		"absent":   {},
+		"zero":     {coverage: true},
+		"positive": {coverage: true, coverageInterval: time.Minute},
+	} {
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				_ = periodicCoverageEligible(opts, file, file)
+			}
+		})
 	}
 }
 
@@ -496,6 +610,10 @@ func TestPeriodicCoverageRealFileCLI(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	binary := filepath.Join(dir, "tla-go")
+	if data, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, data)
+	}
 	out, err := os.Create(filepath.Join(dir, "out"))
 	if err != nil {
 		t.Fatal(err)
@@ -506,12 +624,15 @@ func TestPeriodicCoverageRealFileCLI(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer errout.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	done := make(chan int, 1)
-	go func() {
-		done <- runWithInput(ctx, []string{"-tool", "-coverage", "71583", filepath.Join(dir, "M.tla")}, strings.NewReader(""), out, errout)
-	}()
+	cmd := exec.Command(binary, "-tool", "-coverage", "0", filepath.Join(dir, "M.tla"))
+	cmd.Stdout, cmd.Stderr = out, errout
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	defer func() { _ = cmd.Process.Kill() }()
+	timeout := time.After(15 * time.Second)
 	var output string
 	for {
 		data, readErr := os.ReadFile(out.Name())
@@ -523,16 +644,21 @@ func TestPeriodicCoverageRealFileCLI(t *testing.T) {
 			break
 		}
 		select {
-		case code := <-done:
-			t.Fatalf("CLI returned %d before periodic report: %s", code, output)
-		case <-ctx.Done():
+		case err := <-done:
+			t.Fatalf("CLI returned %v before periodic report: %s", err, output)
+		case <-timeout:
 			t.Fatalf("report timed out: %s", output)
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
-	cancel()
+	if err := cmd.Process.Signal(os.Interrupt); err != nil {
+		t.Fatal(err)
+	}
 	select {
-	case <-done:
+	case err := <-done:
+		if err == nil {
+			t.Fatal("interrupted CLI succeeded")
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("CLI did not stop")
 	}

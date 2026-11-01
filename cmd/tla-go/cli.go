@@ -249,13 +249,14 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 	checkOptions.OnTemporalViolation = temporalViolationOutput(opts, module, out)
 	checkOptions.OnTemporalCheck = temporalCheckOutput(opts, out)
 	var coordinator *coordinatedEventOutput
-	if coordinateEventOutput(opts.coverageInterval, out) {
+	periodicEligible := periodicCoverageEligible(opts, out, errout)
+	if coordinateEventOutput(opts.coverageInterval, out) || periodicEligible {
 		coordinator = coordinateCallbacks(&checkOptions, opts, module, out)
 	}
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}
-	result, err := checkCoverageMode(ctx, opts, module, parsed, checkOptions, coordinator, out, errout)
+	result, err := checkCoverageMode(ctx, opts, module, parsed, checkOptions, coordinator, periodicEligible)
 	if graph != nil {
 		if closeErr := graph.close(graphShouldFinish(result, err)); err == nil {
 			err = closeErr
@@ -264,8 +265,8 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 	return result, err
 }
 
-func checkCoverageMode(ctx context.Context, opts options, module *parser.Module, parsed config.Config, checkOptions checker.Options, coordinator *coordinatedEventOutput, out, errout io.Writer) (checker.Result, error) {
-	if periodicCoverageEligible(opts, out, errout) {
+func checkCoverageMode(ctx context.Context, opts options, module *parser.Module, parsed config.Config, checkOptions checker.Options, coordinator *coordinatedEventOutput, periodicEligible bool) (checker.Result, error) {
+	if periodicEligible {
 		var progress checker.LiveProgress
 		checkOptions.LiveProgress = &progress
 		periodic := newPeriodicCoverage(ctx, opts, &progress, coordinator, realPeriodicTimer)

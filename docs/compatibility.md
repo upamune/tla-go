@@ -148,29 +148,31 @@ For evaluation failures, failures after this existential has been evaluated,
 or failures with a successor trace, coverage is omitted because TLC can charge
 replay to its cost model; the diagnostic and exit status are retained. Failures
 before evaluation that do not require replay retain their normal coverage behavior.
-For positive effective intervals, the standard breadth-first CLI can emit
-periodic progress and coverage when both output sinks are `os.File`s whose
+For explicitly enabled coverage with a nonnegative effective interval, the
+standard breadth-first CLI can emit periodic progress and coverage when both output sinks are `os.File`s whose
 `Stat` reports regular files, and
 checkpoint/recovery, debugging/profiling, state dumps, user output files,
 SpecTE, simulation, DFID and continuation are absent. Coverage model validation
 still applies. The timer begins after initial-state generation, first reports
 progress after three seconds and then at one-minute ticks. It reports coverage
 after the tick count derived from Java's 32-bit millisecond interval, including
-wrapped positive intervals. Reports and exploration callbacks are committed as
-whole output transactions; the reporting goroutine is stopped and joined before
+wrapped intervals. An effective zero reports coverage at every progress tick;
+omitting `-coverage` does not enable periodic reporting. Reports and exploration
+callbacks are committed as whole output transactions; the reporting goroutine is stopped and joined before
 final or error output. The counts and coverage are sampled separately, while
 exploration continues, so their values need not describe the same instant.
 
 Other positive-interval cases retain the conservative deadline: the earlier of
 the effective interval and three seconds plus that interval rounded down to
-whole minutes. If it elapses, checking is canceled with an error. `-coverage 0`
-and arguments whose 32-bit millisecond conversion wraps to zero retain their
-previous behavior: no timeout and a final coverage report, but no periodic
-output. Java can wake its timed waits spuriously, so exact reporting times are
-not guaranteed.
+whole minutes. If it elapses, checking is canceled with an error. For ineligible
+outputs or options, `-coverage 0` and arguments whose 32-bit millisecond conversion
+wraps to zero retain their previous behavior: no timeout and a final coverage
+report, but no periodic output. Java can wake its timed waits spuriously, so
+exact reporting times are not guaranteed.
 Pipes, terminals, other non-regular files, and files that cannot be statted use
-the deadline path: a blocked periodic write cannot otherwise be canceled and
-joined safely. Ordinary CLI writes can still block if their consumer stops reading.
+the fallback path (including a deadline only for positive intervals): a blocked
+periodic write cannot otherwise be canceled and joined safely. Ordinary CLI
+writes can still block if their consumer stops reading.
 Java 1.7.4 starts its progress loop after initial-state generation and waits up
 to three seconds before the first progress report. Its progress report reads the
 fingerprint set size, generated count, level and queue size separately while
@@ -191,6 +193,8 @@ differ from Java's independently sampled reporting level. The coverage report
 uses a synchronized snapshot of individual collector updates, while Java's
 report can sample counters independently. No replay is performed for a periodic
 report, and a slow successor evaluation does not hold the collector lock.
+These restrictions and sampling differences mean periodic reporting is not full
+Java TLC parity.
 
 `Options.LiveProgress` can opt a coverage check into publishing copies of its
 generated, distinct, queued and depth counters. A fresh `LiveProgress` belongs
