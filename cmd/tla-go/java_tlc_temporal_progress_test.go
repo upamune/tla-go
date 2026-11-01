@@ -33,6 +33,7 @@ func TestJavaTLCTemporalProgress(t *testing.T) {
 		{"tableau success", "Init == x=0\nNext == x'=(x+1)%3\nP == <>(x=0)", "PROPERTY P", 0},
 		{"tableau constraint", "Init == x=0\nNext == x'=(x+1)%4\nC == x<2\nP == <>(x=3)", "PROPERTY P\nCONSTRAINT C", 13},
 		{"tableau action constraint", "Init == x=0\nNext == x'=(x+1)%4\nC == x'<2\nP == <>(x=3)", "PROPERTY P\nACTION_CONSTRAINT C", 13},
+		{"tableau initial effect and constraints", "Init == /\\ x=0 /\\ PrintT(\"init-effect\")\nNext == x'=(x+1)%4\nC == x<2\nA == x'<2\nP == <>(x=3)", "PROPERTY P\nCONSTRAINT C\nACTION_CONSTRAINT A", 13},
 		{"multiple branches", "Init == x=0\nNext == x'=(x+1)%3\nP == <>(x=1) /\\ <>(x=2)", "PROPERTY P", 13},
 		{"assumption", "ASSUME FALSE\nInit == x=0\nNext == UNCHANGED x\nP == <>(x=1)", "PROPERTY P", 10},
 		{"invariant", "Init == x=0\nNext == x'=x+1\nP == <>(x=3)\nI == x<2", "PROPERTY P\nINVARIANT I", 12},
@@ -148,7 +149,63 @@ func TestJavaTLCTableauProgressWithInitialEffect(t *testing.T) {
 	if strings.Count(out.String(), "init-effect") != 2 || strings.Count(string(java), "init-effect") != 2 {
 		t.Fatalf("effect count differs: Go %s\nJava %s", &out, java)
 	}
-	if hasToolMessage(readToolMessages(out.String()), 2192) || !hasToolMessage(readToolMessages(string(java)), 2192) {
-		t.Fatalf("expected conservative omission: Go %s\nJava %s", &out, java)
+	if got, want := temporalProgressMessages(out.String()), temporalProgressMessages(string(java)); !reflect.DeepEqual(got, want) {
+		t.Fatalf("progress differs: Go %q Java %q\nGo %s\nJava %s", got, want, &out, java)
+	}
+}
+
+func TestJavaTLCTableauProgressWithNextEffect(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == /\\ UNCHANGED x /\\ PrintT(\"next-effect\")\nP == <>(x=1)", "INIT Init\nNEXT Next\nPROPERTY P")
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
+	cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+	cmd.Dir = dir
+	java, err := cmd.CombinedOutput()
+	if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+		t.Fatalf("Go exit %d stderr %s; Java %v\n%s", code, &errout, err, java)
+	}
+	if !strings.Contains(out.String(), "next-effect") || !strings.Contains(string(java), "next-effect") || hasToolMessage(readToolMessages(out.String()), 2192) || !hasToolMessage(readToolMessages(string(java)), 2192) {
+		t.Fatalf("expected effect and conservative omission: Go %s\nJava %s", &out, java)
+	}
+}
+
+func TestJavaTLCTableauProgressWithReusedInitialPredicate(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	for _, tc := range []struct{ name, init, extra, constraint string }{
+		{"state constraint", `x = 0 /\ PrintT("init-effect")`, "", "CONSTRAINT Init"},
+		{"action constraint", `x = 0 /\ PrintT("init-effect")`, "", "ACTION_CONSTRAINT Init"},
+		{"alias", `x = 0 /\ PrintT("init-effect")`, "C == Init", "CONSTRAINT C"},
+		{"dynamic", `x = 0 /\ TLCGet("distinct") >= 0`, "", "CONSTRAINT Init"},
+		{"instance", `x = 0 /\ I!PrintT("init-effect")`, "I == INSTANCE TLC\nC == Init", "CONSTRAINT C"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			pre, extra := "", tc.extra
+			if after, ok := strings.CutPrefix(extra, "I == INSTANCE TLC\n"); ok {
+				pre, extra = "I == INSTANCE TLC\n", after
+			}
+			writeDOTFixture(t, dir, "VARIABLE x\n"+pre+"Init == "+tc.init+"\n"+extra+"\nNext == UNCHANGED x\nP == <>(x=1)", "INIT Init\nNEXT Next\nPROPERTY P\n"+tc.constraint)
+			args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
+			cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+			cmd.Dir = dir
+			java, err := cmd.CombinedOutput()
+			if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+				t.Fatalf("Go exit %d stderr %s output %s; Java %v\n%s", code, &errout, &out, err, java)
+			}
+			if hasToolMessage(readToolMessages(out.String()), 2192) || !hasToolMessage(readToolMessages(string(java)), 2192) {
+				t.Fatalf("expected conservative omission: Go %s\nJava %s", &out, java)
+			}
+		})
 	}
 }

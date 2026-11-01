@@ -28,3 +28,24 @@ func BenchmarkTableauLivenessEvents(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkTableauInitialEffectProgress(b *testing.B) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0 /\\ PrintT(\"init\")\nNext == x' = (x + 1) % 40\nP == <>(x = 40)\n===="
+	for _, enabled := range []bool{false, true} {
+		name := "without listener"
+		opts := Options{OnPrint: func(string) {}}
+		if enabled {
+			name = "with listener"
+			opts.OnSearch = func(SearchEvent) {}
+		}
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next PROPERTY P CHECK_DEADLOCK FALSE", opts)
+				if err != nil || result.Status != LivenessViolation {
+					b.Fatalf("got %+v, %v", result, err)
+				}
+			}
+		})
+	}
+}

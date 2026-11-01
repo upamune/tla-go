@@ -1,6 +1,11 @@
 package checker
 
-import "time"
+import (
+	"slices"
+	"time"
+
+	"github.com/upamune/tla-go/syntax/parser"
+)
 
 // startTemporalProgress counts Java's disk-graph table entries, not product
 // nodes. TableauNodePtrTable counts fingerprints, including setDone entries
@@ -28,17 +33,36 @@ func (m *model) validProgressBranches(branches int, tableau bool) bool {
 }
 
 func (m *model) safeTableauProgress() bool {
-	if m.hasReduction() || m.environmentIsImpure() {
+	if m.hasReduction() {
 		return false
 	}
 	// A late tableau node makes Java regenerate successors and recheck both
 	// constraints. Reject unstable definitions, including constant helpers.
-	for _, def := range m.defs {
-		if m.unsafeIncrementalExpression(def.Body) {
+	for name, def := range m.defs {
+		// Initial-state generation is not part of late tableau expansion.
+		// Other definitions are still traversed recursively, so references to
+		// the initial predicate from Next or a constraint remain guarded.
+		if name == m.cfg.Init && !m.initConfiguredForReplay() {
+			continue
+		}
+		if m.unsafeTableauDefinition(def) {
 			return false
 		}
 	}
 	return true
+}
+
+func (m *model) unsafeTableauDefinition(def parser.Definition) bool {
+	return !m.replayConstantDefinition(def) && (m.expressionUsesTLC(def.Body, map[string]bool{}) || m.replayExpressionHasEffects(def.Body, map[string]bool{})) || m.unsafeIncrementalExpression(def.Body)
+}
+
+// Definitions referencing Init are checked above recursively. A configured
+// predicate can also refer to Init directly, without another definition to scan.
+func (m *model) initConfiguredForReplay() bool {
+	init := m.cfg.Init
+	return slices.Contains([]string{m.cfg.Next, m.cfg.Alias, m.cfg.Periodic, m.cfg.RLReward}, init) || slices.Contains(m.cfg.Constraints, init) ||
+		slices.Contains(m.cfg.ActionConstraints, init) || slices.Contains(m.cfg.Invariants, init) ||
+		slices.Contains(m.cfg.Properties, init) || slices.Contains(m.cfg.Possible, init) || slices.Contains(m.cfg.Postconditions, init)
 }
 
 func (m *model) progressBranches() (int, bool) {

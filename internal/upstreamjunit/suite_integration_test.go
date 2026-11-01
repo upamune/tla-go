@@ -55,3 +55,38 @@ func TestPinnedSuiteTest10Partial(t *testing.T) {
 	}
 	t.Log("Go coverage assertion and exact JUnit lifecycle remain unverified; this is not a JUnit pass")
 }
+
+// CCallReturn1's translation and selected TLC messages are compared, not its
+// Java override, coverage assertions, or full JUnit lifecycle.
+func TestPinnedCCallReturn1TemporalProgress(t *testing.T) {
+	root, jar := os.Getenv("TLA_GO_JUNIT_ROOT"), os.Getenv("TLA_GO_JUNIT_JAR")
+	if root == "" || jar == "" {
+		t.Skip("set TLA_GO_JUNIT_ROOT and TLA_GO_JUNIT_JAR")
+	}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jar, err = filepath.Abs(jar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyInputs(root, jar); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(t.TempDir(), "tla-go")
+	if out, err := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	c := Case{Name: "pcal.CCallReturn1Test", Model: "CCallReturn1", Path: "pcal", Workers: "1", Coverage: true, Dump: true, Translate: true, TranslationArgs: []string{"-wf", "-termination"}, IDs: []string{"2190", "2192", "2199", "2194"}, PresenceIDs: []string{"2186", "1000"}}
+	j, g, differences, err := RunCase(root, jar, binary, c, 30*time.Second)
+	if err != nil || len(differences) != 0 || j.ExitCode != 0 || g.ExitCode != 0 {
+		t.Fatalf("partial differential: differences=%v error=%v Java exit=%d Go exit=%d", differences, err, j.ExitCode, g.ExitCode)
+	}
+	for name, result := range map[string]Result{"Java": j, "Go": g} {
+		failures, omissions, err := CheckAssertions(result, []AssertedObservation{{ID: "2192", Present: true, Values: []string{"complete", "8"}}})
+		if err != nil || len(failures) != 0 || len(omissions) != 0 {
+			t.Errorf("%s: failures=%v omissions=%v error=%v", name, failures, omissions, err)
+		}
+	}
+}
