@@ -871,6 +871,49 @@ or nondeterministic rerun remains unresolved. Comparing category names alone
 also cannot detect changes in the underlying differing values. Use the snapshot
 as an index for targeted reproduction, not a complete parity guard.
 
+## Detecting newly observed diagnostic differences
+
+The optional `sweep-regression` command compares a complete, unfiltered sweep
+log with the checked-in `aadcf4ba` snapshot above. It checks the exact baseline
+file hash, pinned upstream commit and jar hash before use. Generate the log as
+described in the full sweep instructions, then run:
+
+```sh
+go run ./internal/upstreamjunit/cmd/sweep-regression /path/to/full-sweep.log
+```
+
+The snapshot captures 340 lexical candidates, of which 294 were compared;
+the rest were unsafe or unavailable. The comparison is of selected diagnostic
+observations only, not the upstream JUnit lifecycle or a count of passed
+tests. The tool identifies new difference categories for each previously
+compared class and flags changed Go exit values even when the `exit` category
+was already present. It lists previously observed categories that did not
+reappear without claiming they were fixed. Selected message body and presence
+ID changes, Java exit changes, missing or new classes, and cases that become
+unavailable are inconclusive. Prior unavailable and unsafe cases remain
+unresolved even if a later run reports a comparison. The known
+nondeterministic classes listed in `regression.go` are excluded with reasons;
+other cases may also be nondeterministic.
+
+Exit code 1 means at least one new selected difference was observed and needs
+reproduction; it does not prove a regression. Exit code 2 means there were no
+new selected differences but the input was invalid or some cases remained
+inconclusive, unavailable, unsafe, or excluded. Exit code 0 is reserved for a
+fully comparable diagnostic scope with none of these conditions; the current
+baseline has unresolved and excluded cases, so it cannot produce that result.
+If future work makes every case comparable, update the baseline from a
+provenanced completed sweep, remove each exclusion only with evidence, update
+the pinned file hash and provenance constants, and rerun. Only a comparison
+without new differences or any unresolved, excluded, missing, changed-scope or
+unavailable cases can then return 0; this still would not be a JUnit pass.
+The log's hash is displayed, but a log does not prove which Go executable,
+upstream checkout or Java jar produced it. Verify and record those separately.
+The snapshot stores difference categories rather than raw differing message
+values, so a changed value within an unchanged category is not detected.
+Changes in dump/translation selection or other unrecorded setup may also be
+invisible. A clean category comparison therefore does not establish parity,
+and neither a timeout nor a nondeterministic rerun is a passing test.
+
 ## Follow-up: symmetry fingerprints and record order
 
 At tla-go `3840db5c62ad76e902af7cf0072737702c82d7ab`, the DOT path
