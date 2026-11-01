@@ -65,7 +65,7 @@ public final class TLC {
         load.setAccessible(true);
         load.invoke(null, recorder);
         Files.write(Paths.get("original-setup-observed"), "original EmptyTest setup invoked adapter".getBytes(StandardCharsets.UTF_8));
-        if (mode.equals("success") || mode.equals("wrong-stats") || mode.equals("missing-finished") || mode.equals("general")) { return EC.NO_ERROR; }
+        if (mode.equals("success") || mode.equals("wrong-stats") || mode.equals("missing-finished") || mode.equals("general") || mode.equals("unknown-tool-code")) { return EC.NO_ERROR; }
         if (mode.equals("exit")) { return EC.TLC_STATE_NOT_COMPLETELY_SPECIFIED_NEXT; }
         throw new IllegalArgumentException("unsupported adapter mode");
     }

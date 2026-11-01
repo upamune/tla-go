@@ -70,6 +70,9 @@ func originalEmptyGoHelper() error {
 	if mode == "extra-tool-general" {
 		result.Output += "@!@!@STARTMSG 1000:1 @!@!@\nsynthetic error\n@!@!@ENDMSG 1000 @!@!@\n"
 	}
+	if mode == "unknown-tool-code" {
+		result.Output += "@!@!@STARTMSG 9999:0 @!@!@\nunknown observation\n@!@!@ENDMSG 9999 @!@!@\n"
+	}
 	projected, omissions, err := projectEmpty(emptyInvocation(), result)
 	if err != nil {
 		return err
@@ -96,7 +99,7 @@ func originalEmptyGoHelper() error {
 
 func originalEmptyRecords(records []bridgeRecord, mode string) (string, error) {
 	switch mode {
-	case "success", "exit":
+	case "success", "exit", "unknown-tool-code":
 	case "wrong-stats":
 		i := slices.IndexFunc(records, func(record bridgeRecord) bool { return record.code == "2199" })
 		if i < 0 || len(records[i].values) == 0 {

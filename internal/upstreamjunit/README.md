@@ -612,6 +612,11 @@ not establish mapping from a Go exit to a Java error constant. A real nonzero
 Go exit currently fails the adapter during setup, after which JUnit runs
 teardown with its original unset exit status; it is not passed through as a
 Java error code.
+An unknown tool message is a distinct case: it is retained as an omission,
+while the original `EmptyTest` assertion and teardown can still succeed. A
+regression test injects code 9999 and verifies both the successful original
+assertion and the incomplete bridge verdict; that success is not a Go JUnit
+pass.
 The upstream setup obtains the exit status by converting the error constant
 returned by Java `TLC.process()`. Multiple error constants can map to the
 same status, so the Go process exit alone cannot identify the original

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +30,19 @@ func checkOriginalEmptySetup(t *testing.T, classes string, deps []string, basedi
 		t.Fatalf("incomplete Go observation must never become a JUnit pass: %v", omissions)
 	}
 	checkOriginalEmptyControls(t, adapter, classes, deps, basedir, binary, model, display)
+	checkOriginalEmptyUnknownMessage(t, adapter, classes, deps, basedir, binary, model, display)
 	t.Logf("original EmptyTest setup, assertion and teardown executed with projected Go records; unsupported: %v", bridgeVerdict(nil, omissions))
+}
+
+func checkOriginalEmptyUnknownMessage(t *testing.T, adapter, classes string, deps []string, basedir, binary, model, display string) {
+	t.Helper()
+	events, omissions := runOriginalEmpty(t, adapter, classes, deps, basedir, binary, model, "unknown-tool-code", true, true, "")
+	if err := validateExecution(events, display); err != nil {
+		t.Fatalf("unknown tool message changed original assertion: %v", err)
+	}
+	if !slices.Contains(omissions, "unsupported message 9999") || bridgeVerdict(nil, omissions) == nil {
+		t.Fatalf("unknown tool message must remain an incomplete observation: %v", omissions)
+	}
 }
 
 func compileOriginalEmptyAdapter(t *testing.T, classes string, deps []string) string {
