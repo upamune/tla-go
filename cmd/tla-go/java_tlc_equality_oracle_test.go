@@ -382,6 +382,100 @@ ASSUME F = G
 	}
 }
 
+func TestJavaTLCInfiniteFunctionEquality(t *testing.T) {
+	for _, expr := range []string{
+		`LET f[n \in Nat] == n IN f = f`,
+		`LET f[n \in Nat] == n IN <<f>> = <<f>>`,
+		`\A i \in 1..3 : LET f[n \in Nat] == n + i IN /\ f = f /\ f[0] = i`,
+		`LET f[n \in Nat] == n IN LET g[n \in Nat] == n IN f = g`,
+	} {
+		t.Run(expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers\nASSUME "+expr+"\n====\n", "")
+			var out, stderr bytes.Buffer
+			code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr)
+			want := "Attempted to compute the number of elements in the overridden value Nat."
+			if code != 10 || !strings.Contains(out.String(), want) {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				if java := equalityJava(t, jar, dir, false, 10); !strings.Contains(java, want) {
+					t.Fatalf("Java: %s", java)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCAnyFunctionMaterialization(t *testing.T) {
+	// Java also wraps the @@ failure in an overridden-operator diagnostic.
+	// Go currently reports the underlying error without that context.
+	for _, expr := range []string{
+		`LET f[x \in Any] == x IN f = f`,
+		`LET f[x \in Any] == x IN (f @@ (1 :> 1)) = f`,
+	} {
+		t.Run(expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS TLC\nASSUME "+expr+"\n====\n", "")
+			var out, stderr bytes.Buffer
+			code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr)
+			want := "Attempted to compute the number of elements in the overridden value ANY."
+			if code != 10 || !strings.Contains(out.String(), want) {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				if java := equalityJava(t, jar, dir, false, 10); !strings.Contains(java, want) {
+					t.Fatalf("Java: %s", java)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCFiniteFunctionCombine(t *testing.T) {
+	dir := t.TempDir()
+	source := `---- MODULE M ----
+EXTENDS Naturals, TLC
+ASSUME LET f[x \in 1..2] == x IN (f @@ (2 :> 9) @@ (3 :> 3)) = <<1, 2, 3>>
+====
+`
+	writeEqualityModel(t, dir, source, "")
+	var out, stderr bytes.Buffer
+	if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 0 {
+		t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		equalityJava(t, jar, dir, false, 0)
+	}
+}
+
+func TestJavaTLCFiniteFunctionSelfEqualityEffects(t *testing.T) {
+	dir := t.TempDir()
+	source := "---- MODULE M ----\nEXTENDS Integers, TLC\nF[i \\in 1..2] == Print(i, i)\nASSUME F = F\n====\n"
+	writeEqualityModel(t, dir, source, "")
+	var out, stderr bytes.Buffer
+	code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr)
+	check := func(name, output string) {
+		t.Helper()
+		var effects []string
+		for line := range strings.SplitSeq(output, "\n") {
+			if line == "1  1" || line == "2  2" {
+				effects = append(effects, line[:1])
+			}
+		}
+		if strings.Join(effects, ",") != "1,2" {
+			t.Fatalf("%s effects %v; output %s", name, effects, output)
+		}
+	}
+	if code != 0 {
+		t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+	}
+	check("Go", out.String())
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		check("Java", equalityJava(t, jar, dir, false, 0))
+	}
+}
+
 // This characterizes an existing operator-definition caching difference.
 func TestJavaTLCLazyLetSideEffectsGap(t *testing.T) {
 	dir := t.TempDir()

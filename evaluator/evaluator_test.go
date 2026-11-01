@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -16,6 +17,14 @@ import (
 // 1.8.0 prints SUBSET (1..7) as tla-ts does.
 var javaTLCExpressionResults = map[string]string{
 	"ToString(SUBSET (1..7))": `"SUBSET 1..7"`,
+}
+
+// Java TLC 1.7.4 materializes function equality, even for self-comparison.
+// These tla-ts examples instead assume identity equality for infinite functions.
+var javaTLCExpressionErrors = map[string]string{
+	`LET f[n \in Nat] == n IN f = f`:                                    "Attempted to compute the number of elements in the overridden value Nat.",
+	`LET f[n \in Nat] == n IN <<f>> = <<f>>`:                            "Attempted to compute the number of elements in the overridden value Nat.",
+	`\A i \in 1..3 : LET f[n \in Nat] == n + i IN /\ f = f /\ f[0] = i`: "Attempted to compute the number of elements in the overridden value Nat.",
 }
 
 func TestUpstreamExpressionResults(t *testing.T) {
@@ -44,6 +53,12 @@ func TestUpstreamExpressionResults(t *testing.T) {
 			two, _ := value.Integer(2)
 			three, _ := value.Integer(3)
 			got, err := Evaluate(m, m.Definitions[0].Body, Context{Current: State{"x": two}, Next: State{"x": three}})
+			if want, ok := javaTLCExpressionErrors[sample.Expr]; ok {
+				if err == nil || !strings.Contains(err.Error(), want) {
+					t.Fatalf("got %v, want error containing %q", err, want)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatal(err)
 			}

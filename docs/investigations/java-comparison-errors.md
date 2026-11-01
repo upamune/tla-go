@@ -141,3 +141,8 @@ materializes its two operands, accounting for the final four prints. The test
 records the observed output, not a complete account of Java's caching rules.
 Failed materialization, other definition forms, and concurrent effects have not
 been characterized; changing caching needs separate Java-oracle investigation.
+
+For `LET f[x \in Nat, y \in Nat] == x IN f = f`, Java TLC 1.7.4
+reports that it cannot compute the cardinality of `Nat` and exits 10. Go
+currently reports `expected an enumerable set`: a product domain containing
+an infinite set is not covered by the single-domain materialization error.
