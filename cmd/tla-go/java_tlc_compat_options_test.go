@@ -57,7 +57,7 @@ func TestJavaTLCDeprecatedFingerprintMemory(t *testing.T) {
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
-				if javaCode != code || !strings.Contains(java, "\n"+fpmemDeprecation+"\n@!@!@STARTMSG 2262:0 @!@!@\n") {
+				if javaCode != code || !strings.Contains("\n"+java, "\n"+fpmemDeprecation+"\n@!@!@STARTMSG 2262:0 @!@!@\n") {
 					t.Fatalf("Java exit %d:\n%s", javaCode, java)
 				}
 			}
