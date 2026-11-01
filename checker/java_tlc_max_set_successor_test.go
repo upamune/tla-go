@@ -206,10 +206,13 @@ func TestJavaTLCMaxSetDomainConstraint(t *testing.T) {
 }
 
 // Java enumerates a filtered domain and reaches its evaluator bound.
-// This is a Java-only control for a deferred-set path not yet supported in Go.
 func TestJavaTLCMaxSetEnumeratedDomain(t *testing.T) {
 	source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = {z \\in DOMAIN [i \\in 1..4, j \\in 1..4 |-> 0]: TRUE}\n====\n"
 	cfg := "INIT Init NEXT Next CHECK_DEADLOCK FALSE\n"
+	got, err := CheckWithOptions(context.Background(), source, cfg, Options{MaxSetSize: 10})
+	if err != nil || got.Status != EvaluationFailure || got.Failure == nil || got.Failure.ExitCode != 75 || got.GeneratedStates != 1 || got.DistinctStates != 1 || !strings.Contains(got.Failure.Message, "too many elements (>10)") {
+		t.Fatalf("Go: %+v, %v", got, err)
+	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		dir := t.TempDir()
 		for name, contents := range map[string]string{"M.tla": source, "M.cfg": cfg} {

@@ -199,7 +199,28 @@ func (e *evaluator) functionConstruction(expr *parser.Expression) (value.Value, 
 	if err != nil {
 		return value.Value{}, err
 	}
+	if constructedProductDomain(expr.Bounds, domain) {
+		return value.Function(pairs)
+	}
 	return value.FunctionWithDomain(pairs, domain)
+}
+
+// TLC turns functions over reducible bounds into FcnRcdValue. Its DOMAIN is
+// an enumerated set of tuple keys rather than the unevaluated Cartesian set.
+func constructedProductDomain(bounds []parser.Bound, domain value.Value) bool {
+	if len(bounds) < 2 || domain.Kind() != value.ProductSetKind {
+		return false
+	}
+	factors, err := domain.ProductFactors()
+	if err != nil {
+		return false
+	}
+	for _, factor := range factors {
+		if _, ok := reducibleSize(factor); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func functionKey(selected []value.Value) (value.Value, error) {
