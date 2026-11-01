@@ -157,6 +157,7 @@ type model struct {
 	funcActionCache      map[*parser.Expression]parser.Definition
 	letCache             map[*parser.Expression]*parser.Expression
 	tlcFingerprint       bool
+	initialProductBound  int
 	fingerprintAlgorithm *value.TLCFingerprintAlgorithm
 	fromSpecification    bool
 	tlcRuntime           *tlcRuntime
@@ -576,6 +577,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)
+	m.initialProductBound = options.MaxSetSize
 	m.program.SetPrintStyle(options.PrintStyle)
 	m.terseValues = options.PrintStyle.Terse
 	m.program.SetWarningHandler(m.evaluationWarningHandler())

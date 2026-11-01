@@ -9,6 +9,7 @@ import (
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
+	"github.com/upamune/tla-go/value"
 )
 
 type stateNode struct {
@@ -65,10 +66,7 @@ func (m *model) check() (Result, error) {
 	}}
 	more, err := gen.solve(&workList{item: work{expr: init}}, m.partialState(), "")
 	if err != nil {
-		if incomplete, ok := errors.AsType[*incompleteState](err); ok {
-			return s.incompleteInitialFailure(incomplete), nil
-		}
-		return s.runtimeFailure(err, nil, 75)
+		return s.initialGenerationError(err)
 	}
 	if !more {
 		s.finishInitialEvaluationDetail()
@@ -80,6 +78,18 @@ func (m *model) check() (Result, error) {
 		return s.result, nil
 	}
 	return s.explore()
+}
+
+func (s *search) initialGenerationError(err error) (Result, error) {
+	if bound, ok := errors.AsType[*value.InitialProductBoundError](err); ok {
+		s.result.Status = EvaluationFailure
+		s.result.Failure = &Failure{Message: wrongInvocationMessage(bound.Error()), ToolCode: 1000, ExitCode: 255, SuppressStatistics: true}
+		return s.result, nil
+	}
+	if incomplete, ok := errors.AsType[*incompleteState](err); ok {
+		return s.incompleteInitialFailure(incomplete), nil
+	}
+	return s.runtimeFailure(err, nil, 75)
 }
 
 func (m *model) checkAssumptions() (Result, bool, error) {

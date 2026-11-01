@@ -26,11 +26,34 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 	if err != nil {
 		return "", false, err
 	}
+	if s.boundedInitialProduct(state, parent, inModel) {
+		return s.initialProductKey(state, parent)
+	}
 	key, err := s.model.stateKey(state)
 	if err == nil {
 		s.normalizeStateMembership(state, parent)
 	}
 	return key, inModel, err
+}
+
+func (s *search) boundedInitialProduct(state evaluator.State, parent int, inModel bool) bool {
+	m := s.model
+	return inModel && parent < 0 && m.supportsBoundedInitialProduct() && len(m.names) == 1 && state[m.names[0]].Kind() == value.ProductSetKind
+}
+
+func (m *model) supportsBoundedInitialProduct() bool {
+	return m.initialProductBound > 0 && !m.terseValues && !m.tlcFingerprint && len(m.cfg.Constraints) == 0
+}
+
+func (s *search) initialProductKey(state evaluator.State, parent int) (string, bool, error) {
+	m := s.model
+	key, err := state[m.names[0]].AppendInitialProductKey(nil, m.initialProductBound)
+	if err != nil {
+		return "", false, err
+	}
+	// The ordinary state key prefixes each value key with its length.
+	s.normalizeStateMembership(state, parent)
+	return strconv.Itoa(len(key)) + ":" + string(key), true, nil
 }
 
 // normalizeStateMembership skips values shared with the parent, whose stored

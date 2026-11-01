@@ -27,6 +27,43 @@ func (v Value) AppendKey(dst []byte) ([]byte, error) {
 // keyWriter accumulates a key in a caller-supplied buffer.
 type keyWriter struct{ buf []byte }
 
+// AppendInitialProductKey applies TLC's bounded ValueVec conversion to a
+// top-level Cartesian product of intervals. Other values use the normal key
+// path; nested and effectful deferred values require further TLC ordering work.
+func (v Value) AppendInitialProductKey(dst []byte, bound int) ([]byte, error) {
+	if v.kind != ProductSetKind {
+		return v.AppendKey(dst)
+	}
+	for _, factor := range v.data.pairs {
+		if factor.Value.kind != IntervalKind {
+			return v.AppendKey(dst)
+		}
+	}
+	var items []Value
+	err := v.Each(func(item Value) (bool, error) {
+		if len(items) >= max(bound, 10) {
+			return false, &InitialProductBoundError{Bound: bound}
+		}
+		items = append(items, item)
+		return true, nil
+	})
+	if err != nil {
+		return dst, err
+	}
+	set, err := Set(items)
+	if err != nil {
+		return dst, err
+	}
+	return set.AppendKey(dst)
+}
+
+// InitialProductBoundError denotes failure while converting an initial product.
+type InitialProductBoundError struct{ Bound int }
+
+func (e *InitialProductBoundError) Error() string {
+	return fmt.Sprintf("Attempted to construct a set with too many elements (>%d).", e.Bound)
+}
+
 func (b *keyWriter) appendByte(c byte)   { b.buf = append(b.buf, c) }
 func (b *keyWriter) appendText(s string) { b.buf = append(b.buf, s...) }
 

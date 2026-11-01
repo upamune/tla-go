@@ -32,7 +32,8 @@ fingerprint directly without this vector. See the corresponding classes and
 `ValueVec.ensureCapacity` under `tlatools/org.lamport.tlatools/src/tlc2/value/impl`
 at the `v1.7.4` tag.
 
-The deferred-state discrepancies above remain unresolved. With `-tool`, the
+The nested and deferred-state discrepancies above remain unresolved; the
+narrow top-level case is addressed below. With `-tool`, the
 product and record examples emit message 1000, identifying
 `util.WrongInvocationException` and the bound, and exit 255 without a state or
 fingerprint trace. For a successor `x' = (1..3) \X (1..4)`, Java instead emits
@@ -57,3 +58,30 @@ rather than applying a blanket cardinality test to every value in a state.
 The separate deferred `Cardinality` bound check now compares its 64-bit count
 directly: calculating `limit + 1` overflowed for the largest Go API limit and
 could incorrectly reject a small set. This does not fix state fingerprinting.
+
+## Incremental implementation
+
+For breadth-first initial states, an explicitly configured bound now applies
+while the ordinary state key converts a top-level Cartesian product of interval
+factors to an enumerated set. This is restricted to a single variable, no
+VIEW, symmetry, or state constraints, and the exact-key path; it runs at
+the point where the included candidate would be keyed. The conversion counts
+elements as
+TLC's default-capacity vector does, so up to `max(bound, 10)` elements are
+accepted. The bound exception is reported as Java's 255 / message 1000 without
+state, statistics, or fingerprint trace. The default-option path is untouched.
+
+This is deliberately incomplete: successors, nested products, non-interval
+factors, multiple variables, state constraints, reductions, the FP64 key path,
+and the implicit default bound still use the previous behavior. In particular, Java can try to
+expand the initial state while reporting a constraint error: with an oversized
+product and `C == x[1] = 0`, the expansion replaces that error with the bound
+exception (255). This diagnostic conversion is not yet modeled. Even below the
+bound, that constraint error currently has a different initial-state tool
+message in Go. Extending the bound must account for those diagnostic paths and
+conversion caching, rather than checking cardinality before evaluation.
+
+`-terse` is also excluded: Java prints the product symbolically in the initial
+state and reports exit 75 with messages 2102 and 2147, replaying initial-state
+evaluation and its side effects. A simple 255 bound failure would be wrong in
+that mode. The existing Go mismatch in that mode remains unresolved.
