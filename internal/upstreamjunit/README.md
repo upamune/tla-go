@@ -446,7 +446,10 @@ teardown separately for comparison.
 
 This is **not a Go JUnit pass**, even if the method returns successfully. The
 adapter supports well-formed 2186, 2190, 2194, 2199, 2221 and 2772–2775 text messages; it
-records every other code and malformed supported message as an omission. Its
+records every other code and malformed supported message as an omission. For
+`GENERAL` (1000) and coverage mismatch (2776), it records presence using an
+empty placeholder array and reports that the original arguments are unavailable.
+The placeholder supports presence assertions only. Its
 encoder rejects unknown record codes. Every text projection includes an
 omission for unproven recorder types and unobserved calls, even if every
 printed message was recognized. Tool output is rendered text, not the
@@ -511,7 +514,7 @@ checkpoint and duplicate `-coverage 1` arguments. Tool mode is added and its
 DOT destination differs from the harness's metadir path. The experiment requires
 exit zero and an empty-model output without a coverage report, projects the
 FINISHED and state-count messages into string recorder arguments, preserves
-GENERAL presence as a synthetic record appended after the projection, and calls
+GENERAL presence with a synthetic placeholder in tool-message order, and calls
 the original `EmptyTest.testSpec` on a fresh
 instance. Unknown and otherwise unrepresented messages are reported. Synthetic
 altered counts, missing FINISHED and GENERAL must fail the original assertion;

@@ -55,7 +55,7 @@ func encodeRecorder(records []recorderRecord) (string, error) {
 
 func recorderCodeSupported(code string) bool {
 	switch code {
-	case "1000", "2186", "2190", "2194", "2199", "2221", "2772", "2773", "2774", "2775":
+	case "1000", "2186", "2190", "2194", "2199", "2221", "2772", "2773", "2774", "2775", "2776":
 		return true
 	}
 	return false

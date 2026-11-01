@@ -34,7 +34,9 @@ func checkBridgeBCoverage(t *testing.T, binary, modelDir, classes string, deps [
 	if outcome, err := runBridge(records); err != nil || outcome != executionPassed {
 		t.Fatalf("B coverage original assertion: outcome %v error %v; omissions %v", outcome, err, omissions)
 	}
-	checkBridgeLifecycle(t, classes, deps, dir, "GoBCoverageTest", "tlc2.tool.coverage.BCoverageTest.testSpec", records, result.ExitCode)
+	checkBridgeLifecycle(t, classes, deps, dir, "GoBCoverageTest", "BCoverageTest.java:47", records, result.ExitCode)
+	checkBNegativeAssertions(t, binary, modelDir, classes, deps, dir, result.Output, records)
+	checkGeneralJavaTypes(t, modelDir, classes, deps, dir)
 	tampered := slices.Clone(records)
 	for i := range tampered {
 		if tampered[i].code == "2772" {

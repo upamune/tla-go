@@ -476,7 +476,7 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	t.Logf("Go assertion-method result: %v; exit=%d; unrepresented observations=%v", assertionOutcome, goResult.ExitCode, omissions)
 	t.Logf("No Go JUnit pass: %v", bridgeVerdict(fmt.Errorf("outcome=%v", assertionOutcome), omissions))
-	checkBridgeLifecycle(t, classes, deps, runDir, "GoSuiteTest10", "tlc2.tool.suite.SuiteTestCase.testSpec", projected, goResult.ExitCode)
+	checkBridgeLifecycle(t, classes, deps, runDir, "GoSuiteTest10", "SuiteTestCase.java:73", projected, goResult.ExitCode)
 	// A malformed recorder input fails inside the bridge, before testSpec runs.
 	if err := os.WriteFile(filepath.Join(runDir, "bridge-records"), []byte("not-a-code\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -492,6 +492,7 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	for name, bad := range map[string][]bridgeRecord{
 		"wrong stats":      {{"2186", []string{"1ms"}}, {"2199", []string{"3", "1", "0"}}, {"2190", []string{"1", ""}}},
+		"wrong init":       {{"2186", []string{"1ms"}}, {"2199", []string{"2", "1", "0"}}, {"2190", []string{"2", ""}}},
 		"missing finished": {{"2199", []string{"2", "1", "0"}}, {"2190", []string{"1", ""}}},
 		"zero coverage":    append(append([]bridgeRecord{}, good...), bridgeRecord{"2221", []string{"uncovered", "0"}}),
 		"general error":    append(append([]bridgeRecord{}, good...), bridgeRecord{"1000", []string{"error"}}),
@@ -540,6 +541,6 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 			t.Errorf("%s: outcome=%v error=%v", name, got, e)
 		}
 	}
-	checkBridgeLifecycle(t, classes, deps, runDir, "GoEmptyTest", "tlc2.tool.EmptyTest.testSpec", emptyRecords, emptyResult.ExitCode)
+	checkBridgeLifecycle(t, classes, deps, runDir, "GoEmptyTest", "EmptyTest.java:48", emptyRecords, emptyResult.ExitCode)
 	checkBridgeBCoverage(t, binary, filepath.Join(temp, "go", "coverage"), classes, deps, runDir, runBridge)
 }

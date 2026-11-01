@@ -29,11 +29,6 @@ func projectEmpty(args []string, result Result) ([]bridgeRecord, []string, error
 	if err != nil {
 		return nil, nil, err
 	}
-	// GENERAL's presence is asserted by EmptyTest; preserve it even though its
-	// original argument types cannot be inferred from rendered text.
-	for _, body := range messages["1000"] {
-		records = append(records, bridgeRecord{"1000", []string{body}})
-	}
 	omissions = append(omissions, "tool output cannot establish complete recorder types, ordering or hidden calls", "Go setup, dump path, globals, side effects and teardown are not reproduced")
 	return records, omissions, nil
 }

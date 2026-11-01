@@ -13,14 +13,14 @@ public class CaptureRecorder {
         final String path = args[0];
         MP.setRecorder(new MPRecorder() {
             public synchronized void record(int code, Object... values) {
-                if (!(code == 2190 || code == 2194 || code == 2199 || code == 2221 || (code >= 2772 && code <= 2775))) return;
+                if (!(code == 1000 || code == 2190 || code == 2194 || code == 2199 || code == 2221 || (code >= 2772 && code <= 2775))) return;
                 StringBuilder line = new StringBuilder();
                 line.append(code).append('\t');
-                line.append(values.getClass() == String[].class ? "strings" : "unsupported-array");
+                line.append(values.getClass() == String[].class ? "strings" : "unsupported-array:" + values.getClass().getName());
                 for (Object value : values) {
                     line.append('\t');
                     if (value instanceof String) line.append("s:").append(Base64.getEncoder().encodeToString(((String) value).getBytes(StandardCharsets.UTF_8)));
-                    else line.append("unsupported-value");
+                    else line.append("unsupported-value:").append(value == null ? "null" : value.getClass().getName());
                 }
                 line.append('\n');
                 try {

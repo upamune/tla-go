@@ -63,7 +63,8 @@ func projectBridge(output string) ([]bridgeRecord, []string, error) {
 		record, omission := projectMessage(message.id, message.body)
 		if omission != "" {
 			omissions = append(omissions, omission)
-		} else {
+		}
+		if record.code != "" {
 			records = append(records, record)
 		}
 	}
@@ -83,6 +84,10 @@ func projectMessage(id, body string) (bridgeRecord, string) {
 		m = bridgeDepth.FindStringSubmatch(body)
 	case "2221", "2772", "2773", "2774", "2775":
 		m = bridgeCoverageMatch(id, body)
+	case "1000", "2776":
+		// The upstream assertions check only presence. The placeholder array has
+		// no inferred arguments; its type and Java's hidden calls are unknown.
+		return bridgeRecord{id, nil}, "presence only; recorder arguments unavailable for message " + id
 	default:
 		return bridgeRecord{}, "unsupported message " + id
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -36,12 +37,19 @@ func checkBridgeLifecycle(t *testing.T, classes string, deps []string, dir, clas
 		t.Fatalf("%s adapter: %v", class, err)
 	}
 	t.Logf("%s: original assertion and inherited teardown passed on projected Go observations; setup and recorder completeness remain unverified", class)
+	badStats := slices.Clone(records)
+	i := slices.IndexFunc(badStats, func(r bridgeRecord) bool { return r.code == "2199" })
+	if i < 0 || len(badStats[i].values) == 0 {
+		t.Fatal("missing statistics record for assertion control")
+	}
+	badStats[i].values = slices.Clone(badStats[i].values)
+	badStats[i].values[0] = "999999"
 	for _, tc := range []struct {
 		name, stack string
 		records     []bridgeRecord
 		exit        int
 	}{
-		{"assertion", assertionStack, []bridgeRecord{{"2186", []string{"1ms"}}, {"2199", []string{"7", "0", "0"}}}, 0},
+		{"assertion", assertionStack, badStats, 0},
 		{"teardown", "tlc2.tool.liveness.ModelCheckerTestCase.assertExitStatus", records, 1},
 	} {
 		events = run(tc.records, tc.exit)

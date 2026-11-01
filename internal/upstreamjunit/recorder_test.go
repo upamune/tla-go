@@ -50,3 +50,19 @@ func TestBridgeProjectionNestedOrderIsUnproven(t *testing.T) {
 		t.Fatal("nested projection counted as a full pass")
 	}
 }
+
+func TestBridgeProjectionPreservesPresenceWithoutInventingArguments(t *testing.T) {
+	output := msg("1000", "error one") + msg("2194", "The depth of the complete state graph search is 2.") + msg("2776", "mismatch") + msg("1000", "error two")
+	records, omissions, err := projectBridge(output)
+	want := []bridgeRecord{{"1000", nil}, {"2194", []string{"2"}}, {"2776", nil}, {"1000", nil}}
+	if err != nil || !reflect.DeepEqual(records, want) {
+		t.Fatalf("records %v omissions %v error %v", records, omissions, err)
+	}
+	joined := strings.Join(omissions, ";")
+	if strings.Count(joined, "presence only; recorder arguments unavailable for message 1000") != 2 || !strings.Contains(joined, "presence only; recorder arguments unavailable for message 2776") {
+		t.Fatalf("missing presence-only omissions: %v", omissions)
+	}
+	if bridgeVerdict(nil, omissions) == nil {
+		t.Fatal("presence-only projection counted as a full pass")
+	}
+}
