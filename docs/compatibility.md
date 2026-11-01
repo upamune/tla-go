@@ -138,7 +138,7 @@ invariants or constraints also supports coverage: like Java TLC 1.7.4's
 still evaluated normally. Explicit variable-free specifications can have
 coverage actions and remain unsupported by this empty-model case.
 
-Coverage is restricted to a named initial predicate and a disjunction of
+Coverage supports a named initial predicate and a disjunction of
 named, nullary actions with simple conjunctions, assignments, comparisons,
 `\in Nat` guards, range membership assignments, and `UNCHANGED`. Range
 assignment coverage counts enumerated members and domain evaluations separately;
@@ -151,6 +151,36 @@ including short-circuiting. Invariants also support selected calls to nullary
 state operators and operators with literal numeric arguments; repeated calls to
 the same definition and other unmodeled call forms are rejected. The property
 fixtures include direct Java 1.7.4 comparisons and saved reports.
+It also supports a direct named `Next == UNCHANGED x` for one variable, or
+`Next == UNCHANGED <<...>>` listing every variable exactly once. Its initial
+predicate must assign a nonnegative decimal integer within TLC's 32-bit range
+or a Boolean literal to every variable exactly once, or assign a range with
+such literal endpoints to the sole variable. A nonempty range's upper endpoint
+must be below 2,147,483,647: Java TLC's interval enumerator wraps after that
+endpoint and does not terminate normally.
+Initial guards,
+mixed assignments and ranges, and multiple range assignments are rejected;
+their continuation-dependent TLC costs are not modeled. Supported invariants
+are subject to the expression limits above. `Init` and `Next` must be nullary,
+nonrecursive, unmodified definitions;
+definitions inherited through `EXTENDS` are supported, but substituted
+`INSTANCE` definitions are rejected. State constraints are rejected for this
+direct-action subset: in one initial-range example Java reports three initial
+states in the coverage action even though a constraint admits two, whereas Go's
+collector reports two. Tests compare the direct action's normal and tool
+coverage with Java, including empty initial ranges, reordered definitions,
+`SPECIFICATION`, supported invariants, and separately defined modules. The
+upstream `GCoverageTest` remains unsupported: its three UNCHANGED conjuncts,
+operator alias, and `ENABLED` invariant need additional cost-model support.
+An incomplete initial state is also rejected for this coverage subset. Without
+coverage, Java reports such a state with message 2102; Go currently adds an
+extra 1000 message and formats 2102 differently.
+
+On an Apple M3, `BenchmarkCoverageDirectUnchanged` with 1,000 initial states
+used about 1.18 MB and 9,151 allocations per run without coverage, both before
+and after this change; with coverage it used about 1.19 MB and 9,190
+allocations. The elapsed samples were taken under competing load and are not a
+reliable timing comparison. These measurements characterize this one model.
 The upstream `BCoverageTest` Boolean toggle model is also supported: a single
 variable starts as `TRUE` or `FALSE`, and each named action assigns the result
 of a unary operator whose body negates its parameter to that variable. This

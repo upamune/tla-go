@@ -75,10 +75,8 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 	if !m.coverageBodySupported(init.Body, true) || !c.add(init, true) {
 		return nil, false
 	}
-	for _, branch := range next.Body.Args {
-		if !m.addCoverageAction(c, branch) {
-			return nil, false
-		}
+	if !m.addCoverageNext(c, next) {
+		return nil, false
 	}
 	return c, m.addCoverageProperties(c)
 }
@@ -99,7 +97,19 @@ func (m *model) addCoverageProperties(c *coverageCollector) bool {
 func (m *model) coverageRoots() (parser.Definition, parser.Definition, bool) {
 	init, found := m.defs[m.cfg.Init]
 	next, ok := m.defs[m.cfg.Next]
-	return init, next, found && ok && next.Body.Kind == "Or"
+	return init, next, found && ok && init.Body != nil && next.Body != nil
+}
+
+func (m *model) addCoverageNext(c *coverageCollector, next parser.Definition) bool {
+	if next.Body.Kind != "Or" {
+		return m.addCoverageUnchangedNext(c, next)
+	}
+	for _, branch := range next.Body.Args {
+		if !m.addCoverageAction(c, branch) {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *model) coverageConfigSupported() bool {
