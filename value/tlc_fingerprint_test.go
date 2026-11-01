@@ -91,3 +91,32 @@ func TestTLCFingerprintJavaRecordAndFunction(t *testing.T) {
 		}
 	}
 }
+
+func TestFingerprintDeduplicatesComparisonEqualFunctionSets(t *testing.T) {
+	empty, _ := Set(nil)
+	one, _ := Integer(1)
+	two, _ := Integer(2)
+	aRange, _ := Set([]Value{one})
+	bRange, _ := Set([]Value{two})
+	a, _ := FunctionSet(empty, aRange)
+	b, _ := FunctionSet(empty, bRange)
+	if equal, err := Equal(a, b); err != nil || equal {
+		t.Fatalf("direct equality = %v, %v", equal, err)
+	}
+	single, err := Set([]Value{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	both, err := Set([]Value{a, b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := TLCFingerprint([]Value{single})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := TLCFingerprint([]Value{both})
+	if err != nil || first != second {
+		t.Fatalf("fingerprints %x and %x, error %v", first, second, err)
+	}
+}

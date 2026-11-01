@@ -68,32 +68,6 @@ func compareInfiniteSets(a, b Value) (int, error) {
 
 // Equal function sets can be compared structurally even when they cannot be enumerated.
 func equalFunctionSets(a, b Value) (bool, error) {
-	aEmpty, err := a.data.domain.isEmpty()
-	if err != nil {
-		return false, err
-	}
-	bEmpty, err := b.data.domain.isEmpty()
-	if err != nil {
-		return false, err
-	}
-	if aEmpty || bEmpty {
-		return aEmpty == bEmpty, nil
-	}
-	return equalNonemptyDomainFunctionSets(a, b)
-}
-
-func equalNonemptyDomainFunctionSets(a, b Value) (bool, error) {
-	aEmpty, err := a.data.codomain.isEmpty()
-	if err != nil {
-		return false, err
-	}
-	bEmpty, err := b.data.codomain.isEmpty()
-	if err != nil {
-		return false, err
-	}
-	if aEmpty || bEmpty {
-		return aEmpty == bEmpty, nil
-	}
 	equal, err := Equal(a.data.domain, b.data.domain)
 	if err != nil || !equal {
 		return equal, err

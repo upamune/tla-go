@@ -1,6 +1,9 @@
 package value
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // Equal compares values using TLC's type-sensitive equality. Set and interval
 // representations compare by their mathematical members.
@@ -25,14 +28,42 @@ func equalRegular(a, b Value) (bool, error) {
 	if err := incompatibleEquality(a, b); err != nil {
 		return false, err
 	}
-	if a.kind == FunctionSetKind && b.kind == FunctionSetKind {
-		return equalFunctionSets(a, b)
+	if a.kind == b.kind {
+		switch a.kind {
+		case FunctionSetKind:
+			return equalFunctionSets(a, b)
+		case SubsetKind:
+			return Equal(a.data.domain, b.data.domain)
+		case SetKind:
+			return equalElements(a.data.elements, b.data.elements)
+		case FunctionKind:
+			return equalFunctions(a.data.pairs, b.data.pairs)
+		}
 	}
-	if a.kind == SubsetKind && b.kind == SubsetKind {
-		return Equal(a.data.domain, b.data.domain)
+	return equalOther(a, b)
+}
+
+func equalOther(a, b Value) (bool, error) {
+	if a.kind == LazyFunctionKind || (b.kind == LazyFunctionKind && a.kind != ModelKind) {
+		left, err := a.materializedFunction()
+		if err != nil {
+			return false, err
+		}
+		right, err := b.materializedFunction()
+		if err != nil {
+			return false, err
+		}
+		return Equal(left, right)
+	}
+	if isEnumerableEqualitySet(a) && isEnumerableEqualitySet(b) {
+		return equalEnumerableSets(a, b)
 	}
 	c, err := Compare(a, b)
 	return c == 0, err
+}
+
+func isEnumerableEqualitySet(v Value) bool {
+	return isSet(v) && v.kind != InfiniteSetKind && v.kind != SequenceSetKind
 }
 
 func incompatibleSetEquality(a, b Value) error {
@@ -47,13 +78,151 @@ func incompatibleSetEquality(a, b Value) error {
 }
 
 func incompatibleEquality(a, b Value) error {
-	if a.kind == IntegerKind && b.kind != IntegerKind && b.kind != ModelKind {
+	if b.kind == ModelKind {
+		return nil
+	}
+	if a.kind == FunctionKind && b.kind != FunctionKind && b.kind != LazyFunctionKind {
+		return incompatibleFunctionEquality(a, b)
+	}
+	return incompatibleScalarEquality(a, b)
+}
+
+func incompatibleScalarEquality(a, b Value) error {
+	if a.kind == IntegerKind && b.kind != IntegerKind {
 		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of integer %s with non-integer:\n%s", a, b)}
 	}
-	if a.kind == FunctionKind && b.kind != FunctionKind && b.kind != LazyFunctionKind && b.kind != ModelKind {
-		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of the function %s with the value:\n%s", a, b)}
+	if a.kind == BooleanKind && b.kind != BooleanKind {
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to compare equality of boolean %s with non-boolean:\n%s", a, b)}
+	}
+	if a.kind == StringKind && b.kind != StringKind {
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of string %s with non-string:\n%s", a, b)}
 	}
 	return nil
+}
+
+func incompatibleFunctionEquality(a, b Value) error {
+	if a.IsRecord() {
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of record:\n%s\nwith non-record\n%s", a, b)}
+	}
+	if a.IsTuple() && len(a.data.pairs) == 0 {
+		return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of the function %s with the value:\n%s", emptyFunctionRecordText, b)}
+	}
+	return &UnexpectedError{Message: fmt.Sprintf("Attempted to check equality of the function %s with the value:\n%s", a, b)}
+}
+
+// TLC uses equals, rather than compareTo, for corresponding collection values.
+// Sorting and membership continue to use Compare.
+func equalElements(a, b []Value) (bool, error) {
+	if len(a) != len(b) {
+		return false, nil
+	}
+	for i := range a {
+		equal, err := Equal(a[i], b[i])
+		if err != nil || !equal {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func equalFunctions(a, b []Pair) (bool, error) {
+	if recordMismatch(a, b) {
+		return false, fmt.Errorf("cannot compare a record with a non-record function")
+	}
+	if len(a) != len(b) {
+		return false, nil
+	}
+	for i := range a {
+		equal, err := Equal(a[i].Key, b[i].Key)
+		if err != nil || !equal {
+			return false, err
+		}
+		equal, err = Equal(a[i].Value, b[i].Value)
+		if err != nil || !equal {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func equalEnumerableSets(a, b Value) (bool, error) {
+	if isLazySet(a) {
+		set, err := a.finiteSet()
+		if err != nil {
+			return false, err
+		}
+		return Equal(set, b)
+	}
+	if isLazySet(b) {
+		return equalRightLazySet(a, b)
+	}
+	if a.kind == IntervalKind && b.kind == IntervalKind {
+		return equalIntervals(a, b)
+	}
+	return equalIntervalSet(a, b)
+}
+
+func equalRightLazySet(a, b Value) (bool, error) {
+	if a.kind == IntervalKind {
+		if _, err := equalityIntervalSize(a); err != nil {
+			return false, err
+		}
+	}
+	set, err := b.finiteSet()
+	if err != nil {
+		return false, err
+	}
+	return Equal(a, set)
+}
+
+func equalIntervals(a, b Value) (bool, error) {
+	size, err := equalityIntervalSize(a)
+	if err != nil {
+		return false, err
+	}
+	if size == 0 {
+		other, err := equalityIntervalSize(b)
+		return other == 0 && err == nil, err
+	}
+	return a.number == b.number && a.high == b.high, nil
+}
+
+func equalityIntervalSize(interval Value) (int64, error) {
+	size := max(int64(interval.high)-int64(interval.number)+1, 0)
+	if size > math.MaxInt32 {
+		return 0, &UnexpectedError{Message: fmt.Sprintf("Size of interval value exceeds the maximum representable size (32bits): %s.", interval)}
+	}
+	return size, nil
+}
+
+func equalIntervalSet(a, b Value) (bool, error) {
+	interval, set := a, b
+	intervalFirst := true
+	if b.kind == IntervalKind {
+		interval, set, intervalFirst = b, a, false
+	}
+	count, err := equalityIntervalSize(interval)
+	if err != nil {
+		return false, err
+	}
+	if count != int64(len(set.data.elements)) {
+		return false, nil
+	}
+	for i, element := range set.data.elements {
+		n := Value{kind: IntegerKind, number: int32(int64(interval.number) + int64(i))}
+		equal, err := equalIntervalElement(n, element, intervalFirst)
+		if err != nil || !equal {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func equalIntervalElement(n, element Value, intervalFirst bool) (bool, error) {
+	if intervalFirst {
+		return Equal(n, element)
+	}
+	return Equal(element, n)
 }
 
 // compareScalars orders two integers, booleans or strings, which no
