@@ -71,6 +71,9 @@ func (m *model) prepareProperties() error {
 			return err
 		}
 	}
+	if m.emptyTemporalProperty && len(m.livenessOrder) == 0 {
+		return m.temporalTautology()
+	}
 	return nil
 }
 
@@ -116,18 +119,29 @@ func (m *model) prepareNonConjunctProperty(name string, expr *parser.Expression,
 
 func (m *model) classifyPropertyConjunct(p temporalProperty) (temporalProperty, error) {
 	property, ok := m.classifyProperty(p, p.source)
-	if ok && m.simulationTemporalSafety(property) {
-		if property.mode == actionAlways {
-			return property, liveActionFormatError()
-		}
-		ok = false
+	if ok && m.compoundTemporalSafety(property) {
+		return m.classifyCompoundSafety(p, property)
 	}
 	if ok {
 		return property, nil
 	}
+	return m.classifyGeneralConjunct(p)
+}
+
+func (m *model) classifyCompoundSafety(original, property temporalProperty) (temporalProperty, error) {
+	if property.mode == actionAlways {
+		if len(property.bounds) == 0 {
+			return property, liveActionFormatError()
+		}
+		return property, nil
+	}
+	return m.classifyGeneralConjunct(original)
+}
+
+func (m *model) classifyGeneralConjunct(p temporalProperty) (temporalProperty, error) {
 	if trivialTemporalImplication(p.source) {
 		if err := m.temporalTautology(); err != nil {
-			return property, err
+			return p, err
 		}
 	}
 	p.predicate, p.mode = p.source, generalTemporal
@@ -184,9 +198,9 @@ func (m *model) expandPropertyCall(name string, call *parser.Expression, bounds 
 
 // TLC splits a property only at conjunctions and zero-arity definitions. A
 // safety formula under a quantifier or a parameterized operator thus remains
-// a temporal formula, which TLC simulation checks on each trace.
-func (m *model) simulationTemporalSafety(property temporalProperty) bool {
-	if !m.tlcRuntime.simulation || property.mode != stateAlways && property.mode != actionAlways {
+// a temporal formula in both model checking and simulation.
+func (m *model) compoundTemporalSafety(property temporalProperty) bool {
+	if property.mode != stateAlways && property.mode != actionAlways {
 		return false
 	}
 	return len(property.bounds) > 0 || m.propertyCalls > 0
@@ -275,32 +289,56 @@ func isOftenAction(expr *parser.Expression) bool {
 }
 
 func (m *model) expandProperty(p temporalProperty) error {
+	if err := m.validatePropertyBounds(p); err != nil {
+		return err
+	}
+	expanded := false
+	err := m.expandBindings(p.bounds, nil, func(locals map[string]value.Value) error {
+		expanded = true
+		return m.addPropertyInstance(p, locals)
+	})
+	if err == nil && !expanded && len(p.bounds) > 0 && m.hasTemporal(p.source, map[string]bool{}) {
+		m.emptyTemporalProperty = true
+	}
+	return err
+}
+
+func (m *model) validatePropertyBounds(p temporalProperty) error {
 	for _, bound := range p.bounds {
 		if bound.Set == nil || m.hasAction(bound.Set, map[string]bool{}) || m.readsState(bound.Set, map[string]bool{}) {
 			return fmt.Errorf("temporal quantifier domain must be a constant set")
 		}
 	}
-	return m.expandBindings(p.bounds, nil, func(locals map[string]value.Value) error {
-		instance := p
-		instance.locals = maps.Clone(locals)
-		instance.bounds = nil
-		m.prepareRecurrenceCache(&instance)
-		if instance.mode == generalTemporal {
-			if err := m.compileGeneralProperty(&instance); err != nil {
-				return err
-			}
+	return nil
+}
+
+func (m *model) addPropertyInstance(p temporalProperty, locals map[string]value.Value) error {
+	if p.mode == actionAlways && m.compoundTemporalSafety(p) {
+		return liveActionFormatError()
+	}
+	instance := p
+	instance.locals = maps.Clone(locals)
+	instance.bounds = nil
+	m.prepareRecurrenceCache(&instance)
+	if instance.mode == generalTemporal {
+		if err := m.compileGeneralProperty(&instance); err != nil {
+			return err
 		}
-		if instance.mode == guardedAlways {
-			m.guarded = append(m.guarded, instance)
-			m.livenessOrder = append(m.livenessOrder, instance)
-		} else if instance.mode == stateAlways || instance.mode == actionAlways || instance.mode == initialOnly {
-			m.safety = append(m.safety, instance)
-		} else {
-			m.properties = append(m.properties, instance)
-			m.livenessOrder = append(m.livenessOrder, instance)
-		}
-		return nil
-	})
+	}
+	m.storePropertyInstance(instance)
+	return nil
+}
+
+func (m *model) storePropertyInstance(instance temporalProperty) {
+	if instance.mode == guardedAlways {
+		m.guarded = append(m.guarded, instance)
+		m.livenessOrder = append(m.livenessOrder, instance)
+	} else if instance.mode == stateAlways || instance.mode == actionAlways || instance.mode == initialOnly {
+		m.safety = append(m.safety, instance)
+	} else {
+		m.properties = append(m.properties, instance)
+		m.livenessOrder = append(m.livenessOrder, instance)
+	}
 }
 
 func (m *model) compileGeneralProperty(instance *temporalProperty) error {
