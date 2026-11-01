@@ -544,7 +544,17 @@ setup; the original upstream assertion and exit-status teardown then execute.
 
 Negative controls reject altered worker/dump arguments, missing arguments,
 wrong statistics, a missing FINISHED record, a GENERAL record, a nonzero
-adapter error code, malformed records, and an unavailable Go executable.
+adapter error code, malformed records, an unavailable Go executable, and a
+real nonzero Go CLI exit caused by a missing model. The nonzero adapter error
+code is synthetic: it checks the original `@After` exit assertion, but does
+not establish mapping from a Go exit to a Java error constant. A real nonzero
+Go exit currently fails the adapter during setup, after which JUnit runs
+teardown with its original unset exit status; it is not passed through as a
+Java error code.
+The upstream setup obtains the exit status by converting the error constant
+returned by Java `TLC.process()`. Multiple error constants can map to the
+same status, so the Go process exit alone cannot identify the original
+constant; reproducing failure records and a safe mapping remain future work.
 For a setup failure, JUnit also runs teardown and reports both failures. The Go
 child is bounded by a 20-second timeout and 1 MiB combined output; its
 `GOMEMLIMIT` is a soft limit, not a hard process memory cap. The Java adapter

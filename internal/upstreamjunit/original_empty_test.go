@@ -3,6 +3,7 @@ package upstreamjunit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -133,20 +134,25 @@ func checkOriginalEmptyControls(t *testing.T, adapter, classes string, deps []st
 	for _, tc := range []struct {
 		name, mode, stack string
 		marker, omitted   bool
+		missingModel      bool
 	}{
-		{"wrong stats", "wrong-stats", "tlc2.tool.EmptyTest.testSpec", true, true},
-		{"missing finished", "missing-finished", "tlc2.tool.EmptyTest.testSpec", true, true},
-		{"general error", "general", "tlc2.tool.EmptyTest.testSpec", true, true},
-		{"wrong exit", "exit", "tlc2.tool.liveness.ModelCheckerTestCase.assertExitStatus", true, true},
-		{"malformed records", "malformed", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, true},
-		{"Go process unavailable", "success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false},
+		{"wrong stats", "wrong-stats", "tlc2.tool.EmptyTest.testSpec", true, true, false},
+		{"missing finished", "missing-finished", "tlc2.tool.EmptyTest.testSpec", true, true, false},
+		{"general error", "general", "tlc2.tool.EmptyTest.testSpec", true, true, false},
+		{"wrong exit", "exit", "tlc2.tool.liveness.ModelCheckerTestCase.assertExitStatus", true, true, false},
+		{"malformed records", "malformed", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, true, false},
+		{"Go process unavailable", "success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, false},
+		{"Go nonzero exit", "success", "tlc2.tool.liveness.ModelCheckerTestCase.setUp", false, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			goBinary := binary
-			if !tc.omitted {
+			goBinary, goModel := binary, model
+			if tc.missingModel {
+				goModel = t.TempDir()
+				checkOriginalEmptyNonzeroExit(t, goBinary, goModel)
+			} else if !tc.omitted {
 				goBinary = filepath.Join(t.TempDir(), "missing-tla-go")
 			}
-			events, _ := runOriginalEmpty(t, adapter, classes, deps, basedir, goBinary, model, tc.mode, tc.marker, tc.omitted)
+			events, _ := runOriginalEmpty(t, adapter, classes, deps, basedir, goBinary, goModel, tc.mode, tc.marker, tc.omitted)
 			if !tc.marker {
 				checkOriginalEmptySetupFailure(t, events, display)
 				return
@@ -155,6 +161,15 @@ func checkOriginalEmptyControls(t *testing.T, adapter, classes string, deps []st
 				t.Fatalf("expected upstream failure in %s; events %+v", tc.stack, events)
 			}
 		})
+	}
+}
+
+func checkOriginalEmptyNonzeroExit(t *testing.T, binary, model string) {
+	t.Helper()
+	_, err := boundedOriginalEmptyRun(binary, model)
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() <= 0 {
+		t.Fatalf("expected a real nonzero Go CLI exit for missing model: %v", err)
 	}
 }
 
