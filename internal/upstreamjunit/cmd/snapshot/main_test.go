@@ -1,11 +1,17 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"testing"
+)
 
 func TestCommitForSourceHash(t *testing.T) {
 	for _, tc := range []struct{ hash, commit string }{
 		{"4769aef155298934c93845b6a0130091bbd0f1060d03ebd94762068acdcb755a", "2399b1535d1ef68aa78d81bba2b9559cf8e586f7"},
 		{"fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5", "56336d54f659dbb744aff66ffa8e653a6117c06a"},
+		{"65e957a50c1a58779f5982458ca42adb3d4ed16e0884229dd7bbe752aa298765", "e81f221f7ba59b833244e7613bd149f836532c86"},
 	} {
 		got, err := commitForSourceHash(tc.hash)
 		if err != nil || got != tc.commit {
@@ -16,6 +22,40 @@ func TestCommitForSourceHash(t *testing.T) {
 		if commit, err := commitForSourceHash(hash); err == nil || commit != "" {
 			t.Fatalf("accepted unknown hash %q as %q", hash, commit)
 		}
+	}
+}
+
+func TestRegenerateE81Snapshot(t *testing.T) {
+	path := os.Getenv("TLA_GO_E81_SWEEP_LOG")
+	if path == "" {
+		path = "/tmp/tla-e81-diagnostic-sweep.log"
+	}
+	log, err := os.ReadFile(path)
+	if os.IsNotExist(err) && os.Getenv("TLA_GO_E81_SWEEP_LOG") == "" {
+		t.Skip("ephemeral source log unavailable; set TLA_GO_E81_SWEEP_LOG to verify regeneration")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := snapshotFromLog(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got bytes.Buffer
+	enc := json.NewEncoder(&got)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(snap); err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile("../../testdata/snapshots/sweep-e81f221f.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got.Bytes(), want) {
+		t.Fatal("regenerated snapshot differs from checked-in bytes")
+	}
+	if _, err := snapshotFromLog(append(log, '\n')); err == nil {
+		t.Fatal("accepted modified source log")
 	}
 }
 

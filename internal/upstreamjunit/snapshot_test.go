@@ -62,6 +62,7 @@ func TestSweepSnapshotConsistency(t *testing.T) {
 	}{
 		{"sweep-2399b153.json", "2399b1535d1ef68aa78d81bba2b9559cf8e586f7", "4769aef155298934c93845b6a0130091bbd0f1060d03ebd94762068acdcb755a", SweepCounts{340, 309, 31, 276, 224, 52, 33}},
 		{"sweep-56336d54.json", "56336d54f659dbb744aff66ffa8e653a6117c06a", "fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5", SweepCounts{340, 309, 31, 293, 236, 57, 16}},
+		{"sweep-e81f221f.json", "e81f221f7ba59b833244e7613bd149f836532c86", "65e957a50c1a58779f5982458ca42adb3d4ed16e0884229dd7bbe752aa298765", SweepCounts{340, 309, 31, 294, 254, 40, 15}},
 	} {
 		t.Run(tc.file, func(t *testing.T) {
 			data, err := os.ReadFile("testdata/snapshots/" + tc.file)
