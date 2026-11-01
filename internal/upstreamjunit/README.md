@@ -288,3 +288,38 @@ conversion are not reproduced or verified. The Go process exit and omissions
 are reported; they cannot turn the result into a pass. A broader bridge requires
 a typed recorder interface from Go, complete lifecycle equivalence, and an
 explicit completeness contract before it can claim one.
+
+## Full diagnostic snapshot
+
+[`testdata/snapshots/sweep-2399b153.json`](testdata/snapshots/sweep-2399b153.json)
+records the completed opt-in full run at tla-go commit
+`2399b1535d1ef68aa78d81bba2b9559cf8e586f7`, against the pinned upstream
+commit and Java 1.7.4 jar above. The source log SHA-256 is recorded in the JSON.
+Recreate the snapshot from that exact log with:
+
+```sh
+go run ./internal/upstreamjunit/cmd/snapshot /path/to/tla-integration-sweep-full.log > snapshot.json
+```
+
+The extractor checks the source hash, the completion marker, and the source
+summary against the individual records. It strips raw output, temporary paths,
+times and generated values. The JSON records selected message-body and presence
+IDs, difference categories, and TLC exits where a comparison completed. The
+translation failure category records its two translator exits; TLC exits are
+unknown. Timeouts and missing tool messages are unavailable, not matches. The
+31 `unsafe_setup` classifications are inferred from candidate records without a
+diagnostic in this full, unfiltered run, corroborated by the summary count.
+
+The 340 lexical candidates include 309 attempted and 31 unsafe; of the 309,
+276 comparisons completed (224 with no selected differences, 52 with selected
+differences) and 33 were unavailable. Every candidate remains unresolved for
+full compatibility. These are neither JUnit executions nor JUnit pass counts.
+The sweep still deliberately fails even when enabled: its lifecycle, coverage,
+assertion and liveness omissions have not been resolved.
+
+This single observation is not a sound automatic mismatch allowlist: scheduling,
+model behavior, dump order, timeouts and infrastructure can vary. A new or
+changed difference needs investigation, not automatic acceptance; an unavailable
+or nondeterministic rerun remains unresolved. Comparing category names alone
+also cannot detect changes in the underlying differing values. Use the snapshot
+as an index for targeted reproduction, not a complete parity guard.
