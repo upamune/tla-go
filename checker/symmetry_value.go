@@ -66,6 +66,19 @@ func permuteSet(v value.Value, p permutation) (value.Value, error) {
 }
 
 func permuteFunction(v value.Value, p permutation) (value.Value, error) {
+	if v.Kind() == value.FunctionKind {
+		return v.MapFunctionPairs(func(pair value.Pair) (value.Pair, error) {
+			key, err := permuteValue(pair.Key, p)
+			if err != nil {
+				return value.Pair{}, err
+			}
+			val, err := permuteValue(pair.Value, p)
+			if err != nil {
+				return value.Pair{}, err
+			}
+			return value.Pair{Key: key, Value: val}, nil
+		})
+	}
 	if v.Kind() == value.LazyFunctionKind {
 		domain, err := v.FunctionDomain()
 		if err != nil {

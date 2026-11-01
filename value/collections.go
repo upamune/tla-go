@@ -220,7 +220,11 @@ func setInsertionPoint(values []Value, v Value) (int, bool, error) {
 // Function constructs a finite function. For duplicate keys, the first pair
 // is retained, matching tla-ts's createFunction.
 func Function(pairs []Pair) (Value, error) {
-	sorted := append([]Pair(nil), pairs...)
+	return functionFromOwnedPairs(append([]Pair(nil), pairs...))
+}
+
+// functionFromOwnedPairs sorts a slice that is not shared with a caller.
+func functionFromOwnedPairs(sorted []Pair) (Value, error) {
 	var failure error
 	slices.SortStableFunc(sorted, func(a, b Pair) int {
 		if failure != nil {
@@ -234,6 +238,35 @@ func Function(pairs []Pair) (Value, error) {
 		return Value{}, failure
 	}
 	return Value{kind: FunctionKind, data: &payload{pairs: uniquePairs(sorted)}}, nil
+}
+
+// MapFunctionPairs transforms a materialized function in key order. Lazy
+// functions are not accepted. It returns the original value when every pair
+// is unchanged; otherwise it constructs a new function with the same
+// duplicate-key handling as Function. The callback receives each pair by
+// value and cannot mutate the original function.
+func (v Value) MapFunctionPairs(f func(Pair) (Pair, error)) (Value, error) {
+	if v.kind != FunctionKind {
+		return Value{}, fmt.Errorf("expected a function")
+	}
+	var mapped []Pair
+	for i, pair := range v.data.pairs {
+		result, err := f(pair)
+		if err != nil {
+			return Value{}, err
+		}
+		if mapped == nil && result != pair {
+			mapped = make([]Pair, len(v.data.pairs))
+			copy(mapped, v.data.pairs[:i])
+		}
+		if mapped != nil {
+			mapped[i] = result
+		}
+	}
+	if mapped == nil {
+		return v, nil
+	}
+	return functionFromOwnedPairs(mapped)
 }
 
 // Record constructs a record while retaining its presentation provenance.
