@@ -102,11 +102,17 @@ func TestGenerateSpecTEContinue(t *testing.T) {
 
 func copySpecTEFixture(t *testing.T, source string) string {
 	t.Helper()
+	dir := t.TempDir()
+	copySpecTEFixtureTo(t, source, dir)
+	return dir
+}
+
+func copySpecTEFixtureTo(t *testing.T, source, dir string) {
+	t.Helper()
 	entries, err := os.ReadDir(source)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := t.TempDir()
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), "java-") {
 			continue
@@ -119,7 +125,6 @@ func copySpecTEFixture(t *testing.T, source string) string {
 			t.Fatal(err)
 		}
 	}
-	return dir
 }
 
 func readSpecTE(t *testing.T, dir, name string) string {
@@ -155,9 +160,21 @@ func compareJavaSpecTE(t *testing.T, jar, fixture string, args []string) {
 	want := readSpecTE(t, fixture, "java-SpecTE.tla")
 	var got string
 	for range 3 {
-		dir := copySpecTEFixture(t, fixture)
+		// Java's trace-output parser can lose states with long test paths.
+		// Keep its temporary paths short without changing the model or output.
+		dir, err := os.MkdirTemp("", "specte-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+		copySpecTEFixtureTo(t, fixture, dir)
+		tmp, err := os.MkdirTemp("", "tlc-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(tmp) })
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
+		cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + tmp, "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
 		cmd.Dir = dir
 		_ = cmd.Run()
 		cancel()
