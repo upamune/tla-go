@@ -444,12 +444,29 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 	if err := model.configureCoverage(options); err != nil {
 		return Result{}, err
 	}
-	model.progress = options.LiveProgress
-	result, err := model.check()
+	return model.checkWithCoverage(options)
+}
+
+func (model *model) checkWithCoverage(options Options) (result Result, err error) {
+	model.configureLiveProgress(options.LiveProgress)
+	completed := false
+	if options.LiveProgress != nil {
+		defer func() {
+			if completed {
+				options.LiveProgress.finishCoverage(result.Coverage)
+			} else {
+				options.LiveProgress.finishCoverage(nil)
+			}
+		}()
+	}
+	result, err = model.check()
 	if err != nil {
+		completed = true
 		return result, err
 	}
-	return model.finishCoverageCheck(result, options)
+	result, err = model.finishCoverageCheck(result, options)
+	completed = true
+	return result, err
 }
 
 func traceExploration(ctx context.Context) func() {
