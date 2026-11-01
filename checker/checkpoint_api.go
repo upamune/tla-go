@@ -17,6 +17,8 @@ import (
 // Resume requires an existing matching checkpoint and never starts over.
 // Options must not contain callbacks other than Loader, which is used only
 // while resolving source before exploration. Unsupported models are rejected.
+// Model names and sources, configuration source, and effective configuration
+// strings must be valid UTF-8 for both checkpoint creation and recovery.
 type CheckpointOptions struct {
 	Path              string
 	Interval          time.Duration

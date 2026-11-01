@@ -64,7 +64,43 @@ func (m *model) checkpointSupported() error {
 
 func (m *model) checkpointUnsupportedFeatures() bool {
 	c := m.cfg
-	return m.parallelModules() || m.fromSpecification || m.hasReduction() || m.parallelCallbacks() || m.viewStates || len(m.module.Assumptions) != 0 || len(c.Constraints)+len(c.ActionConstraints)+len(c.Properties)+len(c.Possible)+len(c.Postconditions)+len(c.Constants)+len(c.Substitutions) != 0 || m.checkpointUnsupportedConfig()
+	return m.checkpointUnsupportedSources() || m.fromSpecification || m.hasReduction() || m.parallelCallbacks() || m.viewStates || len(m.module.Assumptions) != 0 || len(c.Constraints)+len(c.ActionConstraints)+len(c.Properties)+len(c.Possible)+len(c.Postconditions)+len(c.Substitutions) != 0 || m.checkpointUnsupportedConfig()
+}
+
+func (m *model) checkpointUnsupportedSources() bool {
+	return m.parallelInstances() || m.checkpointUnsupportedModules() || !m.checkpointConstantsSupported()
+}
+
+func (m *model) checkpointUnsupportedModules() bool {
+	for _, name := range m.module.Extends {
+		if name != "Naturals" && name != "Integers" {
+			return true
+		}
+	}
+	return false
+}
+
+// Only scalar string assignments are admitted; substitutions, operator
+// constants, model values, and sets can change binding or evaluation behavior.
+func (m *model) checkpointConstantsSupported() bool {
+	declared := make(map[string]bool, len(m.module.Constants))
+	for _, d := range m.module.Constants {
+		if d.Arity != 0 || declared[d.Name] {
+			return false
+		}
+		declared[d.Name] = true
+	}
+	for _, a := range m.cfg.Constants {
+		if !declared[a.Name] || !checkpointStringAssignment(a) {
+			return false
+		}
+		delete(declared, a.Name)
+	}
+	return len(declared) == 0
+}
+
+func checkpointStringAssignment(a config.Assignment) bool {
+	return a.Module == "" && a.Args == nil && a.Value.Kind == "String" && len(a.Value.Elements) == 0
 }
 
 func (m *model) checkpointUnsupportedConfig() bool {
@@ -93,15 +129,34 @@ func (m *model) checkpointExpression(e *parser.Expression) bool {
 	if checkpointSetMembership(e) {
 		return m.checkpointExpression(e.Args[0]) && m.checkpointSetElements(e.Args[1])
 	}
+	if e.Kind == "String" || m.checkpointConstantIdentifier(e) {
+		return len(e.Args) == 0
+	}
 	if !m.parallelExpressionKind(e) {
 		return false
 	}
-	for _, arg := range e.Args {
+	return m.checkpointArguments(e.Args)
+}
+
+func (m *model) checkpointArguments(args []*parser.Expression) bool {
+	for _, arg := range args {
 		if !m.checkpointExpression(arg) {
 			return false
 		}
 	}
 	return true
+}
+
+func (m *model) checkpointConstantIdentifier(e *parser.Expression) bool {
+	if e.Kind != "Identifier" || len(e.Args) != 0 {
+		return false
+	}
+	for _, a := range m.cfg.Constants {
+		if a.Name == e.Text {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *model) checkpointSetElements(e *parser.Expression) bool {

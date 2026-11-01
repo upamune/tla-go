@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"unicode/utf8"
 
 	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/evaluator"
@@ -48,6 +49,12 @@ func (s *instanceSession) recordSource(name, source string) error {
 // the search, never reload them after constructing the identity.
 func resolveCheckpointIdentity(ctx context.Context, source, configSource string, effective config.Config, options Options) (*parser.Module, *instanceSession, checkpointIdentity, error) {
 	var zero checkpointIdentity
+	if err := validateCheckpointUTF8(reflect.ValueOf(source), "model source"); err != nil {
+		return nil, nil, zero, err
+	}
+	if err := validateCheckpointUTF8(reflect.ValueOf(configSource), "config source"); err != nil {
+		return nil, nil, zero, err
+	}
 	if source == "" {
 		return nil, nil, zero, fmt.Errorf("checkpoint requires complete module source")
 	}
@@ -93,6 +100,14 @@ func resolveCheckpointSources(ctx context.Context, source string, loader ModuleL
 }
 
 func hashCheckpointInputs(rootName string, sourceMap map[string]string, configSource string, effective config.Config, options Options) (checkpointIdentity, error) {
+	for _, input := range []struct {
+		name  string
+		value any
+	}{{"model name", rootName}, {"model sources", sourceMap}, {"config source", configSource}, {"effective config", effective}} {
+		if err := validateCheckpointUTF8(reflect.ValueOf(input.value), input.name); err != nil {
+			return checkpointIdentity{}, err
+		}
+	}
 	names := make([]string, 0, len(sourceMap))
 	for name := range sourceMap {
 		names = append(names, name)
@@ -123,6 +138,60 @@ func hashCheckpointInputs(rootName string, sourceMap map[string]string, configSo
 		return checkpointIdentity{}, err
 	}
 	return checkpointIdentity{Model: sha256.Sum256(modelData), Config: sha256.Sum256(configData)}, nil
+}
+
+// JSON replaces invalid UTF-8 with U+FFFD. Reject it before hashing so that
+// different byte strings cannot acquire the same identity. This leaves the
+// original JSON encoding and hashes unchanged for valid UTF-8 inputs.
+func validateCheckpointUTF8(v reflect.Value, path string) error {
+	switch v.Kind() {
+	case reflect.String:
+		if !utf8.ValidString(v.String()) {
+			return fmt.Errorf("checkpoint identity: %s contains invalid UTF-8", path)
+		}
+	case reflect.Struct:
+		return validateCheckpointUTF8Struct(v, path)
+	case reflect.Slice, reflect.Array:
+		return validateCheckpointUTF8Sequence(v, path)
+	case reflect.Map:
+		return validateCheckpointUTF8Map(v, path)
+	case reflect.Interface, reflect.Pointer:
+		if !v.IsNil() {
+			return validateCheckpointUTF8(v.Elem(), path)
+		}
+	}
+	return nil
+}
+
+func validateCheckpointUTF8Struct(v reflect.Value, path string) error {
+	for i := 0; i < v.NumField(); i++ {
+		if err := validateCheckpointUTF8(v.Field(i), path+"."+v.Type().Field(i).Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateCheckpointUTF8Sequence(v reflect.Value, path string) error {
+	for i := 0; i < v.Len(); i++ {
+		if err := validateCheckpointUTF8(v.Index(i), fmt.Sprintf("%s[%d]", path, i)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateCheckpointUTF8Map(v reflect.Value, path string) error {
+	iter := v.MapRange()
+	for iter.Next() {
+		if err := validateCheckpointUTF8(iter.Key(), path+" key"); err != nil {
+			return err
+		}
+		if err := validateCheckpointUTF8(iter.Value(), path+" value"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func checkpointIdentityOptionsSupported(o Options) error {

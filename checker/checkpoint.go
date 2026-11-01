@@ -55,6 +55,7 @@ type checkpointValue struct {
 	Kind    string
 	Number  int32
 	Boolean bool
+	Bytes   []byte `json:",omitempty"`
 }
 type checkpointWireNode struct {
 	State       map[string]checkpointValue
@@ -126,6 +127,11 @@ func checkpointEncodeState(state evaluator.State) (map[string]checkpointValue, e
 		}
 		if b, ok := v.Bool(); ok {
 			out[name] = checkpointValue{Kind: "bool", Boolean: b}
+			continue
+		}
+		if v.Kind() == value.StringKind {
+			text, _ := v.Text()
+			out[name] = checkpointValue{Kind: "string", Bytes: []byte(text)}
 			continue
 		}
 		return nil, fmt.Errorf("unsupported value for %q (kind %d)", name, v.Kind())
@@ -206,19 +212,31 @@ func checkpointDecodeState(state map[string]checkpointValue) (evaluator.State, e
 }
 
 func checkpointDecodeValue(v checkpointValue) (value.Value, error) {
+	if !checkpointValueFieldsValid(v) {
+		return value.Value{}, fmt.Errorf("invalid checkpoint value %q", v.Kind)
+	}
 	switch v.Kind {
 	case "int":
-		if v.Boolean {
-			return value.Value{}, fmt.Errorf("invalid integer")
-		}
 		return value.Integer(int64(v.Number))
 	case "bool":
-		if v.Number != 0 {
-			return value.Value{}, fmt.Errorf("invalid boolean")
-		}
 		return value.Bool(v.Boolean), nil
+	case "string":
+		return value.String(string(v.Bytes)), nil
 	default:
 		return value.Value{}, fmt.Errorf("unsupported value kind %q", v.Kind)
+	}
+}
+
+func checkpointValueFieldsValid(v checkpointValue) bool {
+	switch v.Kind {
+	case "int":
+		return !v.Boolean && len(v.Bytes) == 0
+	case "bool":
+		return v.Number == 0 && len(v.Bytes) == 0
+	case "string":
+		return v.Number == 0 && !v.Boolean
+	default:
+		return false
 	}
 }
 
