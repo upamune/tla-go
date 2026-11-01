@@ -1,6 +1,10 @@
 package value
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/upamune/tla-go/syntax/parser"
+)
 
 func isLazySet(v Value) bool {
 	switch v.kind {
@@ -39,6 +43,11 @@ func (v Value) RecordSetFields() ([]Pair, error) {
 
 // ProductSet constructs a Cartesian product of finite sets.
 func ProductSet(factors []Value) (Value, error) {
+	return ProductSetWithSource(factors, nil)
+}
+
+// ProductSetWithSource retains the expression for fingerprint diagnostics.
+func ProductSetWithSource(factors []Value, source *parser.Expression) (Value, error) {
 	pairs := make([]Pair, len(factors))
 	for i, factor := range factors {
 		if !isSet(factor) {
@@ -50,7 +59,7 @@ func ProductSet(factors []Value) (Value, error) {
 		}
 		pairs[i] = Pair{key, factor}
 	}
-	return Value{kind: ProductSetKind, data: &payload{pairs: pairs}}, nil
+	return Value{kind: ProductSetKind, data: &payload{pairs: pairs, source: source}}, nil
 }
 
 func (v Value) containsCartesian(element Value) (bool, error) {

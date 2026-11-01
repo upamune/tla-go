@@ -26,8 +26,8 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 	if err != nil {
 		return "", false, err
 	}
-	if s.boundedInitialProduct(state, parent, inModel) {
-		return s.initialProductKey(state, parent)
+	if s.boundedProduct(state, parent, inModel) {
+		return s.boundedProductKey(state, parent)
 	}
 	key, err := s.model.stateKey(state)
 	if err == nil {
@@ -36,18 +36,25 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 	return key, inModel, err
 }
 
-func (s *search) boundedInitialProduct(state evaluator.State, parent int, inModel bool) bool {
+func (s *search) boundedProduct(state evaluator.State, parent int, inModel bool) bool {
 	m := s.model
-	return inModel && parent < 0 && m.supportsBoundedInitialProduct() && len(m.names) == 1 && state[m.names[0]].Kind() == value.ProductSetKind
+	return inModel && m.supportsBoundedProduct(parent) && len(m.names) == 1 && state[m.names[0]].Kind() == value.ProductSetKind
 }
 
-func (m *model) supportsBoundedInitialProduct() bool {
-	return m.initialProductBound > 0 && !m.terseValues && !m.tlcFingerprint && len(m.cfg.Constraints) == 0
+func (m *model) supportsBoundedProduct(parent int) bool {
+	return m.initialProductBound > 0 && (parent >= 0 || !m.terseValues) && !m.tlcFingerprint && len(m.cfg.Constraints) == 0 && (parent < 0 || len(m.cfg.ActionConstraints) == 0)
 }
 
-func (s *search) initialProductKey(state evaluator.State, parent int) (string, bool, error) {
+func (s *search) boundedProductKey(state evaluator.State, parent int) (string, bool, error) {
 	m := s.model
-	key, err := state[m.names[0]].AppendInitialProductKey(nil, m.initialProductBound)
+	v := state[m.names[0]]
+	var key []byte
+	var err error
+	if parent < 0 {
+		key, err = v.AppendInitialProductKey(nil, m.initialProductBound)
+	} else {
+		key, err = v.AppendSuccessorProductKey(nil, m.initialProductBound)
+	}
 	if err != nil {
 		return "", false, err
 	}

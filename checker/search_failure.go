@@ -25,12 +25,19 @@ func (s *search) runtimeFailure(err error, trace []TraceStep, code int) (Result,
 		s.result.Failure.ToolCode = failure.ToolCode
 	} else {
 		setInitialNestedFailure(s.result.Failure, failure)
+		setBoundFingerprintCode(s.result.Failure, failure)
 	}
 	setInitialCandidateFailure(s.result.Failure, failure, err)
 	if failure.WrongInvocation {
 		s.result.Failure.EvaluationDetail, s.result.Failure.SuppressDepth = emptyCallStackDetail, true
 	}
 	return s.result, nil
+}
+
+func setBoundFingerprintCode(result *Failure, failure *evaluator.RuntimeError) {
+	if failure.Unexpected != nil && failure.Unexpected.WrongInvocation && failure.Fingerprint != nil {
+		result.ToolCode = 1000
+	}
 }
 
 // emptyCallStackDetail is Java TLC's 2103 message when its call stack recorded
@@ -136,6 +143,10 @@ func unboundVariableFailure(missing *evaluator.UnboundVariable) *evaluator.Runti
 func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
 	result := *failure
 	cause := failure.Message
+	if failure.Unexpected.WrongInvocation {
+		cause = "util.WrongInvocationException: " + cause
+		result.ToolCode = 1000
+	}
 	if failure.Unexpected.TLCAssert && failure.Fingerprint != nil {
 		cause = "util.Assert$TLCRuntimeException: " + cause
 	}
