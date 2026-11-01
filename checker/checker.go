@@ -69,6 +69,7 @@ type PossibleViolation struct {
 }
 
 type Result struct {
+	Coverage                               []CoverageAction
 	Status                                 Status
 	Violation                              *Violation
 	Failure                                *Failure
@@ -124,6 +125,7 @@ type Failure struct {
 	evaluationSources []*parser.Expression
 }
 type model struct {
+	coverage             *coverageCollector
 	module               *parser.Module
 	cfg                  config.Config
 	descriptionConfig    config.Config
@@ -194,6 +196,8 @@ type ModuleLoader func(context.Context, string) (string, error)
 
 // Options configures external module loading and TLC output.
 type Options struct {
+	// Coverage enables experimental action and expression coverage.
+	Coverage  bool
 	Loader    ModuleLoader
 	OnPrint   func(string)
 	OnPause   func()
@@ -405,6 +409,9 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 		return Result{}, err
 	}
 	model.ctx = ctx
+	if err := validateCoverageMode(options); err != nil {
+		return Result{}, err
+	}
 	if options.Simulation != nil {
 		result, err := model.simulateWithOptions(*options.Simulation, options.Seed)
 		if err != nil {
@@ -416,10 +423,14 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 	if options.DepthFirst != nil {
 		return model.checkDepthFirst(*options.DepthFirst)
 	}
+	if err := model.configureCoverage(options); err != nil {
+		return Result{}, err
+	}
 	result, err := model.check()
 	if err != nil {
 		return result, err
 	}
+	model.attachCoverage(&result)
 	model.adjustContinuedEvaluationFailure(&result)
 	return model.finalizeCheckResult(result, options.OnTemporalCheck, options.OnTemporalViolation)
 }

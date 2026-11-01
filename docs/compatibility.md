@@ -109,3 +109,32 @@ As in Java TLC, trace states, simulation trace files, DOT state labels, and `Spe
 The `checker` package exposes `Check`, context-aware variants, and options for module loading, printing, JSON I/O, random seeds, and debugging. `Result` distinguishes successful checks from violations and selected evaluation failures; unsupported constructs and other failures can return a Go error. See [package documentation](https://pkg.go.dev/github.com/upamune/tla-go/checker) and [development and testing](development.md).
 
 `Options.OnDebug` receives the same liveness JSON lines as the CLI's `-debug-liveness`. The events describe graph exploration, successor order, fairness components, and selected cycle witnesses. This diagnostic output does not change the model-checking result.
+
+## Experimental coverage
+
+`-coverage 0` collects action and expression counts during breadth-first
+exploration. It is compared line-for-line with Java TLC 1.7.4 on the upstream
+`CoverageStatistics` model, including a changed state constraint. The first
+number on an action is the number of new in-model states and the second is
+its generated-state count; expression costs follow TLC for the tested forms.
+Zero-count expressions are included.
+
+Coverage is restricted to a named initial predicate and a disjunction of
+named, nullary actions with simple conjunctions, assignments, comparisons,
+`\in Nat` guards, range membership assignments, and `UNCHANGED`. Range
+assignment coverage counts enumerated members and domain evaluations separately;
+independent, dependent, singleton, and empty initial ranges and next-state
+range assignments have Java 1.7.4 differential fixtures. It rejects invariants, properties, action
+constraints, symmetry, VIEW, continuation, simulation, depth-first search,
+and nonzero periodic intervals. Tool mode emits coverage messages with the
+Java TLC codes and ordering for the supported models. Complex expressions, operator calls,
+quantification, parameterized or inline actions, initial or action disjunctions,
+substituted instances, nested cost-model expressions, and coverage during error
+replay and liveness are not implemented or fully checked. The upstream `C`
+model therefore remains unsupported for coverage. Reporting for arbitrary
+models and early failures has not been established as Java-compatible.
+
+Action guards following a deterministic assignment, before any range
+assignment, are rejected: their preceding assignment costs are not yet modeled.
+A guard or assignment after `UNCHANGED` is also rejected because its continuation
+can change the cost TLC attributes to `UNCHANGED`, even for an empty range.

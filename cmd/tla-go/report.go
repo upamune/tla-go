@@ -27,6 +27,7 @@ func printResult(w io.Writer, result checker.Result, module *parser.Module) {
 	if result.Status == checker.LivenessViolation && result.TemporalCheckDuration != nil && !result.TemporalCheckReported {
 		printTemporalCheckEnd(w, false, *result.TemporalCheckDuration)
 	}
+	printCoverage(w, result.Coverage)
 	printStatistics(w, result)
 }
 

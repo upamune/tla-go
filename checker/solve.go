@@ -18,14 +18,15 @@ type work struct {
 	locals map[string]value.Value
 }
 type generator struct {
-	model           *model
-	current         evaluator.State
-	initial         bool
-	enabled         bool
-	allowIncomplete bool
-	lexical         *evaluator.LexicalScope
-	source          *parser.Expression
-	emit            func(evaluator.State, string, *parser.Expression) (bool, error)
+	coverageCompleted int
+	model             *model
+	current           evaluator.State
+	initial           bool
+	enabled           bool
+	allowIncomplete   bool
+	lexical           *evaluator.LexicalScope
+	source            *parser.Expression
+	emit              func(evaluator.State, string, *parser.Expression) (bool, error)
 	// emitted is the last error returned by emit. Java TLC checks a successor
 	// after generating it, so the error carries no frames of the action; it
 	// checks an initial state within the initial predicate's continuation.
@@ -103,6 +104,9 @@ func (g *generator) solveInScope(items *workList, partial evaluator.State, actio
 
 func (g *generator) atomic(items *workList, partial evaluator.State, action string) (bool, error) {
 	expr := items.item.expr
+	if g.model.coverage != nil {
+		g.cover(expr, action)
+	}
 	rest := items.next
 	if expr.Kind == "Unchanged" && !g.initial {
 		return g.unchanged(expr, rest, partial, action)
@@ -328,15 +332,29 @@ func (m *model) assignsAll(state evaluator.State) bool {
 
 func (g *generator) finishAssigned(items *workList, partial evaluator.State, action string) (bool, error) {
 	for ; items != nil; items = items.next {
+		if g.model.coverage != nil {
+			g.cover(items.item.expr, action)
+		}
 		ok, err := g.holdsScopedWork(items.item, partial)
+		if !g.initial && items.item.expr.Text != "=" && items.item.expr.Text != "\\in" {
+			g.coverGuardSuccess(items.item.expr, action)
+		}
 		if err != nil {
 			return false, err
 		}
 		if !ok {
+			g.coverRejectedInitial(action)
 			return true, nil
 		}
 	}
 	return g.complete(partial, action)
+}
+
+// A fully assigned initial candidate counts even when a later guard rejects it.
+func (g *generator) coverRejectedInitial(action string) {
+	if g.initial && g.model.coverage != nil {
+		g.model.coverage.generated(action, true)
+	}
 }
 
 func (g *generator) holdsScopedWork(item work, partial evaluator.State) (bool, error) {
@@ -363,6 +381,9 @@ func (g *generator) complete(partial evaluator.State, action string) (bool, erro
 				return false, &incompleteState{state: maps.Clone(partial), action: action}
 			}
 		}
+	}
+	if g.model.coverage != nil {
+		g.coverageCompleted++
 	}
 	return g.emitState(maps.Clone(partial), action)
 }
@@ -496,7 +517,8 @@ func (g *generator) assign(name, operator string, rhs *parser.Expression, items 
 	if operator == "=" {
 		more, err = g.assignOne(name, v, items.next, partial, action)
 	} else {
-		more, err = g.assignMembers(name, v, items.next, partial, action)
+		g.coverAssignmentDomain(items.item.expr, name, partial, action, items.next == nil)
+		more, err = g.assignMembers(name, v, items, partial, action)
 	}
 	if err != nil {
 		g.addFrame(err, items.item.expr)
@@ -515,11 +537,20 @@ func (g *generator) assignOne(name string, v value.Value, rest *workList, partia
 	return more, err
 }
 
-func (g *generator) assignMembers(name string, set value.Value, rest *workList, partial evaluator.State, action string) (bool, error) {
+func (g *generator) assignMembers(name string, set value.Value, items *workList, partial evaluator.State, action string) (bool, error) {
 	more := true
 	err := set.Each(func(element value.Value) (bool, error) {
 		var e error
-		more, e = g.assignOne(name, element, rest, partial, action)
+		partial[name] = element
+		completed := g.coverageCompleted
+		if g.initial {
+			g.coverAssignmentMember(items.item.expr, partial, action, items.next == nil, 1)
+		}
+		more, e = g.solve(items.next, partial, action)
+		if !g.initial && g.coverageCompleted > completed {
+			g.coverAssignmentMember(items.item.expr, partial, action, items.next == nil, 1)
+		}
+		delete(partial, name)
 		return more, e
 	})
 	return more, err
@@ -534,7 +565,11 @@ func (g *generator) guard(items *workList, partial evaluator.State, action strin
 	if !ok {
 		return true, nil
 	}
+	completed := g.coverageCompleted
 	more, err := g.solve(items.next, partial, action)
+	if g.coverageCompleted > completed {
+		g.coverGuardSuccess(items.item.expr, action)
+	}
 	if err != nil {
 		g.addFrame(err, items.item.expr)
 	}

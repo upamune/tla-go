@@ -260,7 +260,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	oldLevel := s.model.tlcRuntime.level
 	s.model.tlcRuntime.level = s.candidateLevel(parent)
 	defer func() { s.model.tlcRuntime.level = oldLevel }()
-	s.result.GeneratedStates++
+	s.countGenerated(action, parent < 0)
 	if parent < 0 {
 		s.countInitialState()
 	}
@@ -274,7 +274,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 		return s.visitExisting(state, parent, action, key)
 	}
 	if inModel {
-		s.countState(parent)
+		s.countCoverageState(action, parent)
 	}
 	if more, err := s.checkGraphCandidate(state, parent, action, inModel); err != nil || !more {
 		s.recordFailureCandidate(key, parent, inModel)
