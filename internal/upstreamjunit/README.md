@@ -44,8 +44,14 @@ selected tool messages, including 2194. For 2190, 2191, and 2192 it removes only
 the timestamp appended by upstream `MP.java`; counts and all other text remain.
 It evaluates literal presence/absence assertions and initial-state, temporal,
 numeric depth and statistics values separately on each side.
+For direct subclasses of the pinned `SuiteTestCase` and `SuiteETestCase`, the
+resolver derives the lowercased model name and `suite` path, handles literal
+constructor forms and inherited literal flag overrides, and records the regular
+suite's inherited `testSpec` observations unless overridden. Suite error output
+interception and substring assertions remain omissions. Constructor side effects,
+custom hooks, indirect suite inheritance and dynamic setup prevent execution.
 Other recorder parameter forms, numeric predicates, coverage assertions,
-translation mapping/message assertions, arbitrary JUnit assertions, inherited
+translation mapping/message assertions, arbitrary JUnit assertions, other inherited
 assertions, test-specific Java overrides, and nonliteral setup are omissions.
 Coverage and dump setup and artifact assertions are not reproduced. Unsupported
 or ambiguous constructor expressions and custom setup hooks are not run.
@@ -70,3 +76,13 @@ For example, `pcal.CCallReturn1Test` reported Java's complete state space of
 8 states and no Go 2192 message. These counts happen to equal the earlier
 snapshot, but the Go liveness strategy remains unresolved; they do not establish
 15 JUnit failures or nine passes.
+
+After suite resolution was added, the verified inventory reported 340 recovered
+specs, 31 candidates with unsafe or unresolved invocation setup, and 340 unresolved
+non-abstract candidates. Each of three filtered runs attempted one case. Test10
+and Test22 had no selected differences and both sides satisfied the extracted
+inherited recorder observations; both exited 0. ETest1 exited 150 on both sides,
+with no selected recorder observations: its intercepted error substring was not
+checked. The enabled sweep failed intentionally in all three runs. Coverage,
+dump, lifecycle, exit expectations, and liveness equivalence remain unresolved;
+none of these results is a JUnit pass or proof of the 336-test denominator.

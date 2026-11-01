@@ -17,6 +17,7 @@ type Resolution struct {
 	Coverage, Dump, Deadlock, Translate bool
 	Checkpoint                          string
 	Reasons                             []string
+	Inherited                           []AssertedObservation
 }
 
 var (
@@ -117,6 +118,9 @@ func javaValue(s string, vars map[string]string) string {
 // Resolve handles literal constructor delegation through intermediate classes.
 func Resolve(testRoot string, classes []Class, c Class) Resolution {
 	r := Resolution{Case: Case{Name: c.Name, Workers: "1"}, Coverage: true, Dump: true, Checkpoint: "0", Translate: c.Kind == "PCal"}
+	if c.Kind == "Suite" || c.Kind == "SuiteE" {
+		return resolveSuite(testRoot, classes, c, r)
+	}
 	if c.Kind != "ModelChecker" && c.Kind != "PCal" {
 		r.Reasons = append(r.Reasons, "unsupported harness: "+c.Kind)
 		return r

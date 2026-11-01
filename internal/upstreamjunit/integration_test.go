@@ -65,6 +65,14 @@ func TestUpstreamJUnitSweep(t *testing.T) {
 		}
 		ids, presence, omitted := AssertedIDs(string(source), string(ec))
 		observations, assertionOmissions := ParseAssertions(string(source), string(ec))
+		observations = append(observations, r.Inherited...)
+		for _, obs := range r.Inherited {
+			if len(obs.Values) > 0 {
+				ids = append(ids, obs.ID)
+			} else {
+				presence = append(presence, obs.ID)
+			}
+		}
 		r.Reasons = append(r.Reasons, omitted...)
 		r.Reasons = append(r.Reasons, assertionOmissions...)
 		r.Reasons = append(r.Reasons, "Go liveness strategy not verified against JUnit final-only checks")
@@ -76,7 +84,7 @@ func TestUpstreamJUnitSweep(t *testing.T) {
 		// Only run invocations with fully resolved constructor and setup expressions.
 		unsafe := false
 		for _, reason := range r.Reasons {
-			if strings.HasPrefix(reason, "dynamic ") || strings.HasPrefix(reason, "invalid path:") || strings.HasPrefix(reason, "constructor ") || strings.HasPrefix(reason, "ambiguous constructor") || strings.HasPrefix(reason, "unterminated constructor") || strings.Contains(reason, "parent not resolved") || strings.Contains(reason, "custom harness hook") {
+			if strings.HasPrefix(reason, "dynamic ") || strings.HasPrefix(reason, "invalid path:") || strings.HasPrefix(reason, "constructor ") || strings.HasPrefix(reason, "ambiguous constructor") || strings.HasPrefix(reason, "unterminated constructor") || strings.HasPrefix(reason, "unsupported ") || strings.Contains(reason, "parent not resolved") || strings.Contains(reason, "custom harness hook") {
 				unsafe = true
 			}
 		}
