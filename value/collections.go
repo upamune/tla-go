@@ -566,8 +566,14 @@ func (v Value) updateAt(i int, update func(Value) (Value, error)) (Value, bool, 
 	if err != nil {
 		return Value{}, true, err
 	}
-	pairs := append([]Pair(nil), v.data.pairs...)
-	pairs[i].Value = replacement
+	pairs := v.data.pairs
+	// The callback has already run and may have effects. When it returns the
+	// identical value, the immutable pair slice can be shared, while a fresh
+	// payload preserves the identity and metadata of an ordinary update.
+	if replacement != pairs[i].Value {
+		pairs = append([]Pair(nil), pairs...)
+		pairs[i].Value = replacement
+	}
 	return Value{kind: FunctionKind, number: v.number, data: &payload{pairs: pairs, domain: v.data.domain, displayOrder: v.data.displayOrder}}, true, nil
 }
 
