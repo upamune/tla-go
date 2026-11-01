@@ -116,7 +116,7 @@ jobs:
           TLA_GO_JUNIT_JAR: ${{ runner.temp }}/tla2tools.jar
           TLA_GO_JUNIT_JUNIT: ${{ runner.temp }}/junit.jar
           TLA_GO_JUNIT_HAMCREST: ${{ runner.temp }}/hamcrest.jar
-        run: mise exec -- go test -v ./internal/upstreamjunit -run '^TestUpstreamJUnitExecution$' -count=1 -timeout=12m
+        run: mise exec -- go test -race -v ./internal/upstreamjunit -run '^TestUpstreamJUnitExecution$' -count=1 -timeout=12m
   pinact:
     runs-on: ubuntu-24.04
     steps:
