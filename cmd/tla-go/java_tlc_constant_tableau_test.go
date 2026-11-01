@@ -96,6 +96,30 @@ func TestJavaTLCConstantTableauConfiguredConstant(t *testing.T) {
 	}
 }
 
+// The 1.7.4 tableau can choose a different counterexample even when the
+// violation and state counts match. Preserve the oracle without asserting
+// tla-go's current, shorter stuttering trace as the desired behavior.
+func TestJavaTLCConstantTableauCycleOracle(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	dir := t.TempDir()
+	body := "VARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == []<>[]TRUE"
+	cfg := "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n"
+	writeDOTFixture(t, dir, body, cfg)
+	java := runJavaTLCForExit(t, jar, dir, "M", 13)
+	for _, fragment := range []string{"State 1: <Initial predicate>\nx = 0", "x = 1", "x = 2", "Back to state 1:"} {
+		if !strings.Contains(java, fragment) {
+			t.Fatalf("Java counterexample missing %q: %s", fragment, java)
+		}
+	}
+	var out, stderr bytes.Buffer
+	if code := run(context.Background(), []string{"-tool", "-workers", "1", "-fp", "0", filepath.Join(dir, "M.tla")}, &out, &stderr); code != 13 || stderr.Len() != 0 {
+		t.Fatalf("Go exit %d: %s %s", code, &out, &stderr)
+	}
+}
+
 func TestJavaTLCConstantTableauMultipleProperties(t *testing.T) {
 	for _, tc := range []struct {
 		name, first, second string
