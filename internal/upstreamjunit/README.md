@@ -879,8 +879,12 @@ file hash, pinned upstream commit and jar hash before use. Generate the log as
 described in the full sweep instructions, then run:
 
 ```sh
-go run ./internal/upstreamjunit/cmd/sweep-regression /path/to/full-sweep.log
+go build -o /tmp/tla-sweep-regression ./internal/upstreamjunit/cmd/sweep-regression
+/tmp/tla-sweep-regression /path/to/full-sweep.log
 ```
+
+Invoke the built binary when checking its exit status: `go run` wraps a
+program's nonzero exit and does not preserve the distinction between 1 and 2.
 
 The snapshot captures 340 lexical candidates, of which 294 were compared;
 the rest were unsafe or unavailable. The comparison is of selected diagnostic
@@ -897,15 +901,16 @@ other cases may also be nondeterministic.
 
 Exit code 1 means at least one new selected difference was observed and needs
 reproduction; it does not prove a regression. Exit code 2 means there were no
-new selected differences but the input was invalid or some cases remained
-inconclusive, unavailable, unsafe, or excluded. Exit code 0 is reserved for a
+new selected differences but the input was invalid, selected mismatches
+remained, or some cases were inconclusive, unavailable, unsafe, or excluded.
+Exit code 0 is reserved for a
 fully comparable diagnostic scope with none of these conditions; the current
 baseline has unresolved and excluded cases, so it cannot produce that result.
 If future work makes every case comparable, update the baseline from a
 provenanced completed sweep, remove each exclusion only with evidence, update
 the pinned file hash and provenance constants, and rerun. Only a comparison
-without new differences or any unresolved, excluded, missing, changed-scope or
-unavailable cases can then return 0; this still would not be a JUnit pass.
+without selected differences or any unresolved, excluded, missing, changed-scope
+or unavailable cases can then return 0; this still would not be a JUnit pass.
 The log's hash is displayed, but a log does not prove which Go executable,
 upstream checkout or Java jar produced it. Verify and record those separately.
 The snapshot stores difference categories rather than raw differing message

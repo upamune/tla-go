@@ -2,10 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/upamune/tla-go/internal/upstreamjunit"
 )
@@ -19,6 +25,7 @@ func TestReportExit(t *testing.T) {
 		{"complete", upstreamjunit.SweepRegression{}, 0},
 		{"unresolved", upstreamjunit.SweepRegression{Unresolved: []upstreamjunit.SweepRegressionFinding{{Class: "A", Kind: "unavailable", Detail: "java_timeout"}}}, 2},
 		{"excluded", upstreamjunit.SweepRegression{Excluded: []upstreamjunit.SweepRegressionFinding{{Class: "B", Kind: "nondeterministic", Detail: "parallel"}}}, 2},
+		{"known mismatch remains", upstreamjunit.SweepRegression{RemainingMismatches: 1}, 2},
 		{"missing or changed scope", upstreamjunit.SweepRegression{Findings: []upstreamjunit.SweepRegressionFinding{{Class: "C", Kind: "inconclusive"}}}, 2},
 		{"prior difference not observed", upstreamjunit.SweepRegression{Findings: []upstreamjunit.SweepRegressionFinding{{Class: "D", Kind: "no_longer_observed"}}}, 0},
 		{"unknown finding", upstreamjunit.SweepRegression{Findings: []upstreamjunit.SweepRegressionFinding{{Class: "D", Kind: "new-unrecognized-kind"}}}, 2},
@@ -31,6 +38,42 @@ func TestReportExit(t *testing.T) {
 			}
 			if !strings.Contains(out.String(), "not a JUnit pass") || !strings.Contains(out.String(), "provenance are not established") {
 				t.Fatalf("missing limitations: %s", &out)
+			}
+		})
+	}
+}
+
+func TestBinaryPreservesExitCodes(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	bin := filepath.Join(t.TempDir(), "sweep-regression")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	if output, err := exec.CommandContext(ctx, "go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, output)
+	}
+	for _, tc := range []struct {
+		name, differences, marker string
+		want                      int
+	}{
+		{"inconclusive", "", "candidate missing from sweep", 2},
+		{"new difference", "message:2199", "new_difference pcal.BakeryTest", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			log := fmt.Sprintf(`    integration_test.go:1: unresolved pcal.BakeryTest spec="Bakery"
+    integration_test.go:2: diagnostic pcal.BakeryTest differences=[%s] selected bodies=[2190 2194 2199] presence=[1000 2186]; partial comparison, liveness strategy unresolved, not a match; Java exit=0 Go exit=0
+    integration_test.go:3: incomplete sweep: 1 candidates with recovered spec, 1 diagnostic runs, 0 candidates with unsafe or unresolved setup, 1 unresolved non-abstract candidates; inventory is not an exhaustive JUnit count
+--- FAIL: TestUpstreamJUnitSweep (1.00s)
+`, tc.differences)
+			path := filepath.Join(t.TempDir(), "sweep.log")
+			if err := os.WriteFile(path, []byte(log), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			output, err := exec.CommandContext(ctx, bin, path).CombinedOutput()
+			exit, ok := errors.AsType[*exec.ExitError](err)
+			if !ok || exit.ExitCode() != tc.want || !bytes.Contains(output, []byte(tc.marker)) {
+				t.Fatalf("exit: %v, want %d\n%s", err, tc.want, output)
 			}
 		})
 	}

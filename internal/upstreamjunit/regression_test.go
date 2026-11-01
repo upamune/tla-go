@@ -15,7 +15,7 @@ func TestSweepRegressionPinnedBaseline(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := CompareSweepRegression(baseline, baseline)
-	if err != nil || len(got.Findings) != 0 || len(got.Excluded) != len(regressionExclusions) || len(got.Unresolved) == 0 || got.ExistingMismatches == 0 {
+	if err != nil || len(got.Findings) != 0 || len(got.Excluded) != len(regressionExclusions) || len(got.Unresolved) == 0 || got.ExistingMismatches == 0 || got.RemainingMismatches != got.ExistingMismatches {
 		t.Fatalf("baseline comparison: %+v %v", got, err)
 	}
 }

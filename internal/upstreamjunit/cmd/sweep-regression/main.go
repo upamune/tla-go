@@ -47,7 +47,7 @@ func run(args []string, out, errout io.Writer) int {
 func writeReport(out io.Writer, baseline upstreamjunit.SweepSnapshot, result upstreamjunit.SweepRegression, digest [32]byte) int {
 	fmt.Fprintf(out, "Diagnostic comparison only; this is not a JUnit pass.\nBaseline: %s; upstream: %s; jar SHA-256: %s\n", baseline.TlaGoCommit, baseline.UpstreamCommit, baseline.JarSHA256)
 	fmt.Fprintf(out, "Candidate log SHA-256: %x; executable and oracle provenance are not established by the log.\n", digest)
-	fmt.Fprintf(out, "Compared: %d; baseline selected mismatch cases: %d; baseline-unresolved: %d; excluded: %d\n", result.Compared, result.ExistingMismatches, len(result.Unresolved), len(result.Excluded))
+	fmt.Fprintf(out, "Compared: %d; baseline selected mismatch cases: %d; candidate selected mismatch cases: %d; baseline-unresolved: %d; excluded: %d\n", result.Compared, result.ExistingMismatches, result.RemainingMismatches, len(result.Unresolved), len(result.Excluded))
 	for _, exclusion := range result.Excluded {
 		fmt.Fprintf(out, "excluded %s: %s\n", exclusion.Class, exclusion.Detail)
 	}
@@ -63,7 +63,7 @@ func writeReport(out io.Writer, baseline upstreamjunit.SweepSnapshot, result ups
 
 func reportExit(result upstreamjunit.SweepRegression) int {
 	code := 0
-	if len(result.Unresolved) > 0 || len(result.Excluded) > 0 {
+	if len(result.Unresolved) > 0 || len(result.Excluded) > 0 || result.RemainingMismatches > 0 {
 		code = 2
 	}
 	for _, finding := range result.Findings {

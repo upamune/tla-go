@@ -43,11 +43,12 @@ type SweepRegressionFinding struct {
 // SweepRegression is a selected-output comparison, not a JUnit pass count.
 // Unresolved lists cases for which the baseline cannot establish a comparison.
 type SweepRegression struct {
-	Findings           []SweepRegressionFinding
-	Excluded           []SweepRegressionFinding
-	Unresolved         []SweepRegressionFinding
-	ExistingMismatches int
-	Compared           int
+	Findings            []SweepRegressionFinding
+	Excluded            []SweepRegressionFinding
+	Unresolved          []SweepRegressionFinding
+	ExistingMismatches  int
+	RemainingMismatches int
+	Compared            int
 }
 
 // PinnedRegressionBaseline returns the exact recorded reference snapshot.
@@ -175,6 +176,9 @@ func (r *SweepRegression) compare(previous, current SweepRecord) {
 	r.Compared++
 	if len(previous.Differences) > 0 {
 		r.ExistingMismatches++
+	}
+	if len(current.Differences) > 0 {
+		r.RemainingMismatches++
 	}
 	r.compareDifferences(previous, current)
 }
