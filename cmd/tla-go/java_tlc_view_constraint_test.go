@@ -498,3 +498,30 @@ V == IF PrintT(<<"view", x>>) THEN 0 ELSE 0`
 		}
 	}
 }
+
+func TestJavaTLCViewConstraintEffectfulDOTLiveness(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	dir := t.TempDir()
+	body := `VARIABLE x
+Init == x = 0 /\ TLCSet(0, 0)
+Next == x' \in 0..2
+C == TLCGet(0) < 6
+V == IF TLCSet(0, TLCGet(0) + 1) THEN x ELSE x
+P == []<>(x = 0)`
+	writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCONSTRAINT C\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-fp", "0", "-workers", "1", "-lncheck", "final", "-dump", "dot", "go.dot", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	graph, err := os.ReadFile(filepath.Join(dir, "go.dot"))
+	stats := "4 states generated, 1 distinct states found, 0 states left on queue."
+	if code != 0 || stderr != "" || err != nil || !strings.Contains(out, stats) {
+		t.Fatalf("Go exit %d stderr %q graph error %v output:\n%s", code, stderr, err, out)
+	}
+	if jar != "" {
+		args[len(args)-2] = "java.dot"
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		want, err := os.ReadFile(filepath.Join(dir, "java.dot"))
+		if javaCode != 0 || err != nil || !bytes.Equal(graph, want) || !strings.Contains(java, stats) {
+			t.Fatalf("Java exit %d error %v output:\n%s\nGo output:\n%s\nJava graph:\n%s\nGo graph:\n%s", javaCode, err, java, out, want, graph)
+		}
+	}
+}
