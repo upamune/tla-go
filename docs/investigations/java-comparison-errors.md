@@ -185,3 +185,10 @@ domain can also contain a nested Cartesian product as a single bound. Reversing
 that shared enumerator would change those operations too; the function-specific
 enumeration and nested-bound semantics require separate oracle coverage before
 changing their order.
+
+For a single record domain `[b : Int, a : Nat]`, Java's first cardinality
+error depends on field intern order; Go currently falls back and reports a
+generic enumeration error. For `[a : [p : {}, q : Seq({1})], b : {1}]`,
+Java reports a cardinality error for `Seq({1})`, while Go's unknown-size
+fallback can complete successfully. These cases are not resolved by the
+single-record-domain check.

@@ -636,6 +636,55 @@ func TestJavaTLCRecordSetSizeOrder(t *testing.T) {
 	}
 }
 
+func TestJavaTLCSingleRecordFunctionDomain(t *testing.T) {
+	for _, tc := range []struct{ domain, message string }{
+		{`[a : {}, b : Nat]`, "overridden value Nat"},
+		{`[b : Nat, a : {}]`, "overridden value Nat"},
+		{`[a : 1..50000, b : 1..50000]`, "Overflow when computing the number of elements"},
+		{`[a : [p : {}, q : Nat], b : {1}]`, "overridden value Nat"},
+		{`[a : [p : 1..50000, q : 1..50000], b : {1}]`, "Overflow when computing the number of elements"},
+	} {
+		t.Run(tc.domain, func(t *testing.T) {
+			dir := t.TempDir()
+			expr := `LET f[x \in ` + tc.domain + `] == Print("body-marker", 1 \div 0) IN f = f`
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers, TLC\nASSUME "+expr+"\n====\n", "")
+			check := func(name, output string) {
+				t.Helper()
+				if !strings.Contains(output, tc.message) || strings.Contains(output, `"body-marker"`) || strings.Contains(output, "argument of \\div is 0") {
+					t.Fatalf("%s: %s", name, output)
+				}
+			}
+			var out, stderr bytes.Buffer
+			if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 10 {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			check("Go", out.String())
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				check("Java", equalityJava(t, jar, dir, false, 10))
+			}
+		})
+	}
+}
+
+func TestJavaTLCSingleRecordFunctionFinite(t *testing.T) {
+	for _, expr := range []string{
+		`LET f[x \in [a : {}, b : {1}]] == 1 \div 0 IN f = f`,
+		`LET f[x \in [a : {1,2}, b : {3}]] == x.a IN f = f /\ f[[a |-> 2, b |-> 3]] = 2`,
+	} {
+		t.Run(expr, func(t *testing.T) {
+			dir := t.TempDir()
+			writeEqualityModel(t, dir, "---- MODULE M ----\nEXTENDS Integers\nASSUME "+expr+"\n====\n", "")
+			var out, stderr bytes.Buffer
+			if code := run(context.Background(), []string{filepath.Join(dir, "M.tla")}, &out, &stderr); code != 0 {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), stderr.String())
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				equalityJava(t, jar, dir, false, 0)
+			}
+		})
+	}
+}
+
 func TestJavaTLCRecordSetMultipleErrorsInternOrder(t *testing.T) {
 	jar := os.Getenv("TLC_JAR")
 	if jar == "" {

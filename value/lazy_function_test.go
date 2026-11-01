@@ -306,6 +306,53 @@ func TestLazyRecordSetSizeConservative(t *testing.T) {
 	}
 }
 
+func TestLazyFunctionSingleRecordDomain(t *testing.T) {
+	inner, _ := RecordSet([]Pair{{String("a"), Interval(1, 50000)}, {String("b"), Interval(1, 50000)}})
+	unknown, _ := RecordSet([]Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(Interval(1, 1))}})
+	for _, tc := range []struct {
+		name    string
+		fields  []Pair
+		message string
+		count   int
+	}{
+		{"empty and Nat", []Pair{{String("a"), Interval(1, 0)}, {String("b"), NaturalNumbers()}}, "overridden value Nat", 0},
+		{"overflow", []Pair{{String("a"), Interval(1, 50000)}, {String("b"), Interval(1, 50000)}}, "Overflow when computing the number of elements", 0},
+		{"nested overflow", []Pair{{String("a"), inner}, {String("b"), Interval(1, 1)}}, "Overflow when computing the number of elements", 0},
+		{"finite", []Pair{{String("a"), Interval(1, 2)}, {String("b"), Interval(1, 2)}}, "", 4},
+		{"unknown fallback", []Pair{{String("a"), Interval(1, 0)}, {String("b"), Sequences(Interval(1, 1))}}, "", 0},
+		{"nested unknown fallback", []Pair{{String("a"), unknown}, {String("b"), Interval(1, 1)}}, "", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			domain, err := RecordSet(tc.fields)
+			if err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			fn, err := LazyFunction(domain, func(k, _ Value) (Value, error) { calls++; return k, nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			pairs, err := fn.Pairs()
+			if tc.message != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.message) || calls != 0 {
+					t.Fatalf("error = %v, body calls = %d", err, calls)
+				}
+				for _, check := range []func() error{
+					func() error { _, err := fn.Key(); return err },
+					func() error { _, err := TLCFingerprint([]Value{fn}); return err },
+					func() error { _, err := Equal(fn, fn); return err },
+				} {
+					if err := check(); err == nil || !strings.Contains(err.Error(), tc.message) || calls != 0 {
+						t.Fatalf("error = %v, body calls = %d", err, calls)
+					}
+				}
+			} else if err != nil || len(pairs) != tc.count || calls != tc.count {
+				t.Fatalf("pairs = %d, error = %v, body calls = %d", len(pairs), err, calls)
+			}
+		})
+	}
+}
+
 func TestLazyRecordSetOrderIndependentErrors(t *testing.T) {
 	inner, _ := RecordSet([]Pair{{String("a"), Interval(1, 50000)}, {String("b"), Interval(1, 50000)}})
 	for _, fields := range [][]Pair{

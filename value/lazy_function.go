@@ -105,7 +105,7 @@ func (v Value) lazyPairs() ([]Pair, error) {
 	if v.data.domain.kind == InfiniteSetKind {
 		return nil, &TLCError{Message: fmt.Sprintf("Attempted to compute the number of elements in the overridden value %s.", v.data.domain)}
 	}
-	if v.data.domain.kind == ProductSetKind || v.data.domain.kind == FunctionSetKind {
+	if v.data.domain.kind == ProductSetKind || v.data.domain.kind == FunctionSetKind || v.data.domain.kind == RecordSetKind {
 		_, _, err := lazyProductSize(v.data.domain)
 		if err != nil {
 			return nil, err
