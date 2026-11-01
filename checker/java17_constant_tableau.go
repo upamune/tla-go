@@ -38,6 +38,9 @@ func (m *model) java17ConstantCandidate(p *temporalProperty) bool {
 	if m.tlcRuntime.simulation || m.hasReduction() || p.mode == stateAlways || p.mode == actionAlways || p.mode == initialOnly {
 		return false
 	}
+	if !m.java17PureEnvironment() {
+		return false
+	}
 	return (&search{model: m}).pureConstantTemporalSource(p.source, p.locals)
 }
 
