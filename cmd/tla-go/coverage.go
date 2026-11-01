@@ -20,7 +20,11 @@ func printCoverage(w io.Writer, actions []checker.CoverageAction) {
 	}
 	fmt.Fprintf(w, "The coverage statistics at %s\n", time.Now().Format("2006-01-02 15:04:05"))
 	for _, a := range actions {
-		fmt.Fprintf(w, "<%s %s>: %d:%d\n", a.Name, coverageLocation(a.Range), a.Distinct, a.Generated)
+		if a.Property {
+			fmt.Fprintf(w, "<%s %s>\n", a.Name, coverageLocation(a.Range))
+		} else {
+			fmt.Fprintf(w, "<%s %s>: %d:%d\n", a.Name, coverageLocation(a.Range), a.Distinct, a.Generated)
+		}
 		for _, e := range a.Expressions {
 			fmt.Fprintf(w, "  %s%s: %d\n", strings.Repeat("|", e.Depth), coverageLocation(e.Range), e.Count)
 		}
@@ -38,7 +42,11 @@ func printToolCoverage(t toolOutput, actions []checker.CoverageAction) {
 		if i == 0 {
 			code = 2773
 		}
-		t.message(code, 0, fmt.Sprintf("<%s %s>: %d:%d", a.Name, coverageLocation(a.Range), a.Distinct, a.Generated))
+		if a.Property {
+			t.message(2774, 0, fmt.Sprintf("<%s %s>", a.Name, coverageLocation(a.Range)))
+		} else {
+			t.message(code, 0, fmt.Sprintf("<%s %s>: %d:%d", a.Name, coverageLocation(a.Range), a.Distinct, a.Generated))
+		}
 		for _, e := range a.Expressions {
 			t.message(2221, 0, fmt.Sprintf("  %s%s: %d", strings.Repeat("|", e.Depth), coverageLocation(e.Range), e.Count))
 		}

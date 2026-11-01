@@ -436,7 +436,7 @@ func (m *model) invariantViolation(state evaluator.State) (string, error) {
 			continue
 		}
 		expr, _ := m.definition(name)
-		ok, err := m.holds(expr, state, nil)
+		ok, err := m.holdsInvariant(name, expr, state)
 		if err != nil {
 			return name, err
 		}

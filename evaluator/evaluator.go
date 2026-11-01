@@ -24,6 +24,8 @@ type Context struct {
 	Lexical       *LexicalScope
 	Enabled       EnabledCallback
 	OnPrint       func(string)
+	// OnEvaluate observes actual expression evaluations when requested by a caller.
+	OnEvaluate func(*parser.Expression)
 	// UncachedArguments matches TLC's evaluation of ENABLED predicates.
 	UncachedArguments bool
 	// UncachedConstants evaluates configuration overrides before constant precomputation.
@@ -247,6 +249,9 @@ func (p *Program) evaluate(expression *parser.Expression, context Context) (valu
 }
 
 func (e *evaluator) eval(expr *parser.Expression) (value.Value, error) {
+	if e.context.OnEvaluate != nil && expr != nil {
+		e.context.OnEvaluate(expr)
+	}
 	result, err := e.evalExpression(expr)
 	if err != nil && expr != nil {
 		AddUnexpectedSource(err, expr)

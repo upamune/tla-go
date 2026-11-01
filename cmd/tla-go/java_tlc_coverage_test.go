@@ -358,7 +358,7 @@ func coverageMessages(messages []toolMessage) []toolMessage {
 		case 2201:
 			m.body = "The coverage statistics at <time>"
 			result = append(result, m)
-		case 2202, 2221, 2772, 2773:
+		case 2202, 2221, 2772, 2773, 2774:
 			result = append(result, m)
 		}
 	}
@@ -630,6 +630,86 @@ func TestJavaTLCCoverageUnchangedGuardOrders(t *testing.T) {
 						t.Errorf("coverage differs from Java\ngot:\n%s\nwant:\n%s", got, want)
 					}
 				}
+			}
+		})
+	}
+}
+
+// These small fixtures exercise the property cost tree from TLC 1.7.4.
+func TestJavaTLCCoverageProperties(t *testing.T) {
+	for _, name := range []string{"quantified", "shortcircuit", "nested"} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			base := filepath.Join("testdata", "java-tlc", "coverage-properties", name)
+			for _, ext := range []string{".tla", ".cfg"} {
+				data, err := os.ReadFile(base + ext)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "M"+ext), data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			golden, err := os.ReadFile(base + ".coverage")
+			if err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"-workers", "1", "-coverage", "0", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 {
+				t.Fatalf("exit %d: %s\n%s", code, stderr, out)
+			}
+			if got := coverageReport(t, out); got != string(golden) {
+				t.Errorf("Go coverage:\n%s\nwant:\n%s", got, golden)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, code := runJavaTLCArgs(t, jar, dir, args)
+				if code != 0 {
+					t.Fatalf("Java exit %d: %s", code, java)
+				}
+				if got := coverageReport(t, java); got != string(golden) {
+					t.Errorf("Java coverage:\n%s\nwant:\n%s", got, golden)
+				}
+				toolArgs := append([]string{"-tool"}, args...)
+				goTool, goCode, stderr := runGoInDir(t, dir, toolArgs)
+				javaTool, javaCode := runJavaTLCArgs(t, jar, dir, toolArgs)
+				if goCode != 0 || javaCode != 0 {
+					t.Fatalf("tool mode: Go exit %d (%s), Java exit %d", goCode, stderr, javaCode)
+				}
+				if got, want := coverageMessages(readToolMessages(goTool)), coverageMessages(readToolMessages(javaTool)); !reflect.DeepEqual(got, want) {
+					t.Errorf("tool coverage differs\ngot: %#v\nwant: %#v", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestCoverageRejectsUnsupportedInvariantCosts(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join("testdata", "java-tlc", "coverage-properties", "quantified.tla"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := os.ReadFile(filepath.Join("testdata", "java-tlc", "coverage-properties", "quantified.cfg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expression := range []string{
+		`x = 0 \/ x = 1 \/ x < 0`,
+		`\A i \in 1..x : i \in Nat`,
+		`x + 1 = 1`,
+	} {
+		t.Run(expression, func(t *testing.T) {
+			dir := t.TempDir()
+			model := strings.Replace(string(source), `\A i \in 1..2 : i \in Nat`, expression, 1)
+			if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(model), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), cfg, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, code, stderr := runGoInDir(t, dir, []string{"-coverage", "0", "M.tla"})
+			if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
+				t.Fatalf("exit %d, stderr %s", code, stderr)
 			}
 		})
 	}
