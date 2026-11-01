@@ -398,3 +398,56 @@ changed difference needs investigation, not automatic acceptance; an unavailable
 or nondeterministic rerun remains unresolved. Comparing category names alone
 also cannot detect changes in the underlying differing values. Use the snapshot
 as an index for targeted reproduction, not a complete parity guard.
+
+## Investigation of snapshot 56336d54 PlusCal 2192 differences
+
+The snapshot records 14 `pcal` classes with `message:2192`, not 13:
+Euclid3, EvenOddBad, EvenOdd, Factorial2, InnerLabeledIf, MergeSort,
+MultiProc2, NoLoop2, NoLoop, NoParams, ReallySimpleMultiProc,
+SimpleLoopWithProcedure, ULEvenOdd, and ULFactorial2. EvenOddBad also has
+`presence:2267`; these are class-level diagnostics, not JUnit verdicts.
+
+The pinned source and jar verified above were used to translate the real
+models with `pcal.trans -unixEOL -wf -termination`. For NoLoop2 the translated
+`Spec` has `WF_vars(Next)`, `Termination` is `<>(pc = "Done")`, and `Next`
+reaches action `e` containing `Print(x, TRUE)`; its `b` action chooses from
+`{1, 2}`. EvenOdd, Factorial2 and Euclid3 likewise reach `PrintT` through
+`Next`. These are effects in the translated TLA, not merely PlusCal comments.
+The inherited JUnit setup translates first, checks its mapping and translator
+messages, installs the recorder, sets the liveness threshold to
+`Double.MAX_VALUE`, and runs with `-deadlock -fp 0 -coverage 1 -workers 1
+-checkpoint 0 -dump dot` and a class-named metadir path. The differential uses
+`-tool`, a separate dump path, and no Go coverage; it compares translated TLA
+and CFG files. It does not execute that JUnit lifecycle on Go.
+
+`TestPinnedEffectfulPlusCalTableauProgressGuard` compares six real translated
+cases under that partial setup, including both Print and PrintT, a branching
+model, and EvenOddBad. Java's 2192 counts are checked against the original
+literal JUnit assertions (respectively 12, 13, 13, 16, 9, and 94); Go emits
+neither 2192 nor 2267 in these cases. Translation and dump differences are
+checked separately. The pure CCallReturn1 control emits the asserted count 8
+on both sides. The comparison strips only the timestamp from 2192, so an
+absent message is an application-output difference, not normalization of a
+count. The selected snapshot reports 2267 only where the source selected its
+presence; a missing snapshot entry does not establish that the other cases
+emit it on Go.
+
+Go deliberately suppresses this progress pair when tableau replay is unsafe.
+Java's late tableau expansion can regenerate successors and evaluate effects and
+constraints again; Go's completed state count alone cannot establish the same
+fingerprint count, effect sequence, or subsequent behavior. This also applies
+to dynamic TLCGet/TLCSet and must not be fixed by suppressing their effects or
+fabricating the message. The branching in NoLoop2 is model nondeterminism;
+it does not by itself prove run-to-run variability in the diagnostic. No
+run-to-run nondeterminism is claimed for these counts. Intermediate versus
+final liveness checks, recorder completeness, coverage and lifecycle equivalence
+remain separate unresolved questions, so these observations do not establish
+JUnit passes or failures for Go, or classify every one of the 14 cases.
+
+A safe next step is an isolated Java/Go replay comparison that records typed
+liveness graph insertions, successor and constraint evaluations, and ordered
+Print/TLCGet/TLCSet effects, including dynamic values and branching, under both
+final-only and intermediate checks. Implement Java-compatible late expansion
+and its timing only after these observations and liveness outcomes agree; retain
+negative tests showing that effectful replay cannot be replaced by a distinct
+state count.

@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -113,12 +114,29 @@ func TestPinnedEffectfulPlusCalTableauProgressGuard(t *testing.T) {
 	if out, err := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
-	for _, model := range []string{"Factorial2", "EvenOdd", "InnerLabeledIf"} {
-		t.Run(model, func(t *testing.T) {
+	for _, tc := range []struct {
+		model, count string
+	}{
+		{"Factorial2", "12"},
+		{"EvenOdd", "13"},
+		{"EvenOddBad", "13"},
+		{"InnerLabeledIf", "16"},
+		{"NoLoop2", "9"},
+		{"Euclid3", "94"},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			model := tc.model
 			c := Case{Name: "pcal." + model + "Test", Model: model, Path: "pcal", Workers: "1", Coverage: true, Dump: true, Translate: true, TranslationArgs: []string{"-wf", "-termination"}, IDs: []string{"2192"}, PresenceIDs: []string{"2267"}}
-			j, g, _, err := RunCase(root, jar, binary, c, 30*time.Second)
+			j, g, diffs, err := RunCase(root, jar, binary, c, 30*time.Second)
 			if err != nil || j.ExitCode != 0 || g.ExitCode != 0 {
 				t.Fatalf("Java exit %d Go exit %d: %v", j.ExitCode, g.ExitCode, err)
+			}
+			if !reflect.DeepEqual(diffs, []string{"message:2192", "presence:2267"}) {
+				t.Fatalf("unexpected differences (including translation and dump): %v", diffs)
+			}
+			failures, omissions, assertionErr := CheckAssertions(j, []AssertedObservation{{ID: "2192", Present: true, Values: []string{"complete", tc.count}}})
+			if assertionErr != nil || len(failures) != 0 || len(omissions) != 0 {
+				t.Fatalf("Java upstream 2192 assertion: failures=%v omissions=%v error=%v", failures, omissions, assertionErr)
 			}
 			jm, je := Messages(j.Output)
 			gm, ge := Messages(g.Output)
