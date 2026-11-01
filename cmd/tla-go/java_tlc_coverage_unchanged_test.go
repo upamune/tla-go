@@ -57,6 +57,14 @@ func TestJavaTLCCoverageDirectUnchanged(t *testing.T) {
 		{"scalar", "VARIABLE x\nInit == x = TRUE\nNext == UNCHANGED x", "", ""},
 		{"max-integer", "VARIABLE x\nInit == x = 2147483647\nNext == UNCHANGED x", "", ""},
 		{"range", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 0..2\nNext == UNCHANGED x", "", ""},
+		{"set-empty", "VARIABLE x\nInit == x \\in {}\nNext == UNCHANGED x", "", ""},
+		{"set-singleton", "VARIABLE x\nInit == x \\in {1}\nNext == UNCHANGED x", "", ""},
+		{"set-numbers", "VARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x", "", ""},
+		{"set-duplicates", "VARIABLE x\nInit == x \\in {2,1,2,3}\nNext == UNCHANGED x", "", ""},
+		{"set-booleans", "VARIABLE x\nInit == x \\in {TRUE,FALSE,TRUE}\nNext == UNCHANGED x", "", ""},
+		{"set-spec", "VARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x\nSpec == Init /\\ [][Next]_x", "", "SPECIFICATION Spec\n"},
+		{"set-enabled", "VARIABLE x\nInit == x \\in {1,2,3}\nNext == /\\ UNCHANGED x\n        /\\ UNCHANGED x\nInv == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"set-invariant", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x\nInv == x < 4", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
 		{"empty", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 1..0\nNext == UNCHANGED x", "", ""},
 		{"tuple", "VARIABLES x,y\nInit == /\\ x=TRUE\n        /\\ y=FALSE\nNext == UNCHANGED <<y,x>>", "", ""},
 		{"three-values", "VARIABLES x,y,z\nInit == /\\ x=1\n        /\\ y=0\n        /\\ z=TRUE\nNext == UNCHANGED <<z,y,x>>", "", ""},
@@ -104,6 +112,12 @@ func TestJavaTLCCoverageDirectUnchanged(t *testing.T) {
 						t.Fatalf("coverage\n%s\nwant\n%s", got, want)
 					}
 				}
+				if tc.name == "set-numbers" && !tool {
+					const want = "<Init line 3, col 1 to line 3, col 4 of module M>: 3:3\n  line 3, col 9 to line 3, col 21 of module M: 3\n  |line 3, col 15 to line 3, col 21 of module M: 1:4\n<Next line 4, col 1 to line 4, col 4 of module M>: 0:3\n  line 4, col 9 to line 4, col 19 of module M: 3\nEnd of statistics.\n"
+					if got := coverageReport(t, out); got != want {
+						t.Fatalf("coverage\n%s\nwant\n%s", got, want)
+					}
+				}
 				if jar := os.Getenv("TLC_JAR"); jar != "" {
 					java, javaCode := runJavaTLCArgs(t, jar, dir, runArgs)
 					if javaCode != code {
@@ -113,6 +127,13 @@ func TestJavaTLCCoverageDirectUnchanged(t *testing.T) {
 						got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java))
 						if !reflect.DeepEqual(got, want) {
 							t.Fatalf("tool coverage\nGo: %+v\nJava: %+v", got, want)
+						}
+						if strings.HasPrefix(tc.name, "set-") {
+							for _, code := range []int{2199, 2194} {
+								if got, want := rawToolMessage(out, code), rawToolMessage(java, code); got != want {
+									t.Fatalf("tool message %d\nGo: %s\nJava: %s", code, got, want)
+								}
+							}
 						}
 					} else if got, want := coverageReport(t, out), coverageReport(t, java); got != want {
 						t.Fatalf("coverage\nGo:\n%s\nJava:\n%s", got, want)
@@ -163,6 +184,90 @@ func TestCoverageRejectsDirectUnchangedWithConstraint(t *testing.T) {
 	_, code, stderr := runGoInDir(t, dir, []string{"-coverage", "9999", "M.tla"})
 	if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
 		t.Fatalf("exit %d stderr %s", code, stderr)
+	}
+}
+
+func TestCoverageRejectsUnmodeledInitialSetCosts(t *testing.T) {
+	for _, tc := range []struct{ name, body, cfg string }{
+		{"guard", "EXTENDS Naturals\nVARIABLE x\nInit == /\\ x \\in {1,2,3}\n        /\\ x < 3\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
+		{"multiple variables", "VARIABLES x,y\nInit == /\\ x \\in {1,2}\n        /\\ y = 0\nNext == UNCHANGED <<x,y>>", "INIT Init\nNEXT Next\n"},
+		{"constraint", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,2,3}\nA == x' = 1\nB == x' = 2\nNext == A \\/ B\nLimit == x < 3", "INIT Init\nNEXT Next\nCONSTRAINT Limit\n"},
+		{"mixed kinds", "VARIABLE x\nInit == x \\in {1,TRUE}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
+		{"nonliteral", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,1+1}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
+		{"set assignment", "VARIABLE x\nInit == x = {1,2}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", tc.body)
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte(tc.cfg), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			out, code, stderr := runGoInDir(t, dir, []string{"-coverage", "9999", "M.tla"})
+			if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
+				t.Fatalf("expected rejection: exit %d stderr %s output %s", code, stderr, out)
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageInitialSetDisjunction(t *testing.T) {
+	for _, initial := range []string{"{}", "{1}", "{1,2,2,3}"} {
+		t.Run(initial, func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", "VARIABLE x\nInit == x \\in "+initial+"\nA == x' = 1\nB == x' = 2\nNext == A \\/ B")
+			writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\n")
+			compareParameterizedCoverage(t, dir)
+		})
+	}
+}
+
+func TestJavaTLCCoverageInitialSetInvariantViolation(t *testing.T) {
+	dir := t.TempDir()
+	writeCoverageModule(t, dir, "M", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x\nInv == x < 3")
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nINVARIANT Inv\n")
+	for _, tool := range []bool{false, true} {
+		t.Run(boolName(tool), func(t *testing.T) {
+			args := []string{"-deadlock", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"}
+			if tool {
+				args = append([]string{"-tool"}, args...)
+			}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 12 || stderr != "" {
+				t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != code {
+					t.Fatalf("Java exit %d\n%s", javaCode, java)
+				}
+				if tool {
+					got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java))
+					if !reflect.DeepEqual(got, want) {
+						t.Fatalf("tool coverage\nGo: %+v\nJava: %+v", got, want)
+					}
+				} else if strings.Contains(out, "The coverage statistics at") || strings.Contains(java, "The coverage statistics at") {
+					t.Fatalf("unexpected coverage report\nGo:\n%s\nJava:\n%s", out, java)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageInitialSetMaxSize(t *testing.T) {
+	dir := t.TempDir()
+	writeCoverageModule(t, dir, "M", "VARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x")
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\n")
+	args := []string{"-tool", "-deadlock", "-fp", "0", "-workers", "1", "-coverage", "9999", "-maxSetSize", "2", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code != 0 || stderr != "" {
+		t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java))
+		if javaCode != code || !reflect.DeepEqual(got, want) || rawToolMessage(out, 2199) != rawToolMessage(java, 2199) {
+			t.Fatalf("Java exit %d\nGo: %+v\nJava: %+v", javaCode, got, want)
+		}
 	}
 }
 

@@ -212,7 +212,12 @@ It also supports a direct named `Next == UNCHANGED x` for one variable, or
 `Next == UNCHANGED <<...>>` listing every variable exactly once. Its initial
 predicate must assign a nonnegative decimal integer within TLC's 32-bit range
 or a Boolean literal to every variable exactly once, or assign a range with
-such literal endpoints to the sole variable. A nonempty range's upper endpoint
+such literal endpoints to the sole variable. It may instead assign the sole
+variable from an explicit set of nonnegative decimal integer literals or an
+explicit set of Boolean literals. Empty sets and duplicates are supported;
+mixed types, compound members, additional initial conjuncts, and constraints
+are rejected for this set form. TLC's enumerator cost counts the set's distinct
+members plus one. A nonempty range's upper endpoint
 must be below 2,147,483,647: Java TLC's interval enumerator wraps after that
 endpoint and does not terminate normally.
 Initial guards,
@@ -228,6 +233,8 @@ collector reports two. Tests compare the direct action's normal and tool
 coverage with Java, including empty initial ranges, reordered definitions,
 `SPECIFICATION`, supported invariants, and separately defined modules. The
 direct UNCHANGED action is supported in the forms described below.
+The same initial set form is also supported with the otherwise supported
+disjunctions of named actions or calls to parameterized actions.
 For the upstream `GCoverageTest` model, the coverage report matches Java's,
 including its alias for the full variable tuple, repeated `UNCHANGED`
 conjuncts, and `ENABLED Next` invariant. The original JUnit assertion and

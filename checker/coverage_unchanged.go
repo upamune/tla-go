@@ -104,7 +104,37 @@ func coverageInitialLiteral(op string, e *parser.Expression) bool {
 	if op == "=" {
 		return coverageInitialNumber(e) || e.Kind == "Identifier" && (e.Text == "TRUE" || e.Text == "FALSE")
 	}
-	return op == "\\in" && coverageInitialInterval(e)
+	return op == "\\in" && (coverageInitialInterval(e) || coverageInitialSet(e))
+}
+
+// Restrict explicit sets to literals of one scalar type. Mixed values can
+// trigger TLC's type-sensitive sorting errors while constructing the set.
+func coverageInitialSet(e *parser.Expression) bool {
+	if e == nil || e.Kind != "SetEnumeration" {
+		return false
+	}
+	kind := ""
+	for _, item := range e.Args {
+		current := coverageInitialSetItem(item)
+		if current == "" || kind != "" && kind != current {
+			return false
+		}
+		kind = current
+	}
+	return true
+}
+
+func coverageInitialSetItem(e *parser.Expression) string {
+	if e == nil {
+		return ""
+	}
+	if coverageInitialNumber(e) {
+		return "number"
+	}
+	if e.Kind == "Identifier" && (e.Text == "TRUE" || e.Text == "FALSE") {
+		return "boolean"
+	}
+	return ""
 }
 
 func coverageInitialInterval(e *parser.Expression) bool {

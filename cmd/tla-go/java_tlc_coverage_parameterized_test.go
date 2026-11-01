@@ -20,6 +20,8 @@ func TestJavaTLCCoverageParameterizedValues(t *testing.T) {
 		{"literal-body", "x=0", "A(n) == x'=1\nB(n) == x'=0\nNext == A(3) \\/ B(4)"},
 		{"empty-init", "x \\in 1..0", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
 		{"range-init", "x \\in 0..2", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
+		{"set-init", "x \\in {0,1,1,2}", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
+		{"empty-set-init", "x \\in {}", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

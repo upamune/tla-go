@@ -73,7 +73,7 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 		return nil, false
 	}
 	c := &coverageCollector{byName: map[string]int{}, bodies: map[string]*parser.Expression{}, expressions: map[string]map[parser.Range]int{}, guards: map[string]map[parser.Range]int{}, memberships: map[string]map[parser.Range]int{}, assignmentMemberships: map[string]map[parser.Range]int{}, properties: map[string]*coverageNode{}, existentialDomains: map[string]map[parser.Range]int{}, initial: init.Name}
-	if !m.coverageBodySupported(init.Body, true) || !c.add(init, true) {
+	if !m.coverageBodySupported(init.Body, true) || !m.coverageInitialSetContext(init.Body) || !c.add(init, true) {
 		return nil, false
 	}
 	if !m.addCoverageNext(c, next) {
@@ -181,7 +181,7 @@ func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, i
 	a := &c.actions[i]
 	c.expressions[name][e.Location.Range] = len(a.Expressions)
 	a.Expressions = append(a.Expressions, CoverageExpression{Range: e.Location.Range})
-	if coverageRangeMembership(e) {
+	if coverageAssignmentMembership(e, initial) {
 		c.assignmentMemberships[name][e.Location.Range] = len(a.Expressions) - 1
 		a.Expressions = append(a.Expressions, CoverageExpression{Range: e.Args[1].Location.Range, Depth: 1})
 		return true
@@ -210,6 +210,10 @@ func coverageComparisonGuard(e *parser.Expression) bool {
 
 func coverageRangeMembership(e *parser.Expression) bool {
 	return e.Kind == "Apply" && e.Text == "\\in" && len(e.Args) == 2 && e.Args[1].Kind == "Apply" && e.Args[1].Text == ".."
+}
+
+func coverageAssignmentMembership(e *parser.Expression, initial bool) bool {
+	return coverageRangeMembership(e) || initial && e.Kind == "Apply" && e.Text == "\\in" && len(e.Args) == 2 && coverageInitialSet(e.Args[1])
 }
 
 func coverageMembershipSupported(e *parser.Expression, initial bool) bool {
@@ -274,11 +278,18 @@ func (c *coverageCollector) coverExpression(expr *parser.Expression, action stri
 	a.Expressions[i].Count++
 	if _, ok := c.assignmentMemberships[action][expr.Location.Range]; ok {
 		a.Expressions[i+1].Count++
+		if isInitialSetMembership(c, action, expr) {
+			a.Expressions[i+1].Cost++
+		}
 	}
 	if _, ok := c.memberships[action][expr.Location.Range]; ok {
 		a.Expressions[i+1].Count++
 		a.Expressions[i+2].Count++
 	}
+}
+
+func isInitialSetMembership(c *coverageCollector, action string, expr *parser.Expression) bool {
+	return action == c.initial && len(expr.Args) == 2 && expr.Args[1].Kind == "SetEnumeration"
 }
 
 // Initial memberships are charged for each member that completes a state.
@@ -295,6 +306,13 @@ func (g *generator) coverAssignmentMember(expr *parser.Expression, partial evalu
 	}
 	if i, ok := c.assignmentMemberships[action][expr.Location.Range]; ok {
 		c.actions[c.byName[action]].Expressions[i].Count += count
+		g.coverSetMemberCost(c, action, expr, i, count)
+	}
+}
+
+func (g *generator) coverSetMemberCost(c *coverageCollector, action string, expr *parser.Expression, i, count int) {
+	if g.initial && expr.Args[1].Kind == "SetEnumeration" {
+		c.actions[c.byName[action]].Expressions[i+1].Cost += count
 	}
 }
 
@@ -363,6 +381,8 @@ func coverageOperand(e *parser.Expression) bool {
 		return len(e.Args) == 1 && e.Args[0].Kind == "Identifier"
 	case "Tuple":
 		return coverageOperandArgs(e, false)
+	case "SetEnumeration":
+		return coverageInitialSet(e)
 	case "Apply":
 		return coverageOperandApply(e)
 	}
@@ -397,6 +417,22 @@ func (m *model) coverageBodySupported(body *parser.Expression, initial bool) boo
 		return false
 	}
 	return initial || g.coverageActionOrderSupported(items)
+}
+
+// Set-enumeration costs are modeled only when this one membership is the
+// complete initial predicate. Constraints and additional work can change the
+// way TLC attributes the cost of the enumerator.
+func (m *model) coverageInitialSetContext(body *parser.Expression) bool {
+	items := []*parser.Expression{body}
+	if body.Kind == "And" {
+		items = body.Args
+	}
+	for _, e := range items {
+		if e.Kind == "Apply" && len(e.Args) == 2 && e.Args[1].Kind == "SetEnumeration" {
+			return len(items) == 1 && len(m.names) == 1 && len(m.cfg.Constraints) == 0
+		}
+	}
+	return true
 }
 
 func (g *generator) coverageItemsSupported(items []*parser.Expression) bool {
@@ -486,6 +522,9 @@ func (g *generator) coverageItemSupported(e *parser.Expression) bool {
 }
 
 func coverageOperationSupported(e *parser.Expression, initial, assignment bool) bool {
+	if e.Args[1].Kind == "SetEnumeration" && (!initial || e.Text != "\\in" || !assignment) {
+		return false
+	}
 	if e.Text == "\\in" {
 		return coverageMembershipOperation(e, initial, assignment)
 	}
@@ -494,7 +533,7 @@ func coverageOperationSupported(e *parser.Expression, initial, assignment bool) 
 
 func coverageMembershipOperation(e *parser.Expression, initial, assignment bool) bool {
 	if assignment {
-		return coverageRangeMembership(e)
+		return coverageAssignmentMembership(e, initial)
 	}
 	return !initial && e.Args[0].Kind == "Identifier" && coverageNat(e)
 }
