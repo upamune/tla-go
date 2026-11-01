@@ -28,6 +28,13 @@ type ltlProductBuilder struct {
 }
 
 func (s *search) checkGeneralProperty(property temporalProperty) (bool, error) {
+	if found, used, err := s.tryJava17ConstantTableau(property); used || err != nil {
+		return found, err
+	}
+	return s.checkOrdinaryGeneralProperty(property)
+}
+
+func (s *search) checkOrdinaryGeneralProperty(property temporalProperty) (bool, error) {
 	if s.supportsReducedTableau(property) {
 		return s.checkReducedTableau(property)
 	}

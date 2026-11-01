@@ -32,6 +32,7 @@ func (m *model) applyJava17ConstantTableau(p *temporalProperty) bool {
 	if err != nil || !constantTableauPEM(pem) {
 		return false
 	}
+	p.java17Tableau = java17TraceTableauFormula(pem.temporalFormula())
 	p.mode = generalTemporal
 	p.general = newLTLCompiler(m, p.locals).intern(ltlTrue, nil, nil, nil, false)
 	p.eventualities = nil

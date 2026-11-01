@@ -33,6 +33,7 @@ type temporalProperty struct {
 	general       *ltlFormula
 	eventualities []*ltlFormula
 	cacheAtom     *ltlFormula
+	java17Tableau *liveNode
 }
 
 type temporalMode int

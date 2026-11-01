@@ -179,15 +179,33 @@ func (t *reducedTableau) add(alternative ltlAlternative, conditions []*ltlFormul
 }
 
 func (b *reducedTableauProduct) build() error {
-	for _, base := range b.source.initial {
-		if err := b.addInitial(base); err != nil {
-			return err
-		}
+	if err := b.addInitialNodes(); err != nil {
+		return err
 	}
 	order, ok := b.source.javaLiveOrder()
 	if !ok {
 		return fmt.Errorf("cannot order reduced tableau successors")
 	}
+	return b.expandInOrder(order)
+}
+
+func (b *reducedTableauProduct) buildInOrder(order [][]int) error {
+	if err := b.addInitialNodes(); err != nil {
+		return err
+	}
+	return b.expandInOrder(order)
+}
+
+func (b *reducedTableauProduct) addInitialNodes() error {
+	for _, base := range b.source.initial {
+		if err := b.addInitial(base); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *reducedTableauProduct) expandInOrder(order [][]int) error {
 	for base := range b.source.nodes {
 		if err := b.expandBase(base, order[base]); err != nil {
 			return err

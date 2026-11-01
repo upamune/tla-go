@@ -29,3 +29,15 @@ func BenchmarkConstantTableauManyProperties(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkConstantTableauTrace(b *testing.B) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = (x+1)%100\nP == []<>[]TRUE\n===="
+	const cfg = "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n"
+	b.ReportAllocs()
+	for b.Loop() {
+		result, err := CheckWithOptions(context.Background(), source, cfg, Options{})
+		if err != nil || result.Status != LivenessViolation {
+			b.Fatalf("got %+v, %v", result, err)
+		}
+	}
+}
