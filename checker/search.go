@@ -55,6 +55,9 @@ func (m *model) check() (Result, error) {
 	m.emitSearchEvent(SearchEvent{Kind: InitialStart})
 	if m.noStateSearch() {
 		// Java TLC still reports that no initial states were generated.
+		if m.progress != nil {
+			m.progress.publish(ProgressSnapshot{Depth: 1, InitialComplete: true})
+		}
 		m.emitSearchEvent(SearchEvent{Kind: InitialComplete})
 		return Result{Status: Success, Depth: 1}, nil
 	}
@@ -73,6 +76,7 @@ func (m *model) check() (Result, error) {
 		return s.result, nil
 	}
 	s.initialComplete = true
+	s.publishProgress()
 	m.emitSearchEvent(SearchEvent{Kind: InitialComplete, GeneratedStates: s.result.GeneratedStates, DistinctStates: s.result.DistinctStates})
 	if s.missingNextAction() {
 		return s.result, nil
@@ -144,6 +148,7 @@ func (s *search) explore() (Result, error) {
 			return Result{}, err
 		}
 		s.result.QueuedStates--
+		s.publishProgress()
 		more, err := parallel.expand(s, i, next)
 		if err != nil {
 			return s.nextRuntimeFailure(err, i)
@@ -198,6 +203,9 @@ func (s *search) finishSuccessfulResult(result *Result) {
 	}
 	result.OutDegrees = s.outDegrees
 	result.HasOutDegrees = true
+	if s.model.progress != nil {
+		s.model.progress.publish(ProgressSnapshot{GeneratedStates: result.GeneratedStates, DistinctStates: result.DistinctStates, QueuedStates: result.QueuedStates, Depth: result.Depth, InitialComplete: s.initialComplete})
+	}
 }
 
 func (s *search) expandNode(index int, next *parser.Expression) (bool, error) {
@@ -291,6 +299,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 		s.countInitialState()
 	}
 	s.result.Depth = max(s.result.Depth, 1)
+	s.publishProgress()
 	key, inModel, err := s.candidateKeyAndConstraints(state, parent)
 	if err != nil {
 		return false, candidateFailure(err, state, parent)
@@ -384,6 +393,7 @@ func (s *search) countState(parent int) {
 	}
 	s.result.DistinctStates++
 	s.result.Depth = max(s.result.Depth, depth)
+	s.publishProgress()
 }
 
 func (s *search) checkViolation(state evaluator.State, parent int, action string) (bool, error) {
@@ -406,6 +416,7 @@ func (s *search) add(state evaluator.State, parent int, action, key string) {
 	if parent >= 0 {
 		depth = s.nodes[parent].depth + 1
 		s.result.QueuedStates++
+		s.publishProgress()
 	}
 	s.visited[key] = true
 	s.nodes = append(s.nodes, stateNode{state: state, parent: parent, action: action, source: s.actionSource, depth: depth})

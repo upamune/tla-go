@@ -495,6 +495,7 @@ func (m *model) coverageAliasSupported(name string, seen map[string]bool) bool {
 
 func (s *search) countGenerated(action string, initial bool) {
 	s.result.GeneratedStates++
+	s.publishProgress()
 	if s.model.coverage != nil {
 		s.model.coverage.generated(action, initial)
 	}
@@ -508,6 +509,9 @@ func (s *search) countCoverageState(action string, parent int) {
 }
 
 func validateCoverageMode(options Options) error {
+	if options.LiveProgress != nil && !options.Coverage {
+		return fmt.Errorf("live progress requires coverage")
+	}
 	if options.Coverage && (options.Simulation != nil || options.DepthFirst != nil) {
 		return fmt.Errorf("coverage is not yet supported in simulation or depth-first mode")
 	}

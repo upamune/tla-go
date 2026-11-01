@@ -133,6 +133,7 @@ type model struct {
 	checkpointIdentity   *checkpointIdentity
 	checkpointDriver     *checkpointDriver
 	coverage             *coverageCollector
+	progress             *LiveProgress
 	module               *parser.Module
 	cfg                  config.Config
 	descriptionConfig    config.Config
@@ -206,13 +207,16 @@ type ModuleLoader func(context.Context, string) (string, error)
 // Options configures external module loading and TLC output.
 type Options struct {
 	// Coverage enables experimental action and expression coverage.
-	Coverage  bool
-	Loader    ModuleLoader
-	OnPrint   func(string)
-	OnPause   func()
-	ReadFile  func(string) (string, error)
-	WriteFile func(string, string) error
-	Seed      int64
+	Coverage bool
+	// LiveProgress opts a coverage check into publishing concurrent snapshots.
+	// Supply a fresh value for one check; see LiveProgress.
+	LiveProgress *LiveProgress
+	Loader       ModuleLoader
+	OnPrint      func(string)
+	OnPause      func()
+	ReadFile     func(string) (string, error)
+	WriteFile    func(string, string) error
+	Seed         int64
 	// Fingerprint selects a Java TLC FP64 polynomial (0 through 130).
 	Fingerprint int
 	// Simulation selects bounded single-worker random simulation when non-nil.
@@ -440,6 +444,7 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 	if err := model.configureCoverage(options); err != nil {
 		return Result{}, err
 	}
+	model.progress = options.LiveProgress
 	result, err := model.check()
 	if err != nil {
 		return result, err
