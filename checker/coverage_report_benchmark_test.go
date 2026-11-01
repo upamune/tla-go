@@ -40,3 +40,18 @@ func BenchmarkCoveragePropertyReportCollapsed(b *testing.B) {
 		root.report(nil, 0)
 	}
 }
+
+func BenchmarkCoveragePropertyReportNestedCollapsed(b *testing.B) {
+	root := &coverageNode{expr: &parser.Expression{}, count: 2}
+	n := root
+	for range 1024 {
+		child := &coverageNode{expr: &parser.Expression{}, count: 1}
+		n.children = []*coverageNode{child}
+		n = child
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		root.report(nil, 0)
+	}
+}

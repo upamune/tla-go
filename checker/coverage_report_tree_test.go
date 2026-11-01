@@ -20,6 +20,7 @@ func TestCoveragePropertyReportNestedCounts(t *testing.T) {
 		node(5, 1, 4, node(6, 1, 0)),
 		node(7, 0, 6, node(8, 1, 0), node(9, 2, 0)),
 		node(10, 0, 0),
+		node(11, -1, 0, node(12, 2, 0)),
 	)
 	want := []CoverageExpression{
 		{Range: r(1), Count: 3},
@@ -27,8 +28,14 @@ func TestCoveragePropertyReportNestedCounts(t *testing.T) {
 		{Range: r(5), Depth: 1, Count: 1, Cost: 4},
 		{Range: r(8), Depth: 1, Count: 1},
 		{Range: r(9), Depth: 1, Count: 2},
+		{Range: r(12), Depth: 1, Count: 2},
 	}
 	if got := root.report(nil, 0); !reflect.DeepEqual(got, want) {
 		t.Fatalf("coverage report = %#v, want %#v", got, want)
+	}
+	prefix := []CoverageExpression{{Range: r(20), Count: 42}}
+	want = append(prefix, want...)
+	if got := root.report(prefix, 0); !reflect.DeepEqual(got, want) {
+		t.Fatalf("coverage report with prefix = %#v, want %#v", got, want)
 	}
 }
