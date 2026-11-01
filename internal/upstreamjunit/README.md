@@ -418,9 +418,9 @@ establishing an improvement or regression, including against the e81 run.
 
 Only two structured class records differ from e81. `pcal.SimpleMultiProcTest`
 timed out on Go in e81 but completed with no selected differences here; its
-PlusCal translation and liveness assertions remain unresolved. A targeted
-follow-up is to repeat that model with the same translation flags (`-wf
--termination`) and pinned binaries, recording timeouts and selected outputs.
+PlusCal translation and liveness assertions remain unresolved. The
+[targeted investigation](../../docs/investigations/simple-multiproc.md) repeats
+that model with pinned binaries and records timings and limitations.
 `tlc2.tool.ContinueTest` reported `dump:content` in e81 but no selected
 difference here; both runs use `-continue` and three workers. The sweep compares
 DOT bytes, and does not preserve the differing dump in the snapshot. Repeat
