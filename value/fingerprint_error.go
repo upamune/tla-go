@@ -11,10 +11,11 @@ import (
 
 // UnexpectedError is a Java TLC runtime exception, including its root cause.
 type UnexpectedError struct {
-	Message   string
-	TLCAssert bool
-	ToolCode  int
-	Sources   []*parser.Expression
+	Message         string
+	TLCAssert       bool
+	WrongInvocation bool
+	ToolCode        int
+	Sources         []*parser.Expression
 }
 
 func (e *UnexpectedError) Error() string { return e.Message }

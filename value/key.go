@@ -57,6 +57,29 @@ func (v Value) AppendInitialProductKey(dst []byte, bound int) ([]byte, error) {
 	return set.AppendKey(dst)
 }
 
+// AppendSuccessorProductKey bounds explicit interval products during fingerprinting.
+// Function domains have no product expression and remain on the normal key path.
+func (v Value) AppendSuccessorProductKey(dst []byte, bound int) ([]byte, error) {
+	if v.kind != ProductSetKind || v.data.source == nil {
+		return v.AppendKey(dst)
+	}
+	for _, factor := range v.data.pairs {
+		if factor.Value.kind != IntervalKind || factor.Value.high < factor.Value.number {
+			return v.AppendKey(dst)
+		}
+	}
+	limit, size := int64(max(bound, 10)), int64(1)
+	for _, factor := range v.data.pairs {
+		n := int64(factor.Value.high) - int64(factor.Value.number) + 1
+		if n > limit/size {
+			cause := &UnexpectedError{Message: (&InitialProductBoundError{Bound: bound}).Error(), WrongInvocation: true}
+			return dst, v.withFingerprintSource(&FingerprintError{Cause: cause})
+		}
+		size *= n
+	}
+	return v.AppendKey(dst)
+}
+
 // InitialProductBoundError denotes failure while converting an initial product.
 type InitialProductBoundError struct{ Bound int }
 
