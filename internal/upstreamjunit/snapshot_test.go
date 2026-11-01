@@ -64,6 +64,7 @@ func TestSweepSnapshotConsistency(t *testing.T) {
 		{"sweep-56336d54.json", "56336d54f659dbb744aff66ffa8e653a6117c06a", "fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5", SweepCounts{340, 309, 31, 293, 236, 57, 16}},
 		{"sweep-e81f221f.json", "e81f221f7ba59b833244e7613bd149f836532c86", "65e957a50c1a58779f5982458ca42adb3d4ed16e0884229dd7bbe752aa298765", SweepCounts{340, 309, 31, 294, 254, 40, 15}},
 		{"sweep-9f581626.json", "9f5816269083eb7c9d44e5477695e95e6bf68059", "e548e0fba387f59c1278069d2bb0bcd7196475e36a6049003336d2616bb13000", SweepCounts{340, 309, 31, 295, 256, 39, 14}},
+		{"sweep-51c3a77c.json", "51c3a77c6c4cbc02c6f388b0c90047cc895f9869", "606f46f5a51d30125f9b980a8eafccc03c40b219faff0194933eca28ac135598", SweepCounts{340, 309, 31, 293, 254, 39, 16}},
 	} {
 		t.Run(tc.file, func(t *testing.T) {
 			data, err := os.ReadFile("testdata/snapshots/" + tc.file)
@@ -117,6 +118,35 @@ func TestSweepSnapshotConsistency(t *testing.T) {
 				t.Fatalf("counts: %+v / %+v", counts, snap.Counts)
 			}
 		})
+	}
+}
+
+func TestSweep51C3A77KeyRecords(t *testing.T) {
+	data, err := os.ReadFile("testdata/snapshots/sweep-51c3a77c.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snapshot SweepSnapshot
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	records := make(map[string]SweepRecord, len(snapshot.Classes))
+	for _, record := range snapshot.Classes {
+		records[record.Class] = record
+	}
+	for _, tc := range []struct {
+		class, status, unavailable string
+		differences                []string
+	}{
+		{"pcal.SimpleMultiProcTest", "unavailable", "go_timeout", nil},
+		{"tlc2.tool.ContinueTest", "compared", "", []string{"dump:content"}},
+		{"tlc2.tool.coverage.BCoverageTest", "compared", "", nil},
+		{"tlc2.tool.liveness.CodePlexBug08EWD840FL2Test", "unavailable", "java_timeout", nil},
+	} {
+		record, ok := records[tc.class]
+		if !ok || record.Status != tc.status || record.Unavailable != tc.unavailable || !reflect.DeepEqual(record.Differences, tc.differences) {
+			t.Fatalf("record %s: %+v", tc.class, record)
+		}
 	}
 }
 

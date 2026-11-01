@@ -590,7 +590,50 @@ DOT bytes, and does not preserve the differing dump in the snapshot. Repeat
 the model with pinned binaries and capture both dumps across runs to determine
 whether ordering or graph content differs before attributing this change to code.
 
-The extractor recognizes only the four documented source hashes and associates
+The later [`testdata/snapshots/sweep-51c3a77c.json`](testdata/snapshots/sweep-51c3a77c.json)
+records the full diagnostic log `/tmp/tla-51c3a77-sweep.log`, whose SHA-256 is
+`606f46f5a51d30125f9b980a8eafccc03c40b219faff0194933eca28ac135598`.
+The recorded run used a freshly created detached, unmodified worktree at
+`51c3a77c6c4cbc02c6f388b0c90047cc895f9869`. The harness builds its temporary
+`tla-go` binary from that worktree; the log itself does not prove the binary
+revision or the command. The upstream checkout and 1.7.4 jar were verified
+against the pinned commit and hash above. The recorded command, run from that
+worktree, was:
+
+```sh
+MISE_AUTO_INSTALL=false TLA_GO_JUNIT_SWEEP=1 \
+TLA_GO_JUNIT_ROOT=/tmp/tlaplus-java-v1.7.4 \
+TLA_GO_JUNIT_JAR=/tmp/tla2tools-v1.7.4.jar TLA_GO_JUNIT_LIMIT=340 \
+mise exec -- go test -v ./internal/upstreamjunit -run '^TestUpstreamJUnitSweep$' \
+  -count=1 -timeout=120m > /tmp/tla-51c3a77-sweep.log 2>&1
+```
+
+The opt-in test intentionally fails because the harness is incomplete. This
+run took 803.76 seconds and recorded 340 unresolved candidates, 309 attempted
+runs and 31 unsafe or unresolved setups. Of the attempts, 293 were comparable:
+254 had no selected differences and 39 had selected differences; 16 were
+unavailable. These are partial diagnostic counts, not JUnit pass counts.
+While the exact ephemeral log is available, regenerate the snapshot with:
+
+```sh
+mise exec -- go run ./internal/upstreamjunit/cmd/snapshot /tmp/tla-51c3a77-sweep.log > snapshot.json
+cmp snapshot.json internal/upstreamjunit/testdata/snapshots/sweep-51c3a77c.json
+```
+
+The regeneration test uses that path, or the path in `TLA_GO_51C3A77_SWEEP_LOG`,
+and skips when the default ephemeral log is absent. Compared with `9f581626`,
+four structured records differ: `pcal.SimpleMultiProcTest` and
+`tlc2.tool.liveness.CodePlexBug08EWD840FL2Test` became unavailable due to Go
+and Java timeouts respectively; `tlc2.tool.ContinueTest` now reports
+`dump:content`; and `tlc2.tool.coverage.BCoverageTest` has no selected
+differences. The [SimpleMultiProc](../../docs/investigations/simple-multiproc.md)
+and [ContinueTest](../../docs/investigations/continue-dot-sweep.md)
+investigations provide additional observations. The coverage case also has a separate
+targeted Java comparison, but the sweep still does not reproduce its complete
+JUnit lifecycle. Timeouts, scheduling and other nondeterminism make snapshot
+count changes insufficient to establish a general improvement or regression.
+
+The extractor recognizes only the five documented source hashes and associates
 each with its recorded binary revision; the logs themselves do not establish
 the binary revision. Unknown or modified logs are rejected.
 
