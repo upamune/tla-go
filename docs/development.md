@@ -150,6 +150,10 @@ temporal-check start, selected success probabilities, final coverage action and
 expression records, statistics, search depth, and finish. Liveness observations
 are present only when the checker emits the corresponding progress events. Periodic
 coverage records and other recorder calls remain unobserved.
+For model-checking deadlocks and non-initial invariant violations, it records
+the Java-compatible headline (2114 or 2110) and behavior introduction (2121),
+including repeated violations reported with `-continue`. Initial violations,
+trace states and other error records are not represented by these calls.
 Their `strings` arrays come from Go events and results rather than parsed tool
 text. Java TLC 1.7.4 recorder probes compare selected tool-mode calls across
 successful and failing models, and selected ordinary-mode calls for successful,

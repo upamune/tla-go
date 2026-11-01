@@ -93,6 +93,9 @@ func TestDecodeRejectsCaseAliases(t *testing.T) {
 func TestDecodeSearchRecords(t *testing.T) {
 	header := `{"kind":"header","version":1,"complete":false}` + "\n"
 	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2110,"array":"strings","values":["Inv"]}`,
+		`{"kind":"record","complete":false,"code":2114,"array":"strings","values":[]}`,
+		`{"kind":"record","complete":false,"code":2121,"array":"strings","values":[]}`,
 		`{"kind":"record","complete":false,"code":2220,"array":"strings","values":[]}`,
 		`{"kind":"record","complete":false,"code":2219,"array":"strings","values":[]}`,
 		`{"kind":"record","complete":false,"code":2185,"array":"strings","values":[]}`,
@@ -110,6 +113,11 @@ func TestDecodeSearchRecords(t *testing.T) {
 		}
 	}
 	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2110,"array":"strings","values":[""]}`,
+		`{"kind":"record","complete":false,"code":2110,"array":"strings","values":["Inv\nNext"]}`,
+		`{"kind":"record","complete":false,"code":2110,"array":"objects","values":["Inv"]}`,
+		`{"kind":"record","complete":false,"code":2114,"array":"strings","values":["extra"]}`,
+		`{"kind":"record","complete":false,"code":2121,"array":"strings","values":[""]}`,
 		`{"kind":"record","complete":false,"code":2189,"array":"strings","values":null}`,
 		`{"kind":"record","complete":false,"code":2189,"array":"strings","values":[""]}`,
 		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["0",""]}`,

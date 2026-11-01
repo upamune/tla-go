@@ -77,6 +77,7 @@ func recordHumanResult(recorder *recorderConfig, result checker.Result) {
 	if recorder == nil {
 		return
 	}
+	recordSafetyViolation(recorder, result)
 	if result.Failure == nil && result.Violation == nil {
 		recordSuccess(recorder, result)
 	}
@@ -90,6 +91,24 @@ func recordHumanResult(recorder *recorderConfig, result checker.Result) {
 			recordStrings(recorder, 2194, strconv.Itoa(result.Depth))
 		}
 	}
+}
+
+// recordSafetyViolation records the typed Java MP calls for supported
+// model-checking safety violations. The diagnostic stream remains partial:
+// initial violations, trace states, and other failure records are not covered.
+func recordSafetyViolation(recorder *recorderConfig, result checker.Result) {
+	if recorder == nil || result.Failure != nil || result.Violation == nil || initialViolation(result) {
+		return
+	}
+	switch result.Status {
+	case checker.Deadlock:
+		recordStrings(recorder, 2114)
+	case checker.InvariantViolation:
+		recordStrings(recorder, 2110, result.Violation.Name)
+	default:
+		return
+	}
+	recordStrings(recorder, 2121)
 }
 
 func recorderOrdinarySearch(opts options) bool {

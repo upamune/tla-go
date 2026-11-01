@@ -261,6 +261,9 @@ func validCoverageValues(values []string) bool {
 }
 
 func validRecordValues(event Event) bool {
+	if event.Code == 2110 {
+		return event.Values[0] != "" && !strings.ContainsAny(event.Values[0], "\r\n")
+	}
 	if event.Code == 2190 || event.Code == 2191 {
 		return validInitialValues(event.Values)
 	}
@@ -327,13 +330,13 @@ func decimal(s string) bool {
 
 func recordArity(code int) int {
 	switch code {
-	case 2185, 2189, 2219, 2220:
+	case 2114, 2121, 2185, 2189, 2219, 2220:
 		return 0
 	case 2190, 2221:
 		return 2
 	case 2191, 2192, 2199, 2772, 2773, 2775:
 		return 3
-	case 2193, 2194, 2212, 2269, 2186, 2774:
+	case 2110, 2193, 2194, 2212, 2269, 2186, 2774:
 		return 1
 	default:
 		return -1

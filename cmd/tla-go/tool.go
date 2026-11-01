@@ -229,6 +229,7 @@ func printToolResultViolation(t toolOutput, result checker.Result, module *parse
 	if result.TemporalCheckReported && result.Status == checker.LivenessViolation {
 		return
 	}
+	recordSafetyViolation(t.recorder, result)
 	printToolViolation(t, result, module)
 	if result.Status == checker.LivenessViolation && result.TemporalCheckDuration != nil {
 		printTemporalCheckEnd(t.out, true, *result.TemporalCheckDuration)

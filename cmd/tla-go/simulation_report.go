@@ -158,6 +158,7 @@ func simulationViolationOutput(opts options, module *parser.Module, out io.Write
 
 func modelViolationOutput(opts options, module *parser.Module, out io.Writer) func(checker.Result) {
 	return func(result checker.Result) {
+		recordSafetyViolation(opts.recorder, result)
 		result = newTraceStyle(opts).apply(result)
 		if opts.tool {
 			printToolViolation(toolOutput{out: out}, result, module)

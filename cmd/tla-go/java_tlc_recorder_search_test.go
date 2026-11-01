@@ -185,6 +185,11 @@ func normalizeSearchJava(t *testing.T, data string) []string {
 func searchComparable(events []recorderdebug.Event, tool bool) []string {
 	var result []string
 	for _, event := range events {
+		// The search recorder probe below intentionally selects search events,
+		// not the separate safety-violation recorder calls.
+		if event.Code == 2110 || event.Code == 2114 || event.Code == 2121 {
+			continue
+		}
 		if !tool && (event.Code == 2220 || event.Code == 2219) {
 			continue
 		}
