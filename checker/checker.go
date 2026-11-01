@@ -140,6 +140,7 @@ type model struct {
 	sourceConfig         config.Config
 	program              *evaluator.Program
 	defs                 map[string]parser.Definition
+	levelExpansions      map[*parser.Expression]*parser.Expression // Temporal validation only; nil in changed lexical scopes.
 	variables            map[string]bool
 	constants            map[string]value.Value
 	trueConfigured       map[string]bool // Configured predicates already evaluated as constant TRUE.

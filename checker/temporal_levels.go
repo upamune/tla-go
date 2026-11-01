@@ -19,7 +19,7 @@ func resolveTemporalExpressions(module *parser.Module) (*parser.Module, error) {
 }
 
 func validateTemporalLevels(module *parser.Module) error {
-	m := &model{module: module, defs: make(map[string]parser.Definition, len(module.Definitions))}
+	m := &model{module: module, defs: make(map[string]parser.Definition, len(module.Definitions)), levelExpansions: make(map[*parser.Expression]*parser.Expression)}
 	for _, definition := range module.Definitions {
 		m.defs[definition.Name] = definition
 	}
@@ -45,6 +45,7 @@ func (m *model) temporalDefinition(def parser.Definition) error {
 	}
 	local := *m
 	local.defs = maps.Clone(m.defs)
+	local.levelExpansions = nil
 	for _, param := range def.Params {
 		delete(local.defs, param.Name)
 	}
@@ -126,6 +127,7 @@ func (m *model) temporalScope(expr *parser.Expression) *model {
 	}
 	local := *m
 	local.defs = maps.Clone(m.defs)
+	local.levelExpansions = nil
 	removeTemporalBounds(local.defs, expr.Bounds)
 	removeTemporalNames(local.defs, expr)
 	for _, def := range expr.Definitions {
