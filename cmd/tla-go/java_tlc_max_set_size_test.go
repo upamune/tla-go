@@ -22,6 +22,11 @@ func TestJavaTLCMaxSetSize(t *testing.T) {
 	}{
 		{"power set exceeds bound", "Init == x = SUBSET (1..4)\nNext == UNCHANGED x", "", "10", 0},
 		{"nested power set exceeds bound", "Init == x = [a |-> SUBSET (1..4)]\nNext == UNCHANGED x", "", "10", 0},
+		{"product below bound", "Init == x = (1..3) \\X (1..3)\nNext == UNCHANGED x", "", "10", 0},
+		{"product at bound", "Init == x = (1..2) \\X (1..5)\nNext == UNCHANGED x", "", "10", 0},
+		{"product empty huge factor", "Init == x = (1..0) \\X (1..2147483647)\nNext == UNCHANGED x", "", "10", 0},
+		{"product huge limit", "Init == x = (1..3) \\X (1..4)\nNext == UNCHANGED x", "", "2147483647", 0},
+		{"interval exceeds bound", "Init == x = 1..11\nNext == UNCHANGED x", "", "10", 0},
 		{"initial filter", "Init == x \\in {i \\in 1..20 : TRUE}\nNext == UNCHANGED x", "", "10", 75},
 		{"successor map", "Init == x = 0\nNext == x' \\in {i * 2 : i \\in 1..20}", "", "12", 75},
 		{"at bound", "Init == x = 0\nNext == x' \\in {i * 2 : i \\in 1..12}", "", "12", 0},
@@ -72,6 +77,30 @@ func TestJavaTLCMaxSetSize(t *testing.T) {
 				if got := errorBehaviorMessages(readToolMessages(out.String())); !reflect.DeepEqual(got, java) {
 					t.Fatalf("messages differ\nJava: %q\nGo:   %q", java, got)
 				}
+			}
+		})
+	}
+}
+
+// These are Java-only regression observations until state fingerprinting uses
+// Java's bounded normalization. They must not be mistaken for Go comparisons.
+func TestJavaTLCMaxSetSizeDeferredStateReference(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	for _, tc := range []struct{ name, body, cfg string }{
+		{"product", "Init == x = (1..3) \\X (1..4)\nNext == UNCHANGED x", ""},
+		{"record", "Init == x = [a |-> (1..3) \\X (1..4)]\nNext == UNCHANGED x", ""},
+		{"tuple", "Init == x = <<(1..3) \\X (1..4)>>\nNext == UNCHANGED x", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeMaxSetSizeFixture(t, dir, "VARIABLE x\n"+tc.body, "INIT Init\nNEXT Next\n"+tc.cfg)
+			got := runJavaToolMessages(t, jar, dir, []string{"-tool", "-deadlock", "-workers", "1", "-maxSetSize", "10", "M.tla"}, 255)
+			want := []string{"1000:1:TLC threw an unexpected exception.\nThis was probably caused by an error in the spec or model.\nSee the User Output or TLC Console for clues to what happened.\nThe exception was a util.WrongInvocationException\n: Attempted to construct a set with too many elements (>10)."}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("Java messages = %q; want %q", got, want)
 			}
 		})
 	}

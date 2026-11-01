@@ -166,7 +166,10 @@ func (p *Program) checkUnion(base, result value.Value) error {
 func (p *Program) checkDeferredCardinality(set value.Value, size int64) error {
 	switch set.Kind() {
 	case value.SetOperationKind, value.UnionKind, value.FilteredSetKind:
-		return p.checkMethodSetSize(cardinalitySignature, int(min(size, int64(p.setLimit())+1)))
+		if err := p.checkSetSize64(size); err != nil {
+			return &RuntimeError{Message: javaOverrideMessage(cardinalitySignature, err.Error()), ToolCode: 2154, TrackSource: true}
+		}
+		return nil
 	default:
 		return nil
 	}

@@ -6,7 +6,20 @@ import (
 	"testing"
 
 	"github.com/upamune/tla-go/syntax/parser"
+	"github.com/upamune/tla-go/value"
 )
+
+func TestDeferredCardinalityHugeLimit(t *testing.T) {
+	p := &Program{}
+	p.SetBound(int(^uint(0) >> 1))
+	deferred, err := value.SetOperation("\\cup", value.Interval(1, 2), value.Interval(3, 4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.checkDeferredCardinality(deferred, 4); err != nil {
+		t.Fatalf("small deferred set at largest bound: %v", err)
+	}
+}
 
 func TestSetBoundOperations(t *testing.T) {
 	m, err := parser.ParseModule("---- MODULE M ----\nEXTENDS Naturals, Sequences, FiniteSets, Bags, TLC\n" +
