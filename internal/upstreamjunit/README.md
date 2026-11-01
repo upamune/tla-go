@@ -362,8 +362,9 @@ observations are not JUnit executions.
 ## Executing upstream JUnit cases (opt-in experiment)
 
 `TestUpstreamJUnitExecution` discovers and runs
-`tlc2.tool.suite.Test10#testSpec` and `tlc2.tool.EmptyTest#testSpec` separately
-with JUnit 4.12's `Request.method`, each in a fresh JVM. For Test10, the
+`tlc2.tool.suite.Test10#testSpec`, `tlc2.tool.EmptyTest#testSpec`, and
+`tlc2.tool.coverage.BCoverageTest#testSpec` separately with JUnit 4.12's
+`Request.method`, each in a fresh JVM. For Test10, the
 upstream isolated runner executes the inherited
 `SuiteTestCase.setUp`, `ModelCheckerTestCase.setUp` (including TLC and its
 recorder), the original `SuiteTestCase.testSpec` assertions including zero
