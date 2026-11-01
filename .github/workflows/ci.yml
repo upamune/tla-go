@@ -134,3 +134,5 @@ jobs:
           printf '%s\n' "$output"
           test "$status" -eq 11
           printf '%s\n' "$output" | grep -F 'Deadlock reached.'
+      - name: Test checkpoint file replacement
+        run: mise exec -- go test ./checker -run '^TestCheckpoint'

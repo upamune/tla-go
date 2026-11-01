@@ -170,3 +170,16 @@ Like Java, it replaces the text between `\* BEGIN TRANSLATION` and `\* END TRANS
 - [Security](SECURITY.md): how to report a vulnerability.
 
 Java TLC is the compatibility target. Some regression fixtures also come from [tla-ts](https://github.com/aidenybai/tla-ts), pinned at `19c763f07fda4b098e8a24405301628a424547c0`; see [UPSTREAM-LICENSE](UPSTREAM-LICENSE).
+
+The checker contains an experimental, private checkpoint codec, currently disconnected
+from search and the CLI. It stores an ordered BFS node queue and its head, visited
+keys, parent and action-range trace metadata, and selected counters for states whose
+values are integers or Booleans. The format is versioned, checksummed, bounded to
+64 MiB. It syncs a temporary file and renames it over the destination in the same
+directory; on non-Windows systems it also syncs the directory. Windows does not
+sync the directory, and Go does not guarantee that rename is atomic on Windows.
+A directory-sync error can be reported after replacement has already occurred; crash
+durability depends on the filesystem. It is not Java TLC's checkpoint format. Checkpoint creation and recovery are not implemented: safely resuming requires
+an expansion-boundary snapshot, identities covering every loaded module and effective
+configuration and option, reconstruction of runtime and trace state, and handling or
+explicit exclusion of features such as liveness, symmetry, coverage, and parallel work.
