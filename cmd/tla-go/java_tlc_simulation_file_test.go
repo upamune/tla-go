@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSimulationTraceFiles(t *testing.T) {
@@ -80,7 +82,7 @@ func compareSimulationFiles(t *testing.T, jar, dir string, common []string, trac
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", args...)
 	cmd.Dir = javaDir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != exit {
 		t.Fatalf("Java exit %v, error %v: %s", cmd.ProcessState, err, output)
 	}

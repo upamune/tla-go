@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCMultipleConfigs(t *testing.T) {
@@ -99,7 +101,7 @@ func runMultipleConfigJava(t *testing.T, jar, dir, model, config string, wantCod
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "-config", config+".cfg", model+".tla")
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil {
 		t.Fatalf("Java TLC: %v\n%s", err, output)
 	}

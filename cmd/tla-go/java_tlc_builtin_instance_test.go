@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCStandardModuleInstance(t *testing.T) {
@@ -124,7 +126,7 @@ func checkJavaInstanceRandom(t *testing.T, jar, dir string, want []string) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-seed", "42", "M.tla")
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if err != nil || !slices.Equal(randomOutput(string(output)), want) {
 		t.Fatalf("Java TLC: %v\n%s", err, output)
 	}
@@ -149,7 +151,7 @@ func compareJavaInstance(t *testing.T, jar, dir string, code int) string {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "M.tla")
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Java TLC: %v\n%s", err, output)
 	}

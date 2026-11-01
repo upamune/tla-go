@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The models are unchanged from Java TLC v1.7.4, commit 5a47802.
@@ -38,7 +40,7 @@ func TestJavaTLCStandardOperatorSubstitution(t *testing.T) {
 				defer cancel()
 				cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", name+".tla")
 				cmd.Dir = dir
-				java, err := cmd.CombinedOutput()
+				java, err := javatmp.Apply(cmd).CombinedOutput()
 				if err != nil {
 					t.Fatalf("Java TLC: %v\n%s", err, java)
 				}

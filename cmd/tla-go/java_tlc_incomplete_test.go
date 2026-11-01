@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The source, expected diagnostics, traces and counts come from TLC's
@@ -164,7 +166,7 @@ func runIncompleteJava(t *testing.T, jar, dir, name string, code int) string {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", name+".tla")
 	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
+	out, err := javatmp.Apply(cmd).CombinedOutput()
 	exit, ok := err.(*exec.ExitError)
 	if ctx.Err() != nil || !ok || exit.ExitCode() != code {
 		t.Fatalf("Java TLC: %v, context: %v\n%s", err, ctx.Err(), out)

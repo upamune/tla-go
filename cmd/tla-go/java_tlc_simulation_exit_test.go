@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCModernSimulationExit(t *testing.T) {
@@ -48,7 +50,7 @@ func TestJavaTLCModernSimulationExit(t *testing.T) {
 			if jar := os.Getenv("TLC_MODERN_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 				cmd.Dir = dir
-				output, _ := cmd.CombinedOutput()
+				output, _ := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !reflect.DeepEqual(pattern.FindAllString(string(output), -1), got) || simulationExitStateCount(string(output)) != wantStates[tc.name] {
 					t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 				}
@@ -81,7 +83,7 @@ Next == /\ TLCSet("exit", TRUE) /\ PrintT("after") /\ x'=1 \div 0`
 	if jar := os.Getenv("TLC_MODERN_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !strings.Contains(string(output), `"after"`) {
 			t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 		}
@@ -107,7 +109,7 @@ C == /\ PrintT(<<"constraint", x>>) /\ TLCSet("exit", x=1)`
 	if jar := os.Getenv("TLC_MODERN_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !reflect.DeepEqual(pattern.FindAllString(string(output), -1), got) {
 			t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 		}
@@ -133,7 +135,7 @@ P == <> (x=9)`
 	if jar := os.Getenv("TLC_MODERN_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !reflect.DeepEqual(pattern.FindAllString(string(output), -1), got) {
 			t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 		}
@@ -155,7 +157,7 @@ Next == /\ TLCSet("exit", TRUE) /\ x'=1`
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 255 || !strings.Contains(string(output), "TLCGlobals.mainChecker") {
 			t.Fatalf("Java 1.7.4 exit %v, output %s", cmd.ProcessState, output)
 		}

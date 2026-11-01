@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCModernSimulationConfig(t *testing.T) {
@@ -61,7 +63,7 @@ Stop == x=1`
 			if jar := os.Getenv("TLC_MODERN_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 				cmd.Dir = dir
-				output, _ := cmd.CombinedOutput()
+				output, _ := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 					t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 				}
@@ -87,7 +89,7 @@ func TestJavaTLCSimulationConfigVersionDifference(t *testing.T) {
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 255 || !strings.Contains(string(output), "TLCGet(config) was undefined.") {
 			t.Fatalf("Java 1.7.4 exit %v, output %s", cmd.ProcessState, output)
 		}
@@ -113,7 +115,7 @@ func TestJavaTLCModernSimulationConfigRecord(t *testing.T) {
 	if jar := os.Getenv("TLC_MODERN_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 			t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 		}

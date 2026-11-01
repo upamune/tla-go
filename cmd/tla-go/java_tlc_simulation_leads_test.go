@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSimulationLeadsTo(t *testing.T) {
@@ -116,7 +118,7 @@ func TestJavaTLCModernSimulationLeadsToVersionDifference(t *testing.T) {
 	args := []string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "1", "-depth", "5"}
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 0 {
 		t.Fatalf("Java TLC 1.8.0: %s", output)
 	}

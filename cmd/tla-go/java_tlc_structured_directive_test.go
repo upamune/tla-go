@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCStructuredProofDirectives(t *testing.T) {
@@ -48,7 +50,7 @@ func TestJavaTLCStructuredProofDirectives(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 					t.Fatalf("Java: %v\n%s", err, output)
 				}
@@ -95,7 +97,7 @@ func TestJavaTLCProofDirectiveModules(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 					t.Fatalf("Java: %v\n%s", err, output)
 				}
@@ -132,7 +134,7 @@ func TestJavaTLCModuleProofDirectiveModuleFacts(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 					t.Fatalf("Java: %v\n%s", err, output)
 				}
@@ -168,7 +170,7 @@ func TestJavaTLCProofDirectiveNestedModule(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 					t.Fatalf("Java: %v\n%s", err, output)
 				}
@@ -212,7 +214,7 @@ func TestJavaTLCProofDirectiveInstancedFacts(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 					t.Fatalf("Java: %v\n%s", err, output)
 				}

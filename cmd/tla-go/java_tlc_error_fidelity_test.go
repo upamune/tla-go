@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
 	"github.com/upamune/tla-go/internal/upstreamjunit"
 )
 
@@ -126,7 +127,7 @@ func compareErrorFidelity(t *testing.T, dir, name string, wantExit int, ids []st
 	javaArgs = append(javaArgs, name+".tla")
 	cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir()}, javaArgs...)...)
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != wantExit {
 		t.Fatalf("Java %v: %s", err, output)
 	}

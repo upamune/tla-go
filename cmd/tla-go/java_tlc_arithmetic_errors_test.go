@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The expected codes and text follow Naturals.java, Integers.java and MP.java
@@ -51,7 +53,7 @@ func TestJavaTLCArithmeticErrors(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				java, err := cmd.CombinedOutput()
+				java, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !strings.Contains(string(java), want) {
 					t.Fatalf("Java: %v\n%s\nwant %s", err, java, want)
 				}
@@ -93,7 +95,7 @@ func TestJavaTLCArithmeticErrorContexts(t *testing.T) {
 			code := run(context.Background(), []string{"-tool", "-workers", "1", "-fp", "0", filepath.Join(dir, "M.tla")}, &out, &errout)
 			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 			cmd.Dir = dir
-			java, err := cmd.CombinedOutput()
+			java, err := javatmp.Apply(cmd).CombinedOutput()
 			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 				t.Fatalf("Go exit %d:\n%s\nJava: %v\n%s", code, out.String(), err, java)
 			}

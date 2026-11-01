@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCNonBooleanInvariant(t *testing.T) {
@@ -210,7 +212,7 @@ func compareNonBooleanJava(t *testing.T, dir string, args []string, code int, fr
 		javaArgs = append(javaArgs, "-metadir", t.TempDir(), "M.tla")
 		cmd := exec.Command("java", javaArgs...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 			t.Fatalf("%s exit %v output %s", env, cmd.ProcessState, output)
 		}

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // These cases compare Java TLC v1.7.4's LazyValue and operator evaluation.
@@ -49,7 +51,7 @@ func TestJavaTLCLazyOperatorArguments(t *testing.T) {
 				defer cancel()
 				cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				java, err := cmd.CombinedOutput()
+				java, err := javatmp.Apply(cmd).CombinedOutput()
 				if err != nil {
 					t.Fatalf("Java TLC: %v\n%s", err, java)
 				}
@@ -95,7 +97,7 @@ Inv == ENABLED (x' = x /\ F(TLCGet(0)))
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "M.tla")
 		cmd.Dir = dir
-		java, err := cmd.CombinedOutput()
+		java, err := javatmp.Apply(cmd).CombinedOutput()
 		if err != nil {
 			t.Fatalf("Java TLC: %v\n%s", err, java)
 		}

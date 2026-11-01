@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // etest4 and etest8 are unchanged models from the Java TLC v1.7.4 test suite,
@@ -76,7 +78,7 @@ func TestJavaTLCEvaluationStackLayout(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, append(args, "M.tla")...)...)
 				cmd.Dir = dir
-				output, _ := cmd.Output()
+				output, _ := javatmp.Apply(cmd).Output()
 				if java := rawToolMessage(string(output), 2103); java != got {
 					t.Fatalf("2103 differs\nJava: %q\nGo:   %q", java, got)
 				}
@@ -111,7 +113,7 @@ func TestJavaTLCEvaluationStackFrames(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, append(args, "M.tla")...)...)
 				cmd.Dir = dir
-				output, _ := cmd.Output()
+				output, _ := javatmp.Apply(cmd).Output()
 				if java := rawToolMessage(string(output), 2103); java != got {
 					t.Fatalf("2103 differs\nJava: %q\nGo:   %q", java, got)
 				}
@@ -153,7 +155,7 @@ func runJavaToolMessages(t *testing.T, jar, dir string, args []string, code int)
 	t.Helper()
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar}, args...)...)
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Java exit %v, want %d; output:\n%s", cmd.ProcessState, code, output)
 	}

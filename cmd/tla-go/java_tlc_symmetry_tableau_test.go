@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSymmetryTableauRegeneration(t *testing.T) {
@@ -48,7 +50,7 @@ func compareFullSymmetryToolTrace(t *testing.T, jar, dir, model string) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", model)
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Java TLC: %v\n%s", err, output)
 	}

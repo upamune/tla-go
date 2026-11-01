@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSimulationTraceSemantics(t *testing.T) {
@@ -88,7 +90,7 @@ func javaModernSimulation(t *testing.T, jar, dir, num, depth string) string {
 	t.Helper()
 	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-simulate", "num="+num, "-seed", "1", "-depth", depth, "M.tla")
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("Java TLC: %v\n%s", err, output)
 	}

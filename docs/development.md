@@ -82,6 +82,13 @@ CI downloads the official Java TLC 1.7.4 and 1.8.0 JARs, verifies their SHA-256 
 TLC_JAR=/absolute/path/to/tla2tools-1.7.4.jar TLC_MODERN_JAR=/absolute/path/to/tla2tools-1.8.0.jar mise exec -- go test ./checker ./cmd/tla-go -run '^TestJavaTLC' -count=1 -timeout=30m
 ```
 
+The Java subprocesses launched by the CLI comparison tests omit inherited
+`_JAVA_OPTIONS`, which could override their isolated temporary directories and
+cause concurrent JVMs to overwrite or delete each other's standard modules.
+Other settings carried in `_JAVA_OPTIONS` are also omitted for those Java
+processes; other environment variables remain available. This does not change
+the parent environment or the behavior of the tla-go binary.
+
 CI also fetches a pinned external statechart corpus and runs selected
 `TestJavaTLCStatechart...` and `TestJavaSANY...` tests with `TLC_JAR` and
 `STATECHART_DIR` set. The Java comparisons use TLC/SANY; the statechart

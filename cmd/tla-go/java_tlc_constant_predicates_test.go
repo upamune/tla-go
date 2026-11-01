@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCConstantPredicates(t *testing.T) {
@@ -43,7 +45,7 @@ func TestJavaTLCConstantPredicates(t *testing.T) {
 						if jar := os.Getenv(env); jar != "" {
 							cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 							cmd.Dir = dir
-							output, _ := cmd.CombinedOutput()
+							output, _ := javatmp.Apply(cmd).CombinedOutput()
 							if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !reflect.DeepEqual(pattern.FindAllString(string(output), -1), got) {
 								t.Fatalf("%s exit %v output %s", env, cmd.ProcessState, output)
 							}
@@ -93,7 +95,7 @@ Unused == /\ PrintT("unused") /\ TRUE`
 				if jar := os.Getenv(env); jar != "" {
 					cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 					cmd.Dir = dir
-					output, _ := cmd.CombinedOutput()
+					output, _ := javatmp.Apply(cmd).CombinedOutput()
 					if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !reflect.DeepEqual(pattern.FindAllString(string(output), -1), got) || tc.property == "FALSE" && !strings.Contains(string(output), "The property of B is equal to FALSE") {
 						t.Fatalf("%s exit %v output %s", env, cmd.ProcessState, output)
 					}
@@ -122,7 +124,7 @@ Post == /\ PrintT("post") /\ FALSE`
 	if jar := os.Getenv("TLC_MODERN_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !reflect.DeepEqual(pattern.FindAllString(string(output), -1), got) || strings.Index(string(output), `"post"`) > strings.Index(string(output), `"init"`) {
 			t.Fatalf("Java exit %v output %s", cmd.ProcessState, output)
 		}
@@ -150,7 +152,7 @@ Unused == PrintT("unused")`
 		if jar := os.Getenv(env); jar != "" {
 			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 			cmd.Dir = dir
-			output, _ := cmd.CombinedOutput()
+			output, _ := javatmp.Apply(cmd).CombinedOutput()
 			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code || !reflect.DeepEqual(pattern.FindAllString(string(output), -1), got) || !strings.Contains(string(output), message) {
 				t.Fatalf("%s exit %v output %s", env, cmd.ProcessState, output)
 			}

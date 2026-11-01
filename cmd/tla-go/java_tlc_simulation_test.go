@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSimulationTool(t *testing.T) {
@@ -65,7 +67,7 @@ func javaSimulationToolSeed(t *testing.T, jar, dir string, code int, seed string
 	args := []string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", seed, "-depth", "5", "M.tla"}
 	cmd := exec.Command("java", args...)
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Java TLC: %v\n%s", err, output)
 	}
@@ -209,7 +211,7 @@ func TestJavaTLCSimulationMultipleTraces(t *testing.T) {
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-simulate", "num=3", "-seed", "1", "-depth", "4", "M.tla")
 		cmd.Dir = dir
-		output, err := cmd.CombinedOutput()
+		output, err := javatmp.Apply(cmd).CombinedOutput()
 		if err != nil || !strings.Contains(string(output), "37 states generated") {
 			t.Fatalf("Java: %v\n%s", err, output)
 		}

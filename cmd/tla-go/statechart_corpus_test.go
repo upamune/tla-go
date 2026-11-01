@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // This optional test uses the actual statechart parser and corpus rather than
@@ -85,7 +87,7 @@ func compareStatechartModel(t *testing.T, root, jar, dir, name string) {
 	args := append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar}, flags...)
 	cmd := exec.CommandContext(ctx, "java", append(args, name+".tla")...)
 	cmd.Dir = dir
-	javaOutput, javaErr := cmd.CombinedOutput()
+	javaOutput, javaErr := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil {
 		t.Fatalf("Java TLC: %v", javaErr)
 	}

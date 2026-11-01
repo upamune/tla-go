@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSimulationAril(t *testing.T) {
@@ -56,7 +58,7 @@ func TestJavaTLCSimulationAril(t *testing.T) {
 				javaArgs := append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)
 				cmd := exec.Command("java", javaArgs...)
 				cmd.Dir = dir
-				output, _ := cmd.CombinedOutput()
+				output, _ := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 					t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 				}
@@ -91,7 +93,7 @@ func TestJavaTLCModernSimulationAril(t *testing.T) {
 			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
 			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 			cmd.Dir = dir
-			output, _ := cmd.CombinedOutput()
+			output, _ := javatmp.Apply(cmd).CombinedOutput()
 			if code != tc.code || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 				t.Fatalf("Go exit %d, Java %v, stderr %s; Go %s; Java %s", code, cmd.ProcessState, errout.String(), out.String(), output)
 			}
@@ -153,7 +155,7 @@ func TestJavaTLCSimulationArilWithoutSeed(t *testing.T) {
 	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == x'=1\nInv == x=0", "INIT Init\nNEXT Next\nINVARIANT Inv\n")
 	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-simulate", "num=1", "-aril", "17", "-depth", "1", "M.tla")
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 12 || !strings.Contains(string(output), "and aril 0") {
 		t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 	}

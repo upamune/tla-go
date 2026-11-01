@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/upamune/tla-go/checker"
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 type manualPeriodicTimer struct{ c chan time.Time }
@@ -339,6 +340,9 @@ func TestPeriodicCoverageUnreadPipeInterrupt(t *testing.T) {
 			defer errout.Close()
 			cmd := exec.Command(impl.args[0], impl.args[1:]...)
 			cmd.Dir, cmd.Stdout, cmd.Stderr = dir, writer, errout
+			if impl.java {
+				javatmp.Apply(cmd)
+			}
 			if err := cmd.Start(); err != nil {
 				writer.Close()
 				t.Fatal(err)

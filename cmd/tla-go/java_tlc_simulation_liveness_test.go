@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSimulationLiveness(t *testing.T) {
@@ -131,7 +133,7 @@ func TestJavaTLCModernSimulationStabilityVersionDifference(t *testing.T) {
 	args := []string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "2", "-depth", "5"}
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 13 {
 		t.Fatalf("Java TLC 1.8.0: %s", output)
 	}
@@ -157,7 +159,7 @@ func compareSimulationGraphParameters(t *testing.T, jar, body, cfg, seed, depth,
 	args := []string{"-tool", "-workers", "1", "-fp", "0", "-simulate", "num=" + traces, "-seed", seed, "-depth", depth}
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)...)
 	cmd.Dir = dir
-	javaOut, _ := cmd.CombinedOutput()
+	javaOut, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || !slices.Contains([]int{0, 13, 255}, cmd.ProcessState.ExitCode()) {
 		t.Fatalf("Java TLC failed: %s", javaOut)
 	}

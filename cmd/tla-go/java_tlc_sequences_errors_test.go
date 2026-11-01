@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Sequences.java and MP.java in Java TLC 1.7.4 define these errors.
@@ -51,7 +53,7 @@ func TestJavaTLCSequenceErrors(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				java, err := cmd.CombinedOutput()
+				java, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 					t.Fatalf("Java: %v\n%s", err, java)
 				}
@@ -135,7 +137,7 @@ func TestJavaTLCSequenceErrorContexts(t *testing.T) {
 			code := run(context.Background(), []string{"-tool", "-workers", "1", "-fp", "0", filepath.Join(dir, "M.tla")}, &out, &errout)
 			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 			cmd.Dir = dir
-			java, err := cmd.CombinedOutput()
+			java, err := javatmp.Apply(cmd).CombinedOutput()
 			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 				t.Fatalf("Go exit %d: %s\nJava: %v\n%s", code, out.String(), err, java)
 			}

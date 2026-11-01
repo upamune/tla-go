@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Do not emit final progress for effectful fairness models until graph counts
@@ -46,7 +48,7 @@ func TestPinnedJavaFairnessProgressEffects(t *testing.T) {
 			code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
 			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 			cmd.Dir = dir
-			java, err := cmd.CombinedOutput()
+			java, err := javatmp.Apply(cmd).CombinedOutput()
 			if code != tc.code || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 				t.Fatalf("Go exit %d stderr %s; Java %v\n%s", code, &errout, err, java)
 			}
@@ -119,7 +121,7 @@ func TestJavaTLCTemporalProgress(t *testing.T) {
 			}
 			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 			cmd.Dir = dir
-			java, err := cmd.CombinedOutput()
+			java, err := javatmp.Apply(cmd).CombinedOutput()
 			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 				t.Fatalf("Java: %v\n%s", err, java)
 			}
@@ -197,7 +199,7 @@ func TestJavaTLCTableauProgressWithInitialEffect(t *testing.T) {
 	code := run(context.Background(), goArgs, &out, &errout)
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 	cmd.Dir = dir
-	java, err := cmd.CombinedOutput()
+	java, err := javatmp.Apply(cmd).CombinedOutput()
 	if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Go exit %d stderr %s; Java %v\n%s", code, &errout, err, java)
 	}
@@ -222,7 +224,7 @@ func TestJavaTLCTableauProgressWithNextEffect(t *testing.T) {
 	code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 	cmd.Dir = dir
-	java, err := cmd.CombinedOutput()
+	java, err := javatmp.Apply(cmd).CombinedOutput()
 	if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Go exit %d stderr %s; Java %v\n%s", code, &errout, err, java)
 	}
@@ -255,7 +257,7 @@ func TestJavaTLCTableauProgressWithReusedInitialPredicate(t *testing.T) {
 			code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
 			cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, args...)...)
 			cmd.Dir = dir
-			java, err := cmd.CombinedOutput()
+			java, err := javatmp.Apply(cmd).CombinedOutput()
 			if code != 13 || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 				t.Fatalf("Go exit %d stderr %s output %s; Java %v\n%s", code, &errout, &out, err, java)
 			}

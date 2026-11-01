@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Java TLC prints an empty TupleValue as <<>> but an empty FcnRcdValue, such
@@ -35,7 +37,7 @@ func TestJavaTLCEmptyFunctionPrinting(t *testing.T) {
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-jar", jar, "-tool", "M.tla")
 		cmd.Dir = dir
-		output, _ := cmd.CombinedOutput()
+		output, _ := javatmp.Apply(cmd).CombinedOutput()
 		if got := printedLines(string(output)); cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 0 || !reflect.DeepEqual(got, want) {
 			t.Fatalf("Java exit %v, printed %q; output:\n%s", cmd.ProcessState, got, output)
 		}

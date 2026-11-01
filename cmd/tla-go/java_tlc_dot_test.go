@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCDotGraph(t *testing.T) {
@@ -73,7 +75,7 @@ func compareJavaDOT(t *testing.T, jar, dir string, got []byte, wantCode int) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-dump", "dot,actionlabels", "java.dot", "M.tla")
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != wantCode {
 		t.Fatalf("Java TLC: %v\n%s", err, output)
 	}

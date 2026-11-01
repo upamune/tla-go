@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Java TLC 1.7.4 (5a47802): argument errors stop at the first failing
@@ -141,7 +143,7 @@ func optionSyntaxJava(t *testing.T, jar, dir string, args []string) (string, str
 	var out, errout bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &errout
-	err = cmd.Run()
+	err = javatmp.Apply(cmd).Run()
 	if err == nil {
 		return out.String(), errout.String(), 0
 	}

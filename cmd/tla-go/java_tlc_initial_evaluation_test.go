@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCUpstreamInitialEvaluationFailures(t *testing.T) {
@@ -145,7 +147,7 @@ func TestJavaTLCInitialProgress(t *testing.T) {
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, append(args, "M.tla")...)...)
 		cmd.Dir = dir
-		output, _ := cmd.Output()
+		output, _ := javatmp.Apply(cmd).Output()
 		if java := progressMessages(string(output)); java != got {
 			t.Fatalf("progress differs\nJava: %q\nGo:   %q", java, got)
 		}

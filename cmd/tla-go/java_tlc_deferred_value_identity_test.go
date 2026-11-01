@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // These Java-only observations use TLC 1.7.4 at 5a47802b5c391f59ecdd44117981f4ff8c0656ba.
@@ -87,7 +89,7 @@ bad-after=TLCRuntimeException
 		t.Fatalf("javac: %v\n%s", err, out)
 	}
 	classpath := strings.Join([]string{jar, dir}, string(os.PathListSeparator))
-	out, err := exec.CommandContext(ctx, "java", "-Xmx128m", "-cp", classpath, "IdentityProbe").CombinedOutput()
+	out, err := javatmp.Apply(exec.CommandContext(ctx, "java", "-Xmx128m", "-cp", classpath, "IdentityProbe")).CombinedOutput()
 	if err != nil || strings.ReplaceAll(string(out), "\r\n", "\n") != expected {
 		t.Fatalf("Java deferred-value observations: %v\n%s", err, out)
 	}

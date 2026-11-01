@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCModelContinue(t *testing.T) {
@@ -99,7 +101,7 @@ func TestJavaTLCModelContinueUpstream(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, tc.name+".tla")...)...)
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if err != nil || !strings.Contains(string(output), tc.counts) {
 					t.Fatalf("Java: %v\n%s", err, output)
 				}
@@ -127,7 +129,7 @@ func javaModelContinueMessages(t *testing.T, jar, dir string, args []string, cod
 	javaArgs := append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, append(args, "M.tla")...)
 	cmd := exec.Command("java", javaArgs...)
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 	}
@@ -195,7 +197,7 @@ func TestJavaTLCModelContinueDOT(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-workers", "1", "-fp", "0", "-continue", "-dump", "dot,actionlabels", "java.dot", "M.tla")
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if err != nil {
 					t.Fatalf("Java TLC: %v\n%s", err, output)
 				}

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // test45 is unchanged from Java TLC v1.7.4, commit 5a47802.
@@ -92,7 +94,7 @@ func runJavaTLCForExit(t *testing.T, jar, dir, name string, want int) string {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", name+".tla")
 	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
+	out, err := javatmp.Apply(cmd).CombinedOutput()
 	code := 0
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		code = exit.ExitCode()

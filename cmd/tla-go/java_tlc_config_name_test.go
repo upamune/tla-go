@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Java TLC removes a trailing .cfg from -config and then appends .cfg, so
@@ -134,7 +136,7 @@ func TestJavaTLCConfigLibraryPath(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-DTLA-Library=" + library, "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
 				cmd.Dir = dir
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 					t.Fatalf("Java exit: %v\n%s", err, output)
 				}
@@ -170,7 +172,7 @@ func runJavaTLCArgs(t *testing.T, jar, dir string, args []string) (string, int) 
 	javaArgs := append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)
 	cmd := exec.CommandContext(ctx, "java", javaArgs...)
 	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
+	output, err := javatmp.Apply(cmd).CombinedOutput()
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok && ctx.Err() == nil {
 		return string(output), exit.ExitCode()
 	}

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The expected states are those asserted by the upstream ViewMapTest.
@@ -66,7 +68,7 @@ func compareJavaViewTrace(t *testing.T, jar, dir, model, got string, code int) {
 	t.Helper()
 	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-deadlock", "-view", model+".tla")
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Java exit %v, want %d:\n%s", cmd.ProcessState, code, output)
 	}

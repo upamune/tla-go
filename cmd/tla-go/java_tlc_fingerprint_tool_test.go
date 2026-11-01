@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The models come from Java TLC v1.7.4's fingerprint failure tests.
@@ -69,7 +71,7 @@ func runJavaFingerprintTool(t *testing.T, jar, dir, name string) string {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-metadir", t.TempDir(), name+".tla")
 	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
+	out, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 75 {
 		t.Fatalf("Java TLC: %v\n%s", err, out)
 	}

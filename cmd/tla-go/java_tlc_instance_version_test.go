@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCParameterizedInstanceVersion(t *testing.T) {
@@ -33,7 +35,7 @@ func TestJavaTLCParameterizedInstanceVersion(t *testing.T) {
 		}
 		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "test61.tla")
 		cmd.Dir = dir
-		java, err := cmd.CombinedOutput()
+		java, err := javatmp.Apply(cmd).CombinedOutput()
 		if cmd.ProcessState == nil || !instanceVersionResult(env, cmd.ProcessState.ExitCode(), string(java)) {
 			t.Fatalf("%s: %v\n%s", env, err, java)
 		}

@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Java TLC checks -maxSetSize when a ValueVec of initial capacity 10 grows, so
@@ -183,7 +185,7 @@ func TestJavaTLCInvalidMaxSetSize(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, tc.args...)...)
 				cmd.Dir = dir
-				output, _ := cmd.CombinedOutput()
+				output, _ := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 1 || !strings.Contains(string(output), tc.message) {
 					t.Fatalf("Java exit %v; output:\n%s", cmd.ProcessState, output)
 				}

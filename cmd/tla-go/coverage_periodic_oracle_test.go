@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Stop TLC as soon as the relevant complete report has arrived. The deadline
@@ -79,7 +81,7 @@ func TestJavaTLCCoveragePeriodicOracle(t *testing.T) {
 			}
 			out := &periodicOutput{done: stop, marker: marker, count: count}
 			cmd.Stdout, cmd.Stderr = out, out
-			err := cmd.Run()
+			err := javatmp.Apply(cmd).Run()
 			if ctx.Err() != context.Canceled {
 				t.Fatalf("Java stopped before the expected report (context: %v, error: %v):\n%s", ctx.Err(), err, out.buf.String())
 			}

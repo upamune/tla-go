@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The test-only bridge preserves Java SANY and adapts TLC's Java invocation to
@@ -59,7 +61,7 @@ func statechartSANYBridge(args []string) int {
 func bridgeJava(args []string) int {
 	cmd := exec.Command("java", args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := javatmp.Apply(cmd).Run(); err != nil {
 		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 			return exit.ExitCode()
 		}

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 const workerModel = "VARIABLES x, y\nInit == x = 0 /\\ y = 0\nNext == x' \\in 0..3 /\\ y' = (y + x) % 4\nInv == x \\in 0..3"
@@ -82,7 +84,7 @@ func TestJavaTLCInvalidWorkerAndCheckpointOptions(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, tc.args...)...)
 				cmd.Dir = dir
-				output, _ := cmd.CombinedOutput()
+				output, _ := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 1 || !strings.Contains(string(output), tc.message) {
 					t.Fatalf("Java exit %v; output:\n%s", cmd.ProcessState, output)
 				}
@@ -122,7 +124,7 @@ func TestJavaTLCToolOptionErrors(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar}, tc.args...)...)
 				cmd.Dir = dir
-				output, _ := cmd.Output()
+				output, _ := javatmp.Apply(cmd).Output()
 				java := readToolMessages(string(output))
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 1 || !strings.HasPrefix(string(output), tc.stdout) || len(java) != 2 || java[1] != messages[1] {
 					t.Fatalf("Java exit %v; output:\n%s", cmd.ProcessState, output)

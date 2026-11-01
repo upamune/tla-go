@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Java TLC 1.7.4, upstream commit 5a47802. TLC_JAR enables the live oracle.
@@ -275,7 +277,7 @@ func equalityJava(t *testing.T, jar, dir string, tool bool, want int) string {
 	}
 	cmd := exec.Command("java", args...)
 	cmd.Dir = javaDir
-	out, err := cmd.CombinedOutput()
+	out, err := javatmp.Apply(cmd).CombinedOutput()
 	if exit, ok := err.(*exec.ExitError); (want == 0 && err != nil) || (want != 0 && (!ok || exit.ExitCode() != want)) {
 		t.Fatalf("Java: %v\n%s", err, out)
 	}

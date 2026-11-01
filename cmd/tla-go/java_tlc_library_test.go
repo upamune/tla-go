@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCLibrarySearch(t *testing.T) {
@@ -54,7 +56,7 @@ func TestJavaTLCLibrarySearch(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-DTLA-Library="+path, "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", filepath.Join(specDir, "M.tla"))
 				cmd.Dir = root
-				output, err := cmd.CombinedOutput()
+				output, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.want {
 					t.Fatalf("Java exit: %v\n%s", err, output)
 				}
@@ -129,7 +131,7 @@ func TestJavaTLCLibraryTransitive(t *testing.T) {
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-DTLA-Library="+paths, "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", filepath.Join(spec, "M.tla"))
 		cmd.Dir = root
-		if output, err := cmd.CombinedOutput(); err != nil {
+		if output, err := javatmp.Apply(cmd).CombinedOutput(); err != nil {
 			t.Fatalf("Java: %v\n%s", err, output)
 		}
 	}
@@ -145,7 +147,7 @@ func TestJavaTLCMetadataDirectory(t *testing.T) {
 	meta := filepath.Join(dir, "java metadata")
 	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-metadir", meta, "-dump", "dot,actionlabels", "${metadir}/graph", filepath.Join(dir, "M.tla"))
 	cmd.Dir = dir
-	if output, err := cmd.CombinedOutput(); cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 12 {
+	if output, err := javatmp.Apply(cmd).CombinedOutput(); cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 12 {
 		t.Fatalf("Java: %v\n%s", err, output)
 	}
 	entries, err := os.ReadDir(meta)
@@ -175,7 +177,7 @@ func TestMetadataDirectoryCleanup(t *testing.T) {
 		javaRoot := filepath.Join(dir, "java-meta")
 		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-metadir", javaRoot, filepath.Join(dir, "M.tla"))
 		cmd.Dir = dir
-		if output, err := cmd.CombinedOutput(); err != nil {
+		if output, err := javatmp.Apply(cmd).CombinedOutput(); err != nil {
 			t.Fatalf("Java: %v\n%s", err, output)
 		}
 		if entries, err := os.ReadDir(javaRoot); err != nil || len(entries) != 0 {

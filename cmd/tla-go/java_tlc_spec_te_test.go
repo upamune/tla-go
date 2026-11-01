@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Java TLC's -generateSpecTE writes SpecTE.tla and SpecTE.cfg after an error
@@ -192,7 +194,7 @@ func compareJavaSpecTE(t *testing.T, jar, fixture string, args []string, expecte
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + tmp, "-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)...)
 		cmd.Dir = dir
-		runErr := cmd.Run()
+		runErr := javatmp.Apply(cmd).Run()
 		contextErr := ctx.Err()
 		cancel()
 		if err := checkJavaSpecTEExit(runErr, contextErr, expectedExit); err != nil {

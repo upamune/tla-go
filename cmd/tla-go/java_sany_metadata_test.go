@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 type sanySummary struct {
@@ -62,7 +64,7 @@ func compareSANYMetadata(t *testing.T, jar, path string) {
 	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-cp", jar, "tla2sany.xml.XMLExporter", "-o", "-I", filepath.Dir(path), path)
 	var javaOut, javaErr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &javaOut, &javaErr
-	if err := cmd.Run(); err != nil {
+	if err := javatmp.Apply(cmd).Run(); err != nil {
 		t.Fatalf("Java SANY: %v: %s", err, javaErr.String())
 	}
 	got, want := summarizeSANY(t, out.Bytes()), summarizeSANY(t, javaOut.Bytes())

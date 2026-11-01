@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCDotPolynomials(t *testing.T) {
@@ -27,7 +29,7 @@ func TestJavaTLCDotPolynomials(t *testing.T) {
 			}
 			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", fmt.Sprint(index), "-dump", "dot,actionlabels", "java.dot", "M.tla")
 			cmd.Dir = dir
-			if output, err := cmd.CombinedOutput(); err != nil {
+			if output, err := javatmp.Apply(cmd).CombinedOutput(); err != nil {
 				t.Fatalf("Java TLC: %v\n%s", err, output)
 			}
 			got, err := os.ReadFile(goPath)

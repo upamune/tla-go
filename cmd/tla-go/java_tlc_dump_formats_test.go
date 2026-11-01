@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The expected files are the masters of the upstream DumpAsDotTest and
@@ -110,7 +112,7 @@ func compareJavaDumpFormat(t *testing.T, jar, dir, model, format string, got []b
 	args = append(args, dumpArguments(format, output)...)
 	cmd := exec.Command("java", append(args, model+".tla")...)
 	cmd.Dir = dir
-	if out, _ := cmd.CombinedOutput(); cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+	if out, _ := javatmp.Apply(cmd).CombinedOutput(); cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
 		t.Fatalf("Java exit %v, want %d:\n%s", cmd.ProcessState, code, out)
 	}
 	suffix := ".dump"

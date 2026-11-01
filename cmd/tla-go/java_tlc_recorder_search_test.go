@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
 	"github.com/upamune/tla-go/internal/recorderdebug"
 )
 
@@ -147,7 +148,7 @@ func runSearchRecorderJava(t *testing.T, jar, classes, dir string, wantExit, wor
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", args...)
 	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
+	out, err := javatmp.Apply(cmd).CombinedOutput()
 	if ctx.Err() != nil || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != wantExit {
 		t.Fatalf("Java tool=%t exit=%v err=%v output=%s", tool, cmd.ProcessState, err, out)
 	}

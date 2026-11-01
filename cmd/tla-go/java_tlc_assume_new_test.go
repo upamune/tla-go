@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCTheoremNewDeclarations(t *testing.T) {
@@ -59,7 +61,7 @@ func TestJavaTLCTheoremNewDeclarations(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", path)
 				cmd.Dir = dir
-				javaOutput, err := cmd.CombinedOutput()
+				javaOutput, err := javatmp.Apply(cmd).CombinedOutput()
 				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 					t.Fatalf("Java: %v\n%s", err, javaOutput)
 				}
@@ -96,7 +98,7 @@ func TestJavaSANYTheoremNewLevels(t *testing.T) {
 			}
 			got := summarizeSANY(t, out.Bytes()).definitions["T"]
 			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-cp", jar, "tla2sany.xml.XMLExporter", "-o", path)
-			java, err := cmd.Output()
+			java, err := javatmp.Apply(cmd).Output()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -148,7 +150,7 @@ func TestJavaTLCTheoremNewImports(t *testing.T) {
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "M.tla")
 				cmd.Dir = dir
-				if output, err := cmd.CombinedOutput(); err != nil {
+				if output, err := javatmp.Apply(cmd).CombinedOutput(); err != nil {
 					t.Fatalf("Java: %v\n%s", err, output)
 				}
 			}

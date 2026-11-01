@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 type depthFirstCase struct {
@@ -146,7 +148,7 @@ func javaDepthFirstMessages(t *testing.T, jar, dir string, args []string, tc dep
 	t.Helper()
 	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar}, args...)...)
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
 		t.Fatalf("Java exit %v, output %s", cmd.ProcessState, output)
 	}
@@ -199,7 +201,7 @@ func TestDepthFirstOptions(t *testing.T) {
 			t.Errorf("%q: exit %d, stdout %q, stderr %q", tc.args, code, out.String(), errout.String())
 		}
 		if jar := os.Getenv("TLC_JAR"); jar != "" && tc.code == 1 {
-			java, err := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-cp", jar, "tlc2.TLC"}, tc.args...)...).Output()
+			java, err := javatmp.Apply(exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-cp", jar, "tlc2.TLC"}, tc.args...)...)).Output()
 			if want := afterVersion(string(java)); err == nil || afterVersion(out.String()) != want {
 				t.Errorf("%q: Java %v, stdout %q", tc.args, err, java)
 			}

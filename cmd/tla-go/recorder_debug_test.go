@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
 	"github.com/upamune/tla-go/internal/recorderdebug"
 )
 
@@ -108,7 +109,7 @@ public class RecorderProbe {
 	result := filepath.Join(dir, "java-records")
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-cp", dir+string(os.PathListSeparator)+jar, "RecorderProbe", result, "-tool", "-workers", workers, "-fp", "0", "M.tla")
 	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := javatmp.Apply(cmd).CombinedOutput(); err != nil {
 		t.Fatalf("Java recorder: %v %s", err, out)
 	}
 	data, err := os.ReadFile(result)

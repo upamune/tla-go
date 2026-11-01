@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 type upstreamSimulationLiveness struct {
@@ -141,7 +143,7 @@ func runJavaUpstreamSimulation(t *testing.T, jar, source, spec string, args []st
 	javaArgs := append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx512m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC"}, args...)
 	cmd := exec.Command("java", append(javaArgs, "-tool", spec)...)
 	cmd.Dir = dir
-	output, _ := cmd.CombinedOutput()
+	output, _ := javatmp.Apply(cmd).CombinedOutput()
 	if cmd.ProcessState == nil {
 		t.Fatalf("Java did not start: %s", output)
 	}

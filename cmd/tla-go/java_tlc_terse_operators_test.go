@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Small independent observations against TLC 1.7.4, built from TLA+ Tools
@@ -65,7 +67,7 @@ func TestJavaTLCTerseOperators(t *testing.T) {
 					if jar := os.Getenv("TLC_JAR"); jar != "" {
 						cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-jar", jar, "-workers", "1"}, append(args, "M.tla")...)...)
 						cmd.Dir = dir
-						output, err := cmd.CombinedOutput()
+						output, err := javatmp.Apply(cmd).CombinedOutput()
 						actual := 0
 						if err != nil {
 							if exit, ok := err.(*exec.ExitError); ok {

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // These unchanged suite models exercise primed operator arguments and ENABLED
@@ -51,7 +53,7 @@ func TestJavaTLCPrimedArgumentModels(t *testing.T) {
 				defer cancel()
 				cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", tc.name+".tla")
 				cmd.Dir = dir
-				java, err := cmd.CombinedOutput()
+				java, err := javatmp.Apply(cmd).CombinedOutput()
 				if err != nil || !strings.Contains(string(java), stats) || !strings.Contains(string(java), depth) || !strings.Contains(string(java), tc.printed) {
 					t.Fatalf("Java TLC %v:\n%s", err, java)
 				}
@@ -94,7 +96,7 @@ Next == /\ x' = 2 /\ y' = 9 /\ E(x) = 2 /\ F(x) = 3 /\ D(x + 1) = 3 /\ G(x) = 4 
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "M.tla")
 		cmd.Dir = dir
-		java, err := cmd.CombinedOutput()
+		java, err := javatmp.Apply(cmd).CombinedOutput()
 		if err != nil || !strings.Contains(string(java), stats) {
 			t.Fatalf("Java TLC %v:\n%s", err, java)
 		}

@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCSimulationLevelAcrossTraces(t *testing.T) {
@@ -38,7 +40,7 @@ Bound == PrintT(<<"bound", TLCGet("level")>>)
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-simulate", "num=2", "-seed", "1", "-depth", "2", "M.tla")
 		cmd.Dir = dir
-		output, err := cmd.CombinedOutput()
+		output, err := javatmp.Apply(cmd).CombinedOutput()
 		if err != nil {
 			t.Fatalf("Java TLC: %v\n%s", err, output)
 		}
