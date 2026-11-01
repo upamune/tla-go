@@ -128,3 +128,37 @@ func TestCoverageDeadlineDoesNotWaitForTimerDelivery(t *testing.T) {
 		t.Fatalf("result: %+v, error: %v", result, err)
 	}
 }
+
+// A real check whose initialization takes longer than the first Java progress
+// tick must still finish for zero and for a positive, unexpired interval.
+func TestCoverageLongInitializationPreservesResults(t *testing.T) {
+	for _, interval := range []time.Duration{0, time.Minute} {
+		t.Run(interval.String(), func(t *testing.T) {
+			t.Parallel()
+			const source = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x \\in 0..1\nA == x' = x\nB == x' = x\nNext == A \\/ B\n====\n"
+			result, err := checkWithCoverageDeadline(context.Background(), interval, context.WithTimeout, func(ctx context.Context) (checker.Result, error) {
+				return checker.CheckWithOptions(ctx, source, "INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n", checker.Options{Coverage: true, OnSearch: func(event checker.SearchEvent) {
+					if event.Kind == checker.InitialStart {
+						time.Sleep(3100 * time.Millisecond)
+					}
+				}})
+			})
+			if err != nil || result.Status != checker.Success || len(result.Coverage) == 0 {
+				t.Fatalf("result: %+v, error: %v", result, err)
+			}
+		})
+	}
+}
+
+func TestCoverageDeadlinePreservesExternalCancellation(t *testing.T) {
+	for _, interval := range []time.Duration{0, time.Minute} {
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err := checkWithCoverageDeadline(ctx, interval, context.WithTimeout, func(ctx context.Context) (checker.Result, error) {
+			cancel()
+			return checker.Result{}, ctx.Err()
+		})
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("interval %v: %v", interval, err)
+		}
+	}
+}
