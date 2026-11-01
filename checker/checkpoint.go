@@ -1,8 +1,8 @@
 package checker
 
 // This codec is deliberately private. The search adapter accepts only a
-// restricted model and a caller-supplied identity; it does not establish
-// dependency-aware identity or provide CLI recovery.
+// restricted model and an identity bound to its resolved sources; it does not
+// provide CLI recovery.
 
 import (
 	"bytes"

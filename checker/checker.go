@@ -125,6 +125,7 @@ type Failure struct {
 	evaluationSources []*parser.Expression
 }
 type model struct {
+	checkpointIdentity   *checkpointIdentity
 	coverage             *coverageCollector
 	module               *parser.Module
 	cfg                  config.Config

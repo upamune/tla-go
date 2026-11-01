@@ -12,6 +12,13 @@ import (
 
 var testCheckpointIdentity = checkpointIdentity{Model: sha256.Sum256([]byte("test model")), Config: sha256.Sum256([]byte("test config"))}
 
+func prepareCheckpointTest(t *testing.T, source, cfg string) *model {
+	t.Helper()
+	m := prepareSimulationTest(t, source, cfg)
+	m.checkpointIdentity = &testCheckpointIdentity
+	return m
+}
+
 // pauseSearch runs real initial generation and serial expansions, stopping only
 // after a completed expansion. It is deliberately available only to tests.
 func pauseSearch(t *testing.T, m *model, limit int) *search {
@@ -60,13 +67,13 @@ func TestCheckpointSearchResume(t *testing.T) {
 			}
 			source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLES " + vars + "\nInit == " + tc.init + "\nNext == " + tc.next + "\nInv == " + tc.inv + "\n===="
 			cfg := "INIT Init NEXT Next INVARIANT Inv CHECK_DEADLOCK FALSE"
-			base := prepareSimulationTest(t, source, cfg)
+			base := prepareCheckpointTest(t, source, cfg)
 			want, err := base.check()
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, limit := range tc.pauses {
-				m := prepareSimulationTest(t, source, cfg)
+				m := prepareCheckpointTest(t, source, cfg)
 				s := pauseSearch(t, m, limit)
 				snapshot, err := s.checkpoint(testCheckpointIdentity)
 				if err != nil {
@@ -80,7 +87,7 @@ func TestCheckpointSearchResume(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				fresh := prepareSimulationTest(t, source, cfg)
+				fresh := prepareCheckpointTest(t, source, cfg)
 				restored, err := fresh.restoreCheckpoint(snapshot, testCheckpointIdentity)
 				if err != nil {
 					t.Fatal(err)
@@ -101,7 +108,7 @@ func TestCheckpointSearchRejectsInvalid(t *testing.T) {
 	source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = x + 1\nInv == x < 4\n===="
 	cfg := "INIT Init NEXT Next INVARIANT Inv CHECK_DEADLOCK FALSE"
 	t.Run("initial generation incomplete", func(t *testing.T) {
-		m := prepareSimulationTest(t, source, cfg)
+		m := prepareCheckpointTest(t, source, cfg)
 		s := newSearch(m)
 		if _, err := s.checkpoint(testCheckpointIdentity); err == nil {
 			t.Fatal("accepted search before initial generation")
@@ -109,7 +116,7 @@ func TestCheckpointSearchRejectsInvalid(t *testing.T) {
 	})
 	makeSnapshot := func() checkpointSnapshot {
 		t.Helper()
-		s := pauseSearch(t, prepareSimulationTest(t, source, cfg), 1)
+		s := pauseSearch(t, prepareCheckpointTest(t, source, cfg), 1)
 		snap, err := s.checkpoint(testCheckpointIdentity)
 		if err != nil {
 			t.Fatal(err)
@@ -138,14 +145,14 @@ func TestCheckpointSearchRejectsInvalid(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			snap := makeSnapshot()
 			tc.mutate(&snap)
-			m := prepareSimulationTest(t, source, cfg)
+			m := prepareCheckpointTest(t, source, cfg)
 			if _, err := m.restoreCheckpoint(snap, testCheckpointIdentity); err == nil {
 				t.Fatal("accepted invalid snapshot")
 			}
 		})
 	}
 	t.Run("used model", func(t *testing.T) {
-		m := prepareSimulationTest(t, source, cfg)
+		m := prepareCheckpointTest(t, source, cfg)
 		pauseSearch(t, m, 0)
 		if _, err := m.restoreCheckpoint(makeSnapshot(), testCheckpointIdentity); err == nil {
 			t.Fatal("accepted used model")
@@ -159,7 +166,7 @@ func TestCheckpointSearchRejectsInvalid(t *testing.T) {
 		{"set-valued successor", "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nNext == x' = {1}\n====", "INIT Init NEXT Next"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			m := prepareSimulationTest(t, tc.source, tc.cfg)
+			m := prepareCheckpointTest(t, tc.source, tc.cfg)
 			if err := m.checkpointSupported(); err == nil {
 				t.Fatal("accepted unsupported model")
 			}

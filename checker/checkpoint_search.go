@@ -8,7 +8,7 @@ import (
 )
 
 // checkpointSupported deliberately recognizes a closed language. Identity is
-// supplied by the caller; this does not establish dependency-aware identity.
+// bound to a source-aware model before snapshots can be used.
 func (m *model) checkpointSupported() error {
 	c := m.cfg
 	if m.checkpointUnsupportedFeatures() || m.checkpointUnsupportedOptions() {
@@ -76,6 +76,9 @@ func checkpointSetMembership(e *parser.Expression) bool {
 
 func (s *search) checkpoint(identity checkpointIdentity) (checkpointSnapshot, error) {
 	var snap checkpointSnapshot
+	if s.model.checkpointIdentity == nil || *s.model.checkpointIdentity != identity {
+		return snap, fmt.Errorf("checkpoint identity mismatch")
+	}
 	if err := s.model.checkpointSupported(); err != nil {
 		return snap, err
 	}
@@ -157,14 +160,14 @@ func (m *model) validateCheckpointState(n checkpointNode, i int) error {
 }
 
 func (m *model) restoreCheckpoint(snap checkpointSnapshot, identity checkpointIdentity) (*search, error) {
+	if m.checkpointIdentity == nil || *m.checkpointIdentity != identity {
+		return nil, fmt.Errorf("checkpoint identity mismatch")
+	}
 	if err := m.checkpointSupported(); err != nil {
 		return nil, err
 	}
-	if m.tlcRuntime.started || m.tlcRuntime.search != nil {
-		return nil, fmt.Errorf("checkpoint requires a newly prepared model")
-	}
-	if snap.Identity != identity {
-		return nil, fmt.Errorf("checkpoint identity mismatch")
+	if err := m.checkpointRestoreAllowed(snap, identity); err != nil {
+		return nil, err
 	}
 	if err := m.validateSearchCheckpoint(snap); err != nil {
 		return nil, err
@@ -183,4 +186,14 @@ func (m *model) restoreCheckpoint(snap checkpointSnapshot, identity checkpointId
 	m.tlcRuntime.started, m.tlcRuntime.initial, m.tlcRuntime.search = true, snap.Counters.Initial, &s
 	m.tlcRuntime.traceCurrent, m.tlcRuntime.traceCandidate, m.tlcRuntime.traceIndices = -1, nil, nil
 	return &s, nil
+}
+
+func (m *model) checkpointRestoreAllowed(snap checkpointSnapshot, identity checkpointIdentity) error {
+	if m.tlcRuntime.started || m.tlcRuntime.search != nil {
+		return fmt.Errorf("checkpoint requires a newly prepared model")
+	}
+	if snap.Identity != identity {
+		return fmt.Errorf("checkpoint identity mismatch")
+	}
+	return nil
 }
