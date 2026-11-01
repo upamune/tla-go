@@ -180,6 +180,7 @@ type model struct {
 	propertyCalls         int
 	java17PureChecked     bool
 	java17Pure            bool
+	recurrenceSourceCache *recurrenceSourceCache
 	emptyTemporalProperty bool
 	safety                []temporalProperty
 	guarded               []temporalProperty
@@ -794,6 +795,11 @@ func (m *model) prepareConfiguredProperties() error {
 	if err := m.validateConstantPredicates(); err != nil {
 		return err
 	}
+	// Source units, definitions and configuration are fixed throughout this
+	// phase. Discard the memo before returning so later calls cannot observe a
+	// result computed from a different model configuration.
+	m.recurrenceSourceCache = &recurrenceSourceCache{}
+	defer func() { m.recurrenceSourceCache = nil }()
 	err := m.prepareProperties()
 	if failure, ok := errors.AsType[*ModelValidationError](err); ok && failure.Code == 2253 {
 		// Java TLC's AbstractChecker warns before LiveCheck rejects a tautology.

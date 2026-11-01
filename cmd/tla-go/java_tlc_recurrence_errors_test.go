@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/recorderdebug"
 )
 
 // Java LiveCheck.addNextState evaluates action checks before state checks when
@@ -117,5 +120,83 @@ func TestJavaTLCRecurrenceNonBooleanFailure(t *testing.T) {
 	got, want := recurrenceFailureMessages(out.String()), recurrenceFailureMessages(java)
 	if code != 255 || javaCode != 255 || errout.Len() != 0 || !reflect.DeepEqual(got, want) {
 		t.Fatalf("Go exit %d messages %v; Java exit %d messages %v; stderr %s", code, got, javaCode, want, &errout)
+	}
+}
+
+// Go still lacks Java's value-specific text for this raw type error. The
+// exploration phase and statistics should nevertheless match.
+func TestJavaTLCRecurrenceRawTypeFailure(t *testing.T) {
+	jar := pinnedFairnessEffectJar(t)
+	if jar == "" {
+		t.Skip("set TLC_JAR to pinned Java TLC 1.7.4")
+	}
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == []<>(1 \\in x)", "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "0", "-lncheck", "final"}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(slices.Clone(args), filepath.Join(dir, "M.tla")), &out, &errout)
+	java, javaCode := runJavaTLCArgs(t, jar, dir, append(slices.Clone(args), "M.tla"))
+	goMsgs, javaMsgs := readToolMessages(out.String()), readToolMessages(java)
+	if code != 255 || javaCode != code || errout.Len() != 0 || hasToolMessage(goMsgs, 2192) || hasToolMessage(javaMsgs, 2192) || !strings.Contains(out.String(), "expected a set") || !strings.Contains(java, "Attempted to check if the value:") {
+		t.Fatalf("Go exit %d, Java exit %d, stderr %s\nGo %s\nJava %s", code, javaCode, &errout, &out, java)
+	}
+	for _, id := range []int{2199, 2194, 2268} {
+		if rawToolMessage(out.String(), id) != rawToolMessage(java, id) {
+			t.Errorf("message %d: Go %q Java %q", id, rawToolMessage(out.String(), id), rawToolMessage(java, id))
+		}
+	}
+}
+
+// Java normalizes a conditional temporal predicate before initial-state
+// generation. The conditional stays on the legacy path until that is ported.
+func TestJavaTLCConditionalRecurrenceStillDeferred(t *testing.T) {
+	jar := pinnedFairnessEffectJar(t)
+	if jar == "" {
+		t.Skip("set TLC_JAR to pinned Java TLC 1.7.4")
+	}
+	dir := t.TempDir()
+	writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == []<>(IF x=1 THEN 1 ELSE TRUE)", "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "0", "-lncheck", "final"}
+	path := filepath.Join(dir, "go.jsonl")
+	t.Setenv("TLA_GO_DEBUG_RECORDER", path)
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(slices.Clone(args), filepath.Join(dir, "M.tla")), &out, &errout)
+	java, javaCode := runJavaTLCArgs(t, jar, dir, append(slices.Clone(args), "M.tla"))
+	goMsgs, javaMsgs := readToolMessages(out.String()), readToolMessages(java)
+	if code != 255 || javaCode != code || errout.Len() != 0 || !hasToolMessage(javaMsgs, 2215) || hasToolMessage(javaMsgs, 2189) || !hasToolMessage(goMsgs, 2192) || hasToolMessage(goMsgs, 2199) {
+		t.Fatalf("known normalization mismatch: Go exit %d Java exit %d stderr %s\nGo %s\nJava %s", code, javaCode, &errout, &out, java)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if events, err := recorderdebug.Decode(bytes.NewReader(data)); err == nil || events != nil {
+		t.Fatalf("conditional failure admitted uncertain recorder events %v; error %v", events, err)
+	}
+}
+
+func TestJavaTLCRecurrenceOtherRawTypeFailures(t *testing.T) {
+	jar := pinnedFairnessEffectJar(t)
+	if jar == "" {
+		t.Skip("set TLC_JAR to pinned Java TLC 1.7.4")
+	}
+	for _, predicate := range []string{`SUBSET x = {}`, `DOMAIN x = {}`, `x + TRUE = 0`} {
+		t.Run(predicate, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == []<>("+predicate+")", "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
+			args := []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "0", "-lncheck", "final"}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(slices.Clone(args), filepath.Join(dir, "M.tla")), &out, &errout)
+			java, javaCode := runJavaTLCArgs(t, jar, dir, append(slices.Clone(args), "M.tla"))
+			goMsgs, javaMsgs := readToolMessages(out.String()), readToolMessages(java)
+			if code != 255 || javaCode != code || errout.Len() != 0 || !hasToolMessage(goMsgs, 1000) || !hasToolMessage(javaMsgs, 1000) || hasToolMessage(goMsgs, 2192) || hasToolMessage(javaMsgs, 2192) {
+				t.Fatalf("Go exit %d, Java exit %d, stderr %s\nGo %s\nJava %s", code, javaCode, &errout, &out, java)
+			}
+			for _, id := range []int{2199, 2194, 2268} {
+				if rawToolMessage(out.String(), id) != rawToolMessage(java, id) {
+					t.Errorf("message %d: Go %q Java %q", id, rawToolMessage(out.String(), id), rawToolMessage(java, id))
+				}
+			}
+		})
 	}
 }

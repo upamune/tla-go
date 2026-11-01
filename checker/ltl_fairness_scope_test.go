@@ -73,6 +73,47 @@ func TestPureRecurrenceSkipsHigherOrderEffects(t *testing.T) {
 	}
 }
 
+func TestPureRecurrenceSkipsConditionalPredicates(t *testing.T) {
+	for _, extra := range []string{
+		"P == []<>(IF x=0 THEN TRUE ELSE 1)",
+		"Q == IF x=0 THEN TRUE ELSE 1\nP == []<>(Q)",
+		"Q == IF x=0 THEN {1} ELSE 1\nP == []<>(1 \\in Q)",
+	} {
+		source := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x=0\nNext == x'=x\n" + extra + "\n===="
+		m := prepareRecurrenceScopeTest(t, source, "INIT Init NEXT Next PROPERTY P")
+		if len(m.livenessOrder) != 1 || m.livenessOrder[0].cacheAtom != nil {
+			t.Fatalf("conditional recurrence was admitted: %+v", m.livenessOrder)
+		}
+	}
+	const shared = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x=0\nNext == x'=x\nQ == IF x=0 THEN TRUE ELSE 1\nP1 == []<>(Q)\nP2 == []<>(Q)\n===="
+	m := prepareRecurrenceScopeTest(t, shared, "INIT Init NEXT Next PROPERTY P1 PROPERTY P2")
+	if len(m.livenessOrder) != 2 || m.livenessOrder[0].cacheAtom != nil || m.livenessOrder[1].cacheAtom != nil {
+		t.Fatalf("shared conditional recurrence was admitted: %+v", m.livenessOrder)
+	}
+}
+
+func TestPureRecurrenceSourceCacheEndsAfterPreparation(t *testing.T) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals\nVARIABLE x\nInit == x=0\nNext == x'=x\nP == []<>(x=0)\nQ == []<>(x=1)\n===="
+	m := prepareRecurrenceScopeTest(t, source, "INIT Init NEXT Next PROPERTY P PROPERTY Q")
+	if m.recurrenceSourceCache != nil || len(m.livenessOrder) != 2 || m.livenessOrder[0].cacheAtom == nil || m.livenessOrder[1].cacheAtom == nil {
+		t.Fatalf("cache remained after preparation or pure properties were skipped: %+v", m.livenessOrder)
+	}
+	m.sourceConfig.Substitutions = []config.Substitution{{Name: "N", Target: "Other"}}
+	if m.cachedPureRecurrenceSourceSafe() {
+		t.Fatal("stale cached purity was reused after the configuration changed")
+	}
+}
+
+func TestPureRecurrenceConditionalCycleFallsBack(t *testing.T) {
+	m := &model{defs: map[string]parser.Definition{
+		"A": {Body: &parser.Expression{Kind: "Identifier", Text: "B"}},
+		"B": {Body: &parser.Expression{Kind: "Identifier", Text: "A"}},
+	}, recurrenceSourceCache: &recurrenceSourceCache{}}
+	if !m.recurrenceHasConditional(&parser.Expression{Kind: "Identifier", Text: "A"}, map[string]bool{}) {
+		t.Fatal("cyclic definitions were considered safe for early evaluation")
+	}
+}
+
 func prepareRecurrenceScopeTest(t *testing.T, source, configuration string) *model {
 	t.Helper()
 	module, err := parser.ParseModule(source)

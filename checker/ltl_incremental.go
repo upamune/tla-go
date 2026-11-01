@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -188,10 +189,89 @@ func (m *model) prepareRecurrenceCache(property *temporalProperty) {
 		return
 	}
 	pure := !m.propertyUsesTLC(*property)
-	if pure && (!m.pureRecurrenceSourceSafe() || m.recurrenceHasUnstableFairness()) {
+	if pure && (!m.cachedPureRecurrenceSourceSafe() || m.recurrenceHasConditional(property.predicate, map[string]bool{}) || m.recurrenceHasUnstableFairness()) {
 		return
 	}
 	property.cacheAtom = &ltlFormula{kind: ltlAtom, atom: property.predicate, locals: property.locals, baseLevel: true, pureRecurrence: pure}
+}
+
+// TLC can evaluate an IF branch while normalizing liveness before exploration.
+// Until that order is implemented, keep conditional predicates on the old path.
+func (m *model) recurrenceHasConditional(expr *parser.Expression, seen map[string]bool) bool {
+	if expr == nil {
+		return false
+	}
+	if expr.Kind == "If" {
+		return true
+	}
+	if m.recurrenceDefinitionHasConditional(expr, seen) {
+		return true
+	}
+	found := false
+	walkChildren(expr, func(child *parser.Expression) {
+		if !found {
+			found = m.recurrenceHasConditional(child, seen)
+		}
+	})
+	return found
+}
+
+func (m *model) recurrenceDefinitionHasConditional(expr *parser.Expression, seen map[string]bool) bool {
+	if expr.Kind != "Apply" && expr.Kind != "Identifier" {
+		return false
+	}
+	def, ok := m.defs[expr.Text]
+	if !ok {
+		return false
+	}
+	if cached, ok := m.cachedConditionalDefinition(expr.Text); ok {
+		return cached
+	}
+	if seen[expr.Text] {
+		return true
+	}
+	seen[expr.Text] = true
+	found := m.recurrenceHasConditional(def.Body, seen)
+	delete(seen, expr.Text)
+	m.rememberConditionalDefinition(expr.Text, found)
+	return found
+}
+
+type recurrenceSourceCache struct {
+	checked     bool
+	safe        bool
+	conditional map[string]bool
+}
+
+func (m *model) cachedConditionalDefinition(name string) (bool, bool) {
+	if m.recurrenceSourceCache == nil {
+		return false, false
+	}
+	result, ok := m.recurrenceSourceCache.conditional[name]
+	return result, ok
+}
+
+func (m *model) rememberConditionalDefinition(name string, result bool) {
+	cache := m.recurrenceSourceCache
+	if cache == nil {
+		return
+	}
+	if cache.conditional == nil {
+		cache.conditional = map[string]bool{}
+	}
+	cache.conditional[name] = result
+}
+
+func (m *model) cachedPureRecurrenceSourceSafe() bool {
+	cache := m.recurrenceSourceCache
+	if cache == nil {
+		return m.pureRecurrenceSourceSafe()
+	}
+	if !cache.checked {
+		cache.safe = m.pureRecurrenceSourceSafe()
+		cache.checked = true
+	}
+	return cache.safe
 }
 
 // Only reuse the liveness-DOT purity check when the original module and
@@ -538,7 +618,10 @@ func (s *search) incrementalFailure(err error, index int) (bool, error) {
 func (s *search) pureRecurrenceFailure(err *incrementalLivenessError) (bool, error) {
 	failure, ok := asRuntimeError(err.cause)
 	if !ok {
-		return false, err
+		if errors.Is(err.cause, context.Canceled) || errors.Is(err.cause, context.DeadlineExceeded) {
+			return false, err
+		}
+		failure = &evaluator.RuntimeError{Message: err.cause.Error()}
 	}
 	reported := generalFailure("", failure)
 	reported.ExitCode = 255

@@ -2,6 +2,7 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -56,6 +57,16 @@ func TestPureRecurrenceFailureDuringExploration(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPureRecurrenceFailurePreservesCancellation(t *testing.T) {
+	for _, cause := range []error{context.Canceled, context.DeadlineExceeded} {
+		s := &search{}
+		_, err := s.pureRecurrenceFailure(&incrementalLivenessError{cause: cause})
+		if !errors.Is(err, cause) {
+			t.Fatalf("got %v, want %v", err, cause)
+		}
 	}
 }
 
