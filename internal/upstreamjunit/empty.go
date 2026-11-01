@@ -2,6 +2,7 @@ package upstreamjunit
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 )
 
@@ -9,6 +10,13 @@ import (
 // Tool mode exposes a text projection; the harness itself uses a Java recorder.
 func emptyInvocation() []string {
 	return []string{"-tool", "-deadlock", "-fp", "0", "-coverage", "1", "-workers", "1", "-checkpoint", "0", "-dump", "dot", "empty-bridge.dot", "-coverage", "1", "Empty"}
+}
+
+// The original JUnit setup runs without -tool and uses its metadir dump.
+func emptyHumanInvocation() []string {
+	args := slices.Clone(emptyInvocation()[1:])
+	args[slices.Index(args, "empty-bridge.dot")] = filepath.Join("${metadir}", "tlc2.tool.EmptyTest.dot")
+	return args
 }
 
 func projectEmpty(args []string, result Result) ([]bridgeRecord, []string, error) {

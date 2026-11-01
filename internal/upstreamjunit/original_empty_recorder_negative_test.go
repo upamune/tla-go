@@ -25,6 +25,36 @@ func emptyRecorderFixture() ([]bridgeRecord, []recorderdebug.Event) {
 	return projected, events
 }
 
+func TestEmptyHumanRecorderPreservesValuesAndRejectsMismatch(t *testing.T) {
+	tool, events := emptyRecorderFixture()
+	human := events[2:]
+	human[len(human)-1].Values = []string{"00s"}
+	records, err := emptyHumanRecorderRecords(tool, human)
+	if err != nil || records[len(records)-1].values[0] != "00s" {
+		t.Fatalf("human records: %v, %v", records, err)
+	}
+	human[4].Values[0] = "999"
+	if records[4].values[0] != "0" {
+		t.Fatal("human records alias observations")
+	}
+	for _, mutate := range []func(*[]recorderdebug.Event){
+		func(events *[]recorderdebug.Event) { *events = (*events)[:6] },
+		func(events *[]recorderdebug.Event) { (*events)[1].Code = 9999 },
+		func(events *[]recorderdebug.Event) { (*events)[2].Values = []string{"1", ""} },
+		func(events *[]recorderdebug.Event) { (*events)[2].Array = "objects" },
+		func(events *[]recorderdebug.Event) { (*events)[2].Reason = "unobserved" },
+		func(events *[]recorderdebug.Event) { (*events)[6].Values = []string{"bad"} },
+	} {
+		_, events := emptyRecorderFixture()
+		human := events[2:]
+		human[6].Values = []string{"00s"}
+		mutate(&human)
+		if _, err := emptyHumanRecorderRecords(tool, human); err == nil {
+			t.Fatalf("accepted incomplete or changed human events: %+v", human)
+		}
+	}
+}
+
 func TestEmptyRecorderUsesDirectValues(t *testing.T) {
 	projected, events := emptyRecorderFixture()
 	got, err := emptyRecorderRecords(projected, events)

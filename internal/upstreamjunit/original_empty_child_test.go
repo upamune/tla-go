@@ -81,8 +81,16 @@ func originalEmptyGoHelper() error {
 	if err != nil {
 		return err
 	}
+	_, human, err := boundedOriginalEmptyRunWithArgs(binary, model, emptyHumanInvocation())
+	if err != nil {
+		return err
+	}
+	records, err = emptyHumanRecorderRecords(records, human)
+	if err != nil {
+		return err
+	}
 	omissions = append(omissions, "recorder diagnostics cover only selected calls; other recorder calls remain unknown")
-	omissions = append(omissions, "finish duration is from tool mode, not the original non-tool recorder")
+	omissions = append(omissions, "Java startup and state-file lifecycle are not observed")
 	encoded, err := originalEmptyRecords(records, mode)
 	if err != nil {
 		return err
@@ -124,6 +132,10 @@ func boundedOriginalEmptyRun(binary, model string) (Result, error) {
 }
 
 func boundedOriginalEmptyRunWithRecorder(binary, model string) (Result, []recorderdebug.Event, error) {
+	return boundedOriginalEmptyRunWithArgs(binary, model, emptyInvocation())
+}
+
+func boundedOriginalEmptyRunWithArgs(binary, model string, args []string) (Result, []recorderdebug.Event, error) {
 	dir, err := os.MkdirTemp("", "tla-recorder-*")
 	if err != nil {
 		return Result{}, nil, err
@@ -133,7 +145,7 @@ func boundedOriginalEmptyRunWithRecorder(binary, model string) (Result, []record
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	output := &originalEmptyOutput{limit: 1 << 20, cancel: cancel}
-	cmd := exec.CommandContext(ctx, binary, emptyInvocation()...)
+	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = model
 	cmd.Env = append(os.Environ(), "GOMEMLIMIT=256MiB", "TLA_GO_DEBUG_RECORDER="+recorderPath)
 	cmd.Stdout, cmd.Stderr = output, output

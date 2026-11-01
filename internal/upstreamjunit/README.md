@@ -573,16 +573,15 @@ without a subclass or modified upstream source. Its original inherited
 setup creates this adapter in place of Java TLC. It checks the exact upstream
 argument list, the installed `TestMPRecorder`, user directory, cleanup-veto
 property and liveness threshold. Its `process` starts a Go test helper, which
-runs the built tla-go binary on a separate copy of `Empty`. It builds the input
-to the original assertion solely from the partial `TLA_GO_DEBUG_RECORDER`
-events: starting, initial-state, success probability, statistics, depth, and
-finish. Each event must have the expected code, string-array type, arity,
-ordering and values. Independently, `projectEmpty` parses the tool output and
-the helper rejects a missing, additional or mismatched projected record. Tool
-output does not supply the assertion values. The tool-only SANY events are
-removed before invoking the original non-tool assertions. The finish duration is the tool-mode value, which differs
-from Java's non-tool duration format; the original EmptyTest checks only the
-record's presence. Other recorder calls remain unobserved or text projections.
+runs the built tla-go binary on a separate copy of `Empty`. The assertion input
+comes from a non-tool execution using the original `${metadir}` dump argument,
+and its partial `TLA_GO_DEBUG_RECORDER` events: starting, initial-state,
+success probability, statistics, depth, and finish. Each event must have the
+expected code, string-array type, ordering and values. A separate tool-mode
+execution is checked against its text projection, then its comparable typed
+events are checked against the human-mode events. The non-tool finish duration
+uses Java's human-readable format; elapsed times are not compared. Other
+recorder calls remain unobserved.
 The adapter loads those records into the recorder installed by the original
 setup; the original upstream assertion and exit-status teardown then execute.
 
@@ -631,8 +630,8 @@ waits up to 40 seconds for its helper. The helpers are not a general process
 sandbox and child processes may outlive a killed parent.
 
 This is still **not a Go JUnit pass**. The adapter replaces Java TLC's
-constructor, option processing and model checker, adds `-tool`, and uses a
-different DOT path. The partial diagnostic stream and text cross-check cannot
+constructor, option processing and model checker. A separate tool-mode run uses
+a different DOT path for its cross-check. The partial diagnostic stream cannot
 establish recorder completeness or hidden calls. Some Java globals, output, dump, cleanup, error
 and liveness semantics remain unverified. The experiment carries the omission
 list forward and `bridgeVerdict` rejects a pass even when the original
@@ -652,7 +651,7 @@ coverage records or supply an unsuccessful error code; these must trigger the
 original assertions. Separate argument controls reject other specs, dump paths,
 worker counts, missing arguments and unsupported targets.
 
-The Go invocation adds `-tool` for the partial recorder diagnostics, and
+The Go invocation adds `-tool` for the coverage recorder diagnostics, and
 `projectBridge` cross-checks those calls against its output. It preserves the
 original `${metadir}` dump argument and disables checkpoints as requested by
 upstream. The adapter cannot reproduce Java TLC itself, complete recorder
