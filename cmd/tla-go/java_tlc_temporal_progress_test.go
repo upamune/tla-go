@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,59 @@ import (
 	"testing"
 	"time"
 )
+
+// The existing fairness evaluation differs in its effect stream. Do not emit
+// final progress for these models until that behavior is reproduced.
+func TestPinnedJavaFairnessProgressEffects(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Skip("TLC_JAR is not set")
+	}
+	data, err := os.ReadFile(jar)
+	if err != nil || fmt.Sprintf("%x", sha256.Sum256(data)) != "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88" {
+		t.Fatalf("TLC_JAR must be the pinned 1.7.4 jar: %v", err)
+	}
+	for _, tc := range []struct {
+		name, next, property string
+		code                 int
+	}{
+		{"weak nondeterministic success", `x' \in {0, 1} /\ PrintT("effect")`, `[]<>(x = 0)`, 0},
+		{"strong nondeterministic violation", `x' \in {0, 1} /\ PrintT("effect")`, `[]<>(x = 2)`, 13},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			fair := "WF"
+			if strings.HasPrefix(tc.name, "strong") {
+				fair = "SF"
+			}
+			writeDOTFixture(t, dir, "VARIABLE x\nInit == x=0\nNext == "+tc.next+"\nSpec == Init /\\ [][Next]_x /\\ "+fair+"_x(Next)\nP == "+tc.property, "SPECIFICATION Spec\nPROPERTY P")
+			args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", "M.tla"}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(append([]string{}, args[:len(args)-1]...), filepath.Join(dir, "M.tla")), &out, &errout)
+			cmd := exec.Command("java", append([]string{"-jar", jar}, args...)...)
+			cmd.Dir = dir
+			java, err := cmd.CombinedOutput()
+			if code != tc.code || errout.Len() != 0 || cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+				t.Fatalf("Go exit %d stderr %s; Java %v\n%s", code, &errout, err, java)
+			}
+			got, want := fairnessProgressStream(out.String()), fairnessProgressStream(string(java))
+			goEffects, javaEffects := strings.Count(out.String(), `"effect"`), strings.Count(string(java), `"effect"`)
+			if goEffects == 0 || goEffects == javaEffects || hasToolMessage(readToolMessages(out.String()), 2192) || !hasToolMessage(readToolMessages(string(java)), 2192) || !hasToolMessage(readToolMessages(out.String()), 2212) || !hasToolMessage(readToolMessages(string(java)), 2212) {
+				t.Fatalf("Go %q Java %q\nGo %s\nJava %s", got, want, &out, java)
+			}
+		})
+	}
+}
+
+func fairnessProgressStream(output string) []string {
+	lines := strings.Split(output, "\n")
+	for i, line := range lines {
+		if line == `"effect"` {
+			lines[i] = "@!@!@STARTMSG 9999:0 @!@!@\neffect\n@!@!@ENDMSG 9999 @!@!@"
+		}
+	}
+	return temporalProgressMessages(strings.Join(lines, "\n"))
+}
 
 func TestJavaTLCTemporalProgress(t *testing.T) {
 	for _, tc := range []struct {
