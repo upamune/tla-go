@@ -132,6 +132,10 @@ including short-circuiting. Invariants also support selected calls to nullary
 state operators and operators with literal numeric arguments; repeated calls to
 the same definition and other unmodeled call forms are rejected. The property
 fixtures include direct Java 1.7.4 comparisons and saved reports.
+Selected invariants may also quantify over `SUBSET` of a literal integer
+range and then quantify over each resulting subset. The reported secondary
+enumeration cost includes TLC's prefetch behavior; empty sets, repeated
+evaluation, and short-circuiting have Java 1.7.4 differential fixtures.
 One supported quantified action shape has a single preceding `x < n` guard and
 a final `\E i \in a..b : x' = i`, for a single variable and literal bounds.
 For evaluation failures, failures after this existential has been evaluated,
@@ -142,7 +146,7 @@ Coverage rejects temporal properties, action constraints, symmetry, VIEW, contin
 and nonzero periodic intervals. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, other operator calls,
 other action quantification, parameterized or inline actions, initial or action disjunctions,
-substituted instances, nested cost-model expressions, and coverage during error
+substituted instances, other nested cost-model expressions, and coverage during error
 replay and liveness are not implemented or fully checked. The upstream `C`
 model therefore remains unsupported for coverage. Reporting for arbitrary
 models and early failures has not been established as Java-compatible.
