@@ -206,9 +206,9 @@ func (g *generator) cover(expr *parser.Expression, action string) {
 	}
 }
 
-// Action memberships and the membership that completes an initial state are
-// charged for each member. Their domains are evaluated once per partial state.
-func (g *generator) coverAssignmentMember(expr *parser.Expression, partial evaluator.State, action string, last bool) {
+// Initial memberships are charged for each member that completes a state.
+// Action memberships are charged once per member with a successful continuation.
+func (g *generator) coverAssignmentMember(expr *parser.Expression, partial evaluator.State, action string, last bool, count int) {
 	if g.model.coverage == nil || (g.initial && (!last || !g.isComplete(partial))) {
 		return
 	}
@@ -217,7 +217,7 @@ func (g *generator) coverAssignmentMember(expr *parser.Expression, partial evalu
 		action = c.initial
 	}
 	if i, ok := c.assignmentMemberships[action][expr.Location.Range]; ok {
-		c.actions[c.byName[action]].Expressions[i].Count++
+		c.actions[c.byName[action]].Expressions[i].Count += count
 	}
 }
 
@@ -310,7 +310,47 @@ func (m *model) coverageBodySupported(body *parser.Expression, initial bool) boo
 			return false
 		}
 	}
+	return initial || g.coverageActionOrderSupported(items)
+}
+
+func (g *generator) coverageActionOrderSupported(items []*parser.Expression) bool {
+	state := coverageActionOrder{assigned: map[string]bool{}}
+	for _, e := range items {
+		if e.Kind != "Apply" || len(e.Args) != 2 {
+			continue
+		}
+		name, op, assignment := g.assignment(e, nil)
+		if !state.accept(e, name, op, assignment, len(g.model.names)) {
+			return false
+		}
+	}
 	return true
+}
+
+type coverageActionOrder struct {
+	assigned                                 map[string]bool
+	membership, deterministicAfterMembership bool
+	deterministic                            bool
+}
+
+func (s *coverageActionOrder) accept(e *parser.Expression, name, op string, assignment bool, variables int) bool {
+	if !assignment {
+		// Deterministic assignment costs can depend on whether a later
+		// guard produces a successor. Their child costs are not modeled yet.
+		return s.guardSupported(e, variables)
+	}
+	s.assigned[name] = true
+	s.deterministic = s.deterministic || op == "="
+	s.deterministicAfterMembership = s.deterministicAfterMembership || (s.membership && op == "=")
+	s.membership = s.membership || op == "\\in"
+	return true
+}
+
+func (s *coverageActionOrder) guardSupported(e *parser.Expression, variables int) bool {
+	if s.deterministic && !s.membership {
+		return false
+	}
+	return !s.membership || len(s.assigned) != variables || (e.Text != "=" && !s.deterministicAfterMembership)
 }
 
 func (g *generator) coverageItemSupported(e *parser.Expression) bool {
@@ -435,7 +475,7 @@ func (c *coverageCollector) finishAction(a *CoverageAction) []CoverageExpression
 	expressions := make([]CoverageExpression, 0, len(a.Expressions))
 	for j := 0; j < len(a.Expressions); j++ {
 		e := a.Expressions[j]
-		if end := unvisitedCoverageSubtree(a.Expressions, j); end > j {
+		if end := c.suppressedSubtree(a, j); end > j {
 			j = end
 			continue
 		}
@@ -456,6 +496,14 @@ func (c *coverageCollector) finishAction(a *CoverageAction) []CoverageExpression
 		expressions = append(expressions, e)
 	}
 	return expressions
+}
+
+func (c *coverageCollector) suppressedSubtree(a *CoverageAction, index int) int {
+	_, assignment := c.assignmentMemberships[a.Name][a.Expressions[index].Range]
+	if a.Name != c.initial && assignment {
+		return index
+	}
+	return unvisitedCoverageSubtree(a.Expressions, index)
 }
 
 func (c *coverageCollector) collapsedMembership(a *CoverageAction, index int) bool {

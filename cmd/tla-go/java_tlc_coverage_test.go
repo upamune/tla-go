@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -402,5 +403,171 @@ func TestJavaTLCCoverageInitialCandidateGuards(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Compare action assignment costs with Java TLC 1.7.4 (upstream commit
+// 5a47802b5c391f59ecdd44117981f4ff8c0656ba).
+func TestJavaTLCCoverageActionMembershipGuards(t *testing.T) {
+	for _, tc := range []struct{ name, action string }{
+		{"after-partial", `/\ x' \in 1..2 /\ x < 2 /\ y' = y`},
+		{"after-never", `/\ x' \in 1..2 /\ x < 0 /\ y' = y`},
+		{"before-partial", `/\ x < 2 /\ x' \in 1..2 /\ y' = y`},
+		{"before-never", `/\ x < 0 /\ x' \in 1..2 /\ y' = y`},
+		{"dependent", `/\ x' \in 1..x /\ x < 2 /\ y' = y`},
+		{"two-memberships", `/\ x' \in 1..2 /\ y' \in 1..x /\ x < 2`},
+		{"between-memberships", `/\ x' \in 1..2 /\ x < 2 /\ y' \in 1..x`},
+		{"empty-continuation", `/\ x' \in 1..2 /\ y' \in 1..0`},
+		{"equality-after-complete", `/\ x' \in 1..2 /\ y' = y /\ x = 1`},
+		{"equality-after-membership", `/\ x' \in 1..2 /\ x = 1 /\ y' = y`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			golden, err := os.ReadFile(filepath.Join("testdata", "java-tlc", "upstream-coverage", "action-"+tc.name+".coverage"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir := t.TempDir()
+			model := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLES x,y\nInit == /\\ x \\in 1..2\n        /\\ y \\in 1..2\nA == " + strings.ReplaceAll(tc.action, ` /\ `, "\n     /\\ ") + "\nB == UNCHANGED <<x,y>>\nNext == A \\/ B\n====\n"
+			if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(model), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"-workers", "1", "-coverage", "0", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if tc.name == "equality-after-complete" {
+				if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
+					t.Fatalf("expected unsupported coverage error; exit %d, stderr %s", code, stderr)
+				}
+			} else if code != 0 || stderr != "" {
+				t.Fatalf("exit %d, stderr %s, output %s", code, stderr, out)
+			}
+			if tc.name != "equality-after-complete" && coverageReport(t, out) != string(golden) {
+				t.Errorf("coverage mismatch\ngot:\n%s\nwant:\n%s", coverageReport(t, out), golden)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 {
+					t.Fatalf("Java exit %d:\n%s", javaCode, java)
+				}
+				if got := coverageReport(t, java); got != string(golden) {
+					t.Errorf("Java coverage differs from golden\ngot:\n%s\nwant:\n%s", got, golden)
+				}
+			}
+		})
+	}
+}
+
+// These reports are from TLC 1.7.4; the first two reproduce review9 exactly.
+func TestJavaTLCCoverageRangeContinuations(t *testing.T) {
+	for _, tc := range []struct{ name, variables, action string }{
+		{"review-ranges", "x,y", `/\ x' \in 1..2 /\ y' \in 1..2`},
+		{"review-nat", "x,y", `/\ x' \in 1..2 /\ y' \in 1..2 /\ x \in Nat /\ y < 2`},
+		{"nested-guard", "x,y", `/\ x' \in 1..2 /\ y' \in 1..2 /\ (x \in Nat /\y < 2)`},
+		{"ranges-empty", "x,y", `/\ x' \in 1..2 /\ y' \in 1..0`},
+		{"ranges-guard-never", "x,y", `/\ x' \in 1..2 /\ y' \in 1..2 /\ x \in Nat /\ y < 0`},
+		{"ranges-guard-between", "x,y", `/\ x' \in 1..2 /\ x < 2 /\ y' \in 1..2`},
+		{"three-ranges", "x,y,z", `/\ x' \in 1..2 /\ y' \in 1..2 /\ z' \in 1..2`},
+		{"three-guard", "x,y,z", `/\ x' \in 1..2 /\ x < 2 /\ y' \in 1..2 /\ y < 2 /\ z' \in 1..2`},
+		{"three-empty", "x,y,z", `/\ x' \in 1..2 /\ y' \in 1..2 /\ z' \in 1..0`},
+		{"three-guard-never", "x,y,z", `/\ x' \in 1..2 /\ y' \in 1..2 /\ z' \in 1..2 /\ x \in Nat /\ y < 0`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			var init []string
+			for name := range strings.SplitSeq(tc.variables, ",") {
+				init = append(init, name+` \in 1..2`)
+			}
+			model := "---- MODULE M ----\nEXTENDS Naturals\nVARIABLES " + tc.variables + "\nInit == /\\ " + strings.Join(init, "\n        /\\ ") + "\nA == " + strings.ReplaceAll(tc.action, ` /\ `, "\n     /\\ ") + "\nB == UNCHANGED <<" + tc.variables + ">>\nNext == A \\/ B\n====\n"
+			if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(model), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			golden, err := os.ReadFile(filepath.Join("testdata", "java-tlc", "upstream-coverage", "action-"+tc.name+".coverage"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"-workers", "1", "-coverage", "0", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if tc.name == "nested-guard" {
+				if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
+					t.Fatalf("expected unsupported coverage error; exit %d, stderr %s", code, stderr)
+				}
+			} else if code != 0 || stderr != "" {
+				t.Fatalf("Go exit %d, stderr %s, output %s", code, stderr, out)
+			}
+			if tc.name != "nested-guard" {
+				if got := coverageReport(t, out); got != string(golden) {
+					t.Errorf("coverage mismatch\ngot:\n%s\nwant:\n%s", got, golden)
+				}
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, code := runJavaTLCArgs(t, jar, dir, args)
+				if code != 0 {
+					t.Fatalf("Java exit %d:\n%s", code, java)
+				}
+				if got := coverageReport(t, java); got != string(golden) {
+					t.Errorf("Java differs from golden\ngot:\n%s\nwant:\n%s", got, golden)
+				}
+			}
+		})
+	}
+}
+
+// Exercise each position of a guard relative to both deterministic assignments.
+// The oracle is TLC 1.7.4 at the commit recorded in the fixture README.
+func TestJavaTLCCoverageDeterministicAssignmentGuardOrders(t *testing.T) {
+	jar := os.Getenv("TLC_JAR")
+	guards := []struct{ name, domain, expr string }{
+		{"equal-true", "1..1", "x = 1"},
+		{"equal-false", "1..2", "x = 0"},
+		{"equal-mixed", "1..2", "x = 2"},
+		{"less-true", "1..2", "x < 3"},
+		{"less-false", "1..2", "x < 0"},
+		{"less-mixed", "1..2", "x < 2"},
+		{"nat-true", "1..2", `x \in Nat`},
+		{"nat-false", "-2..-1", `x \in Nat`},
+		{"nat-mixed", "-1..1", `x \in Nat`},
+	}
+	orders := [][3]int{{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}}
+	for _, guard := range guards {
+		for _, order := range orders {
+			t.Run(fmt.Sprintf("%s-%d%d%d", guard.name, order[0], order[1], order[2]), func(t *testing.T) {
+				dir := t.TempDir()
+				items := []string{"x' = x", "y' = y", guard.expr}
+				action := items[order[0]] + "\n     /\\ " + items[order[1]] + "\n     /\\ " + items[order[2]]
+				model := "---- MODULE M ----\nEXTENDS Integers\nVARIABLES x,y\nInit == /\\ x \\in " + guard.domain + "\n        /\\ y \\in 1..2\nA == /\\ " + action + "\nB == UNCHANGED <<x,y>>\nNext == A \\/ B\n====\n"
+				if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(model), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				args := []string{"-workers", "1", "-coverage", "0", "M.tla"}
+				out, code, stderr := runGoInDir(t, dir, args)
+				rejected := order[0] != 2 || strings.HasPrefix(guard.domain, "-")
+				if rejected {
+					if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
+						t.Fatalf("expected unsupported coverage error; exit %d, stderr %s", code, stderr)
+					}
+				} else if code != 0 || stderr != "" {
+					t.Fatalf("Go exit %d, stderr %s, output %s", code, stderr, out)
+				}
+				if jar != "" {
+					java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+					if javaCode != 0 {
+						t.Fatalf("Java exit %d:\n%s", javaCode, java)
+					}
+					if !rejected {
+						if got, want := coverageReport(t, out), coverageReport(t, java); got != want {
+							t.Errorf("coverage differs from Java\ngot:\n%s\nwant:\n%s", got, want)
+						}
+					}
+				}
+			})
+		}
 	}
 }

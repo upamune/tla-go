@@ -1,0 +1,15 @@
+<Init line 4, col 1 to line 4, col 4 of module M>: 8:8
+  line 4, col 12 to line 4, col 21 of module M: 1
+  line 5, col 12 to line 5, col 21 of module M: 2
+  line 6, col 12 to line 6, col 21 of module M: 8
+  |line 6, col 18 to line 6, col 21 of module M: 4
+<A line 7, col 1 to line 7, col 1 of module M>: 0:0
+  line 7, col 9 to line 7, col 19 of module M: 0
+  |line 7, col 16 to line 7, col 19 of module M: 8
+  line 8, col 9 to line 8, col 19 of module M: 0
+  |line 8, col 16 to line 8, col 19 of module M: 16
+  line 9, col 9 to line 9, col 19 of module M: 0
+  |line 9, col 16 to line 9, col 19 of module M: 32
+<B line 10, col 1 to line 10, col 1 of module M>: 0:8
+  line 10, col 6 to line 10, col 24 of module M: 8
+End of statistics.

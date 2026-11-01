@@ -331,12 +331,14 @@ func (m *model) assignsAll(state evaluator.State) bool {
 }
 
 func (g *generator) finishAssigned(items *workList, partial evaluator.State, action string) (bool, error) {
-	start := items
 	for ; items != nil; items = items.next {
 		if g.model.coverage != nil {
 			g.cover(items.item.expr, action)
 		}
 		ok, err := g.holdsScopedWork(items.item, partial)
+		if !g.initial && items.item.expr.Text != "=" && items.item.expr.Text != "\\in" {
+			g.coverGuardSuccess(items.item.expr, action)
+		}
 		if err != nil {
 			return false, err
 		}
@@ -345,13 +347,7 @@ func (g *generator) finishAssigned(items *workList, partial evaluator.State, act
 			return true, nil
 		}
 	}
-	more, err := g.complete(partial, action)
-	if err == nil {
-		for items = start; items != nil; items = items.next {
-			g.coverGuardSuccess(items.item.expr, action)
-		}
-	}
-	return more, err
+	return g.complete(partial, action)
 }
 
 // A fully assigned initial candidate counts even when a later guard rejects it.
@@ -546,8 +542,14 @@ func (g *generator) assignMembers(name string, set value.Value, items *workList,
 	err := set.Each(func(element value.Value) (bool, error) {
 		var e error
 		partial[name] = element
-		g.coverAssignmentMember(items.item.expr, partial, action, items.next == nil)
+		completed := g.coverageCompleted
+		if g.initial {
+			g.coverAssignmentMember(items.item.expr, partial, action, items.next == nil, 1)
+		}
 		more, e = g.solve(items.next, partial, action)
+		if !g.initial && g.coverageCompleted > completed {
+			g.coverAssignmentMember(items.item.expr, partial, action, items.next == nil, 1)
+		}
 		delete(partial, name)
 		return more, e
 	})

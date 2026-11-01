@@ -129,3 +129,6 @@ substituted instances, nested cost-model expressions, and coverage during error
 replay and liveness are not implemented or fully checked. The upstream `C`
 model therefore remains unsupported for coverage. Reporting for arbitrary
 models and early failures has not been established as Java-compatible.
+
+Action guards following a deterministic assignment, before any range
+assignment, are rejected: their preceding assignment costs are not yet modeled.
