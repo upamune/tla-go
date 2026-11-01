@@ -151,6 +151,22 @@ including short-circuiting. Invariants also support selected calls to nullary
 state operators and operators with literal numeric arguments; repeated calls to
 the same definition and other unmodeled call forms are rejected. The property
 fixtures include direct Java 1.7.4 comparisons and saved reports.
+Another limited subset supports a disjunction of calls to parameterized named
+actions. It requires one variable, one worker, explicit INIT and NEXT, and an
+initial predicate supported by the direct UNCHANGED subset below. Arguments
+must be nonnegative decimal 32-bit integer or Boolean literals, and each action
+body must be either a direct assignment of such a literal or one of its value
+parameters to the primed variable, or an UNCHANGED of the variable. All action
+predicate locations must be distinct within one module; repeated calls to the
+same predicate share a root. Invariants, constraints, configuration constants
+and substitutions, INSTANCE-substituted definitions, and mixed parameterized
+and nullary calls, graph output and a custom `-maxSetSize` are rejected for
+this subset. Guard expressions, range
+assignments and nested cost nodes remain unsupported. The declaration-head
+range comes from parse-time source tokens, so the JSON AST projection without
+those tokens is rejected in coverage mode. Java 1.7.4 comparisons exercise
+repeated calls, argument values, declaration spacing, imported definitions and
+both normal and tool reports. The original `ACoverageTest` remains unsupported.
 It also supports a direct named `Next == UNCHANGED x` for one variable, or
 `Next == UNCHANGED <<...>>` listing every variable exactly once. Its initial
 predicate must assign a nonnegative decimal integer within TLC's 32-bit range

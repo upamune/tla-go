@@ -17,6 +17,18 @@ func (g *generator) expandCall(item work, rest *workList, partial evaluator.Stat
 	if err != nil {
 		return false, err
 	}
+	if g.model.coverage != nil {
+		if root := g.model.coverage.parameterCalls[item.expr]; root != nil {
+			return g.expandCoveredWork(root, item, expanded, rest, partial, action)
+		}
+	}
+	return g.expandWork(item, expanded, rest, partial, action)
+}
+
+func (g *generator) expandCoveredWork(root *coverageParameterizedRoot, item work, expanded *parser.Expression, rest *workList, partial evaluator.State, action string) (bool, error) {
+	previous := g.coverageRoot
+	g.coverageRoot = root
+	defer func() { g.coverageRoot = previous }()
 	return g.expandWork(item, expanded, rest, partial, action)
 }
 

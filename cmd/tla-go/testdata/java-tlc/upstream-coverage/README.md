@@ -9,7 +9,8 @@ parameterized action calls, shared actions, reporting order, source locations,
 guards, range assignments and unused parameters. All use `-deadlock -fp 0
 -workers 1 -checkpoint 0 -coverage 9999`, selected from the JUnit arguments.
 These CLI runs do not execute JUnit setup, assertions or teardown, and omit its
-DOT dump. Go still rejects these models in coverage mode. See the
+DOT dump. Go supports the restricted direct-assignment and UNCHANGED variants;
+the original A, guard and range-assignment variants remain unsupported. See the
 [cost-model investigation](../../../../../docs/investigations/coverage-cost-model-a.md).
 
 `origin-distinct-instances.coverage` and `origin-identical-instances.coverage`

@@ -28,8 +28,9 @@ These counts depend on actual enumeration and short-circuiting, not just the
 number of generated states.
 
 `TestJavaTLCCoverageParameterizedActionsBoundary` saves smaller, separately
-reproducible oracles for the next implementation slice. They all still reject
-Go coverage. Their snapshots establish that:
+reproducible oracles. Go now supports the restricted direct-assignment and
+UNCHANGED cases, including repeated calls and declaration spacing; the guard
+and range-assignment cases still reject coverage. Their snapshots establish that:
 
 * `A(n) == x'=n`, called as `A(2)`, has one action cost node; changing its
   body to `x<n /\ x'=n` exposes separate costs for `x` and the parameter `n`.
@@ -56,9 +57,10 @@ Go coverage. Their snapshots establish that:
 ## Where the current collector stops
 
 [`checker/coverage.go`](../../checker/coverage.go) builds each action from a
-name, a source range and a flat expression list. `addCoverageAction` rejects
-parameterized calls; expression counters are looked up by action name and
-range. `sortCoverageActions` only sorts distinct ranges in the same module.
+name, a source range and a flat expression list. The limited parameterized-call
+path binds each call occurrence to a shared predicate root and tracks its
+single supported expression at runtime; other expressions remain keyed by
+action name and range. `sortCoverageActions` only sorts distinct ranges in the same module.
 Those assumptions cannot express one predicate shared by two action contexts,
 or one expression appearing under two different call paths. `collapseAction`
 and `finishAction` implement useful tested subsets, but are not a general
@@ -152,9 +154,19 @@ and three samples, `BenchmarkCoverageDisabledSubsetInvariant` used about
 These are reference measurements on this machine, not a before/after
 comparison; competing work can affect elapsed time.
 
+For the later limited parameterized-action change,
+`BenchmarkCoverageParameterizedCalls/disabled` was run against its parent and
+the change in five alternating one-second pairs with `GOMAXPROCS=1`. Both used
+11,218 allocations and about 1.55 MB per operation. Elapsed samples ranged
+from 3.65 to 5.05 ms for the parent and 3.65 to 8.05 ms for the change while
+Java and other processes were active. These samples cannot establish a timing
+change or rule out a regression. The disabled path still checks whether
+coverage is configured; the coverage-only deferred cleanup is in a separate
+helper.
+
 ## Origin tracking obstacle and first implementation boundary
 
-No production origin tracker has been added yet. There are two independent
+No general production origin tracker has been added yet. There are two independent
 identities to preserve: a source semantic origin and a position in an action's
 cost-model graph. The same source expression may appear in multiple INSTANCE
 roots, while several calls may share one Java action root. A source range, a
