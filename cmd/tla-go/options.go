@@ -286,7 +286,7 @@ func parsePath(opts *options, path string) error {
 		return nil
 	}
 	if strings.HasPrefix(path, "-") {
-		return fmt.Errorf("unsupported option %s", path)
+		return commandLineError("Error: unrecognized option: " + path)
 	}
 	opts.paths = append(opts.paths, path)
 	return nil
