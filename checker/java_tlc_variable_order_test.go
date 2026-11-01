@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Compare SANY's variable order with the order attached to a violation.
@@ -76,6 +78,7 @@ func javaInitialStateOrder(t *testing.T, jar, source, cfg string, expectedExit i
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "M.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	exit, ok := err.(*exec.ExitError)
 	if ctx.Err() != nil || !ok || exit.ExitCode() != expectedExit {

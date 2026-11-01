@@ -91,10 +91,21 @@ or tool. The standalone bridge test uses Bun without Java. CI installs Bun
 `mise run test` and `mise run ci` do not need Bun or Java when the optional
 comparison environment variables are unset.
 
-Java TLC and SANY extract standard modules into `java.io.tmpdir`. The Go
-comparison helpers and upstream JUnit sweep give each Java invocation a
-private directory and remove it after the process exits, including on failure
-or timeout. The CI-pinned [statechart runner](https://github.com/cursor/plugins/blob/4dd1d05818d19792e7cd6e818f1667f95f7e1dbe/pstack/skills/statechart/scripts/run.ts)
+Java TLC and SANY extract standard modules into `java.io.tmpdir`. The Java
+model comparison helpers, PlusCal comparison, and upstream JUnit sweep use
+private temporary directories. These Java subprocesses do not inherit
+`_JAVA_OPTIONS`, because the JVM applies it after command-line options and it
+could override the private directory. Other JVM options, including
+`JAVA_TOOL_OPTIONS` and `JDK_JAVA_OPTIONS`, remain available. The parent
+environment is unchanged. Java agents or model code that alter JVM properties
+or launch their own processes are outside this isolation guarantee. The sweep
+removes its directory when the direct process finishes,
+including on failure or timeout; test helpers using `t.TempDir` remove it when
+the associated test finishes. The sweep waits at most one extra second for
+inherited output pipes to close after a timeout or direct process exit. It does
+not terminate descendant processes, which can outlive their JVM and continue
+using the directory. On Windows an open file may prevent removal; cleanup
+failures are returned. The CI-pinned [statechart runner](https://github.com/cursor/plugins/blob/4dd1d05818d19792e7cd6e818f1667f95f7e1dbe/pstack/skills/statechart/scripts/run.ts)
 also creates a separate Java temporary directory for each run. The test-only
 statechart bridge forwards JVM arguments unchanged; other callers must provide
 their own isolation. Java value-only probes do not load TLA+ modules.

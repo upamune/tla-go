@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaTLCRandomWorkerPolynomials(t *testing.T) {
@@ -43,6 +45,7 @@ Inv == step < 2
 			}
 			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-seed", "1", "-fp", fmt.Sprint(index), "-deadlock", "Worker.tla")
 			cmd.Dir = dir
+			javatmp.Apply(cmd)
 			output, err := cmd.CombinedOutput()
 			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 12 {
 				t.Fatalf("Java TLC: %v\n%s", err, output)

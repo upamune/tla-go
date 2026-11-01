@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // TLC_JAR enables a direct comparison with an independently supplied Java TLC.
@@ -66,6 +68,7 @@ func checkJavaTLCInterval(t *testing.T, jar, source, config string, oversized bo
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-seed", "1", "-fp", "0", "M.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		t.Fatalf("Java TLC did not finish: %v\n%s", ctx.Err(), output)

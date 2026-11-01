@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // corpusCase is one run of the translator on files from testdata.
@@ -230,11 +232,12 @@ func runGo(t *testing.T, c corpusCase) outcome {
 func runJava(t *testing.T, jar string, c corpusCase) outcome {
 	t.Helper()
 	dir, inputs := prepare(t, c)
-	cmd := exec.Command("java", append([]string{"-cp", jar, "pcal.trans"}, c.Args...)...)
+	cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-cp", jar, "pcal.trans"}, c.Args...)...)
 	cmd.Dir = dir
 	// Java encodes its messages in the locale's charset, and tla-go always
 	// writes UTF-8.
 	cmd.Env = append(os.Environ(), "LC_ALL=C.UTF-8")
+	javatmp.Apply(cmd)
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = io.Discard

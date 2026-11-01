@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -88,6 +90,7 @@ func TestSimulationLivenessViolationEffectsOracle(t *testing.T) {
 			}
 			cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "1", "-depth", "3", "M.tla")
 			cmd.Dir = dir
+			javatmp.Apply(cmd)
 			output, runErr := cmd.CombinedOutput()
 			if exit, ok := runErr.(*exec.ExitError); !ok || exit.ExitCode() != 13 {
 				t.Fatalf("Java: %v\n%s", runErr, output)

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/value"
 )
 
@@ -84,6 +86,7 @@ func TestCheckpointStringProcess(t *testing.T) {
 				} else {
 					cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-workers", "1", "M.tla")
 					cmd.Dir = dir
+					javatmp.Apply(cmd)
 					if err := os.WriteFile(src, []byte(javaSource), 0o600); err != nil {
 						t.Fatal(err)
 					}

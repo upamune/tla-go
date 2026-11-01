@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // This executes the original EmptyTest class and inherited setup and teardown.
@@ -68,6 +70,7 @@ func checkOriginalEmptyArguments(t *testing.T, ctx context.Context, dir, adapter
 		t.Fatalf("compile argument controls: %v\n%s", err, out)
 	}
 	cmd := exec.CommandContext(ctx, "java", "-Xmx128m", "-cp", cp, "OriginalEmptyArgsFixture")
+	javatmp.Apply(cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("adapter argument controls: %v\n%s", err, out)
 	}
@@ -87,6 +90,7 @@ func runOriginalEmpty(t *testing.T, adapter, classes string, deps []string, base
 		"-Dtla.bridge.helper="+helper, "-Dtla.bridge.binary="+binary, "-Dtla.bridge.model="+model, "-Dtla.bridge.mode="+mode,
 		"-cp", cp, "Execution", "tlc2.tool.EmptyTest", "testSpec")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	events, err := runJUnitCommand(ctx, cmd)
 	if err != nil {
 		t.Fatal(err)

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // The boundary cases mirror RandomizationTest in Java TLC 1.7.4.
@@ -78,6 +80,7 @@ func compareJavaRandomSetError(t *testing.T, jar, source, message string) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-seed", "1", "-fp", "0", "-deadlock", "M.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	exit, ok := err.(*exec.ExitError)
 	if ctx.Err() != nil || !ok || exit.ExitCode() != 10 || !strings.Contains(string(out), message) {

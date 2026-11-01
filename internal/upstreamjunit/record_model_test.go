@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // This model compares concrete observations, not whole-run or JUnit parity.
@@ -73,6 +75,9 @@ func TestRecordOrderModel(t *testing.T) {
 					cmd = exec.CommandContext(ctx, binary, args...)
 				}
 				cmd.Dir = dir
+				if java {
+					javatmp.Apply(cmd)
+				}
 				out, err := cmd.CombinedOutput()
 				if err != nil {
 					t.Fatalf("java=%v: %v\n%s", java, err, out)

@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 //go:embed Execution.java
@@ -90,6 +92,7 @@ func executeJUnit(classes string, deps []string, dir, basedir, class, method str
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Dbasedir="+basedir+string(os.PathSeparator), "-Djava.io.tmpdir="+dir, "-cp", cp, "Execution", class, method)
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	return runJUnitCommand(ctx, cmd)
 }
 

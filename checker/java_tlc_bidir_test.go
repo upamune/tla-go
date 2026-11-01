@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/config"
 )
 
@@ -98,6 +100,7 @@ func compareJavaTLCBidirectionalTrace(t *testing.T, jar string, source, cfg []by
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-deadlock", "BidirectionalTransitions.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	exit, ok := err.(*exec.ExitError)
 	if ctx.Err() != nil || !ok || exit.ExitCode() != 13 {

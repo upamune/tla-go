@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/value"
 )
 
@@ -79,7 +81,7 @@ public class IntervalOracle {
 		t.Fatalf("javac: %v\n%s", err, out)
 	}
 	cp := strings.Join([]string{jar, dir}, string(os.PathListSeparator))
-	out, err := exec.CommandContext(ctx, "java", "-Xmx128m", "-cp", cp, "IntervalOracle").CombinedOutput()
+	out, err := javatmp.Apply(exec.CommandContext(ctx, "java", "-Xmx128m", "-cp", cp, "IntervalOracle")).CombinedOutput()
 	if err != nil || string(out) != "1\n-1\n0\n0\n-1\n-1\noverflow\n" {
 		t.Fatalf("Java interval comparison: %v\n%s", err, out)
 	}

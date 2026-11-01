@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/config"
 )
 
@@ -76,6 +78,7 @@ func compareJavaTLCModel(t *testing.T, jar, name string, source, config []byte, 
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-deadlock", name+".tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	output, err := cmd.CombinedOutput()
 	stats := fmt.Sprintf("%d states generated, %d distinct states found, 0 states left on queue", generated, distinct)
 	depthLine := fmt.Sprintf("The depth of the complete state graph search is %d.", depth)

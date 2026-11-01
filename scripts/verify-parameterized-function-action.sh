@@ -13,12 +13,12 @@ cp "$repo_root"/checker/testdata/tlc-parameterized-function-action/* "$task_dir"
 mkdir "$task_dir/java-success-tmp" "$task_dir/java-violation-tmp"
 cd "$task_dir"
 
-java "-Djava.io.tmpdir=$task_dir/java-success-tmp" -cp "$jar_path" tlc2.TLC -config Success.cfg M.tla > success.log 2>&1
+env -u _JAVA_OPTIONS java "-Djava.io.tmpdir=$task_dir/java-success-tmp" -cp "$jar_path" tlc2.TLC -config Success.cfg M.tla > success.log 2>&1
 rg -q 'Model checking completed\. No error has been found' success.log
 rg -q '7 states generated, 5 distinct states found' success.log
 rg -q 'depth of the complete state graph search is 3' success.log
 
-if java "-Djava.io.tmpdir=$task_dir/java-violation-tmp" -cp "$jar_path" tlc2.TLC -config Violation.cfg M.tla > violation.log 2>&1; then
+if env -u _JAVA_OPTIONS java "-Djava.io.tmpdir=$task_dir/java-violation-tmp" -cp "$jar_path" tlc2.TLC -config Violation.cfg M.tla > violation.log 2>&1; then
   status=0
 else
   status=$?

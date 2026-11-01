@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Case is a provisional invocation. IDs identify observations to compare;
@@ -246,6 +248,10 @@ func runCommand(dir string, timeout time.Duration, name string, args ...string) 
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	if name == "java" {
+		javatmp.Apply(cmd)
+	}
+	cmd.WaitDelay = time.Second
 	out, err := cmd.CombinedOutput()
 	result := Result{Output: string(out), TimedOut: ctx.Err() != nil}
 	if result.TimedOut {

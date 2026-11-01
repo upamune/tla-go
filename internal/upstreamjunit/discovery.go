@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 //go:embed Discovery.java
@@ -185,6 +187,9 @@ func runDiscoveryContext(ctx context.Context, sources, deps []string, temp strin
 
 func discoveryCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
+	if name == "java" {
+		javatmp.Apply(cmd)
+	}
 	// A runner's descendants may keep the output pipes open after the JVM exits.
 	cmd.WaitDelay = time.Second
 	return cmd

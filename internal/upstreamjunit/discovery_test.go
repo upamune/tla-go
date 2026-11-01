@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestParseDiscovery(t *testing.T) {
@@ -89,7 +91,7 @@ func TestJUnitDiscoveryFixture(t *testing.T) {
 		}
 	}
 	cp := strings.Join([]string{filepath.Join(dir, "classes"), junit, hamcrest}, string(os.PathListSeparator))
-	out, err := exec.Command("java", "-cp", cp, "Noisy").CombinedOutput()
+	out, err := javatmp.Apply(exec.Command("java", "-cp", cp, "Noisy")).CombinedOutput()
 	if err != nil || !strings.Contains(string(out), "RESULT=1,0") {
 		t.Fatalf("JUnitCore: %v\n%s", err, out)
 	}
@@ -307,7 +309,7 @@ public class Lifecycle {
 	}
 	cp := strings.Join([]string{filepath.Join(dir, "classes"), junit, hamcrest}, string(os.PathListSeparator))
 	args := append([]string{"-cp", cp, "Lifecycle"}, names...)
-	out, err := exec.Command("java", args...).CombinedOutput()
+	out, err := javatmp.Apply(exec.Command("java", args...)).CombinedOutput()
 	if err != nil {
 		t.Fatalf("JUnitCore: %v\n%s", err, out)
 	}

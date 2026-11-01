@@ -11,12 +11,12 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 func TestJavaNameResolutionUsesIsolatedTemporaryDirectories(t *testing.T) {
-	if _, err := exec.LookPath("java"); err != nil {
-		t.Skip("Java is not installed")
-	}
+	requireWorkingJava(t)
 	var directories [2]string
 	for i := range directories {
 		out, code := runNameResolutionJava(t, t.TempDir(), "-XshowSettings:properties", "-version")
@@ -39,9 +39,7 @@ func TestJavaNameResolutionUsesIsolatedTemporaryDirectories(t *testing.T) {
 }
 
 func TestJavaNameResolutionTemporaryDirectoryWithSpaces(t *testing.T) {
-	if _, err := exec.LookPath("java"); err != nil {
-		t.Skip("Java is not installed")
-	}
+	requireWorkingJava(t)
 	const marker = "TLA_GO_JAVA_TEMP_SPACE_CHILD"
 	const rootKey = "TLA_GO_JAVA_TEMP_SPACE_ROOT"
 	if os.Getenv(marker) == "1" {
@@ -78,6 +76,15 @@ func TestJavaNameResolutionTemporaryDirectoryWithSpaces(t *testing.T) {
 	cmd.Env = append(cmd.Env, "TMPDIR="+root, "TMP="+root, "TEMP="+root, marker+"=1", rootKey+"="+root)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("space-path subprocess: %v\n%s", err, out)
+	}
+}
+
+func requireWorkingJava(t *testing.T) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := javatmp.Apply(exec.CommandContext(ctx, "java", "-version")).Run(); err != nil {
+		t.Skipf("Java is not available: %v", err)
 	}
 }
 

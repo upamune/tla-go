@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/syntax/parser"
 )
@@ -97,6 +99,7 @@ func runJavaSimulation(t *testing.T, jar, source, cfg string) javaSimulationResu
 	}
 	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "1", "-depth", "5", "M.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	output, _ := cmd.CombinedOutput()
 	if cmd.ProcessState == nil {
 		t.Fatalf("Java did not start: %s", output)

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 type javaRandomModel struct {
@@ -116,6 +118,7 @@ func compareJavaRandomModel(t *testing.T, jar string, source, cfg []byte, tc jav
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx512m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-seed", strconv.FormatInt(tc.seed, 10), "-fp", "0", tc.name+".tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	exit, ok := err.(*exec.ExitError)
 	if ctx.Err() != nil || !ok || exit.ExitCode() != 12 {

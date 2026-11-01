@@ -1,14 +1,106 @@
 package upstreamjunit
 
 import (
+	"context"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
+
+func TestRunJavaCommandIgnoresJavaOptionsOverride(t *testing.T) {
+	requireJavaTool(t, "java")
+	dir := t.TempDir()
+	shared := filepath.Join(dir, "shared directory")
+	if err := os.Mkdir(shared, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(shared, "Naturals.tla")
+	if err := os.WriteFile(sentinel, []byte("sentinel"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	options := `-Djava.io.tmpdir="` + shared + `" -Dtla.options=removed`
+	t.Setenv("_JAVA_OPTIONS", options)
+	t.Setenv("JAVA_TOOL_OPTIONS", "-Dtla.tool=kept -Djava.io.tmpdir="+dir)
+	t.Setenv("JDK_JAVA_OPTIONS", "-Dtla.jdk=kept -Djava.io.tmpdir="+dir)
+	result, err := runJavaCommand(dir, 30*time.Second, "-XshowSettings:properties", "-version")
+	if err != nil || result.ExitCode != 0 {
+		t.Fatalf("Java version: %+v, %v", result, err)
+	}
+	if javaTemporaryDirectory(t, result.Output) == shared || !strings.Contains(result.Output, "tla.tool = kept") || !strings.Contains(result.Output, "tla.jdk = kept") || strings.Contains(result.Output, "tla.options = removed") {
+		t.Fatalf("unexpected JVM properties: %s", result.Output)
+	}
+	if os.Getenv("_JAVA_OPTIONS") != options {
+		t.Fatal("parent environment changed")
+	}
+	jar := os.Getenv("TLC_JAR")
+	if jar == "" {
+		t.Log("TLC_JAR not set; real SANY sentinel check skipped")
+		return
+	}
+	data, err := os.ReadFile(jar)
+	if err != nil || fmt.Sprintf("%x", sha256.Sum256(data)) != "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88" {
+		t.Fatalf("TLC_JAR must be the pinned 1.7.4 jar: %v", err)
+	}
+	jar, err = filepath.Abs(jar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	module := "---- MODULE M ----\nEXTENDS Naturals\nF == 1 + 1\n====\n"
+	if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(module), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err = runJavaCommand(dir, 30*time.Second, "-cp", jar, "tla2sany.SANY", "M.tla")
+	if err != nil || result.ExitCode != 0 || !strings.Contains(result.Output, "Semantic processing of module M") {
+		t.Fatalf("SANY: %+v, %v", result, err)
+	}
+	data, err = os.ReadFile(sentinel)
+	if err != nil || string(data) != "sentinel" {
+		t.Fatalf("shared sentinel changed: %q, %v", data, err)
+	}
+}
+
+func requireJavaTool(t *testing.T, name string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, "-version")
+	if name == "java" {
+		javatmp.Apply(cmd)
+	}
+	if err := cmd.Run(); err != nil {
+		t.Skipf("%s is not available: %v", name, err)
+	}
+}
+
+func requireJava11(t *testing.T, name string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, "-version")
+	javatmp.Apply(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Skipf("%s is not available: %v", name, err)
+	}
+	version := regexp.MustCompile(`(?m)^(?:openjdk|java|javac) (?:version )?"?(1\.)?(\d+)`).FindStringSubmatch(string(out))
+	if len(version) != 3 {
+		t.Skipf("cannot determine %s version: %s", name, out)
+	}
+	major, _ := strconv.Atoi(version[2])
+	if version[1] != "" || major < 11 {
+		t.Skipf("%s 11 or later required: %s", name, out)
+	}
+}
 
 func javaTemporaryDirectory(t *testing.T, output string) string {
 	t.Helper()
@@ -22,9 +114,7 @@ func javaTemporaryDirectory(t *testing.T, output string) string {
 }
 
 func TestRunJavaCommandTemporaryDirectory(t *testing.T) {
-	if _, err := exec.LookPath("java"); err != nil {
-		t.Skip("Java is not installed")
-	}
+	requireJava11(t, "java")
 	root := filepath.Join(t.TempDir(), "java temporary root")
 	if err := os.Mkdir(root, 0o700); err != nil {
 		t.Fatal(err)
@@ -81,9 +171,7 @@ func TestRunJavaCommandTemporaryDirectory(t *testing.T) {
 }
 
 func TestRunJavaCommandConcurrentTemporaryDirectories(t *testing.T) {
-	if _, err := exec.LookPath("java"); err != nil {
-		t.Skip("Java is not installed")
-	}
+	requireJavaTool(t, "java")
 	working := t.TempDir()
 	type outcome struct {
 		result Result
@@ -138,9 +226,7 @@ func TestRunJavaCommandInvalidTemporaryRoot(t *testing.T) {
 
 func TestRunJavaCaseConcurrentIsolation(t *testing.T) {
 	for _, binary := range []string{"java", "javac"} {
-		if _, err := exec.LookPath(binary); err != nil {
-			t.Skipf("%s is not installed", binary)
-		}
+		requireJava11(t, binary)
 	}
 	root := filepath.Join(t.TempDir(), "source and class paths with spaces")
 	source := filepath.Join(root, "source", "tlc2")

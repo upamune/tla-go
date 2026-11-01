@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/value"
 )
@@ -100,6 +102,7 @@ P == <>(x = 1)
 	}
 	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "1", "-depth", "3", "M.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Java: %v\n%s", err, output)

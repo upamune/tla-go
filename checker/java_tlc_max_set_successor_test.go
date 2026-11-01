@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/evaluator"
 )
 
@@ -93,6 +95,7 @@ func TestJavaTLCMaxSetInitialActionConstraint(t *testing.T) {
 				}
 				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-maxSetSize", fmt.Sprint(tc.bound), "M.tla")
 				cmd.Dir = dir
+				javatmp.Apply(cmd)
 				out, err := cmd.CombinedOutput()
 				if tc.failure {
 					exit, ok := err.(*exec.ExitError)
@@ -131,6 +134,7 @@ func compareMaxSetSuccessor(t *testing.T, jar, source, cfg string, bound int, te
 	args = append(args, "M.tla")
 	cmd := exec.CommandContext(ctx, "java", args...)
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		t.Fatalf("Java timeout: %v\n%s", ctx.Err(), out)
@@ -215,6 +219,7 @@ func TestJavaTLCMaxSetEnumeratedDomain(t *testing.T) {
 		}
 		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-maxSetSize", "10", "M.tla")
 		cmd.Dir = dir
+		javatmp.Apply(cmd)
 		out, err := cmd.CombinedOutput()
 		exit, ok := err.(*exec.ExitError)
 		if !ok || exit.ExitCode() != 75 || !strings.Contains(string(out), "too many elements (>10)") || !strings.Contains(string(out), "1 states generated, 1 distinct states found") {

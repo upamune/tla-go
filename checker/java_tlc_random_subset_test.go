@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 const javaRandomSubsetSource = `---- MODULE M ----
@@ -136,6 +138,7 @@ func compareJavaRandomSubsetWorker(t *testing.T, jar, source, cfg string, want [
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-seed", "1", "-fp", "0", "-deadlock", "Worker.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	exit, ok := err.(*exec.ExitError)
 	if ctx.Err() != nil || !ok || exit.ExitCode() != 12 {
@@ -167,6 +170,7 @@ func compareJavaRandomSubsetSequence(t *testing.T, jar, source, cfg string, seed
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-seed", strconv.FormatInt(seed, 10), "-fp", "0", "-deadlock", "M.tla")
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil || ctx.Err() != nil {
 		t.Fatalf("Java TLC: %v, context: %v\n%s", err, ctx.Err(), out)

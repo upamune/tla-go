@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/upamune/tla-go/internal/javatmp"
+
 	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/syntax/parser"
 )
@@ -216,6 +218,7 @@ func runNameResolutionJava(t *testing.T, dir string, args ...string) (string, in
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m"}, args...)...)
 	cmd.Dir = dir
+	javatmp.Apply(cmd)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		t.Fatalf("Java timed out: %v\n%s", ctx.Err(), out)

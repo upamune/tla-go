@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // Java TLC v1.7.4, commit 5a47802b5c391f59ecdd44117981f4ff8c0656ba.
@@ -93,6 +95,7 @@ func TestJavaTLCFairnessEffectsLifecycle(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				cmd := exec.CommandContext(ctx, "java", args...)
 				cmd.Dir = dir
+				javatmp.Apply(cmd)
 				out, runErr := cmd.CombinedOutput()
 				cancel()
 				wantExit := 0
@@ -172,6 +175,7 @@ func TestJavaTLCFairnessRegisterSensitiveOracle(t *testing.T) {
 					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 					cmd := exec.CommandContext(ctx, "java", args...)
 					cmd.Dir = dir
+					javatmp.Apply(cmd)
 					out, runErr := cmd.CombinedOutput()
 					cancel()
 					exit := 0

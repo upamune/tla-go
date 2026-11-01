@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/internal/javatmp"
 )
 
 // A separate JVM per run is essential: UniqueString allocation is global.
@@ -37,7 +39,7 @@ func TestPinnedRecordOrderProbe(t *testing.T) {
 		t.Run(tc.first, func(t *testing.T) {
 			want := tc.token + "\nuncached=" + tc.records + "\nsharedNames=true\nliteralBefore=" + tc.before + "\nliteralAfter=" + tc.after + "\ncached=" + tc.records + "\noriginalAfter=" + strings.Split(tc.records, ";")[0] + "\n"
 			for range 3 {
-				out, err := exec.Command("java", "-cp", classes+string(os.PathListSeparator)+jar, "RecordOrderProbe", tc.first, tc.second).CombinedOutput()
+				out, err := javatmp.Apply(exec.Command("java", "-cp", classes+string(os.PathListSeparator)+jar, "RecordOrderProbe", tc.first, tc.second)).CombinedOutput()
 				if err != nil || string(out) != want {
 					t.Fatalf("java: %v\ngot:\n%s\nwant:\n%s", err, out, want)
 				}
