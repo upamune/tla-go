@@ -7,16 +7,16 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-func (r *instanceResolver) prepareNestedModule(module *parser.Module) (*parser.Module, error) {
+func (r *instanceResolver) prepareNestedModule(module, parent *parser.Module) (*parser.Module, error) {
 	module, err := r.extendNestedModule(module)
 	if err != nil {
 		return nil, err
 	}
-	module, err = r.expandNestedInstances(module)
+	module, err = r.expandNestedInstances(module, parent)
 	if err != nil {
 		return nil, err
 	}
-	if err := r.validateUnit(module, r.root); err != nil {
+	if err := r.validateUnit(module, parent); err != nil {
 		return nil, err
 	}
 	return module, nil
@@ -69,11 +69,11 @@ func uniqueStandardModules(names []string) []string {
 	return result
 }
 
-func (r *instanceResolver) expandNestedInstances(module *parser.Module) (*parser.Module, error) {
+func (r *instanceResolver) expandNestedInstances(module, parent *parser.Module) (*parser.Module, error) {
 	if len(module.Instances) == 0 && len(module.Modules) == 0 {
 		return module, nil
 	}
-	scope := nestedScope(module, r.root)
+	scope := nestedScope(module, parent)
 	r.session.inherited[&scope] = r.visibleNestedBindings()
 	expanded, err := resolveInstancesScoped(r.ctx, &scope, r.loader, r.session)
 	if err != nil {

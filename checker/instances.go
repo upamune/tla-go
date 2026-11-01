@@ -17,19 +17,21 @@ func resolveInstancesScoped(ctx context.Context, module *parser.Module, loader M
 		return module, nil
 	}
 	r := newInstanceResolver(ctx, module, loader, session)
-	if err := r.registerNested(); err != nil {
-		return nil, err
-	}
-	if err := r.validateInstanceNames(); err != nil {
-		return nil, err
-	}
 	result := *module
 	result.Definitions = append([]parser.Definition(nil), module.Definitions...)
 	result.ProofModules = append([]string(nil), module.ProofModules...)
 	result.InstanceStandardModules = append([]string(nil), module.InstanceStandardModules...)
 	result.ImportedProofFacts = append([]string(nil), module.ImportedProofFacts...)
 	result.Instances, result.Modules = nil, nil
-	for index, instance := range module.Instances {
+	r.result = &result
+	if err := r.registerNested(); err != nil {
+		return nil, err
+	}
+	if err := r.validateInstanceNames(); err != nil {
+		return nil, err
+	}
+	for index := r.preparedInstances; index < len(module.Instances); index++ {
+		instance := module.Instances[index]
 		if err := r.instantiate(&result, instance, index); err != nil {
 			return nil, err
 		}
@@ -79,6 +81,8 @@ type instanceResolver struct {
 	ctx                     context.Context
 	root                    *parser.Module
 	rootInstances           []parser.Instance
+	result                  *parser.Module
+	preparedInstances       int
 	loader                  ModuleLoader
 	nested                  map[string]nestedModuleBinding
 	cache                   map[string]*parser.Module
@@ -97,14 +101,35 @@ func (r *instanceResolver) registerNested() error {
 	}
 	for i := range r.root.Modules {
 		module := &r.root.Modules[i]
+		if err := r.prepareParentInstances(module.Location.Range.Start); err != nil {
+			return err
+		}
 		if _, ok := r.nested[module.Name]; ok || module.Name == r.root.Name || r.usedModules[module.Name] {
 			return fmt.Errorf("duplicate nested module %s", module.Name)
 		}
-		prepared, err := r.prepareNestedModule(module)
+		parent := *r.result
+		parent.Instances, parent.Modules = r.root.Instances, r.root.Modules
+		prepared, err := r.prepareNestedModule(module, &parent)
 		if err != nil {
 			return err
 		}
-		r.nested[module.Name] = nestedModuleBinding{module: prepared, parent: r.root}
+		r.nested[module.Name] = nestedModuleBinding{module: prepared, parent: &parent}
+	}
+	return nil
+}
+
+func (r *instanceResolver) prepareParentInstances(start parser.Position) error {
+	for r.preparedInstances < len(r.rootInstances) {
+		index := r.preparedInstances
+		instance := r.rootInstances[index]
+		position := instance.Location.Position
+		if position.Line == 0 || start.Line == 0 || !nestedPositionBefore(position, start) {
+			break
+		}
+		if err := r.instantiate(r.result, instance, index); err != nil {
+			return err
+		}
+		r.preparedInstances++
 	}
 	return nil
 }
@@ -119,6 +144,9 @@ func (r *instanceResolver) instanceModule(instance parser.Instance) (*parser.Mod
 		}
 		return binding.module, nil
 	}
+	if r.hasUnpreparedNested(instance.Module) {
+		return nil, fmt.Errorf("nested module %s is not yet defined", instance.Module)
+	}
 	if module, ok := r.cache[instance.Module]; ok {
 		return module, nil
 	}
@@ -128,6 +156,15 @@ func (r *instanceResolver) instanceModule(instance parser.Instance) (*parser.Mod
 	}
 	r.cache[instance.Module] = module
 	return module, nil
+}
+
+func (r *instanceResolver) hasUnpreparedNested(name string) bool {
+	for _, nested := range r.root.Modules {
+		if nested.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *instanceResolver) loadInstanceModule(name string) (*parser.Module, error) {

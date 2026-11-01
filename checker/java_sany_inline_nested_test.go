@@ -111,7 +111,7 @@ func testInlineNestedJava(t *testing.T, jar, source, cfg string, invalid, missin
 	if missing && (sanyCode == 0 || !strings.Contains(sany, "Cannot find source file")) {
 		t.Fatalf("SANY expected missing module error, exit %d:\n%s", sanyCode, sany)
 	}
-	if !missing && (sanyCode != 0 || strings.Contains(sany, "Semantic errors:") != invalid || strings.Contains(sany, "Parse Error")) {
+	if !missing && (sanyCode != 0 || strings.Contains(sany, "*** Errors:") != invalid || strings.Contains(sany, "Parse Error")) {
 		t.Fatalf("SANY exit %d, invalid %t:\n%s", sanyCode, invalid, sany)
 	}
 	tlc, tlcCode := runNameResolutionJava(t, dir, "-jar", jar, "-tool", "-deadlock", "-workers", "1", "-fp", "0", "M.tla")
