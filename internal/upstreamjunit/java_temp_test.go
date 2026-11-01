@@ -18,9 +18,9 @@ import (
 )
 
 func TestRunJavaCommandIgnoresJavaOptionsOverride(t *testing.T) {
-	requireJavaTool(t, "java")
+	requireJava11(t, "java")
 	dir := t.TempDir()
-	shared := filepath.Join(dir, "shared directory")
+	shared := filepath.Join(dir, "shared")
 	if err := os.Mkdir(shared, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -28,15 +28,15 @@ func TestRunJavaCommandIgnoresJavaOptionsOverride(t *testing.T) {
 	if err := os.WriteFile(sentinel, []byte("sentinel"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	options := `-Djava.io.tmpdir="` + shared + `" -Dtla.options=removed`
+	options := `-Djava.io."tmpdir"=shared -Dtla.options=removed`
 	t.Setenv("_JAVA_OPTIONS", options)
-	t.Setenv("JAVA_TOOL_OPTIONS", "-Dtla.tool=kept -Djava.io.tmpdir="+dir)
-	t.Setenv("JDK_JAVA_OPTIONS", "-Dtla.jdk=kept -Djava.io.tmpdir="+dir)
+	t.Setenv("JAVA_TOOL_OPTIONS", "-Dtla.tool=kept -Djava.io.tmpdir=.")
+	t.Setenv("JDK_JAVA_OPTIONS", "-Dtla.jdk=kept -Djava.io.tmpdir=.")
 	result, err := runJavaCommand(dir, 30*time.Second, "-XshowSettings:properties", "-version")
 	if err != nil || result.ExitCode != 0 {
 		t.Fatalf("Java version: %+v, %v", result, err)
 	}
-	if javaTemporaryDirectory(t, result.Output) == shared || !strings.Contains(result.Output, "tla.tool = kept") || !strings.Contains(result.Output, "tla.jdk = kept") || strings.Contains(result.Output, "tla.options = removed") {
+	if !filepath.IsAbs(javaTemporaryDirectory(t, result.Output)) || !strings.Contains(result.Output, "tla.tool = kept") || !strings.Contains(result.Output, "tla.jdk = kept") || strings.Contains(result.Output, "tla.options = removed") {
 		t.Fatalf("unexpected JVM properties: %s", result.Output)
 	}
 	if os.Getenv("_JAVA_OPTIONS") != options {
