@@ -9,6 +9,7 @@ import (
 
 func (r *instanceResolver) validateInstanceNames() error {
 	names := map[string]bool{}
+	instances := map[string]int{}
 	declarations := append(append([]parser.Declaration(nil), r.root.Constants...), r.root.Variables...)
 	for _, declaration := range declarations {
 		names[declaration.Name] = true
@@ -17,18 +18,25 @@ func (r *instanceResolver) validateInstanceNames() error {
 		names[definition.Name] = true
 	}
 	for _, instance := range r.root.Instances {
-		if instance.Name == "" {
-			continue
-		}
-		if names[instance.Name] {
-			return fmt.Errorf("duplicate instance name %s", instance.Name)
-		}
-		names[instance.Name] = true
-		if err := r.validateReferenceOrder(instance); err != nil {
+		if err := r.validateInstanceName(instance, names, instances); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (r *instanceResolver) validateInstanceName(instance parser.Instance, names map[string]bool, instances map[string]int) error {
+	if instance.Name == "" {
+		return nil
+	}
+	if names[instance.Name] {
+		return &SemanticError{Err: fmt.Errorf("duplicate instance name %s", instance.Name)}
+	}
+	first, err := registerInstanceName(instances, instance)
+	if err != nil || !first {
+		return err
+	}
+	return r.validateReferenceOrder(instance)
 }
 
 func (r *instanceResolver) validateReferenceOrder(instance parser.Instance) error {

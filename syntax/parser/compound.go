@@ -45,7 +45,8 @@ func (p *parser) letUnits() ([]Definition, []Instance, []Declaration, error) {
 			result.recursive = append(result.recursive, decls...)
 			continue
 		}
-		d, inst, err := p.definition(false)
+		local := p.accept("LOCAL")
+		d, inst, err := p.definition(local)
 		if err != nil {
 			return nil, nil, nil, err
 		}

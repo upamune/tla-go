@@ -133,32 +133,34 @@ func (r *instanceResolver) expandLetExpression(expr *parser.Expression) (*parser
 		return expr, nil
 	}
 	copy := substitute(expr, nil)
-	if err := r.expandLetTree(copy, nil); err != nil {
+	if err := r.expandLetTree(copy, nil, r.rootInstances); err != nil {
 		return nil, err
 	}
 	return copy, nil
 }
 
-func (r *instanceResolver) expandLetTree(expr *parser.Expression, outer []parser.Definition) error {
+func (r *instanceResolver) expandLetTree(expr *parser.Expression, outer []parser.Definition, outerInstances []parser.Instance) error {
 	scope := outer
+	instanceScope := outerInstances
 	if expr.Kind == "Let" {
 		scope = append(append([]parser.Definition(nil), outer...), expr.Definitions...)
+		instanceScope = append(append([]parser.Instance(nil), outerInstances...), expr.Instances...)
 	}
 	if len(expr.Instances) > 0 {
-		if err := r.expandLetScope(expr, scope); err != nil {
+		if err := r.expandLetScope(expr, scope, outerInstances); err != nil {
 			return err
 		}
 	}
 	var failure error
 	walkChildren(expr, func(child *parser.Expression) {
 		if failure == nil && expressionHasLetInstance(child) {
-			failure = r.expandLetTree(child, scope)
+			failure = r.expandLetTree(child, scope, instanceScope)
 		}
 	})
 	return failure
 }
 
-func (r *instanceResolver) expandLetScope(expr *parser.Expression, locals []parser.Definition) error {
+func (r *instanceResolver) expandLetScope(expr *parser.Expression, locals []parser.Definition, outerInstances []parser.Instance) error {
 	if err := validateLetInstanceNames(expr); err != nil {
 		return err
 	}
@@ -168,14 +170,18 @@ func (r *instanceResolver) expandLetScope(expr *parser.Expression, locals []pars
 	scoped := *r
 	scoped.root = &scopedRoot
 	for index, instance := range expr.Instances {
+		if err := r.validateOuterInstanceName(instance, locals, outerInstances); err != nil {
+			return err
+		}
 		var err error
-		instance, err = r.expandLetSubstitutions(instance, locals)
+		instance, err = r.expandLetSubstitutions(instance, locals, outerInstances)
 		if err != nil {
 			return err
 		}
 		if err := scoped.instantiate(generated, instance, index); err != nil {
 			return err
 		}
+		outerInstances = append(append([]parser.Instance(nil), outerInstances...), instance)
 	}
 	r.proofModules = append(r.proofModules, generated.ProofModules...)
 	r.instanceStandardModules = appendUniqueModules(r.instanceStandardModules, generated.InstanceStandardModules...)
@@ -184,7 +190,7 @@ func (r *instanceResolver) expandLetScope(expr *parser.Expression, locals []pars
 	return nil
 }
 
-func (r *instanceResolver) expandLetSubstitutions(instance parser.Instance, locals []parser.Definition) (parser.Instance, error) {
+func (r *instanceResolver) expandLetSubstitutions(instance parser.Instance, locals []parser.Definition, outerInstances []parser.Instance) (parser.Instance, error) {
 	instance.Substitutions = append([]parser.Substitution(nil), instance.Substitutions...)
 	for i := range instance.Substitutions {
 		expr := instance.Substitutions[i].Expression
@@ -192,7 +198,7 @@ func (r *instanceResolver) expandLetSubstitutions(instance parser.Instance, loca
 			continue
 		}
 		copy := substitute(expr, nil)
-		if err := r.expandLetTree(copy, locals); err != nil {
+		if err := r.expandLetTree(copy, locals, outerInstances); err != nil {
 			return instance, err
 		}
 		instance.Substitutions[i].Expression = copy

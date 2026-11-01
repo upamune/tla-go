@@ -2,6 +2,7 @@ package checker
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/upamune/tla-go/syntax/parser"
 )
@@ -31,7 +32,11 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 		}
 		return err
 	}
-	generated := instanceDefinitionNames(module, instance, index)
+	generated, err := r.instanceBindings(result, module, instance, index)
+	if err != nil {
+		return err
+	}
+	remapInstanceBindings(replacements, generated)
 	addInstanceProofFacts(result, module, generated)
 	generatedSet := instanceGeneratedArities(module, generated)
 	variables := make(map[string]bool, len(module.Variables))
@@ -45,6 +50,14 @@ func (r *instanceResolver) instantiate(result *parser.Module, instance parser.In
 	return nil
 }
 
+func remapInstanceBindings(replacements map[string]*parser.Expression, generated map[string]string) {
+	for original, name := range generated {
+		if replacements[original].Text != name {
+			replacements[original] = &parser.Expression{Kind: "Identifier", Text: name}
+		}
+	}
+}
+
 func appendInstanceDefinitions(result, module *parser.Module, instance parser.Instance, replacements map[string]*parser.Expression, generated map[string]string, generatedSet map[string]int, variables map[string]bool, scope string) {
 	standardNames := instanceStandardNames(module)
 	substituted := len(module.Constants)+len(module.Variables) > 0
@@ -54,6 +67,9 @@ func appendInstanceDefinitions(result, module *parser.Module, instance parser.In
 		}
 		markInstanceStandardDefinition(&definition, standardNames)
 		generatedDef := instanceDefinition(definition, instance, replacements, generated, generatedSet, variables, scope)
+		if strings.HasPrefix(generatedDef.Name, "!instance-binding!") {
+			generatedDef.Local = true
+		}
 		generatedDef.InstanceSubstituted = generatedDef.InstanceSubstituted || substituted
 		generatedDef.InstanceStandardModules = append([]string(nil), generatedDef.InstanceStandardModules...)
 		generatedDef.InstanceStandardModules = appendUniqueModules(generatedDef.InstanceStandardModules, module.Extends...)

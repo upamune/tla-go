@@ -34,6 +34,7 @@ func resolveInstancesScoped(ctx context.Context, module *parser.Module, loader M
 			return nil, err
 		}
 	}
+	r.root = &result
 	if err := r.expandLetInstances(&result); err != nil {
 		return nil, err
 	}
@@ -47,7 +48,7 @@ func needsInstanceResolution(module *parser.Module, session *instanceSession) bo
 }
 
 func newInstanceResolver(ctx context.Context, module *parser.Module, loader ModuleLoader, session *instanceSession) instanceResolver {
-	r := instanceResolver{ctx: ctx, root: module, loader: loader, nested: map[string]nestedModuleBinding{}, cache: map[string]*parser.Module{}, session: session, usedModules: map[string]bool{}}
+	r := instanceResolver{ctx: ctx, root: module, rootInstances: module.Instances, loader: loader, nested: map[string]nestedModuleBinding{}, cache: map[string]*parser.Module{}, session: session, usedModules: map[string]bool{}}
 	for _, name := range append(append([]string(nil), module.Extends...), session.declaredImports[module]...) {
 		r.usedModules[name] = true
 	}
@@ -77,6 +78,7 @@ type nestedModuleBinding struct {
 type instanceResolver struct {
 	ctx                     context.Context
 	root                    *parser.Module
+	rootInstances           []parser.Instance
 	loader                  ModuleLoader
 	nested                  map[string]nestedModuleBinding
 	cache                   map[string]*parser.Module

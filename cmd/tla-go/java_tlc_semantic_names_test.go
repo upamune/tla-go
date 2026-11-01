@@ -120,8 +120,8 @@ func TestJavaTLCAnonymousInstanceErrorBeforeEvaluation(t *testing.T) {
 	}
 }
 
-// Java accepts this shadow with a warning; tla-go still reports a duplicate.
-func TestJavaTLCInstanceShadowKnownGap(t *testing.T) {
+// Java accepts this same-name instance with a warning.
+func TestJavaTLCInstanceShadow(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
 		"M.tla": "---- MODULE M ----\nEXTENDS Naturals\nI == INSTANCE A\nGood == LET X == I!F(1) I == INSTANCE A IN X\nVARIABLE v\nInit == v = 0\nNext == UNCHANGED v\n====\n",
@@ -135,7 +135,7 @@ func TestJavaTLCInstanceShadowKnownGap(t *testing.T) {
 	}
 	var out, errout bytes.Buffer
 	code := run(context.Background(), []string{"-tool", filepath.Join(dir, "M.tla")}, &out, &errout)
-	if code != 255 || !strings.Contains(out.String(), "Multiply-defined symbol 'I!F'") {
+	if code != 0 || errout.Len() != 0 || !hasToolMessage(readToolMessages(out.String()), 2199) {
 		t.Fatalf("Go exit %d, stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 	}
 	if jar := pinnedFairnessEffectJar(t); jar != "" {
