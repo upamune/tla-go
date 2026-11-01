@@ -1,6 +1,7 @@
 package upstreamjunit
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -21,16 +23,20 @@ const (
 // VerifyInputs verifies both revision identity and jar contents. It rejects a
 // modified tracked checkout because its fixtures may not match that revision.
 func VerifyInputs(root, jar string) error {
-	cmd := exec.Command("git", "-C", root, "rev-parse", "HEAD")
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	return verifyInputs(ctx, root, jar)
+}
+
+func verifyInputs(ctx context.Context, root, jar string) error {
+	out, err := gitOutput(ctx, "-C", root, "rev-parse", "HEAD")
 	if err != nil {
 		return fmt.Errorf("upstream revision: %w", err)
 	}
 	if strings.TrimSpace(string(out)) != UpstreamCommit {
 		return fmt.Errorf("upstream revision %s, want %s", strings.TrimSpace(string(out)), UpstreamCommit)
 	}
-	cmd = exec.Command("git", "-C", root, "status", "--porcelain", "--untracked-files=no")
-	out, err = cmd.Output()
+	out, err = gitOutput(ctx, "-C", root, "status", "--porcelain", "--untracked-files=no")
 	if err != nil {
 		return fmt.Errorf("upstream status: %w", err)
 	}
@@ -50,6 +56,17 @@ func VerifyInputs(root, jar string) error {
 		return fmt.Errorf("oracle SHA-256 does not match %s", JarSHA256)
 	}
 	return nil
+}
+
+// Bound process waits even if a descendant inherits Git's output pipe.
+func gitOutput(ctx context.Context, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.WaitDelay = time.Second
+	out, err := cmd.Output()
+	if err != nil && ctx.Err() != nil {
+		return out, ctx.Err()
+	}
+	return out, err
 }
 
 // Class is a candidate, not a resolved executable case. Source is relative to
@@ -89,8 +106,13 @@ func Inventory(testRoot string) ([]Class, error) {
 // inventoryTracked lists Java sources in the commit tree, not the working tree
 // or index. The caller must verify that the checkout matches the commit first.
 func inventoryTracked(testRoot, commit string) ([]Class, error) {
-	cmd := exec.Command("git", "-C", testRoot, "ls-tree", "-r", "--name-only", "-z", commit, "--", ".")
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	return inventoryTrackedContext(ctx, testRoot, commit)
+}
+
+func inventoryTrackedContext(ctx context.Context, testRoot, commit string) ([]Class, error) {
+	out, err := gitOutput(ctx, "-C", testRoot, "ls-tree", "-r", "--name-only", "-z", commit, "--", ".")
 	if err != nil {
 		return nil, fmt.Errorf("upstream tree: %w", err)
 	}

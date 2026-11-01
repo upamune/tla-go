@@ -1,11 +1,15 @@
 package upstreamjunit
 
 import (
+	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestInventoryInheritance(t *testing.T) {
@@ -78,5 +82,51 @@ func TestInventoryTrackedCommit(t *testing.T) {
 func TestVerifyInputsRejectsMissing(t *testing.T) {
 	if err := VerifyInputs(t.TempDir(), "missing.jar"); err == nil {
 		t.Fatal("accepted non-checkout")
+	}
+}
+
+func TestDiscoveryBoundsInputVerification(t *testing.T) {
+	dir := t.TempDir()
+	program := `package main
+import ("fmt"; "os"; "strings"; "time")
+func main() {
+ args := strings.Join(os.Args[1:], " ")
+ if strings.Contains(args, os.Getenv("BLOCK_GIT_STAGE")) {
+  if err := os.WriteFile(os.Getenv("GIT_STARTED"), []byte("started"), 0600); err != nil { panic(err) }
+  time.Sleep(120 * time.Second)
+ }
+ if strings.Contains(args, "rev-parse") { fmt.Println("` + UpstreamCommit + `") }
+}`
+	source := filepath.Join(dir, "fake_git.go")
+	if err := os.WriteFile(source, []byte(program), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git := filepath.Join(dir, "git")
+	if runtime.GOOS == "windows" {
+		git += ".exe"
+	}
+	if out, err := exec.Command("go", "build", "-o", git, source).CombinedOutput(); err != nil {
+		t.Fatalf("build git fixture: %v: %s", err, out)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for _, stage := range []string{"rev-parse", "status"} {
+		t.Run(stage, func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "started")
+			t.Setenv("BLOCK_GIT_STAGE", stage)
+			t.Setenv("GIT_STARTED", marker)
+			err := cancelAfterReady(t, marker, func(ctx context.Context) error {
+				_, err := discover(ctx, dir, "unused", "unused", "unused", dir, nil)
+				return err
+			})
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("expected cancellation for %s, got %v", stage, err)
+			}
+		})
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	_, err := discover(ctx, dir, "unused", "unused", "unused", dir, nil)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected deadline, got %v", err)
 	}
 }
