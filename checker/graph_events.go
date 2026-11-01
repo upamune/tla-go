@@ -7,18 +7,21 @@ import (
 // GraphEvent describes a state or transition emitted during state exploration.
 // Initial events have no parent. New marks the first appearance of a state.
 // View is the state as TLC prints it through VIEW when Options.ViewStates is
-// set; fingerprints follow VIEW whenever one is configured.
+// set; fingerprints follow VIEW whenever one is configured, except in text
+// dump mode where no graph fingerprints are computed.
 type GraphEvent struct {
 	State       evaluator.State
 	Order       []string
 	View        string
 	Fingerprint uint64
-	Parent      uint64
-	Action      string
-	Depth       int
-	Initial     bool
-	New         bool
-	Stuttering  bool
+	// RankFingerprint is the separately evaluated DOT rank node.
+	RankFingerprint uint64
+	Parent          uint64
+	Action          string
+	Depth           int
+	Initial         bool
+	New             bool
+	Stuttering      bool
 }
 
 func (s *search) graphStuttering(index int) error {
@@ -26,14 +29,31 @@ func (s *search) graphStuttering(index int) error {
 		return nil
 	}
 	state := s.nodes[index].state
+	if s.model.textGraph {
+		return s.model.graph(GraphEvent{State: state, Order: s.graphOrder, View: s.graphView(state), Depth: s.nodes[index].depth + 1, Stuttering: true})
+	}
 	fingerprint, err := s.graphFingerprint(state)
 	if err != nil {
 		return err
 	}
-	return s.model.graph(GraphEvent{State: state, Order: s.graphOrder, View: s.graphView(state), Fingerprint: fingerprint, Parent: fingerprint, Depth: s.nodes[index].depth + 1, Stuttering: true})
+	if !s.model.dotGraph {
+		return s.model.graph(GraphEvent{State: state, Order: s.graphOrder, View: s.graphView(state), Fingerprint: fingerprint, Parent: fingerprint, Depth: s.nodes[index].depth + 1, Stuttering: true})
+	}
+	parent, err := s.graphFingerprint(state)
+	if err != nil {
+		return err
+	}
+	rank, err := s.graphFingerprint(state)
+	if err != nil {
+		return err
+	}
+	return s.model.graph(GraphEvent{State: state, Order: s.graphOrder, Fingerprint: fingerprint, Parent: parent, RankFingerprint: rank, Depth: s.nodes[index].depth + 1, Stuttering: true})
 }
 
 func (s *search) graphRepresentative(state evaluator.State, key string) evaluator.State {
+	if s.model.dotGraph {
+		return state
+	}
 	if representative, ok := s.graphStates[key]; ok {
 		return representative
 	}
@@ -41,10 +61,10 @@ func (s *search) graphRepresentative(state evaluator.State, key string) evaluato
 }
 
 // checkGraphCandidate checks a new state and reports it to the state graph.
-// Java TLC writes a new initial state before checking it, and a successor
-// unless its check fails with an error.
+// Java TLC writes included states before checking their properties. Generic
+// OnGraph observers retain their existing successor notification order.
 func (s *search) checkGraphCandidate(state evaluator.State, parent int, action string, included bool) (bool, error) {
-	if parent < 0 && included {
+	if included && s.graphBeforeCheck(parent) {
 		if err := s.graphTransition(state, parent, action, true); err != nil {
 			return false, err
 		}
@@ -60,10 +80,27 @@ func (s *search) checkGraphCandidate(state evaluator.State, parent int, action s
 	return more, nil
 }
 
+func (s *search) graphBeforeCheck(parent int) bool {
+	return parent < 0 || s.model.dotGraph || s.model.textGraph
+}
+
 func (s *search) graphTransition(state evaluator.State, parent int, action string, isNew bool) error {
 	if s.model.graph == nil || parent < 0 && !isNew {
 		return nil
 	}
+	if s.model.textGraph {
+		if !isNew {
+			return nil
+		}
+		return s.model.graph(GraphEvent{State: state, Order: s.graphOrder, View: s.graphView(state), Action: action, Depth: s.candidateLevel(parent), Initial: parent < 0, New: true})
+	}
+	if s.model.dotGraph {
+		return s.graphDOTTransition(state, parent, action, isNew)
+	}
+	return s.graphGenericTransition(state, parent, action, isNew)
+}
+
+func (s *search) graphGenericTransition(state evaluator.State, parent int, action string, isNew bool) error {
 	fingerprint, err := s.graphFingerprint(state)
 	if err != nil {
 		return err
@@ -74,6 +111,30 @@ func (s *search) graphTransition(state evaluator.State, parent int, action strin
 		if err != nil {
 			return err
 		}
+	}
+	return s.model.graph(event)
+}
+
+func (s *search) graphDOTTransition(state evaluator.State, parent int, action string, isNew bool) error {
+	fingerprint, err := s.graphFingerprint(state)
+	if err != nil {
+		return err
+	}
+	event := GraphEvent{State: state, Order: s.graphOrder, Fingerprint: fingerprint, Action: action, Depth: s.candidateLevel(parent), Initial: parent < 0, New: isNew}
+	rankState := state
+	if parent >= 0 {
+		rankState = s.nodes[parent].state
+		event.Parent, err = s.graphFingerprint(rankState)
+		if err != nil {
+			return err
+		}
+	}
+	if isNew {
+		event.View = s.graphView(state)
+	}
+	event.RankFingerprint, err = s.graphFingerprint(rankState)
+	if err != nil {
+		return err
 	}
 	return s.model.graph(event)
 }

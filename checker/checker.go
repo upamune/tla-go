@@ -185,6 +185,8 @@ type model struct {
 	possibleActions       []possiblePredicate
 	debug                 func(string)
 	graph                 func(GraphEvent) error
+	dotGraph              bool
+	textGraph             bool
 	searchEvent           func(SearchEvent)
 	checkpointObserver    *checkpointObserver
 	warning               func(Warning)
@@ -253,6 +255,10 @@ type Options struct {
 	// OnGraph receives states and transitions synchronously during exploration.
 	// State and Order must be copied by callers that retain them after the call.
 	OnGraph func(GraphEvent) error
+	// DOTGraph enables Java DOT writer fingerprint evaluation and rank events.
+	DOTGraph bool
+	// TextGraph follows Java text dumps without computing graph fingerprints.
+	TextGraph bool
 	// OnSearch receives synchronous initial-state progress events when set.
 	OnSearch func(SearchEvent)
 	// OnTemporalCheck receives the completed liveness result; on a violation,
@@ -646,7 +652,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning, livenessWarning: modelWarning(options), viewStates: options.ViewStates, onFailureHeader: options.OnFailureHeader}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, dotGraph: options.DOTGraph, textGraph: options.TextGraph, searchEvent: options.OnSearch, warning: options.OnWarning, livenessWarning: modelWarning(options), viewStates: options.ViewStates, onFailureHeader: options.OnFailureHeader}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)

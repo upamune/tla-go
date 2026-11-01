@@ -78,16 +78,16 @@ func openDOTDump(path string, format dotFormat) (*dotDump, error) {
 func (d *dotDump) event(event checker.GraphEvent) error {
 	if event.Stuttering {
 		_, err := fmt.Fprintf(d.writer, "%d -> %d [style=\"dashed\"];\n", int64(event.Parent), int64(event.Fingerprint))
-		d.addRank(event.Depth-1, event.Parent)
+		d.addRank(event.Depth-1, event.RankFingerprint)
 		return err
 	}
 	if !event.Initial {
 		if _, err := fmt.Fprintf(d.writer, "%d -> %d%s;\n", int64(event.Parent), int64(event.Fingerprint), d.transitionLabel(event.Action)); err != nil {
 			return err
 		}
-		d.addRank(event.Depth-1, event.Parent)
+		d.addRank(event.Depth-1, event.RankFingerprint)
 	} else {
-		d.addRank(event.Depth, event.Fingerprint)
+		d.addRank(event.Depth, event.RankFingerprint)
 	}
 	if !event.New {
 		return nil

@@ -259,6 +259,8 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 	configureCompatOutput(&checkOptions, opts)
 	if graph != nil {
 		checkOptions.OnGraph = styledGraphEvents(graph.event, traceStyle{terse: opts.compat.terse})
+		checkOptions.DOTGraph = opts.dumpDOT != nil
+		checkOptions.TextGraph = opts.dumpDOT == nil
 	}
 	checkOptions.OnSearch = configuredSearchOutput(opts, out)
 	checkOptions.OnWarning = configuredWarningOutput(opts, out)

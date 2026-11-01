@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -160,6 +161,37 @@ func TestJavaTLCViewConstraintsMultipleWorkers(t *testing.T) {
 	}
 }
 
+// An effectful VIEW must not mutate TLC state before the constraint decides
+// whether the candidate will be fingerprinted.
+func TestJavaTLCViewConstraintTLCSet(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, tc := range []struct{ threshold, generated, distinct int }{
+		{1, 4, 1}, {3, 7, 2}, {4, 10, 3},
+	} {
+		t.Run(fmt.Sprint(tc.threshold), func(t *testing.T) {
+			dir := t.TempDir()
+			body := `VARIABLE x
+Init == x = 0 /\ TLCSet(0, 0)
+Next == x' \in 0..2
+V == IF TLCSet(0, TLCGet(0) + 1) THEN x ELSE x
+C == TLCGet(0) < ` + fmt.Sprint(tc.threshold)
+			writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCONSTRAINT C\nCHECK_DEADLOCK FALSE\n")
+			args := []string{"-tool", "-fp", "0", "-workers", "1", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			stats := fmt.Sprintf("%d states generated, %d distinct states found, 0 states left on queue.", tc.generated, tc.distinct)
+			if code != 0 || stderr != "" || !strings.Contains(out, stats) {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 || !strings.Contains(java, stats) {
+					t.Fatalf("Java exit %d output:\n%s", javaCode, java)
+				}
+			}
+		})
+	}
+}
+
 func TestJavaTLCViewConstraintDOT(t *testing.T) {
 	jar := maxSetOracleJar(t)
 	dir := t.TempDir()
@@ -287,5 +319,182 @@ V == IF PrintT(<<"view", x>>) THEN x ELSE x`
 				}
 			}
 		})
+	}
+}
+
+func TestJavaTLCViewConstraintEffectfulDOT(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, tc := range []struct {
+		threshold, generated, distinct int
+		format                         string
+		view                           bool
+	}{
+		{3, 4, 1, "dot", false}, {6, 4, 1, "dot", false}, {9, 7, 2, "dot", false}, {6, 4, 1, "dot,actionlabels", false}, {8, 4, 1, "dot", true},
+	} {
+		t.Run(fmt.Sprintf("%s/%d", tc.format, tc.threshold), func(t *testing.T) {
+			dir := t.TempDir()
+			body := `VARIABLE x
+Init == x = 0 /\ TLCSet(0, 0)
+Next == x' \in 0..2
+V == IF TLCSet(0, TLCGet(0) + 1) THEN x ELSE x
+C == TLCGet(0) < ` + fmt.Sprint(tc.threshold)
+			writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCONSTRAINT C\nCHECK_DEADLOCK FALSE\n")
+			args := []string{"-tool", "-fp", "0", "-workers", "1", "-dump", tc.format, "go.dot", "M.tla"}
+			if tc.view {
+				args = append([]string{"-view"}, args...)
+			}
+			out, code, stderr := runGoInDir(t, dir, args)
+			stats := fmt.Sprintf("%d states generated, %d distinct states found, 0 states left on queue.", tc.generated, tc.distinct)
+			if code != 0 || stderr != "" || !strings.Contains(out, stats) {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			graph, err := os.ReadFile(filepath.Join(dir, "go.dot"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if jar != "" {
+				args[len(args)-2] = "java.dot"
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				want, err := os.ReadFile(filepath.Join(dir, "java.dot"))
+				if javaCode != 0 || err != nil || !strings.Contains(java, stats) || !bytes.Equal(graph, want) {
+					t.Fatalf("Java exit %d error %v output:\n%s\nJava graph:\n%s\nGo graph:\n%s", javaCode, err, java, want, graph)
+				}
+			}
+		})
+	}
+}
+
+// Text dumps must not evaluate the VIEW for graph fingerprints. With -view,
+// rendering each new state still evaluates VIEW as in Java's StateWriter.
+func TestJavaTLCViewConstraintEffectfulTextDump(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, view := range []bool{false, true} {
+		t.Run(fmt.Sprint(view), func(t *testing.T) {
+			dir := t.TempDir()
+			body := `VARIABLE x
+Init == x = 0 /\ TLCSet(0, 0)
+Next == x' \in 0..2
+V == IF TLCSet(0, TLCGet(0) + 1) THEN x ELSE x
+C == TLCGet(0) < 6`
+			writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCONSTRAINT C\nCHECK_DEADLOCK FALSE\n")
+			args := []string{"-tool", "-fp", "0", "-workers", "1", "-dump", "go.dump", "M.tla"}
+			if view {
+				args = append([]string{"-view"}, args...)
+			}
+			out, code, stderr := runGoInDir(t, dir, args)
+			graph, err := os.ReadFile(filepath.Join(dir, "go.dump"))
+			if code != 0 || stderr != "" || err != nil {
+				t.Fatalf("Go exit %d stderr %q graph error %v output:\n%s", code, stderr, err, out)
+			}
+			if !view && !strings.Contains(out, "10 states generated, 3 distinct states found, 0 states left on queue.") {
+				t.Fatalf("Go output:\n%s", out)
+			}
+			if jar != "" {
+				args[len(args)-2] = "java.dump"
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				want, err := os.ReadFile(filepath.Join(dir, "java.dump"))
+				if javaCode != 0 || err != nil || !bytes.Equal(graph, want) || !reflect.DeepEqual(viewConstraintStats(out), viewConstraintStats(java)) {
+					t.Fatalf("Java exit %d error %v output:\n%s\nGo output:\n%s\nJava dump:\n%s\nGo dump:\n%s", javaCode, err, java, out, want, graph)
+				}
+			}
+		})
+	}
+}
+
+func viewConstraintStats(output string) []toolMessage {
+	var stats []toolMessage
+	for _, m := range readToolMessages(output) {
+		if m.code == 2199 {
+			stats = append(stats, m)
+		}
+	}
+	return stats
+}
+
+// A stateful VIEW can produce a different fingerprint for the node and for
+// the rank record of that very same state.
+func TestJavaTLCViewConstraintDynamicDOTRank(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	dir := t.TempDir()
+	body := `VARIABLE x
+Init == x = 0 /\ TLCSet(0, 0)
+Next == x' \in 0..2
+C == TLCGet(0) < 8
+V == IF TLCSet(0, TLCGet(0) + 1) THEN TLCGet(0) ELSE 0`
+	writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCONSTRAINT C\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-fp", "0", "-workers", "1", "-dump", "dot", "go.dot", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	graph, err := os.ReadFile(filepath.Join(dir, "go.dot"))
+	if code != 0 || stderr != "" || err != nil {
+		t.Fatalf("Go exit %d stderr %q graph error %v output:\n%s", code, stderr, err, out)
+	}
+	if !bytes.Contains(graph, []byte("-7115858903467826205 [label=")) || !bytes.Contains(graph, []byte("{rank = same; -4900539538744082733;")) {
+		t.Fatalf("expected distinct node and rank fingerprints:\n%s", graph)
+	}
+	if jar != "" {
+		args[len(args)-2] = "java.dot"
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		want, err := os.ReadFile(filepath.Join(dir, "java.dot"))
+		if javaCode != 0 || err != nil || !bytes.Equal(graph, want) || !reflect.DeepEqual(viewConstraintStats(out), viewConstraintStats(java)) {
+			t.Fatalf("Java exit %d error %v output:\n%s\nGo output:\n%s\nJava graph:\n%s\nGo graph:\n%s", javaCode, err, java, out, want, graph)
+		}
+	}
+}
+
+// In Java the dump is written before a new state's invariant is evaluated.
+func TestJavaTLCViewConstraintDumpInvariantOrder(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, format := range []string{"dot", "text"} {
+		t.Run(format, func(t *testing.T) {
+			dir := t.TempDir()
+			body := `VARIABLE x
+Init == x = 0
+Next == IF x = 0 THEN x' = 1 ELSE UNCHANGED x
+V == IF PrintT(<<"view", x>>) THEN x ELSE x
+I == IF PrintT(<<"invariant", x>>) THEN TRUE ELSE FALSE`
+			writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nINVARIANT I\nCHECK_DEADLOCK FALSE\n")
+			args := []string{"-tool", "-fp", "0", "-workers", "1", "-view", "-dump"}
+			if format == "dot" {
+				args = append(args, "dot", "go.dot")
+			} else {
+				args = append(args, "go.dump")
+			}
+			args = append(args, "M.tla")
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				args[len(args)-2] = "java." + map[string]string{"dot": "dot", "text": "dump"}[format]
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 || !reflect.DeepEqual(viewConstraintPrints(out), viewConstraintPrints(java)) {
+					t.Fatalf("Java exit %d output:\n%s\nGo output:\n%s", javaCode, java, out)
+				}
+			}
+		})
+	}
+}
+
+// A duplicate under VIEW still belongs to the generated successor when DOT
+// computes its edge fingerprint; the first representative may differ.
+func TestJavaTLCViewConstraintDOTDuplicateSuccessor(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	dir := t.TempDir()
+	body := `VARIABLE x
+Init == x = 0
+Next == x' \in 0..2
+V == IF PrintT(<<"view", x>>) THEN 0 ELSE 0`
+	writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nVIEW V\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-fp", "0", "-workers", "1", "-dump", "dot", "go.dot", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code != 0 || stderr != "" {
+		t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+	}
+	if jar != "" {
+		args[len(args)-2] = "java.dot"
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		if javaCode != 0 || !reflect.DeepEqual(viewConstraintPrints(out), viewConstraintPrints(java)) {
+			t.Fatalf("Java exit %d prints %q; Go prints %q", javaCode, viewConstraintPrints(java), viewConstraintPrints(out))
+		}
 	}
 }
