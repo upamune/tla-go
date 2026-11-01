@@ -125,6 +125,8 @@ type Failure struct {
 	evaluationSources []*parser.Expression
 }
 type model struct {
+	checkpointIdentity   *checkpointIdentity
+	checkpointDriver     *checkpointDriver
 	coverage             *coverageCollector
 	module               *parser.Module
 	cfg                  config.Config
@@ -168,6 +170,7 @@ type model struct {
 	debug                 func(string)
 	graph                 func(GraphEvent) error
 	searchEvent           func(SearchEvent)
+	checkpointObserver    *checkpointObserver
 	warning               func(Warning)
 	livenessWarning       func(Warning) // Model checking only, as in Java TLC's AbstractChecker.
 	viewStates            bool

@@ -151,6 +151,9 @@ func (r *extensionResolver) load(name string) (*parser.Module, error) {
 		return nil, moduleNameError(name, module.Name)
 	}
 	r.session.sourceUnits[name] = module
+	if err := r.session.recordSource(name, source); err != nil {
+		return nil, err
+	}
 	return module, nil
 }
 

@@ -23,6 +23,10 @@ func runModels(ctx context.Context, opts options, out, errout io.Writer) int {
 		fmt.Fprintln(errout, "Error: -config applies to one specification, but several were given.")
 		return 1
 	}
+	if multipleRecoveryModels(opts, paths) {
+		fmt.Fprintln(errout, "Error: -recover applies to one specification.")
+		return 1
+	}
 	if opts.dumpPath != "" && len(paths) > 1 {
 		fmt.Fprintln(errout, "Error: -dump applies to one specification, but several were given.")
 		return 1
@@ -99,4 +103,8 @@ func normalizeModelPath(path string) string {
 		path += ".tla"
 	}
 	return filepath.Clean(path)
+}
+
+func multipleRecoveryModels(opts options, paths []string) bool {
+	return opts.recoverDir != "" && len(paths) > 1
 }

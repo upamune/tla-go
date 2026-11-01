@@ -19,6 +19,8 @@ type stateNode struct {
 }
 type search struct {
 	model               *model
+	head                int
+	initialComplete     bool
 	nodes               []stateNode
 	visited             map[string]bool
 	indices             map[string]int
@@ -71,6 +73,7 @@ func (m *model) check() (Result, error) {
 		s.finishInitialEvaluationDetail()
 		return s.result, nil
 	}
+	s.initialComplete = true
 	m.emitSearchEvent(SearchEvent{Kind: InitialComplete, GeneratedStates: s.result.GeneratedStates, DistinctStates: s.result.DistinctStates})
 	if s.missingNextAction() {
 		return s.result, nil
@@ -124,7 +127,7 @@ func newSearch(m *model) search {
 func (s *search) explore() (Result, error) {
 	next, _ := s.model.definition(s.model.cfg.Next)
 	parallel := parallelSearch{enabled: s.model.parallelEligible(next)}
-	for i := 0; i < len(s.nodes) && !s.model.tlcRuntime.stopped; i++ {
+	for i := s.head; i < len(s.nodes) && !s.model.tlcRuntime.stopped; i++ {
 		s.model.tlcRuntime.level = s.nodes[i].depth
 		if err := s.model.ctx.Err(); err != nil {
 			return Result{}, err
@@ -136,6 +139,10 @@ func (s *search) explore() (Result, error) {
 		}
 		if !more {
 			return s.finishFailedExpansion(i, next)
+		}
+		s.head = i + 1
+		if stop, err := s.checkpointBoundary(); stop {
+			return Result{}, err
 		}
 	}
 	s.debugLivenessGraph()

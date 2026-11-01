@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/upamune/tla-go/value"
 )
@@ -37,6 +38,7 @@ var flagOptions = map[string]func(*options){
 var valueOptions = map[string]func(*options, []string) (int, error){
 	"-config":     parsePathOption,
 	"-metadir":    parsePathOption,
+	"-recover":    parsePathOption,
 	"-seed":       parseRandomOption,
 	"-aril":       parseRandomOption,
 	"-lncheck":    parseLivenessOption,
@@ -111,6 +113,7 @@ func parseOption(opts *options, args []string) (int, error) {
 var missingPathErrors = map[string]commandLineError{
 	"-config":  "Error: expect a file name for -config option.",
 	"-metadir": "Error: need to specify the metadata directory.",
+	"-recover": "Error: need to specify the metadata directory for recovery.",
 }
 
 func parsePathOption(opts *options, args []string) (int, error) {
@@ -119,6 +122,11 @@ func parsePathOption(opts *options, args []string) (int, error) {
 	}
 	if args[0] == "-config" {
 		opts.configPath = args[1]
+	} else if args[0] == "-recover" {
+		if args[1] == "" {
+			return 0, commandLineError("Error: need to specify the metadata directory for recovery.")
+		}
+		opts.recoverDir = args[1]
 	} else {
 		opts.metaRoot = args[1]
 	}
@@ -214,7 +222,7 @@ func parseWorkersOption(opts *options, args []string) (int, error) {
 }
 
 // parseCheckpointOption validates Java TLC's checkpoint interval in minutes.
-// tla-go does not write checkpoints.
+
 func parseCheckpointOption(opts *options, args []string) (int, error) {
 	if len(args) < 2 {
 		return 0, commandLineError("Error: checkpoint interval required.")
@@ -229,6 +237,7 @@ func parseCheckpointOption(opts *options, args []string) (int, error) {
 		return 0, commandLineError("Error: expect a nonnegative integer for -checkpoint option.")
 	}
 	opts.checkpoint = true
+	opts.checkpointInterval = time.Duration(int32(minutes)*1000*60) * time.Millisecond
 	return 1, nil
 }
 

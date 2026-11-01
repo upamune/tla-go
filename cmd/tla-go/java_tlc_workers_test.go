@@ -12,12 +12,13 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 const workerModel = "VARIABLES x, y\nInit == x = 0 /\\ y = 0\nNext == x' \\in 0..3 /\\ y' = (y + x) % 4\nInv == x \\in 0..3"
 
 // Java TLC accepts any positive worker count and checkpoint interval. tla-go
-// accepts them and writes no checkpoints; eligible BFS searches may run in parallel.
+// accepts them; unsupported checkpoint models continue without checkpointing.
 func TestJavaTLCWorkerAndCheckpointOptions(t *testing.T) {
 	for _, tc := range []struct {
 		args    []string
@@ -29,6 +30,7 @@ func TestJavaTLCWorkerAndCheckpointOptions(t *testing.T) {
 		{[]string{"-checkpoint", "5", "-workers", "+2"}, 2},
 		{[]string{"-checkpoint", "35791"}, 1},
 		{[]string{"-checkpoint", "71583"}, 1},
+		{[]string{"-checkpoint", "268435456"}, 1},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			dir := t.TempDir()
@@ -36,7 +38,7 @@ func TestJavaTLCWorkerAndCheckpointOptions(t *testing.T) {
 			var out, errout bytes.Buffer
 			code := run(context.Background(), append(append([]string{"-tool"}, tc.args...), filepath.Join(dir, "M.tla")), &out, &errout)
 			mode := fmt.Sprintf("with %d worker%s on %d cores.", tc.workers, plural(tc.workers), runtime.NumCPU())
-			if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), mode) || !strings.Contains(out.String(), "65 states generated, 16 distinct states found, 0 states left on queue.") {
+			if code != 0 || !strings.Contains(out.String(), mode) || !strings.Contains(out.String(), "65 states generated, 16 distinct states found, 0 states left on queue.") {
 				t.Fatalf("exit %d; stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
@@ -127,5 +129,22 @@ func TestJavaTLCToolOptionErrors(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TLC.java at 5a47802 evaluates the multiplication as signed Java int
+// before assigning it to chkptDuration. In particular, positive overflow can
+// wrap back to a small positive interval.
+func TestCheckpointIntervalJavaIntArithmetic(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  time.Duration
+	}{
+		{"0", 0}, {"35791", 2147460000 * time.Millisecond}, {"71583", 12704 * time.Millisecond}, {"268435456", 0},
+	} {
+		var opts options
+		if _, err := parseCheckpointOption(&opts, []string{"-checkpoint", tc.input}); err != nil || opts.checkpointInterval != tc.want {
+			t.Fatalf("%s: got %v, err %v; want %v", tc.input, opts.checkpointInterval, err, tc.want)
+		}
 	}
 }

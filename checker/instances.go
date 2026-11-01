@@ -60,6 +60,7 @@ type instanceSession struct {
 	inherited       map[*parser.Module][]nestedModuleBinding
 	declaredImports map[*parser.Module][]string
 	sourceUnits     map[string]*parser.Module
+	sources         map[string]string
 	builtinTLC      bool
 }
 
@@ -143,6 +144,9 @@ func (r *instanceResolver) loadInstanceModule(name string) (*parser.Module, erro
 		return nil, moduleNameError(name, module.Name)
 	}
 	r.session.sourceUnits[name] = module
+	if err := r.session.recordSource(name, source); err != nil {
+		return nil, err
+	}
 	return r.prepareInstanceModule(name, module)
 }
 

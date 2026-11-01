@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,8 +73,12 @@ func TestMetadataDirectory(t *testing.T) {
 	if filepath.Base(dir) != "26-10-30-12-34-56" {
 		t.Fatalf("unexpected directory: %s", dir)
 	}
-	if _, err := makeMetaDir(root, now); !errors.Is(err, os.ErrExist) {
-		t.Fatalf("collision: %v", err)
+	other, err := makeMetaDir(root, now)
+	if err != nil || other == dir {
+		t.Fatalf("collision: directory %q, error %v", other, err)
+	}
+	if info, err := os.Stat(other); err != nil || !info.IsDir() {
+		t.Fatalf("second directory: %v", err)
 	}
 }
 
