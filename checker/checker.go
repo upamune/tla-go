@@ -470,7 +470,7 @@ func (model *model) finishCoverageCheck(result Result, options Options) (Result,
 }
 
 func (model *model) coverageReplayUnreliable(result Result) bool {
-	return result.Status == EvaluationFailure || model.coverage.evaluatedExistential || result.Violation != nil && len(result.Violation.Trace) > 1
+	return result.Status == EvaluationFailure || model.coverage.existentialEvaluated() || result.Violation != nil && len(result.Violation.Trace) > 1
 }
 
 func (m *model) finalizeCheckResult(result Result, onTemporalCheck, onTemporalViolation func(Result)) (Result, error) {

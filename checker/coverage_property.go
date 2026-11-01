@@ -341,8 +341,10 @@ func (m *model) holdsInvariant(name string, expr *parser.Expression, state evalu
 	if m.coverage == nil {
 		return m.holds(expr, state, nil)
 	}
-	root := m.coverage.properties[name]
-	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: m.enabledCallback, OnEvaluate: root.observe, OnBoundVisit: root.observeBound})
+	c := m.coverage
+	root := c.properties[name]
+
+	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: m.enabledCallback, OnEvaluate: func(expr *parser.Expression) { c.observeProperty(root, expr) }, OnBoundVisit: func(domain *parser.Expression, last bool) { c.observePropertyBound(root, domain, last) }})
 	if err != nil {
 		return false, err
 	}
@@ -357,4 +359,17 @@ func (n *coverageNode) observeBound(domain *parser.Expression, _ bool) {
 	if target := n.boundCosts[domain]; target != nil {
 		target.cost++
 	}
+}
+
+// Callbacks acquire the lock only for their own update, never across evaluation.
+func (c *coverageCollector) observeProperty(root *coverageNode, expr *parser.Expression) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	root.observe(expr)
+}
+
+func (c *coverageCollector) observePropertyBound(root *coverageNode, domain *parser.Expression, last bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	root.observeBound(domain, last)
 }
