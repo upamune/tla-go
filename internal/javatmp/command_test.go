@@ -36,11 +36,16 @@ func TestApplyEnvironmentNameCase(t *testing.T) {
 }
 
 func TestApplyPreservesInvalidExplicitEnvironment(t *testing.T) {
-	cmd := exec.Command(os.Args[0], "-test.run=^TestApplyEnvironmentChild$")
-	cmd.Env = []string{"BAD=contains\x00nul", "_JAVA_OPTIONS=-Dexample=1"}
-	Apply(cmd)
-	if err := cmd.Run(); err == nil {
-		t.Fatal("expected the explicit invalid environment to reject execution")
+	if runtime.GOOS == "plan9" {
+		t.Skip("Plan 9 permits NULs in environment values")
+	}
+	for _, invalid := range []string{"BAD=contains\x00nul", "_JAVA_OPTIONS=contains\x00nul"} {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestApplyEnvironmentChild$")
+		cmd.Env = []string{invalid}
+		Apply(cmd)
+		if err := cmd.Run(); err == nil {
+			t.Fatalf("expected invalid environment %q to reject execution", invalid)
+		}
 	}
 }
 

@@ -19,7 +19,7 @@ func Apply(cmd *exec.Cmd) *exec.Cmd {
 	for _, entry := range environ {
 		name, _, _ := strings.Cut(entry, "=")
 		isOptions := name == "_JAVA_OPTIONS" || (runtime.GOOS == "windows" && strings.EqualFold(name, "_JAVA_OPTIONS"))
-		if !isOptions {
+		if !isOptions || (runtime.GOOS != "plan9" && strings.ContainsRune(entry, '\x00')) {
 			result = append(result, entry)
 		}
 	}
