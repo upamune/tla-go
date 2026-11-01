@@ -69,13 +69,16 @@ Like Java TLC, model checking warns before checking assumptions, before rejectin
 
 For completed pure breadth-first checks with a single non-tableau liveness
 solution, a `.dot` dump also writes Java's separate `_liveness.dot` graph.
-It is reconstructed after exploration, in Java's successor-set order. This
-experimental path excludes `VIEW`, symmetry, continuation, side effects,
+It is reconstructed after exploration, following Java's successor-set order
+with `-workers 1`. Java's parallel workers can write states in a different
+order and repeat labels differently. This experimental path excludes `VIEW`,
+symmetry, continuation, side effects,
 operator-valued constants, substitutions, scoped or operator-table assignments,
-instances, external modules,
-parameterized definitions, `LET`, unknown syntax or operators, oversized
+instances, external modules, parameterized definitions, `LET`, unknown syntax
+or operators, oversized
 liveness normalization, and empty or incomplete searches; those cases do not
-create a liveness graph. Only a closed set of pure expressions and the
+create a liveness graph; any existing file is left unchanged. Only a closed set
+of pure expressions and the
 `Naturals`, `Integers`, `Sequences`, `FiniteSets`, and `TLC` standard modules
 are eligible. Definitions, assumptions, and theorem statements must use that
 closed expression set; new operators and modules remain excluded until reviewed.
