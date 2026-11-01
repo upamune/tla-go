@@ -138,7 +138,7 @@ func runSearchRecorderJava(t *testing.T, jar, classes, dir string, wantExit, wor
 		mode = "tool"
 	}
 	path := filepath.Join(dir, "java-"+mode+".txt")
-	args := []string{"-Xmx256m", "-XX:+UseParallelGC", "-cp", classes + string(os.PathListSeparator) + jar, "SearchRecorder", path, "-workers", strconv.Itoa(workers), "-fp", "0", "-metadir", filepath.Join(dir, "states-"+mode)}
+	args := []string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-cp", classes + string(os.PathListSeparator) + jar, "SearchRecorder", path, "-workers", strconv.Itoa(workers), "-fp", "0", "-metadir", filepath.Join(dir, "states-"+mode)}
 	if tool {
 		args = append(args, "-tool")
 	}

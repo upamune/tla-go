@@ -98,7 +98,7 @@ P == <>(x = 1)
 	if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("java", "-Xmx256m", "-jar", jar, "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "1", "-depth", "3", "M.tla")
+	cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-workers", "1", "-fp", "0", "-simulate", "num=1", "-seed", "1", "-depth", "3", "M.tla")
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err != nil {

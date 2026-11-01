@@ -82,7 +82,7 @@ func TestCheckpointStringProcess(t *testing.T) {
 				if invariant == `x # "never"` {
 					compareJavaTLCModel(t, jar, "M", []byte(javaSource), []byte(cfg), full.Result.GeneratedStates, full.Result.DistinctStates, full.Result.Depth)
 				} else {
-					cmd := exec.Command("java", "-Xmx256m", "-jar", jar, "-workers", "1", "M.tla")
+					cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-workers", "1", "M.tla")
 					cmd.Dir = dir
 					if err := os.WriteFile(src, []byte(javaSource), 0o600); err != nil {
 						t.Fatal(err)

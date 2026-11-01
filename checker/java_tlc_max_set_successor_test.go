@@ -91,7 +91,7 @@ func TestJavaTLCMaxSetInitialActionConstraint(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				cmd := exec.Command("java", "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-maxSetSize", fmt.Sprint(tc.bound), "M.tla")
+				cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-jar", jar, "-tool", "-workers", "1", "-maxSetSize", fmt.Sprint(tc.bound), "M.tla")
 				cmd.Dir = dir
 				out, err := cmd.CombinedOutput()
 				if tc.failure {
@@ -121,7 +121,7 @@ func compareMaxSetSuccessor(t *testing.T, jar, source, cfg string, bound int, te
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	args := []string{"-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0"}
+	args := []string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0"}
 	if bound > 0 {
 		args = append(args, "-maxSetSize", fmt.Sprint(bound))
 	}
@@ -213,7 +213,7 @@ func TestJavaTLCMaxSetEnumeratedDomain(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		cmd := exec.Command("java", "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-maxSetSize", "10", "M.tla")
+		cmd := exec.Command("java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-tool", "-workers", "1", "-fp", "0", "-maxSetSize", "10", "M.tla")
 		cmd.Dir = dir
 		out, err := cmd.CombinedOutput()
 		exit, ok := err.(*exec.ExitError)

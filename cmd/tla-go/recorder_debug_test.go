@@ -106,7 +106,7 @@ public class RecorderProbe {
 		t.Fatalf("javac: %v %s", err, out)
 	}
 	result := filepath.Join(dir, "java-records")
-	cmd := exec.CommandContext(ctx, "java", "-Xmx256m", "-XX:+UseParallelGC", "-cp", dir+string(os.PathListSeparator)+jar, "RecorderProbe", result, "-tool", "-workers", workers, "-fp", "0", "M.tla")
+	cmd := exec.CommandContext(ctx, "java", "-Djava.io.tmpdir="+t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-cp", dir+string(os.PathListSeparator)+jar, "RecorderProbe", result, "-tool", "-workers", workers, "-fp", "0", "M.tla")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Java recorder: %v %s", err, out)

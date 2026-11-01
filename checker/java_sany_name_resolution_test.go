@@ -214,7 +214,7 @@ func runNameResolutionJava(t *testing.T, dir string, args ...string) (string, in
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "java", append([]string{"-Xmx256m"}, args...)...)
+	cmd := exec.CommandContext(ctx, "java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m"}, args...)...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {

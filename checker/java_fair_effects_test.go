@@ -85,7 +85,7 @@ func TestJavaTLCFairnessEffectsLifecycle(t *testing.T) {
 				if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte(cfg), 0o600); err != nil {
 					t.Fatal(err)
 				}
-				args := []string{"-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-metadir", filepath.Join(dir, "meta")}
+				args := []string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-metadir", filepath.Join(dir, "meta")}
 				if tool {
 					args = append(args, "-tool")
 				}
@@ -164,7 +164,7 @@ func TestJavaTLCFairnessRegisterSensitiveOracle(t *testing.T) {
 					if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte(cfg), 0o600); err != nil {
 						t.Fatal(err)
 					}
-					args := []string{"-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-metadir", filepath.Join(dir, "meta")}
+					args := []string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-XX:+UseParallelGC", "-jar", jar, "-workers", "1", "-fp", "0", "-metadir", filepath.Join(dir, "meta")}
 					if tool {
 						args = append(args, "-tool")
 					}
