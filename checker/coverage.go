@@ -508,15 +508,20 @@ func (m *model) configureCoverage(options Options) error {
 
 func (m *model) attachCoverage(result *Result) {
 	if m.coverage != nil {
-		m.coverage.finish()
-		result.Coverage = m.coverage.actions
+		result.Coverage = m.coverage.report()
 	}
 }
 
-// TLC collapses nodes whose nonzero descendants all have the same cost.
-func (c *coverageCollector) finish() {
-	for i := range c.actions {
-		a := &c.actions[i]
+// report leaves the collector's counters and update indices intact. Callers
+// must prevent updates while it reads the collector; it does not synchronize.
+func (c *coverageCollector) report() []CoverageAction {
+	if c.actions == nil {
+		return nil
+	}
+	actions := make([]CoverageAction, len(c.actions))
+	copy(actions, c.actions)
+	for i := range actions {
+		a := &actions[i]
 		if a.Property {
 			a.Expressions = c.properties[a.Name].report(nil, 0)
 			continue
@@ -524,8 +529,10 @@ func (c *coverageCollector) finish() {
 		a.Expressions = c.finishAction(a)
 		c.collapseAction(a)
 	}
+	return actions
 }
 
+// TLC collapses nodes whose nonzero descendants all have the same cost.
 func (c *coverageCollector) collapseAction(a *CoverageAction) {
 	body := c.bodies[a.Name]
 	if body.Kind != "And" || !sameCoverageCounts(a.Expressions, a.Name == c.initial) {

@@ -177,12 +177,12 @@ against errors, final summaries and other callbacks; merely reading the Go
 collector concurrently would race, and waiting for a whole successor expansion
 can delay a report indefinitely.
 
-The current final-report path cannot be reused as a live snapshot: `finish`
-replaces each action's raw expression slice with a collapsed report, while
-subsequent evaluation still addresses that slice through the original indices.
-`TestCoverageFinishIsNotALiveSnapshot` demonstrates the stale index. A safe
-implementation needs a non-destructive snapshot of the counters and cost tree,
-consistent ownership or synchronization for every read and update, and
+The final-report path creates a non-destructive report: action expressions are
+collapsed in a separate result, and property cost trees remain available for
+subsequent updates. Repeated reports without intervening updates agree, and
+later updates do not alter earlier reports. This operation does not synchronize
+with updates and is not safe to call concurrently. Periodic reporting still
+needs consistent ownership or synchronization for every read and update, and
 serialization of complete messages with all existing output callbacks and
 termination paths. It must also start the progress schedule after initial-state
 generation, not at the CLI's current conservative cancellation deadline, and
