@@ -173,7 +173,7 @@ func TestCheckpointRejectsInvalid(t *testing.T) {
 	if _, err := checkpointDecode(data, wrong); err == nil {
 		t.Fatal("accepted different model")
 	}
-	s.Nodes[0].State["x"] = value.String("unsupported")
+	s.Nodes[0].State["x"] = value.Model("unsupported")
 	if _, err := checkpointEncode(s); err == nil {
 		t.Fatal("accepted unsupported value")
 	}

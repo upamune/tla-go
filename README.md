@@ -172,12 +172,19 @@ non-Windows systems the directory is also synced; Go does not guarantee atomic
 rename on Windows, and durability depends on the filesystem.
 
 Explicit `-checkpoint N` (positive minutes) supports a restricted pure serial
-breadth-first search: integer and Boolean states and the checker's limited
-expression subset, with INIT/NEXT and invariants. Unsupported models or options
+breadth-first search: integer, Boolean, and string states, scalar string
+configuration constants, and a restricted pure expression subset with INIT/NEXT
+and invariants. String literals, equality, inequality, and finite enumeration
+membership are supported within that subset; string operations and other
+constant forms remain unsupported. Unsupported models or options
 are checked normally with a diagnostic and no checkpoints. `-checkpoint 0`
 disables checkpoint writes, including when recovering; an omitted interval on
 recovery uses Java TLC 1.7.4's default of 30 minutes plus 42 milliseconds. Checkpoints use tla-go's own format,
-not Java TLC's.
+not Java TLC's. Existing version 1 integer/Boolean snapshots remain readable;
+older tla-go versions fail closed on snapshots containing string values.
+Checkpoint creation and recovery require valid UTF-8 in model names and source,
+configuration source, and all effective configuration strings. Invalid UTF-8
+is rejected with a diagnostic; stored state strings still preserve their bytes.
 The diagnostic identifies the timestamped directory beneath `-metadir` (or
 `states` beside the specification). Resume with `-recover directory` and the
 same model, configuration, and semantic options. Missing, damaged, incompatible,
@@ -185,6 +192,12 @@ or unsupported checkpoints fail rather than starting over. Output is streamed
 in order during each run; recovery does not replay output from before the saved
 checkpoint. Output emitted after the last checkpoint can be repeated after a
 restart, and full Java output equivalence is not established.
+
+Checksums detect accidental corruption, not deliberate modification. Structural
+and identity checks reject inconsistent snapshots, but cannot prove that a
+coherently forged search history is authentic; only recover files from trusted
+sources. The 64 MiB limit applies to the serialized payload, not peak memory
+used while encoding or decoding it.
 
 For deterministic debugging, `TLA_GO_DEBUG_CHECKPOINT_AFTER=N` saves after N
 state expansions and stops with a nonzero status. It is not a production

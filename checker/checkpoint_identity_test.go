@@ -2,11 +2,18 @@ package checker
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/upamune/tla-go/config"
+	"github.com/upamune/tla-go/evaluator"
 )
 
 func TestCheckpointIdentitySourcesAndOptions(t *testing.T) {
@@ -77,6 +84,128 @@ func TestCheckpointIdentitySourcesAndOptions(t *testing.T) {
 				t.Fatal("changed input has same identity")
 			}
 		})
+	}
+}
+
+func TestCheckpointIdentityRejectsInvalidUTF8(t *testing.T) {
+	for _, b := range []byte{0xff, 0xfe} {
+		bad := string([]byte{b})
+		cases := []struct {
+			name, root, cfg string
+			sources         map[string]string
+			effective       config.Config
+		}{
+			{"model name", bad, "", nil, config.Config{}},
+			{"source key", "M", "", map[string]string{bad: "source"}, config.Config{}},
+			{"source value", "M", "", map[string]string{"M": bad}, config.Config{}},
+			{"config source", "M", bad, nil, config.Config{}},
+			{"effective field", "M", "", nil, config.Config{Init: bad}},
+			{"effective list", "M", "", nil, config.Config{Invariants: []string{bad}}},
+			{"effective nested", "M", "", nil, config.Config{Constants: []config.Assignment{{Value: config.Value{Elements: []config.Value{{Text: bad}}}}}}},
+			{"effective args", "M", "", nil, config.Config{Constants: []config.Assignment{{Args: []config.Value{{Kind: bad}}}}}},
+			{"effective substitution", "M", "", nil, config.Config{Substitutions: []config.Substitution{{Target: bad}}}},
+		}
+		for _, tc := range cases {
+			t.Run(fmt.Sprintf("%s/%x", tc.name, b), func(t *testing.T) {
+				_, err := hashCheckpointInputs(tc.root, tc.sources, tc.cfg, tc.effective, Options{})
+				if err == nil || !strings.Contains(err.Error(), "invalid UTF-8") {
+					t.Fatalf("invalid input accepted: %v", err)
+				}
+			})
+		}
+	}
+}
+
+func TestCheckpointInvalidUTF8PublicAPI(t *testing.T) {
+	ctx := context.Background()
+	source := "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n===="
+	cfg := "INIT Init NEXT Next CHECK_DEADLOCK FALSE"
+	opts := CheckpointOptions{Path: filepath.Join(t.TempDir(), "checkpoint"), Interval: time.Hour, DebugPauseAfterExpansions: 1}
+	if run, err := CheckWithCheckpoint(ctx, source, cfg, opts); err != nil || !run.Paused {
+		t.Fatalf("create: %v, %+v", err, run)
+	}
+	for _, resume := range []bool{false, true} {
+		for _, b := range []byte{0xff, 0xfe} {
+			bad := string([]byte{b})
+			for _, tc := range []struct {
+				source, cfg string
+				effective   *config.Config
+			}{
+				{source + "\n\\* " + bad, cfg, nil},
+				{source, cfg + "\n\\* " + bad, nil},
+				{source, cfg + "\nCONSTANT C = \"" + bad + "\"", nil},
+				{source, cfg, &config.Config{Init: "Init", Next: "Next", Constants: []config.Assignment{{Name: "C", Value: config.Value{Kind: "string", Text: bad}}}}},
+			} {
+				opts.Resume, opts.Config = resume, tc.effective
+				_, err := CheckWithCheckpoint(ctx, tc.source, tc.cfg, opts)
+				if err == nil || !strings.Contains(err.Error(), "invalid UTF-8") {
+					t.Fatalf("resume=%v byte=%x: %v", resume, b, err)
+				}
+			}
+		}
+	}
+}
+
+func TestCheckpointInvalidUTF8LoadedSource(t *testing.T) {
+	source := "---- MODULE M ----\nEXTENDS A\nVARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n===="
+	cfg := "INIT Init NEXT Next CHECK_DEADLOCK FALSE"
+	for _, b := range []byte{0xff, 0xfe} {
+		for _, resume := range []bool{false, true} {
+			opts := CheckpointOptions{Path: filepath.Join(t.TempDir(), "checkpoint"), Interval: time.Hour, Resume: resume}
+			opts.Options.Loader = func(context.Context, string) (string, error) {
+				return "---- MODULE A ----\n\\* " + string([]byte{b}) + "\n====", nil
+			}
+			_, err := CheckWithCheckpoint(context.Background(), source, cfg, opts)
+			if err == nil || !strings.Contains(err.Error(), "invalid UTF-8") {
+				t.Fatalf("resume=%v byte=%x: %v", resume, b, err)
+			}
+		}
+	}
+}
+
+func TestCheckpointLegacyUTF8Identity(t *testing.T) {
+	source := "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n\\* 日本語\n===="
+	cfgText := "INIT Init NEXT Next CHECK_DEADLOCK FALSE"
+	cfg, err := config.Parse(cfgText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Recreate the v1 identity independently using the original JSON layout.
+	modelBytes, err := json.Marshal(struct {
+		Version, Root string
+		Sources       []checkpointSource
+	}{checkpointIdentityVersion, "M", []checkpointSource{{"M", source}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	configBytes, err := json.Marshal(struct {
+		Version, Source string
+		Effective       config.Config
+		Options         checkpointIdentityOptions
+	}{checkpointIdentityVersion, cfgText, cfg, checkpointIdentityOptions{MaxSetSize: evaluator.DefaultSetBound, Workers: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := checkpointIdentity{Model: sha256.Sum256(modelBytes), Config: sha256.Sum256(configBytes)}
+	m, err := prepareCheckpointModel(context.Background(), source, cfgText, cfg, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *m.checkpointIdentity != legacy {
+		t.Fatal("valid UTF-8 identity changed")
+	}
+	s := pauseSearch(t, m, 0)
+	snapshot, err := s.checkpoint(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot.ObservationLog = true
+	path := filepath.Join(t.TempDir(), "legacy")
+	if err := checkpointWrite(path, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CheckWithCheckpoint(context.Background(), source, cfgText, CheckpointOptions{Path: path, Resume: true}); err != nil {
+		t.Fatalf("legacy recovery: %v", err)
 	}
 }
 
