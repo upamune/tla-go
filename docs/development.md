@@ -109,7 +109,7 @@ For supported reduced tableau checks, `-debug-liveness` emits `tableau-node` eve
 
 For recorder investigations, set `TLA_GO_DEBUG_RECORDER` to a new file path
 when running one model in `-tool` breadth-first model-checking mode. The file
-is created exclusively with mode 0600. Metadata, version, and help modes
+is created exclusively with mode 0600. Translation, metadata, version, and help modes
 reject the variable without creating a file. Its JSON lines start with a version 1
 header marking the stream incomplete, followed by selected observations in
 emission order. Currently these are state statistics (2199) and the finish

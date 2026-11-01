@@ -16,6 +16,8 @@ type recorderConfig struct {
 	file *profileFile
 }
 
+const recorderModeError = "TLA_GO_DEBUG_RECORDER requires one model in tool model-checking mode"
+
 func startRecorderOutput(file *profileFile) error {
 	if file == nil {
 		return nil
@@ -33,7 +35,7 @@ func configureRecorder(opts *options) error {
 	}
 	opts.recorder = &recorderConfig{path: path}
 	if !recorderModelCheckMode(*opts) {
-		return fmt.Errorf("TLA_GO_DEBUG_RECORDER requires one model in tool model-checking mode")
+		return fmt.Errorf("%s", recorderModeError)
 	}
 	paths, err := expandModelPaths(opts.paths, opts.configPath != "")
 	if err != nil {

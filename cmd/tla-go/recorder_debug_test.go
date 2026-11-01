@@ -166,6 +166,61 @@ func TestRecorderDebugRejectsNonModelModes(t *testing.T) {
 	}
 }
 
+func TestRecorderDebugRejectsTranslationBeforeWriting(t *testing.T) {
+	dir := t.TempDir()
+	input := filepath.Join("..", "..", "pcal", "testdata", "upstream", "tlatools", "org.lamport.tlatools", "test-model", "pcal", "CallReturn1.tla")
+	source, err := os.ReadFile(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	translation := bytes.Index(source, []byte(`\* BEGIN TRANSLATION`))
+	if translation < 0 {
+		t.Fatal("upstream fixture has no translation marker")
+	}
+	source = append(bytes.Clone(source[:translation]), []byte("====\n")...)
+	spec := filepath.Join(dir, "CallReturn1.tla")
+	old := filepath.Join(dir, "CallReturn1.old")
+	cfg := filepath.Join(dir, "CallReturn1.cfg")
+	recorder := filepath.Join(dir, "recorder.jsonl")
+	for name, data := range map[string][]byte{spec: source, old: []byte("old sentinel"), cfg: []byte("config sentinel")} {
+		if err := os.WriteFile(name, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	args := []string{"-translate", "-unixEOL", "-wf", "-termination", spec}
+	t.Setenv("TLA_GO_DEBUG_RECORDER", recorder)
+	var out, errout bytes.Buffer
+	if code := run(context.Background(), args, &out, &errout); code != 255 || out.Len() != 0 || !strings.Contains(errout.String(), recorderModeError) {
+		t.Fatalf("debug translation exit=%d stdout=%s stderr=%s", code, &out, &errout)
+	}
+	for name, want := range map[string][]byte{spec: source, old: []byte("old sentinel"), cfg: []byte("config sentinel")} {
+		got, err := os.ReadFile(name)
+		if err != nil || !bytes.Equal(got, want) {
+			t.Fatalf("debug translation changed %s: %v", name, err)
+		}
+	}
+	if _, err := os.Lstat(recorder); !os.IsNotExist(err) {
+		t.Fatalf("debug translation created recorder output: %v", err)
+	}
+	t.Setenv("TLA_GO_DEBUG_RECORDER", "")
+	out.Reset()
+	errout.Reset()
+	if code := run(context.Background(), args, &out, &errout); code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), "Translation completed.") {
+		t.Fatalf("ordinary translation exit=%d stdout=%s stderr=%s", code, &out, &errout)
+	}
+	translated, err := os.ReadFile(spec)
+	if err != nil || bytes.Equal(translated, source) {
+		t.Fatalf("ordinary translation did not update spec: %v", err)
+	}
+	backup, err := os.ReadFile(old)
+	if err != nil || !bytes.Equal(backup, source) {
+		t.Fatalf("ordinary translation did not save original: %v", err)
+	}
+	if _, err := os.Lstat(recorder); !os.IsNotExist(err) {
+		t.Fatalf("ordinary translation created recorder output: %v", err)
+	}
+}
+
 func TestJavaTLCRecorderDebugParallel(t *testing.T) {
 	dir := t.TempDir()
 	model := filepath.Join(dir, "M.tla")
