@@ -21,7 +21,31 @@ func checkpointFixture() checkpointSnapshot {
 	return checkpointSnapshot{
 		Identity: checkpointIdentity{Model: sha256.Sum256([]byte("model")), Config: sha256.Sum256([]byte("config"))}, Head: 1,
 		Nodes:   []checkpointNode{{State: evaluator.State{"x": n, "b": value.Bool(false)}, Parent: -1, Depth: 1}, {State: evaluator.State{"x": n, "b": value.Bool(true)}, Parent: 0, Action: "Next", ActionRange: parser.Range{Module: "M", Start: parser.Position{Line: 2, Column: 3}, End: parser.Position{Line: 2, Column: 9}}, Depth: 2}},
-		Visited: map[string]bool{"\xff\x00": true, "second": true}, Counters: checkpointCounters{Generated: 4, Distinct: 2, Queued: 1, Depth: 2, Initial: 1, OutDegrees: [32]int{1, 2}},
+		Visited: map[string]bool{"\xff\x00": true, "second": true}, Counters: checkpointCounters{Generated: 4, Distinct: 2, Queued: 1, Depth: 2, Initial: 1, OutDegrees: [32]int{0, 1}},
+	}
+}
+
+func TestCheckpointRejectsImpossibleExpansionBoundary(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*checkpointSnapshot)
+	}{
+		{"unexpanded parent", func(s *checkpointSnapshot) { s.Head = 0; s.Counters.Queued = 2; s.Counters.OutDegrees = [32]int{} }},
+		{"missing outdegree sample", func(s *checkpointSnapshot) { s.Counters.OutDegrees = [32]int{} }},
+		{"extra outdegree sample", func(s *checkpointSnapshot) { s.Counters.OutDegrees[0]++ }},
+		{"too few generated", func(s *checkpointSnapshot) { s.Counters.Generated = 1 }},
+		{"wrong depth", func(s *checkpointSnapshot) { s.Counters.Depth = 3 }},
+		{"depth below deepest node", func(s *checkpointSnapshot) { s.Counters.Depth = 1 }},
+		{"too few initial", func(s *checkpointSnapshot) { s.Counters.Initial = 0 }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := checkpointFixture()
+			tc.mutate(&s)
+			if _, err := checkpointEncode(s); err == nil {
+				t.Fatal("accepted impossible expansion boundary")
+			}
+		})
 	}
 }
 
@@ -49,6 +73,75 @@ func TestCheckpointRoundTrip(t *testing.T) {
 	got, err = checkpointRead(path, s.Identity)
 	if err != nil || !reflect.DeepEqual(got, s) {
 		t.Fatalf("file round trip: %v", err)
+	}
+}
+
+func TestCheckpointEmptySearchDepth(t *testing.T) {
+	identity := checkpointFixture().Identity
+	for _, tc := range []struct {
+		name             string
+		generated, depth int
+		valid            bool
+	}{
+		{"before initial generation", 0, 0, true},
+		{"completed without initial states", 0, 1, true},
+		{"excluded initial states", 1, 1, true},
+		{"generated at depth zero", 1, 0, false},
+		{"negative depth", 0, -1, false},
+		{"depth beyond initial level", 0, 2, false},
+		{"excluded states beyond initial level", 1, 2, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := checkpointSnapshot{Identity: identity, Nodes: []checkpointNode{}, Visited: map[string]bool{}, Counters: checkpointCounters{Generated: tc.generated, Initial: tc.generated, Depth: tc.depth}}
+			data, err := checkpointEncode(s)
+			if !tc.valid {
+				if err == nil {
+					t.Fatal("accepted invalid depth")
+				}
+				if _, err := checkpointFromWire(checkpointWire{Identity: identity, Counters: s.Counters}); err == nil {
+					t.Fatal("decoded invalid depth")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := checkpointDecode(data, identity)
+			if err != nil || !reflect.DeepEqual(got, s) {
+				t.Fatalf("round trip: got %+v, error %v; want %+v", got, err, s)
+			}
+		})
+	}
+}
+
+func TestCheckpointEmptySearchCheckerEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		name, init, constraint string
+		generated              int
+	}{
+		{"no initial states", `x \in {}`, "", 0},
+		{"excluded initial state", "x = 0", "CONSTRAINT Exclude", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---- MODULE M ----\nVARIABLE x\nInit == " + tc.init + "\nNext == UNCHANGED x\nExclude == x # 0\n====\n"
+			cfg := "INIT Init NEXT Next " + tc.constraint + " CHECK_DEADLOCK FALSE\n"
+			result, err := Check(source, cfg)
+			if err != nil || result.Status != Success || result.GeneratedStates != tc.generated || result.DistinctStates != 0 || result.QueuedStates != 0 || result.Depth != 1 {
+				t.Fatalf("checker: %+v, %v", result, err)
+			}
+			s := checkpointSnapshot{Identity: checkpointFixture().Identity, Nodes: []checkpointNode{}, Visited: map[string]bool{}, Counters: checkpointCounters{Generated: result.GeneratedStates, Initial: tc.generated, Depth: result.Depth}}
+			data, err := checkpointEncode(s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := checkpointDecode(data, s.Identity)
+			if err != nil || !reflect.DeepEqual(got, s) {
+				t.Fatalf("round trip: got %+v, error %v; want %+v", got, err, s)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				compareJavaTLCModel(t, jar, "M", []byte(source), []byte(cfg), tc.generated, 0, 1)
+			}
+		})
 	}
 }
 

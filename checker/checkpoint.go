@@ -232,10 +232,43 @@ func validateCheckpoint(s checkpointSnapshot) error {
 	if err := validateCheckpointVisited(s.Visited); err != nil {
 		return err
 	}
+	return validateCheckpointNodes(s)
+}
+
+func validateCheckpointNodes(s checkpointSnapshot) error {
+	roots, depth, lastParent := 0, 0, -1
 	for i, n := range s.Nodes {
 		if err := validateCheckpointNode(s.Nodes, i, n); err != nil {
 			return err
 		}
+		if err := validateCheckpointParent(n.Parent, lastParent, s.Head); err != nil {
+			return err
+		}
+		if n.Parent < 0 {
+			roots++
+		} else {
+			lastParent = n.Parent
+		}
+		depth = max(depth, n.Depth)
+	}
+	// An empty search starts at depth zero. Visiting even an excluded initial
+	// state or finishing successfully without initial states reports depth one.
+	if roots > s.Counters.Initial || !validCheckpointDepth(s, depth) {
+		return fmt.Errorf("invalid checkpoint depth or initial count")
+	}
+	return nil
+}
+
+func validCheckpointDepth(s checkpointSnapshot, depth int) bool {
+	if len(s.Nodes) == 0 {
+		return s.Counters.Depth == 1 || s.Counters.Depth == 0 && s.Counters.Generated == 0
+	}
+	return depth == s.Counters.Depth
+}
+
+func validateCheckpointParent(parent, lastParent, head int) error {
+	if parent < lastParent || parent >= head {
+		return fmt.Errorf("invalid breadth-first parent order")
 	}
 	return nil
 }
@@ -265,16 +298,34 @@ func validateCheckpointVisited(visited map[string]bool) error {
 
 func validateCheckpointCounters(s checkpointSnapshot) error {
 	c := s.Counters
-	if c.Generated < 0 || c.Initial < 0 || c.Depth < 0 {
+	if c.Generated < c.Distinct || c.Initial < 0 || c.Initial > c.Generated || c.Depth < 0 {
 		return fmt.Errorf("invalid checkpoint counters")
 	}
 	if c.Distinct != len(s.Nodes) || c.Queued != len(s.Nodes)-s.Head || len(s.Visited) != len(s.Nodes) {
 		return fmt.Errorf("invalid checkpoint counters")
 	}
-	return validateCheckpointOutDegrees(c.OutDegrees)
+	return validateCheckpointOutDegrees(c.OutDegrees, s.Head)
 }
 
-func validateCheckpointOutDegrees(counts [32]int) error {
+func validateCheckpointOutDegrees(counts [32]int, head int) error {
+	if err := validateCheckpointNonnegativeOutDegrees(counts); err != nil {
+		return err
+	}
+	// A completed expansion contributes exactly one outdegree sample.
+	samples := 0
+	for _, count := range counts {
+		if count > head-samples {
+			return fmt.Errorf("invalid checkpoint outdegree count")
+		}
+		samples += count
+	}
+	if samples != head {
+		return fmt.Errorf("invalid checkpoint outdegree count")
+	}
+	return nil
+}
+
+func validateCheckpointNonnegativeOutDegrees(counts [32]int) error {
 	for _, count := range counts {
 		if count < 0 {
 			return fmt.Errorf("invalid outdegree")
