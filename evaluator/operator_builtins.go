@@ -101,7 +101,11 @@ func (e *evaluator) invokeCoreBuiltin(name string, args []value.Value) (value.Va
 	case 1:
 		result, err = unary(name, args[0])
 	case 2:
-		result, err = operatorBinary(name, args[0], args[1], e.naturals && !e.integers)
+		if name == "\\cap" {
+			result, err = value.SetOperationBounded(name, args[0], args[1], e.program.checkSetSize64)
+		} else {
+			result, err = operatorBinary(name, args[0], args[1], e.naturals && !e.integers)
+		}
 	default:
 		return value.Value{}, fmt.Errorf("unsupported operator %s", name)
 	}

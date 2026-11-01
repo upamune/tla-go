@@ -45,7 +45,11 @@ func (p *Program) setLimit() int {
 }
 
 func (p *Program) checkSetSize(count int) error {
-	if count <= p.setLimit() {
+	return p.checkSetSize64(int64(count))
+}
+
+func (p *Program) checkSetSize64(count int64) error {
+	if count <= int64(p.setLimit()) {
 		return nil
 	}
 	message := fmt.Sprintf("Attempted to construct a set with too many elements (>%d).", p.bound())

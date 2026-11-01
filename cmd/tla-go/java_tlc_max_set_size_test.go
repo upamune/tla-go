@@ -20,6 +20,8 @@ func TestJavaTLCMaxSetSize(t *testing.T) {
 		name, body, cfg, bound string
 		code                   int
 	}{
+		{"power set exceeds bound", "Init == x = SUBSET (1..4)\nNext == UNCHANGED x", "", "10", 0},
+		{"nested power set exceeds bound", "Init == x = [a |-> SUBSET (1..4)]\nNext == UNCHANGED x", "", "10", 0},
 		{"initial filter", "Init == x \\in {i \\in 1..20 : TRUE}\nNext == UNCHANGED x", "", "10", 75},
 		{"successor map", "Init == x = 0\nNext == x' \\in {i * 2 : i \\in 1..20}", "", "12", 75},
 		{"at bound", "Init == x = 0\nNext == x' \\in {i * 2 : i \\in 1..12}", "", "12", 0},
@@ -35,6 +37,10 @@ func TestJavaTLCMaxSetSize(t *testing.T) {
 		{"union membership error", "Init == x = Cardinality((1..20) \\cup {\"a\"})\nNext == UNCHANGED x", "", "10", 75},
 		{"successor union", "Init == x = 0\nNext == x' \\in (1..20) \\cup {0}", "", "10", 75},
 		{"difference", "Init == x \\in (1..20) \\ {0}\nNext == UNCHANGED x", "", "10", 75},
+		{"intersection below", "Init == x = Cardinality((1..9) \\cap (1..9))\nNext == UNCHANGED x", "", "10", 0},
+		{"intersection at", "Init == x = Cardinality((1..10) \\cap (1..10))\nNext == UNCHANGED x", "", "10", 0},
+		{"intersection above", "Init == x = Cardinality((1..11) \\cap (1..11))\nNext == UNCHANGED x", "", "10", 75},
+		{"intersection huge", "Init == x = Cardinality((1..2147483647) \\cap (1..2147483647))\nNext == UNCHANGED x", "", "10", 75},
 		{"intersection", "Init == x \\in (1..20) \\cap (0..30)\nNext == UNCHANGED x", "", "10", 75},
 		{"deferred union", "Init == x \\in [1..1 -> 1..6] \\cup [1..1 -> 7..11]\nNext == UNCHANGED x", "", "10", 0},
 		{"enumerated UNION", "Init == x \\in UNION {{1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11}}\nNext == UNCHANGED x", "", "10", 75},

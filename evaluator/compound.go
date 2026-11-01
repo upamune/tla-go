@@ -143,7 +143,7 @@ func (e *evaluator) builtinByArity(expr *parser.Expression) (value.Value, error)
 
 func (e *evaluator) binaryWithSource(expr *parser.Expression, left, right value.Value) (value.Value, error) {
 	if expr.Text == "\\cap" {
-		return value.SetOperationWithSource(expr.Text, left, right, expr)
+		return value.SetOperationWithSourceBounded(expr.Text, left, right, expr, e.program.checkSetSize64)
 	}
 	result, err := comparisonCheckedBinary(expr.Text, left, right, e.naturals && !e.integers)
 	if err != nil && expr.Text == "<=>" {
