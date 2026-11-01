@@ -396,7 +396,38 @@ unresolved setup. These are not JUnit pass counts. Timing, nondeterminism and
 the unfinished harness mean the count changes do not establish an improvement
 or regression.
 
-The extractor recognizes only the three documented source hashes and associates
+The [`testdata/snapshots/sweep-9f581626.json`](testdata/snapshots/sweep-9f581626.json)
+records the completed opt-in run from `/tmp/tla-9f58162-diagnostic-sweep.log`,
+using detached source and binary revision `9f5816269083eb7c9d44e5477695e95e6bf68059`,
+upstream `5a47802b` and Java TLC 1.7.4. The exact source log SHA-256 is
+`e548e0fba387f59c1278069d2bb0bcd7196475e36a6049003336d2616bb13000`.
+While the ephemeral log is available, verify the deterministic bytes with:
+
+```sh
+go run ./internal/upstreamjunit/cmd/snapshot /tmp/tla-9f58162-diagnostic-sweep.log > snapshot.json
+cmp snapshot.json internal/upstreamjunit/testdata/snapshots/sweep-9f581626.json
+```
+
+The regeneration test uses that path by default, or `TLA_GO_9F58162_SWEEP_LOG`
+when set; it skips if the default log is absent. Of 340 unresolved candidates,
+309 were attempted and 31 had unsafe or unresolved setup. The attempts yielded
+295 comparisons: 256 with no selected differences and 39 with selected
+differences; 14 were unavailable. This is an incomplete diagnostic harness,
+not JUnit pass counts. Timing and nondeterminism prevent these counts from
+establishing an improvement or regression, including against the e81 run.
+
+Only two structured class records differ from e81. `pcal.SimpleMultiProcTest`
+timed out on Go in e81 but completed with no selected differences here; its
+PlusCal translation and liveness assertions remain unresolved. A targeted
+follow-up is to repeat that model with the same translation flags (`-wf
+-termination`) and pinned binaries, recording timeouts and selected outputs.
+`tlc2.tool.ContinueTest` reported `dump:content` in e81 but no selected
+difference here; both runs use `-continue` and three workers. The sweep compares
+DOT bytes, and does not preserve the differing dump in the snapshot. Repeat
+the model with pinned binaries and capture both dumps across runs to determine
+whether ordering or graph content differs before attributing this change to code.
+
+The extractor recognizes only the four documented source hashes and associates
 each with its recorded binary revision; the logs themselves do not establish
 the binary revision. Unknown or modified logs are rejected.
 

@@ -60,6 +60,8 @@ func commitForSourceHash(hash string) (string, error) {
 		return "56336d54f659dbb744aff66ffa8e653a6117c06a", nil
 	case "65e957a50c1a58779f5982458ca42adb3d4ed16e0884229dd7bbe752aa298765":
 		return "e81f221f7ba59b833244e7613bd149f836532c86", nil
+	case "e548e0fba387f59c1278069d2bb0bcd7196475e36a6049003336d2616bb13000":
+		return "9f5816269083eb7c9d44e5477695e95e6bf68059", nil
 	default:
 		return "", fmt.Errorf("unexpected source log SHA-256: %s", hash)
 	}
