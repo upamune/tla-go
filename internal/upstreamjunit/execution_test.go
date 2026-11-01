@@ -565,6 +565,7 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	checkBridgeLifecycle(t, classes, deps, runDir, "GoEmptyTest", "EmptyTest.java:48", emptyRecords, emptyResult.ExitCode)
 	checkOriginalEmptySetup(t, classes, deps, runDir, binary, filepath.Join(temp, "go"))
+	checkOriginalCoverageSetup(t, classes, deps, runDir, binary, filepath.Join(temp, "go", "coverage"))
 	checkOriginalEmptyFullRecorder(t, root, classes, deps, runDir, binary, filepath.Join(temp, "go"))
 	checkBridgeBCoverage(t, binary, filepath.Join(temp, "go", "coverage"), classes, deps, runDir, runBridge)
 	checkCoverageStatisticsBridge(t, binary, filepath.Join(temp, "go", "coverage"), classes, deps, runDir, runBridge)

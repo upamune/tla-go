@@ -639,6 +639,27 @@ list forward and `bridgeVerdict` rejects a pass even when the original
 assertions return successfully. This adapter accepts only the verified
 `EmptyTest` argument list; expanding it requires new case-specific evidence.
 
+### Original B and G coverage setup with a TLC adapter
+
+The opt-in execution also selects the original `BCoverageTest` and
+`GCoverageTest` classes. Their own inherited `@Before` installs the upstream
+recorder and constructs its arguments before the adapter starts tla-go. The
+adapter accepts only the exact B and G argument lists, verifies the original
+liveness threshold, cleanup veto and model directory, then loads typed Go
+observations into that original recorder. The original coverage assertions and
+`@After` exit check run on those observations. Controls alter and remove
+coverage records or supply an unsuccessful error code; these must trigger the
+original assertions. Separate argument controls reject other specs, dump paths,
+worker counts, missing arguments and unsupported targets.
+
+The Go invocation adds `-tool` for the partial recorder diagnostics, and
+`projectBridge` cross-checks those calls against its output. It preserves the
+original `${metadir}` dump argument and disables checkpoints as requested by
+upstream. The adapter cannot reproduce Java TLC itself, complete recorder
+calls, Java fingerprint files, cleanup veto, or all side effects. Consequently
+the omissions are retained and an assertion success is **not** counted as an
+upstream Go JUnit pass.
+
 ### Liveness recorder observations
 
 For supported final model-checking progress events, the opt-in Go recorder
