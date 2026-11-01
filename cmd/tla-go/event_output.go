@@ -85,7 +85,24 @@ func coordinateCallbacks(checkOpts *checker.Options, opts options, module *parse
 	checkOpts.OnTemporalCheck = func(result checker.Result) {
 		c.render(func(w io.Writer) { temporalCheckOutput(opts, w)(result) })
 	}
+	checkOpts.OnFailureHeader = func(failure checker.Failure) {
+		c.render(func(w io.Writer) { failureHeaderOutput(opts, module, w)(failure) })
+	}
 	return c
+}
+
+func failureHeaderOutput(opts options, module *parser.Module, out io.Writer) func(checker.Failure) {
+	return func(failure checker.Failure) {
+		result := newTraceStyle(opts).apply(checker.Result{Failure: &failure})
+		if !opts.tool {
+			printFailure(out, result.Failure, module)
+			return
+		}
+		t := toolOutput{out: out}
+		if !printToolInitialFailure(t, result.Failure) {
+			printToolFailureHeader(t, result.Failure)
+		}
+	}
 }
 
 func temporalViolationOutput(opts options, module *parser.Module, out io.Writer) func(checker.Result) {

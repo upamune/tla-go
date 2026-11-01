@@ -55,3 +55,13 @@ func TestSubsetIterationDoesNotAttributeVisitorFailure(t *testing.T) {
 		t.Fatalf("visitor error changed: %v", err)
 	}
 }
+
+func TestIntervalFingerprintPreservesOrderingError(t *testing.T) {
+	want := errors.New("ordering failed")
+	_, err := TLCFingerprintWithOrdering([]Value{Interval(1, 2)}, nil, func(Value, Value) (int, error) {
+		return 0, want
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("fingerprint error = %v", err)
+	}
+}

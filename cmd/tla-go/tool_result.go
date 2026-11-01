@@ -20,7 +20,7 @@ func printToolTemporalHeadline(t toolOutput) {
 }
 
 func printToolFailureAfterStart(t toolOutput, failure *checker.Failure, module *parser.Module, started bool) {
-	if printToolInitialFailure(t, failure) {
+	if printToolEarlyFailure(t, failure) {
 		return
 	}
 	if failure.TemporalViolation {
@@ -39,6 +39,21 @@ func printToolFailureAfterStart(t toolOutput, failure *checker.Failure, module *
 		t.message(2121, 1, "The behavior up to this point is:")
 		printToolTrace(t, failure.Trace, module)
 	}
+	if failure.FingerprintDetail != "" {
+		printToolFingerprintDetail(t, failure)
+	}
+	printToolEvaluationDetail(t, failure)
+}
+
+func printToolEarlyFailure(t toolOutput, failure *checker.Failure) bool {
+	if failure.HeaderReported {
+		printToolReplayDetail(t, failure)
+		return true
+	}
+	return printToolInitialFailure(t, failure)
+}
+
+func printToolReplayDetail(t toolOutput, failure *checker.Failure) {
 	if failure.FingerprintDetail != "" {
 		printToolFingerprintDetail(t, failure)
 	}
@@ -73,7 +88,7 @@ func printToolInitialEvaluationFailure(t toolOutput, failure *checker.Failure) b
 }
 
 func printToolInitialConstraintFailure(t toolOutput, failure *checker.Failure) bool {
-	if failure.ToolCode != 2102 || failure.InitialState == nil || (failure.NestedToolCode != 2215 && failure.NestedToolCode != 2154) {
+	if failure.ToolCode != 2102 || failure.InitialState == nil || failure.NestedToolCode == 0 {
 		return false
 	}
 	printToolInitialNestedFailure(t, failure, failure.NestedToolCode, failure.NestedMessage)

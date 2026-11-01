@@ -57,12 +57,11 @@ report and exits 255 without statistics. With `-terse`, the UNION prints
 symbolically and Java instead reports the initial state and fingerprint stack
 with exit 75. A successor fingerprint failure also exits 75. Go follows those
 paths for the tested initial and successor states, including the exact-key and
-FP64 checker paths. For nested records and tuples, the parent record or tuple
-source is not yet retained, so the Go fingerprint stack can lack the outer
-frame. A failing VIEW also still reports a different evaluation stack.
-An operator-argument UNION does not yet retain the call-site source, so its
-fingerprint error may lack a source stack even though the initial-state exit
-and rendering failure are handled as above.
+FP64 checker paths. Nested record and tuple expressions now retain their
+fingerprint source frames, and a UNION passed as an operator argument retains
+its application location. These paths are compared with Java for the tested
+initial and successor failures; other container and operator forms need their
+own comparisons.
 
 These matching exit codes do not imply matching side effects. With `-terse`,
 putting `UNION {i \in 1..3 : PrintT(i)}` in an initial or successor state
@@ -74,14 +73,19 @@ Java exits 75 and Go exits 255, both before and after that change. Java's
 be enumerated. By contrast, the tested `UNION {Nat}`, `UNION {Int}`, and
 `UNION {STRING}` errors match in normal and terse output.
 
-For an initial VIEW `V == IF x = 0 THEN UNION {1} ELSE {}`, Java reports
-messages 2102, 2103, and 2199 with exit 75; Go reports 2102, 2147, and 2199
-with the same exit code. With a source-less VIEW, Go omits both 2103 and 2147.
-For a successor VIEW `V == IF x = 0 THEN 0 ELSE UNION {1}` and
-`Next == x' = x + 1`, Java reports 1000, 2103, and 2199; Go substitutes 2147
-for 2103, both exiting 75. The tested VIEW containing `Cardinality` and the
-state-constraint case match; these observations do not establish general VIEW
-compatibility.
+For an initial VIEW `V == IF x = 0 THEN UNION {1} ELSE {}`, Java and Go now
+report 2102, 2103, and 2199 with exit 75. For a successor VIEW
+`V == IF x = 0 THEN 0 ELSE UNION {1}` and `Next == x' = x + 1`, both report
+1000, 2103, and 2199. TLC evaluates values constructed in a VIEW with its
+FastTool even during replay, but a value reused from the state can have a
+CallStackTool source and report 2147 instead. Tested direct, nested, higher
+order, constant and lazy-function cases cover both paths. Replay also matters
+when `TLCSet` makes a previously failing VIEW succeed: Java can return exit 0
+after an initial-state failure or 255 after a successor failure. These specific
+cases now match, including state counts and the order of error headers and
+`PrintT` output. Other VIEW and replay combinations remain incomplete. In
+particular, `TLCGet("level")` during ordinary VIEW evaluation can differ;
+the tested replay itself reads level zero in both implementations.
 
 An experimental implementation counted deferred UNION and set-operation
 elements before deduplication and stopped at the bound. It correctly handled

@@ -264,6 +264,7 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 	checkOptions.OnWarning = configuredWarningOutput(opts, out)
 	checkOptions.OnTemporalViolation = temporalViolationOutput(opts, module, out)
 	checkOptions.OnTemporalCheck = temporalCheckOutput(opts, out)
+	checkOptions.OnFailureHeader = failureHeaderOutput(opts, module, out)
 	var coordinator *coordinatedEventOutput
 	periodicEligible := periodicCoverageEligible(opts, out, errout)
 	if coordinateEventOutput(opts.coverageInterval, out) || periodicEligible {

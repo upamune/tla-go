@@ -52,6 +52,12 @@ type unionKeyError struct{ cause error }
 func (e *unionKeyError) Error() string { return e.cause.Error() }
 func (e *unionKeyError) Unwrap() error { return e.cause }
 
+// VIEW values are evaluated by TLC's fast tool even during error replay.
+type viewKeyError struct{ cause error }
+
+func (e *viewKeyError) Error() string { return e.cause.Error() }
+func (e *viewKeyError) Unwrap() error { return e.cause }
+
 func (s *search) boundedProduct(state evaluator.State, parent int, inModel bool) bool {
 	m := s.model
 	return inModel && m.supportsBoundedProduct(parent) && len(m.names) == 1 && state[m.names[0]].Kind() == value.ProductSetKind
@@ -133,7 +139,7 @@ func (m *model) reduceStateIn(state, scratch evaluator.State) (reducedState, err
 	if err != nil {
 		return reducedState{}, err
 	}
-	v, err := m.eval(expr, state, nil)
+	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: m.enabledCallback, WithoutValueSource: true})
 	return reducedState{state: state, view: v, hasView: true}, err
 }
 
@@ -142,11 +148,15 @@ func (m *model) reducedKey(reduced reducedState) (string, error) {
 		return m.unreducedStateKey(reduced.state)
 	}
 	if !m.tlcFingerprint {
-		return reduced.view.Key()
+		key, err := reduced.view.Key()
+		if err != nil {
+			return "", &viewKeyError{cause: err}
+		}
+		return key, nil
 	}
 	fingerprint, err := m.fingerprintAlgorithm.Fingerprint([]value.Value{reduced.view}, nil, nil)
 	if err != nil {
-		return "", err
+		return "", &viewKeyError{cause: err}
 	}
 	return strconv.FormatUint(fingerprint, 16), nil
 }

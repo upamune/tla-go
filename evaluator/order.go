@@ -3,6 +3,7 @@ package evaluator
 import (
 	"slices"
 
+	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
 )
 
@@ -44,8 +45,12 @@ func (e *evaluator) orderSetResult(op string, v value.Value) (value.Value, error
 }
 
 func (e *evaluator) orderedRecord(pairs []value.Pair) (value.Value, error) {
+	return e.orderedRecordWithSource(pairs, nil)
+}
+
+func (e *evaluator) orderedRecordWithSource(pairs []value.Pair, source *parser.Expression) (value.Value, error) {
 	if e.program.ordering == nil {
-		return value.Record(pairs)
+		return value.RecordWithSource(pairs, source)
 	}
 	var failure error
 	slices.SortStableFunc(pairs, func(a, b value.Pair) int {
@@ -63,7 +68,7 @@ func (e *evaluator) orderedRecord(pairs []value.Pair) (value.Value, error) {
 	for i, pair := range pairs {
 		names[i], _ = pair.Key.Text()
 	}
-	return value.FunctionWithFieldOrder(pairs, names)
+	return value.FunctionWithFieldOrderAndSource(pairs, names, source)
 }
 
 func (e *evaluator) orderedPairs(v value.Value) ([]value.Pair, error) {

@@ -16,7 +16,7 @@ func (e *evaluator) setConstructor(expr *parser.Expression) (value.Value, error)
 		if err != nil {
 			return value.Value{}, err
 		}
-		return value.ProductSetWithSource(factors, expr)
+		return value.ProductSetWithSource(factors, e.valueSource(expr))
 	}
 }
 

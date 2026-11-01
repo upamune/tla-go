@@ -30,7 +30,7 @@ func (e *evaluator) apply(expr *parser.Expression) (value.Value, error) {
 	}
 	if e.hasOperators {
 		if op, ok := e.findOperator(expr.Text); ok {
-			return e.applyOperator(op, expr.Args)
+			return e.applyOperator(op, expr)
 		}
 	}
 	if expr.Text == "=>" {
@@ -58,7 +58,8 @@ func (e *evaluator) markedBuiltin(expr *parser.Expression) (value.Value, error) 
 	return e.applyStandardBuiltin(expr)
 }
 
-func (e *evaluator) applyOperator(op operatorRef, expressions []*parser.Expression) (value.Value, error) {
+func (e *evaluator) applyOperator(op operatorRef, expr *parser.Expression) (value.Value, error) {
+	expressions := expr.Args
 	if op.definition != nil {
 		return e.applyDefinition(*op.definition, expressions, op.scope)
 	}
@@ -71,6 +72,17 @@ func (e *evaluator) applyOperator(op operatorRef, expressions []*parser.Expressi
 	args, err := e.evalArgs(expressions)
 	if err != nil {
 		return value.Value{}, err
+	}
+	return e.invokeOperatorWithSource(op, args, expr)
+}
+
+func (e *evaluator) invokeOperatorWithSource(op operatorRef, args []value.Value, expr *parser.Expression) (value.Value, error) {
+	if op.name == "UNION" && op.arity == 1 && len(args) == 1 {
+		result, err := value.UnionWithSource(args[0], e.valueSource(expr))
+		if err != nil {
+			return value.Value{}, err
+		}
+		return result, e.program.checkBuiltinSetSize(op.name, args, result)
 	}
 	return e.invokeOperator(op, args)
 }
@@ -143,7 +155,7 @@ func (e *evaluator) builtinByArity(expr *parser.Expression) (value.Value, error)
 
 func (e *evaluator) binaryWithSource(expr *parser.Expression, left, right value.Value) (value.Value, error) {
 	if expr.Text == "\\cap" {
-		return value.SetOperationWithSourceBounded(expr.Text, left, right, expr, e.program.checkSetSize64)
+		return value.SetOperationWithSourceBounded(expr.Text, left, right, e.valueSource(expr), e.program.checkSetSize64)
 	}
 	result, err := comparisonCheckedBinary(expr.Text, left, right, e.naturals && !e.integers)
 	if err != nil && expr.Text == "<=>" {
@@ -161,10 +173,10 @@ func (e *evaluator) unaryBuiltin(expr *parser.Expression) (value.Value, error) {
 		return value.Value{}, err
 	}
 	if expr.Text == "SUBSET" {
-		return value.SubsetsWithSource(v, expr)
+		return value.SubsetsWithSource(v, e.valueSource(expr))
 	}
 	if expr.Text == "UNION" {
-		result, err := value.UnionWithSource(v, expr)
+		result, err := value.UnionWithSource(v, e.valueSource(expr))
 		if err == nil {
 			err = e.program.checkUnion(v, result)
 		}
@@ -320,16 +332,23 @@ func (e *evaluator) set(expr *parser.Expression) (value.Value, error) {
 	if err != nil {
 		return value.Value{}, err
 	}
-	v, err := value.SetUnnormalizedWithSource(values, expr)
+	v, err := value.SetUnnormalizedWithSource(values, e.valueSource(expr))
 	return e.orderNewSet(v, values, err)
 }
 
-func (e *evaluator) tuple(args []*parser.Expression) (value.Value, error) {
-	values, err := e.evalArgs(args)
+func (e *evaluator) valueSource(expr *parser.Expression) *parser.Expression {
+	if e.context.WithoutValueSource {
+		return nil
+	}
+	return expr
+}
+
+func (e *evaluator) tuple(expr *parser.Expression) (value.Value, error) {
+	values, err := e.evalArgs(expr.Args)
 	if err != nil {
 		return value.Value{}, err
 	}
-	return value.Tuple(values)
+	return value.TupleWithSource(values, e.valueSource(expr))
 }
 
 func (e *evaluator) record(expr *parser.Expression) (value.Value, error) {
@@ -341,7 +360,7 @@ func (e *evaluator) record(expr *parser.Expression) (value.Value, error) {
 		}
 		pairs = append(pairs, value.Pair{Key: e.program.literal(field.Name), Value: v})
 	}
-	return e.orderedRecord(pairs)
+	return e.orderedRecordWithSource(pairs, e.valueSource(expr))
 }
 
 func (e *evaluator) functionApplication(expr *parser.Expression) (value.Value, error) {

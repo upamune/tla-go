@@ -128,7 +128,7 @@ func (v Value) setKey(b *keyWriter) error {
 	writeInt(b, int64(len(v.data.elements)))
 	for _, element := range v.data.elements {
 		if err := element.appendKey(b); err != nil {
-			return err
+			return v.withFingerprintSource(err)
 		}
 	}
 	return nil
@@ -162,10 +162,10 @@ func (v Value) functionKey(b *keyWriter) error {
 	writeInt(b, int64(len(v.data.pairs)))
 	for _, pair := range v.data.pairs {
 		if err := pair.Key.appendKey(b); err != nil {
-			return err
+			return v.withFingerprintSource(err)
 		}
 		if err := pair.Value.appendKey(b); err != nil {
-			return err
+			return v.withFingerprintSource(err)
 		}
 	}
 	return nil

@@ -72,11 +72,8 @@ func setInitialNestedFailure(result *Failure, failure *evaluator.RuntimeError) {
 }
 
 func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
-	if incomplete, ok := errors.AsType[*incompleteState](err); ok {
-		return s.incompleteSuccessorFailure(incomplete, index)
-	}
-	if candidate, ok := errors.AsType[*candidateConstraintError](err); ok {
-		return s.nextConstraintFailure(candidate)
+	if result, handled, specialErr := s.specialNextFailure(err, index); handled {
+		return result, specialErr
 	}
 	failure, ok := asRuntimeError(err)
 	if !ok {
@@ -94,6 +91,21 @@ func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 		return Result{}, recoveryErr
 	}
 	return s.runtimeFailure(failure, trace, actionFailureCode(failure))
+}
+
+func (s *search) specialNextFailure(err error, index int) (Result, bool, error) {
+	if result, handled, replayErr := s.tryReplayKeyFailure(err, index); handled {
+		return result, true, replayErr
+	}
+	if incomplete, ok := errors.AsType[*incompleteState](err); ok {
+		result, failureErr := s.incompleteSuccessorFailure(incomplete, index)
+		return result, true, failureErr
+	}
+	if candidate, ok := errors.AsType[*candidateConstraintError](err); ok {
+		result, failureErr := s.nextConstraintFailure(candidate)
+		return result, true, failureErr
+	}
+	return Result{}, false, nil
 }
 
 func normalizeNextFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeError {
@@ -175,6 +187,9 @@ type candidateFingerprintError struct {
 }
 
 func candidateFailure(err error, state evaluator.State, parent int) error {
+	if viewUnexpectedKeyError(err) {
+		return &candidateViewError{cause: err, state: state, parent: parent}
+	}
 	if _, ok := errors.AsType[*value.FingerprintError](err); ok {
 		return &candidateFingerprintError{cause: err, state: state, parent: parent}
 	}
@@ -186,6 +201,23 @@ func candidateFailure(err error, state evaluator.State, parent int) error {
 	}
 	return err
 }
+
+func viewUnexpectedKeyError(err error) bool {
+	if _, ok := errors.AsType[*viewKeyError](err); !ok {
+		return false
+	}
+	failure, ok := asRuntimeError(err)
+	return ok && failure.Unexpected != nil
+}
+
+type candidateViewError struct {
+	cause  error
+	state  evaluator.State
+	parent int
+}
+
+func (e *candidateViewError) Error() string { return e.cause.Error() }
+func (e *candidateViewError) Unwrap() error { return e.cause }
 
 type candidateConstraintError struct {
 	cause  error

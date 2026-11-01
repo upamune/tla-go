@@ -16,7 +16,7 @@ func (s *search) initialUnionFingerprintFailure(err error) (Result, bool) {
 	if _, ok := errors.AsType[*value.UnionFirstElementError](err); !ok {
 		return Result{}, false
 	}
-	if failure := s.model.initialUnionRenderFailure(candidate.state); failure != nil {
+	if failure := s.model.initialStateRenderFailure(candidate.state); failure != nil {
 		return Result{Status: EvaluationFailure, Failure: failure}, true
 	}
 	result, _ := s.runtimeFailure(err, nil, 75)
@@ -24,7 +24,7 @@ func (s *search) initialUnionFingerprintFailure(err error) (Result, bool) {
 	return result, true
 }
 
-func (m *model) initialUnionRenderFailure(state map[string]value.Value) *Failure {
+func (m *model) initialStateRenderFailure(state map[string]value.Value) *Failure {
 	for _, name := range m.symmetryVariableOrder() {
 		v := state[name]
 		var renderErr error

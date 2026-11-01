@@ -150,7 +150,7 @@ func (s *dfidSearch) initialFailure(err error, state evaluator.State) (Result, b
 
 func (s *dfidSearch) initialUnionRenderFailure(err error, state evaluator.State) *Failure {
 	if _, ok := errors.AsType[*value.UnionFirstElementError](err); ok && state != nil && !s.replaying {
-		return s.model.initialUnionRenderFailure(state)
+		return s.model.initialStateRenderFailure(state)
 	}
 	return nil
 }

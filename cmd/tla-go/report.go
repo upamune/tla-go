@@ -49,10 +49,12 @@ func printFailure(w io.Writer, failure *checker.Failure, module *parser.Module) 
 		fmt.Fprint(w, "Error: Temporal properties were violated.\n\nError: The following behavior constitutes a counter-example:\n\n")
 		printTrace(w, failure.TemporalTrace, module)
 	}
-	fmt.Fprintf(w, "Error: %s\n", failure.Message)
-	if failure.InitialState != nil {
-		fmt.Fprintln(w, "While working on the initial state:")
-		printStateOrdered(w, failure.InitialState, failure.InitialStateOrder)
+	if !failure.HeaderReported {
+		fmt.Fprintf(w, "Error: %s\n", failure.Message)
+		if failure.InitialState != nil {
+			fmt.Fprintln(w, "While working on the initial state:")
+			printStateOrdered(w, failure.InitialState, failure.InitialStateOrder)
+		}
 	}
 	if len(failure.Trace) > 0 {
 		fmt.Fprintln(w, "Error: The behavior up to this point is:")

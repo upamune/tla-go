@@ -238,6 +238,11 @@ func Function(pairs []Pair) (Value, error) {
 
 // Record constructs a record while retaining its presentation provenance.
 func Record(pairs []Pair) (Value, error) {
+	return RecordWithSource(pairs, nil)
+}
+
+// RecordWithSource retains the record expression for fingerprint diagnostics.
+func RecordWithSource(pairs []Pair, source *parser.Expression) (Value, error) {
 	v, err := Function(pairs)
 	if err != nil {
 		return Value{}, err
@@ -246,12 +251,18 @@ func Record(pairs []Pair) (Value, error) {
 		return Value{}, fmt.Errorf("record requires string field names")
 	}
 	v.number = 2
+	v.data.source = source
 	return v, nil
 }
 
 // FunctionWithFieldOrder retains record field order for presentation without
 // changing the function's canonical key ordering or equality.
 func FunctionWithFieldOrder(pairs []Pair, order []string) (Value, error) {
+	return FunctionWithFieldOrderAndSource(pairs, order, nil)
+}
+
+// FunctionWithFieldOrderAndSource also retains the record expression.
+func FunctionWithFieldOrderAndSource(pairs []Pair, order []string, source *parser.Expression) (Value, error) {
 	v, err := Function(pairs)
 	if err != nil {
 		return Value{}, err
@@ -260,6 +271,7 @@ func FunctionWithFieldOrder(pairs []Pair, order []string) (Value, error) {
 		v.data.displayOrder = append([]string(nil), order...)
 		v.number = 2
 	}
+	v.data.source = source
 	return v, nil
 }
 
@@ -291,6 +303,11 @@ func uniquePairs(pairs []Pair) []Pair {
 
 // Tuple builds the function 1..n -> elements, whose keys are already sorted.
 func Tuple(elements []Value) (Value, error) {
+	return TupleWithSource(elements, nil)
+}
+
+// TupleWithSource retains the tuple expression for fingerprint diagnostics.
+func TupleWithSource(elements []Value, source *parser.Expression) (Value, error) {
 	if _, err := Integer(min(int64(len(elements)), math.MaxInt32+1)); err != nil {
 		return Value{}, err
 	}
@@ -298,7 +315,7 @@ func Tuple(elements []Value) (Value, error) {
 	for i, element := range elements {
 		pairs[i] = Pair{Value{kind: IntegerKind, number: int32(i + 1)}, element}
 	}
-	return Value{kind: FunctionKind, number: 1, data: &payload{pairs: pairs, domain: Interval(1, int32(len(elements)))}}, nil
+	return Value{kind: FunctionKind, number: 1, data: &payload{pairs: pairs, domain: Interval(1, int32(len(elements))), source: source}}, nil
 }
 
 func (v Value) Lookup(key Value) (Value, error) {

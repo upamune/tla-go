@@ -125,6 +125,8 @@ type Failure struct {
 	// FingerprintCause and FingerprintCauseCode describe a nested TLC message.
 	FingerprintCause     string
 	FingerprintCauseCode int
+	// HeaderReported marks an error header emitted before a diagnostic replay.
+	HeaderReported bool
 	// EvaluationDetail records the expression stack for an unexpected failure.
 	EvaluationDetail string
 	// SuppressDepth matches TLC failures that report counts without search depth.
@@ -191,6 +193,7 @@ type model struct {
 	terseValues           bool // -terse: values print as Java TLC's unexpanded formulas.
 	continueChecking      bool
 	onContinuedViolation  func(Result)
+	onFailureHeader       func(Failure)
 
 	// stateKeyBuffer and valueKeyBuffer are reused to encode state keys.
 	stateKeyBuffer, valueKeyBuffer []byte
@@ -238,6 +241,9 @@ type Options struct {
 	// OnViolation receives each continued model-checking violation synchronously.
 	// Trace states are read-only and must be copied before modification.
 	OnViolation func(Result)
+	// OnFailureHeader receives an error before its diagnostic replay.
+	// It is called synchronously; retained state values must not be modified.
+	OnFailureHeader func(Failure)
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
 	// PrintStyle selects how TLC operators render values.
@@ -640,7 +646,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 		return nil, err
 	}
 	runtime := newTLCRuntime(cfg, options)
-	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning, livenessWarning: modelWarning(options), viewStates: options.ViewStates}
+	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, searchEvent: options.OnSearch, warning: options.OnWarning, livenessWarning: modelWarning(options), viewStates: options.ViewStates, onFailureHeader: options.OnFailureHeader}
 	m.configureContinuation(options)
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)

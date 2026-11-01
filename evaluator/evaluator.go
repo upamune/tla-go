@@ -32,6 +32,9 @@ type Context struct {
 	UncachedArguments bool
 	// UncachedConstants evaluates configuration overrides before constant precomputation.
 	UncachedConstants bool
+	// WithoutValueSource matches TLC's FastTool when it evaluates a VIEW.
+	// Values read from the state retain their own source metadata.
+	WithoutValueSource bool
 }
 type primeArgument struct {
 	expression    *parser.Expression
@@ -340,7 +343,7 @@ func (e *evaluator) evalCollection(expr *parser.Expression) (value.Value, error)
 	case "SetEnumeration":
 		return e.set(expr)
 	case "Tuple":
-		return e.tuple(expr.Args)
+		return e.tuple(expr)
 	case "FunctionApplication":
 		return e.functionApplication(expr)
 	case "Record":

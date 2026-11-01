@@ -147,19 +147,19 @@ func (f *tlcFingerprinter) text(text string) {
 func (f *tlcFingerprinter) function(v Value) error {
 	pairs, err := v.Pairs()
 	if err != nil {
-		return err
+		return v.withFingerprintSource(err)
 	}
 	if err := f.orderPairs(pairs); err != nil {
-		return err
+		return v.withFingerprintSource(err)
 	}
 	f.byte(9)
 	f.integer(uint32(len(pairs)))
 	for _, pair := range pairs {
 		if err := f.value(pair.Key); err != nil {
-			return err
+			return v.withFingerprintSource(err)
 		}
 		if err := f.value(pair.Value); err != nil {
-			return err
+			return v.withFingerprintSource(err)
 		}
 	}
 	return nil
@@ -168,16 +168,16 @@ func (f *tlcFingerprinter) function(v Value) error {
 func (f *tlcFingerprinter) set(v Value) error {
 	items, err := v.Elements()
 	if err != nil {
-		return err
+		return v.withFingerprintSource(err)
 	}
 	if err := f.orderValues(items); err != nil {
-		return err
+		return v.withFingerprintSource(err)
 	}
 	f.byte(5)
 	f.integer(uint32(len(items)))
 	for _, item := range items {
 		if err := f.value(item); err != nil {
-			return err
+			return v.withFingerprintSource(err)
 		}
 	}
 	return nil

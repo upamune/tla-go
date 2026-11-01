@@ -37,7 +37,7 @@ func (e *FingerprintError) Error() string { return e.Cause.Error() }
 func (e *FingerprintError) Unwrap() error { return e.Cause }
 
 func (v Value) withFingerprintSource(err error) error {
-	if err == nil || v.data.source == nil {
+	if err == nil || v.data == nil || v.data.source == nil {
 		return err
 	}
 	if failure, ok := errors.AsType[*FingerprintError](err); ok {

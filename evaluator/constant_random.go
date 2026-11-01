@@ -10,6 +10,9 @@ func (e *evaluator) constantDefinition(d parser.Definition, args []value.Value, 
 		return cached, nil
 	}
 	evaluate := func() (value.Value, error) {
+		previous := e.context.WithoutValueSource
+		e.context.WithoutValueSource = true
+		defer func() { e.context.WithoutValueSource = previous }()
 		return e.evaluateOperatorDefinition(d, args, operators, defined, nil, nil)
 	}
 	var result value.Value

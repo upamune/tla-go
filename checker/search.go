@@ -44,6 +44,7 @@ type search struct {
 	candidateInModel           bool
 	failureCandidateKey        string
 	reducedTableauTrace        bool
+	replayingKeyFailure        bool
 }
 
 func (m *model) check() (Result, error) {
@@ -86,6 +87,11 @@ func (m *model) check() (Result, error) {
 }
 
 func (s *search) initialGenerationError(err error) (Result, error) {
+	if candidate, ok := replayKeyCandidate(err); ok {
+		if result, handled, replayErr := s.replayedKeyFailure(candidate, -1); handled {
+			return result, replayErr
+		}
+	}
 	if result, ok := s.initialUnionFingerprintFailure(err); ok {
 		return result, nil
 	}
@@ -296,7 +302,7 @@ func (s *search) visit(state evaluator.State, parent int, action string, source 
 	}
 	defer func() { runtime.traceCurrent, runtime.traceCandidate = previousCurrent, previousCandidate }()
 	oldLevel := s.model.tlcRuntime.level
-	s.model.tlcRuntime.level = s.candidateLevel(parent)
+	s.model.tlcRuntime.level = s.visitLevel(parent)
 	defer func() { s.model.tlcRuntime.level = oldLevel }()
 	s.countGenerated(action, parent < 0)
 	if parent < 0 {
