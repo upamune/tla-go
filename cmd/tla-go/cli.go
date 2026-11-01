@@ -246,30 +246,10 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 	}
 	checkOptions.OnSearch = configuredSearchOutput(opts, out)
 	checkOptions.OnWarning = configuredWarningOutput(opts, out)
+	checkOptions.OnTemporalViolation = temporalViolationOutput(opts, module, out)
+	checkOptions.OnTemporalCheck = temporalCheckOutput(opts, out)
 	if coordinateEventOutput(opts.coverageInterval, out) {
-		checkOptions.OnSearch, checkOptions.OnWarning = newCoordinatedCallbacks(opts, out)
-	}
-	checkOptions.OnTemporalViolation = func(result checker.Result) {
-		result = newTraceStyle(opts).apply(result)
-		if opts.tool {
-			printToolViolation(toolOutput{out: out}, result, module)
-		} else {
-			printViolation(out, result, module)
-		}
-	}
-	checkOptions.OnTemporalCheck = func(result checker.Result) {
-		if result.Status == checker.LivenessViolation && result.Violation != nil && result.Violation.Unwitnessed != nil {
-			if opts.tool {
-				failure := result.Violation.Unwitnessed
-				if failure.Counts != "" {
-					fmt.Fprintln(out, failure.Counts)
-				}
-				(toolOutput{out: out}).message(1000, 1, failure.Message)
-			} else {
-				printUnwitnessed(out, result.Violation.Unwitnessed)
-			}
-		}
-		printTemporalCheckEnd(out, opts.tool, *result.TemporalCheckDuration)
+		coordinateCallbacks(&checkOptions, opts, module, out)
 	}
 	if opts.debugLiveness {
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
