@@ -183,8 +183,11 @@ its `PrintT`, so `safeTableauProgress` rejects the effectful definition. WF/SF
 diagnostic normalization itself only constructs leaves for the fairness action
 and subscript; it does not evaluate them. This allows the initial 2212 solution
 count for such WF/SF formulas. Final progress remains guarded even without a
-tableau: nondeterministic effectful fairness has different effect counts and
-ordering in Go and Java. Recurrence formulas still require the diagnostic
+tableau because effect counts and recovery ordering can differ. One narrow
+exception is a completed single-solution search where the only temporal property
+is a simple `[]<>` state comparison true in every explored state; see
+[`model-fairness-graph-insertion.md`](../../docs/investigations/model-fairness-graph-insertion.md).
+Recurrence formulas still require the diagnostic
 safety check. Java's late tableau
 expansion regenerates successors and rechecks both constraints; effects and
 dynamic expressions can change the graph, so Go cannot derive this count from
