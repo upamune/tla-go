@@ -150,6 +150,102 @@ func writeMaxSetSizeFixture(t *testing.T, dir, body, cfg string) {
 	}
 }
 
+// TLC evaluates the bounds of a function constructor once, before it evaluates
+// the body. Re-evaluating them while enumerating keys changes TLCSet effects.
+func TestJavaTLCFunctionDomainBoundEffects(t *testing.T) {
+	for _, bounds := range []string{
+		`i \in {1}, j \in (IF TLCSet(0, TLCGet(0) + 1) THEN 1..TLCGet(0) ELSE {})`,
+		`i \in (IF TLCSet(0, TLCGet(0) + 1) THEN 1..TLCGet(0) ELSE {}), j \in {1}`,
+		`i, j \in (IF TLCSet(0, TLCGet(0) + 1) THEN 1..TLCGet(0) ELSE {})`,
+	} {
+		t.Run(bounds, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = 0 /\\ TLCSet(0, 0)\nNext == x = 0 /\\ x' = Cardinality(DOMAIN [" + bounds + " |-> 0])\nInv == x <= 1"
+			writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\nINVARIANT Inv\nCHECK_DEADLOCK FALSE\n")
+			args := []string{"-tool", "-workers", "1", "-fp", "0"}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+			if code != 0 || errout.Len() != 0 {
+				t.Fatalf("Go exit %d\n%s\n%s", code, &out, &errout)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, append(args, "M.tla"))
+				if javaCode != code || rawToolMessage(java, 2199) != rawToolMessage(out.String(), 2199) {
+					t.Fatalf("Java %d:\n%s\nGo %d:\n%s", javaCode, java, code, &out)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCFunctionConstructionEvaluationOrder(t *testing.T) {
+	dir := t.TempDir()
+	body := `VARIABLE x
+Init == x = 0
+Next == /\ x = 0
+        /\ x' = Cardinality(DOMAIN [i, j \in (IF PrintT("bound") THEN 1..2 ELSE {}) |-> IF PrintT(<<i, j>>) THEN 0 ELSE 1])`
+	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0"}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+	want := "\"bound\"\n<<1, 1>>\n<<2, 1>>\n<<1, 2>>\n<<2, 2>>\n"
+	if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), want) {
+		t.Fatalf("Go exit %d\n%s\n%s", code, &out, &errout)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, append(args, "M.tla"))
+		if javaCode != code || !strings.Contains(java, want) || rawToolMessage(java, 2199) != rawToolMessage(out.String(), 2199) {
+			t.Fatalf("Java %d:\n%s\nGo %d:\n%s", javaCode, java, code, &out)
+		}
+	}
+}
+
+func TestJavaTLCFunctionBoundEffectsThroughInstance(t *testing.T) {
+	dir := t.TempDir()
+	module := `---- MODULE A ----
+EXTENDS Naturals, TLC
+F == [i, j \in (IF TLCSet(0, TLCGet(0) + 1) THEN 1..TLCGet(0) ELSE {}) |-> 0]
+====`
+	if err := os.WriteFile(filepath.Join(dir, "A.tla"), []byte(module), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := "VARIABLE x\nX == INSTANCE A\nInit == x = 0 /\\ TLCSet(0, 0)\nNext == x = 0 /\\ x' = Cardinality(DOMAIN X!F)\nInv == x <= 1"
+	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\nINVARIANT Inv\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0"}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+	if code != 0 || errout.Len() != 0 {
+		t.Fatalf("Go exit %d\n%s\n%s", code, &out, &errout)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, append(args, "M.tla"))
+		if javaCode != code || rawToolMessage(java, 2199) != rawToolMessage(out.String(), 2199) {
+			t.Fatalf("Java %d:\n%s\nGo %d:\n%s", javaCode, java, code, &out)
+		}
+	}
+}
+
+func TestJavaTLCFunctionDistinctBoundGroups(t *testing.T) {
+	dir := t.TempDir()
+	body := `VARIABLE x
+Init == x = 0
+Next == /\ x = 0
+        /\ x' = Cardinality(DOMAIN [i, j \in (IF PrintT("group") THEN {1} ELSE {}), k \in (IF PrintT("group") THEN {1} ELSE {}) |-> 0])`
+	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-workers", "1", "-fp", "0"}
+	var out, errout bytes.Buffer
+	code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &out, &errout)
+	if code != 0 || errout.Len() != 0 || strings.Count(out.String(), `"group"`) != 2 {
+		t.Fatalf("Go exit %d\n%s\n%s", code, &out, &errout)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, append(args, "M.tla"))
+		if javaCode != code || strings.Count(java, `"group"`) != 2 || rawToolMessage(java, 2199) != rawToolMessage(out.String(), 2199) {
+			t.Fatalf("Java %d:\n%s\nGo %d:\n%s", javaCode, java, code, &out)
+		}
+	}
+}
+
 // The upstream TraceWithLargeSetOfInitialStatesTest checks that a bound below
 // the number of initial states still reports the correct trace.
 func TestJavaTLCUpstreamLargeInitialStates(t *testing.T) {

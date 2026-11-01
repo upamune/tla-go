@@ -84,6 +84,8 @@ type Bound struct {
 	Names []string
 	Tuple bool
 	Set   *Expression
+	// Group identifies names that share a source bound, even after AST rewrites.
+	Group *Expression `json:"-"`
 }
 type Declaration struct {
 	Name     string

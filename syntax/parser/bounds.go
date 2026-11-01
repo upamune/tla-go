@@ -63,6 +63,9 @@ func (p *parser) boundGroup() ([]Bound, error) {
 	}
 	for i := range patterns {
 		patterns[i].Set = set
+		if len(patterns) > 1 {
+			patterns[i].Group = set
+		}
 	}
 	return patterns, nil
 }

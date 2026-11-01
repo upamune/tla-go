@@ -81,20 +81,32 @@ func (e *evaluator) boundsDomain(bounds []parser.Bound) (value.Value, error) {
 		return value.Value{}, fmt.Errorf("function has no bounds")
 	}
 	sets := make([]value.Value, 0, len(bounds))
+	var previousGroup *parser.Expression
+	var evaluated value.Value
 	for _, bound := range bounds {
 		if bound.Set == nil {
 			return value.Value{}, fmt.Errorf("function has an unbounded domain")
 		}
-		set, err := e.eval(bound.Set)
+		var err error
+		evaluated, err = e.functionBoundValue(bound, previousGroup, evaluated)
 		if err != nil {
 			return value.Value{}, err
 		}
-		sets = append(sets, set)
+		previousGroup = bound.Group
+		sets = append(sets, evaluated)
 	}
 	if len(sets) == 1 {
 		return sets[0], nil
 	}
 	return value.ProductSet(sets)
+}
+
+// Names in one source bound share a domain evaluation, even after rewriting.
+func (e *evaluator) functionBoundValue(bound parser.Bound, previous *parser.Expression, evaluated value.Value) (value.Value, error) {
+	if bound.Group != nil && bound.Group == previous {
+		return evaluated, nil
+	}
+	return e.eval(bound.Set)
 }
 
 func (e *evaluator) makeLazyFunction(bounds []parser.Bound, body *parser.Expression, name string) (value.Value, error) {

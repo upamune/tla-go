@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
@@ -36,6 +37,7 @@ type boundWalk struct {
 	visit    boundVisitor
 	selected []value.Value
 	stopped  bool
+	domains  []value.Value
 }
 
 func (e *evaluator) walkBounds(bounds []parser.Bound, selected []value.Value, visit boundVisitor) error {
@@ -53,9 +55,15 @@ func (e *evaluator) walk(w *boundWalk, bounds []parser.Bound) error {
 	if bound.Set == nil {
 		return fmt.Errorf("cannot enumerate an unbounded choice")
 	}
-	domain, err := e.eval(bound.Set)
-	if err != nil {
-		return err
+	var domain value.Value
+	if w.domains != nil {
+		domain = w.domains[len(w.domains)-len(bounds)]
+	} else {
+		var err error
+		domain, err = e.eval(bound.Set)
+		if err != nil {
+			return err
+		}
 	}
 	visit := func(item value.Value) (bool, error) {
 		mark := e.frames.mark()
@@ -184,35 +192,53 @@ func (e *evaluator) functionConstruction(expr *parser.Expression) (value.Value, 
 		return e.lazyFunctionOnDomain(domain, expr.Bounds, expr.Args[0], "")
 	}
 	var pairs []value.Pair
-	err = e.walkBounds(expr.Bounds, nil, func(child *evaluator, selected []value.Value) (bool, error) {
+	domains, err := functionBoundDomains(expr.Bounds, domain)
+	if err != nil {
+		return value.Value{}, err
+	}
+	enumeratedDomain := constructedProductDomain(expr.Bounds, domains)
+	bounds := expr.Bounds
+	if len(bounds) > 1 {
+		bounds = slices.Clone(bounds)
+		slices.Reverse(bounds)
+		slices.Reverse(domains)
+	}
+	walk := boundWalk{domains: domains, visit: func(child *evaluator, selected []value.Value) (bool, error) {
 		v, err := child.eval(expr.Args[0])
 		if err != nil {
 			return false, err
 		}
+		slices.Reverse(selected)
 		key, err := functionKey(selected)
+		slices.Reverse(selected)
 		if err != nil {
 			return false, err
 		}
 		pairs = append(pairs, value.Pair{Key: key, Value: v})
 		return true, nil
-	})
+	}}
+	err = e.walk(&walk, bounds)
 	if err != nil {
 		return value.Value{}, err
 	}
-	if constructedProductDomain(expr.Bounds, domain) {
+	if enumeratedDomain {
 		return value.Function(pairs)
 	}
 	return value.FunctionWithDomain(pairs, domain)
 }
 
+// Java evaluates function bounds once before enumerating their combinations.
+func functionBoundDomains(bounds []parser.Bound, domain value.Value) ([]value.Value, error) {
+	if len(bounds) == 1 {
+		return []value.Value{domain}, nil
+	}
+	return domain.ProductFactors()
+}
+
 // TLC turns functions over reducible bounds into FcnRcdValue. Its DOMAIN is
 // an enumerated set of tuple keys rather than the unevaluated Cartesian set.
-func constructedProductDomain(bounds []parser.Bound, domain value.Value) bool {
-	if len(bounds) < 2 || domain.Kind() != value.ProductSetKind {
-		return false
-	}
-	factors, err := domain.ProductFactors()
-	if err != nil {
+func constructedProductDomain(bounds []parser.Bound, factors []value.Value) bool {
+	if len(bounds) < 2 {
 		return false
 	}
 	for _, factor := range factors {

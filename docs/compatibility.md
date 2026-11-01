@@ -40,6 +40,11 @@ For a function constructed over multiple interval or enumerated bounds, its
 uses the same eager size check as Java TLC. A function over a deferred bound
 retains its deferred domain; the implementation does not generalize this
 conversion to such bounds.
+Function constructors evaluate each source bound once, including a bound shared
+by several names, and enumerate the first variable fastest, matching Java TLC
+in the tested cases with `TLCSet` and `PrintT` effects.
+Some mixed tuple and grouped-name bounds still differ: Java TLC 1.7.4 can
+throw a `ClassCastException` where tla-go accepts the constructor.
 
 As in Java TLC, a configured `INIT` or `NEXT` that reads no variable is rejected as a constant (message 2233), also in a model without variables; such operators reached through `SPECIFICATION` are not yet reported as Java TLC reports them. In `-tool` mode, initial-state generation reports Java TLC's progress messages (2269) before the third, fifth, ninth, and later initial states; the plain output keeps the format of the tla-ts fixtures and omits Java TLC's initial-state messages.
 
