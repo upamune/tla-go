@@ -509,8 +509,9 @@ For the upstream B coverage model, the experiment also compares the projected
 array type and arguments, against a fresh run of the verified Java TLC JAR with
 an actual instrumented `MPRecorder`. This is a comparison of those selected
 records for that model, not a completeness guarantee for other cases. The Go
-invocation enables coverage but omits the upstream harness's DOT dump because
-coverage and dump cannot currently be combined. The real `BCoverageTest`
+invocation enables both coverage and DOT output; the test requires its nonempty
+DOT file to match the Java capture byte for byte. Both use isolated explicit
+paths, rather than the upstream harness's metadir path. The real `BCoverageTest`
 method and inherited teardown execute against the projected records; a changed
 action count must fail the original coverage assertion. Other recorder events,
 setup and lifecycle effects remain unverified, so this is not an upstream JUnit
