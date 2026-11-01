@@ -144,8 +144,8 @@ The file is created exclusively with mode 0600. Translation, metadata,
 version, help, simulation, and DFID modes reject the variable without creating
 a file. JSON lines start with a version 1 header marking the stream incomplete,
 followed by selected observations in emission order: SANY start/end, starting,
-initial-state start/progress/completion, selected success probabilities, statistics,
-search depth, finish, and final coverage action and expression records. Periodic
+initial-state start/progress/completion, selected success probabilities, final
+coverage action and expression records, statistics, search depth, and finish. Periodic
 coverage records and other recorder calls remain unobserved.
 Their `strings` arrays come from Go events and results rather than parsed tool
 text. A Java TLC 1.7.4 recorder probe compares these selected calls and argument
