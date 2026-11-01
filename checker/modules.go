@@ -32,6 +32,9 @@ func resolveExtensionsScoped(ctx context.Context, module *parser.Module, loader 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	if err := validateRecursiveModule(module); err != nil {
+		return nil, err
+	}
 	if !hasExternalExtensions(module.Extends) {
 		return module, nil
 	}
@@ -59,6 +62,9 @@ func hasExternalExtensions(names []string) bool {
 
 func (r *extensionResolver) collect(module *parser.Module) error {
 	if err := r.ctx.Err(); err != nil {
+		return err
+	}
+	if err := validateRecursiveModule(module); err != nil {
 		return err
 	}
 	if r.visiting[module.Name] {
