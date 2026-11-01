@@ -48,7 +48,7 @@ func (m *model) parallelInstances() bool {
 }
 
 func (m *model) parallelExpression(e *parser.Expression) bool {
-	if e == nil || parallelExtraChildren(e) || !m.parallelExpressionKind(e) {
+	if e == nil || parallelMarkedBuiltin(e) || parallelExtraChildren(e) || !m.parallelExpressionKind(e) {
 		return false
 	}
 	for _, arg := range e.Args {
@@ -57,6 +57,10 @@ func (m *model) parallelExpression(e *parser.Expression) bool {
 		}
 	}
 	return true
+}
+
+func parallelMarkedBuiltin(e *parser.Expression) bool {
+	return e.BuiltinTLC || e.BuiltinNatural || e.BuiltinStandard != ""
 }
 
 // Small expressions cannot amortize speculative generation and ordered merging.
@@ -74,24 +78,32 @@ func parallelExtraChildren(e *parser.Expression) bool {
 
 func (m *model) parallelExpressionKind(e *parser.Expression) bool {
 	switch e.Kind {
-	case "Number", "And", "Or", "Prime", "Unchanged":
-		return true
+	case "Number":
+		return len(e.Args) == 0
+	case "And", "Or":
+		return len(e.Args) != 0
+	case "Prime", "Unchanged":
+		return len(e.Args) == 1
 	case "Identifier":
-		return m.parallelIdentifier(e)
+		return len(e.Args) == 0 && m.parallelIdentifier(e)
 	case "Apply":
-		if _, ok := m.defs[e.Text]; ok {
-			return false
-		}
-		return slices.Contains([]string{"=", "#", "/=", "<", ">", "<=", ">=", "+", "-", "*", "%", "\\div", "~", "=>", "<=>"}, e.Text)
+		return m.parallelApply(e)
 	default:
 		return false
 	}
 }
 
-func (m *model) parallelIdentifier(e *parser.Expression) bool {
-	if e.BuiltinNatural || e.BuiltinTLC || e.BuiltinStandard != "" {
+func (m *model) parallelApply(e *parser.Expression) bool {
+	if _, ok := m.defs[e.Text]; ok {
 		return false
 	}
+	if e.Text == "~" {
+		return len(e.Args) == 1
+	}
+	return len(e.Args) == 2 && slices.Contains([]string{"=", "#", "/=", "<", ">", "<=", ">=", "+", "-", "*", "%", "\\div", "=>", "<=>"}, e.Text)
+}
+
+func (m *model) parallelIdentifier(e *parser.Expression) bool {
 	if m.variables[e.Text] || e.Text == "TRUE" || e.Text == "FALSE" {
 		return true
 	}
