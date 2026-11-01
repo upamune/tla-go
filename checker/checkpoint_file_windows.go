@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // Go's os.Open omits FILE_SHARE_DELETE on Windows, preventing replacement
@@ -53,7 +54,54 @@ func checkpointWindowsPath(path string) string {
 }
 
 func checkpointReplaceContext(ctx context.Context, oldpath, newpath string) error {
-	return checkpointRetry(ctx, func() error { return os.Rename(oldpath, newpath) })
+	return checkpointRetry(ctx, func() error { return checkpointReplaceWindows(oldpath, newpath) })
+}
+
+var checkpointSetFileInformation = syscall.NewLazyDLL("kernel32.dll").NewProc("SetFileInformationByHandle")
+
+// The temporary file is created in the target directory. A single POSIX-style
+// rename handles both initial creation and replacement, including concurrent
+// writers, while readers with delete sharing retain their old handles.
+func checkpointReplaceWindows(oldpath, newpath string) error {
+	linkError := func(err error) error { return &os.LinkError{Op: "rename", Old: oldpath, New: newpath, Err: err} }
+	oldname, err := syscall.UTF16PtrFromString(checkpointWindowsPath(oldpath))
+	if err != nil {
+		return linkError(err)
+	}
+	name, err := syscall.UTF16FromString(checkpointWindowsPath(newpath))
+	if err != nil {
+		return linkError(err)
+	}
+	const deleteAccess = 0x10000
+	h, err := syscall.CreateFile(oldname, deleteAccess, syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE, nil, syscall.OPEN_EXISTING, 0, 0)
+	if err != nil {
+		return linkError(err)
+	}
+	defer syscall.CloseHandle(h)
+
+	// FILE_RENAME_INFO has a variable-length UTF-16 name and pointer alignment.
+	type renameInfo struct {
+		flags  uint32
+		root   syscall.Handle
+		length uint32
+		name   [1]uint16
+	}
+	const fileRenameInfoEx = 22
+	const replaceAndPOSIX = 0x1 | 0x2
+	nameBytes := (len(name) - 1) * 2
+	// Keep the UTF-16 terminator in the buffer even though FileNameLength
+	// excludes it, as required by the documented FileName contract.
+	size := max(int(unsafe.Sizeof(renameInfo{})), int(unsafe.Offsetof(renameInfo{}.name))+len(name)*2)
+	storage := make([]uintptr, (size+int(unsafe.Sizeof(uintptr(0)))-1)/int(unsafe.Sizeof(uintptr(0))))
+	info := (*renameInfo)(unsafe.Pointer(&storage[0]))
+	info.flags = replaceAndPOSIX
+	info.length = uint32(nameBytes)
+	copy(unsafe.Slice(&info.name[0], len(name)), name)
+	r, _, callErr := checkpointSetFileInformation.Call(uintptr(h), fileRenameInfoEx, uintptr(unsafe.Pointer(info)), uintptr(size))
+	if r == 0 {
+		return linkError(callErr)
+	}
+	return nil
 }
 
 // Other processes, including antivirus scanners and concurrent replacements,

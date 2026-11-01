@@ -11,7 +11,8 @@ import (
 
 // CheckpointOptions configures a supported pure serial breadth-first search.
 // Interval must be positive for a new search; zero on recovery disables writes,
-// including DebugPauseAfterExpansions and PauseOnCheckpoint. Checkpoints are written atomically at the first
+// including DebugPauseAfterExpansions and PauseOnCheckpoint. Windows checkpoint writes require filesystem
+// support for POSIX-style file replacement. Checkpoints are written atomically at the first
 // expansion boundary after each interval, not while evaluating a state.
 // PauseOnCheckpoint returns after the first successful checkpoint write.
 // Resume requires an existing matching checkpoint and never starts over.
