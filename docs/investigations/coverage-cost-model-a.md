@@ -40,6 +40,18 @@ Go coverage. Their snapshots establish that:
 * For `A( n  )` and a multiline parameter list, Java's action declaration range
   ends at the actual closing parenthesis. Deriving it from the name or parameter
   count loses whitespace and multiline positions.
+* `TestJavaTLCCoverageDistinctInstanceOriginsBoundary` instantiates the same
+  definition twice with both equal and unequal constant substitutions. Java
+  reports separate `I!Act` and `J!Act` roots in both cases, each with the same
+  `Inner` expression range and its own counts. The repeated `A(2) \/ A(3)`
+  case instead uses one root. Thus a range or original definition alone cannot
+  identify a reportable action. These are Java CLI comparisons; Go rejects
+  these coverage models.
+* `TestJavaTLCCoverageSharedArgumentOriginsBoundary` uses an action containing
+  `n=n` and calls it with `x`. Java reports the two distinct formal locations
+  beneath one action even though Go's expansion currently places the same
+  caller-expression pointer in both positions. Normal Go exploration and Java
+  both produce five generated and two distinct states; coverage remains rejected.
 
 ## Where the current collector stops
 
@@ -132,3 +144,99 @@ evaluation order to simplify accounting would change model behavior.
    for selected replay failures. Preserve that boundary until event ordering and
    partial reports match. Run the existing coverage oracle suite and `-race`
    after each integration step, not only A.
+
+For a baseline before origin tracking, on an Apple M3 with `-benchtime=200ms`
+and three samples, `BenchmarkCoverageDisabledSubsetInvariant` used about
+368–369 KB and 4,289–4,290 allocations per operation (0.74–0.84 ms), while
+`BenchmarkParseModule` used about 16.3 KB and 54 allocations (4.47–4.59 µs).
+These are reference measurements on this machine, not a before/after
+comparison; competing work can affect elapsed time.
+
+## Origin tracking obstacle and first implementation boundary
+
+No production origin tracker has been added yet. There are two independent
+identities to preserve: a source semantic origin and a position in an action's
+cost-model graph. The same source expression may appear in multiple INSTANCE
+roots, while several calls may share one Java action root. A source range, a
+definition name, a Go pointer, or a single per-expression origin tag cannot
+represent both relationships. The two CLI cases above are regression fixtures
+for this distinction; they do not establish a general rule for all instances.
+
+The existing [`DefinitionOrigin`](../../syntax/parser/ast.go) records a
+definition's module, name and parameter prefix for configuration overrides. It
+does not identify each expression or the occurrence in which it is evaluated.
+[`substitute`](../../checker/substitute.go) clones nodes, but replaces a
+formal identifier with the caller's expression; lambda substitution can return
+an expanded body. [`alphaRenamer.expression`](../../checker/alpha.go) makes a
+separate copy, while [`instanceDefinition`](../../checker/instance_definition.go)
+clones and rewrites it again. `partialInstanceOperator` can replace a node in
+place with a synthetic lambda and synthetic children. Tracking only the final
+AST pointers or copying one field in `substitute` would lose origin information
+at those other transformations, and would not tell an argument's source from
+the formal occurrence that caused its evaluation.
+
+A concrete example is `F(n) == n=n` followed by `F(x)`: the two formal `n`
+occurrences have different source ranges, but `substituteActionCall` currently
+places the very same caller `x` pointer in both result positions. A map from
+result pointer to one origin cannot recover both formal occurrences. The
+origin representation needs a parent edge or occurrence path in addition to
+the argument's own origin; that context must survive until the collector or a
+debug event consumer receives it. Merely constructing an unused registry after
+linking cannot reconstruct information already discarded by these rewrites.
+
+The public `parser.Expression` and `parser.Definition` structs currently have
+exported fields. Adding a field can break callers using unkeyed composite
+literals, even if it is omitted from JSON. Mutating parsed nodes to attach
+metadata can also interfere with concurrent checks or callers that reuse a
+module. An implementation that preserves the existing Go API and JSON
+projection should instead keep per-check metadata outside the public AST, with
+an explicit registry passed through the transformation paths. A global map is
+not sufficient: it would couple checks, complicate lifetime management and
+introduce concurrency hazards. Parsed modules supplied through the Go API or a
+JSON round trip may lack `SourceTokens`; missing head provenance must be
+represented as unavailable rather than synthesized from name length.
+
+The next concrete implementation step is to design a per-check origin registry
+and thread it through the existing instance-resolution session, alpha renaming,
+subexpression rewriting and action substitution. Each rewrite must record both
+the source node and the transformation/call occurrence, including synthetic
+nodes and substituted arguments; consumers must not infer semantic identity
+from their ranges. The registry should be optional when coverage/debugging is
+disabled, and tests should exercise concurrent checks over the same parsed
+module as well as nested instances, operator-argument substitution and clones.
+Separately retain declaration-head ranges from parser tokens with explicit
+handling for whitespace, multiline parameters and unavailable tokens. Only
+after those cases match the pinned Java observations should the event/tree
+consumer use the registry to enable additional coverage models.
+The registry must be introduced before instance resolution, which currently
+precedes model construction, and threaded through the real transformation and
+execution paths. A useful first integration should have a consumer, such as an
+explicitly enabled debug trace that reports source and occurrence separately;
+unknown rewrites must be reported as unsupported, never guessed from a range.
+Only then can tests establish shared predicate roots and distinct INSTANCE
+roots in the registry itself, rather than just observing the Java CLI reports.
+
+In the current flow, `checkParsedWithOptions` creates `instanceSession` and
+resolves extensions and instances before `prepareWithSources` constructs the
+model. An opt-in registry must therefore be created at that earlier boundary,
+then passed through the resolver's alpha/substitution helpers and into the
+model; constructing it in `newCoverage` is too late. During execution,
+[`workPath`](../../checker/work_path.go) is shared and keyed by action names
+for recursion detection, so it cannot itself distinguish two call sites or
+serve as an occurrence cursor. Action-body caching in
+[`checker/call.go`](../../checker/call.go) also means cached expression pointers
+can be revisited under different contexts.
+
+For the first debug consumer, carry a separate optional occurrence cursor on
+the execution work/continuation and propagate it into actual operator argument
+evaluation. Record a child occurrence for each parent edge, even when both
+edges refer to the same result pointer. Add balanced enter/leave or equivalent
+scoped events for evaluator calls: the existing `OnEvaluate` callback reports
+entry only and does not identify a return to the parent or a lazy argument's
+formal occurrence. The current `Options.OnDebug` contract is for liveness, so
+silently adding coverage events to it would change that API's behavior. The
+debug channel and its ownership need an explicit design that leaves normal
+checks and the existing public structs unchanged. This requires an integrated
+change across resolver, generator and evaluator rather than a stand-alone map;
+the fixtures above can verify the resulting events before any coverage gate is
+relaxed.

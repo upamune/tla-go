@@ -12,6 +12,16 @@ These CLI runs do not execute JUnit setup, assertions or teardown, and omit its
 DOT dump. Go still rejects these models in coverage mode. See the
 [cost-model investigation](../../../../../docs/investigations/coverage-cost-model-a.md).
 
+`origin-distinct-instances.coverage` and `origin-identical-instances.coverage`
+record Java 1.7.4 CLI output for the models constructed in
+`java_tlc_coverage_origin_oracle_test.go`: two named substituted instances of
+the same definition report separate action roots with both different and equal
+substitution values, even though their expression source ranges are identical.
+`origin-shared-argument.coverage`
+records separate formal-parameter locations for an action whose two formal
+uses are replaced by the same caller expression in Go's current expansion.
+Go still rejects coverage for both models.
+
 `B.coverage` records the full final coverage report for upstream `B.tla` and
 `B.cfg` from Java TLC 1.7.4 with `-workers 1 -coverage 9999` (the same
 interval as `BCoverageTest`). Tests compare variants and tool coverage messages against
