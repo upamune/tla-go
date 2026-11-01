@@ -17,44 +17,45 @@ import (
 )
 
 type options struct {
-	path, configPath           string
-	paths                      []string
-	libraryPaths               []string
-	metaRoot                   string
-	metaDir, recoverDir        string
-	checkpointInterval         time.Duration
-	deadlockOff, help, version bool
-	debugLiveness              bool
-	coverage                   bool
-	coverageInterval           time.Duration
-	checkpoint                 bool
-	modernRandomSubsets        bool
-	tool                       bool
-	noWarning                  bool
-	view                       bool
-	sanyMetadata               bool
-	compat                     compatOptions
-	dumpPath                   string
-	dumpDOT                    *dotFormat
-	onPause                    func()
-	seed                       int64
-	aril                       int64
-	fingerprint                int
-	workers                    int
-	maxSetSize                 int
-	simulate, seedSet          bool
-	continuation               bool
-	simulationTraces           int
-	simulationDepth            int
-	simulationUnlimited        bool
-	simulationFile             string
-	simulationFileSet          bool
-	dfid                       bool
-	dfidDepth                  int
+	path, configPath             string
+	paths                        []string
+	libraryPaths                 []string
+	metaRoot                     string
+	metaDir, recoverDir          string
+	checkpointInterval           time.Duration
+	deadlockOff, help, version   bool
+	debugLiveness                bool
+	tracePath, cpuPath, heapPath string
+	coverage                     bool
+	coverageInterval             time.Duration
+	checkpoint                   bool
+	modernRandomSubsets          bool
+	tool                         bool
+	noWarning                    bool
+	view                         bool
+	sanyMetadata                 bool
+	compat                       compatOptions
+	dumpPath                     string
+	dumpDOT                      *dotFormat
+	onPause                      func()
+	seed                         int64
+	aril                         int64
+	fingerprint                  int
+	workers                      int
+	maxSetSize                   int
+	simulate, seedSet            bool
+	continuation                 bool
+	simulationTraces             int
+	simulationDepth              int
+	simulationUnlimited          bool
+	simulationFile               string
+	simulationFileSet            bool
+	dfid                         bool
+	dfidDepth                    int
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-recover dir] [-coverage N] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-recover dir] [-coverage N] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-debug-trace FILE, -debug-cpu-profile FILE, and -debug-heap-profile FILE write Go diagnostics to new files.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 	fmt.Fprintln(w, compatUsage)
 }
 
@@ -65,14 +66,35 @@ func run(ctx context.Context, args []string, out, errout io.Writer) int {
 	return runWithInput(ctx, args, os.Stdin, out, errout)
 }
 
-func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) int {
+func validateOutputPaths(opts options, out io.Writer) error {
+	if err := validateProfilePaths(opts); err != nil {
+		return err
+	}
+	return checkDumpPath(opts.dumpPath, out)
+}
+
+func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) (code int) {
 	opts, err := parseOptions(args)
 	if err == nil {
-		err = checkDumpPath(opts.dumpPath, out)
+		err = validateOutputPaths(opts, out)
 	}
 	if err != nil {
 		return reportOptionError(opts, err, out, errout)
 	}
+	profiles, err := startProfiles(opts)
+	if err != nil {
+		fmt.Fprintln(errout, err)
+		return 255
+	}
+	defer func() {
+		if err := profiles.close(); err != nil {
+			fmt.Fprintln(errout, err)
+			if code == 0 {
+				code = 255
+			}
+		}
+	}()
+	ctx = profiles.context(ctx)
 	if opts.help {
 		usage(out)
 		return 0
@@ -138,6 +160,10 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) (code in
 			opts.dumpPath = metaDir + after
 		}
 	}
+	if err := protectProfileOutput(opts, opts.dumpPath); err != nil {
+		fmt.Fprintln(errout, err)
+		return 255
+	}
 	return runConfiguredModel(ctx, opts, out, errout)
 }
 
@@ -160,12 +186,15 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 		fmt.Fprintln(errout, err)
 		return 255
 	}
+	endParsing := profileRegion(ctx, "parsing and config")
 	parsed, err := readConfig(configPath)
 	if err != nil {
+		endParsing()
 		printConfigError(out, configPath, err)
 		return 255
 	}
 	module, source, code := loadModuleWithSource(specPath, opts.libraryPaths, errout)
+	endParsing()
 	if code != 0 {
 		return code
 	}
@@ -185,6 +214,7 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 }
 
 func checkModelWithOutput(ctx context.Context, opts options, module *parser.Module, source []byte, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
+	defer profileRegion(ctx, "model checking")()
 	if opts.checkpointInterval > 0 || opts.recoverDir != "" {
 		result, handled, err := checkCLIWithCheckpoint(ctx, opts, parsed, source, specPath, out, errout)
 		if handled {
@@ -199,9 +229,16 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 	if err != nil {
 		return checker.Result{}, err
 	}
-	checkOptions := checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: writeJSONFile, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, ViewStates: opts.view}
-	checkOptions.Coverage = opts.coverage
-	checkOptions.SerialExploration = opts.checkpoint
+	checkOptions := checker.Options{
+		Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), OnPrint: func(line string) { fmt.Fprintln(out, line) }, OnPause: opts.onPause, ReadFile: readJSONFile, WriteFile: func(path, text string) error {
+			if err := protectProfileOutput(opts, path); err != nil {
+				return err
+			}
+			return writeJSONFile(path, text)
+		}, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, ViewStates: opts.view,
+		Coverage:          opts.coverage,
+		SerialExploration: opts.checkpoint,
+	}
 	configureCheckingMode(&checkOptions, opts, module, out)
 	configureCompatOutput(&checkOptions, opts)
 	if graph != nil {

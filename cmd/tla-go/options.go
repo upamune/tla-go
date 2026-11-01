@@ -36,22 +36,25 @@ var flagOptions = map[string]func(*options){
 // valueOptions parse an option and its arguments, returning the number of
 // arguments consumed after the option name.
 var valueOptions = map[string]func(*options, []string) (int, error){
-	"-config":     parsePathOption,
-	"-metadir":    parsePathOption,
-	"-recover":    parsePathOption,
-	"-seed":       parseRandomOption,
-	"-aril":       parseRandomOption,
-	"-lncheck":    parseLivenessOption,
-	"-dump":       parseDumpOption,
-	"-workers":    parseWorkersOption,
-	"-fp":         parseFingerprintOption,
-	"-checkpoint": parseCheckpointOption,
-	"-coverage":   parseCoverageOption,
-	"-maxSetSize": parseMaxSetSizeOption,
-	"-I":          parseLibraryOption,
-	"-simulate":   parseSimulationOption,
-	"-depth":      parseSimulationDepth,
-	"-dfid":       parseDepthFirstOption,
+	"-debug-trace":        parseProfileOption,
+	"-debug-cpu-profile":  parseProfileOption,
+	"-debug-heap-profile": parseProfileOption,
+	"-config":             parsePathOption,
+	"-metadir":            parsePathOption,
+	"-recover":            parsePathOption,
+	"-seed":               parseRandomOption,
+	"-aril":               parseRandomOption,
+	"-lncheck":            parseLivenessOption,
+	"-dump":               parseDumpOption,
+	"-workers":            parseWorkersOption,
+	"-fp":                 parseFingerprintOption,
+	"-checkpoint":         parseCheckpointOption,
+	"-coverage":           parseCoverageOption,
+	"-maxSetSize":         parseMaxSetSizeOption,
+	"-I":                  parseLibraryOption,
+	"-simulate":           parseSimulationOption,
+	"-depth":              parseSimulationDepth,
+	"-dfid":               parseDepthFirstOption,
 }
 
 // parseCoverageOption validates the interval using TLC 1.7.4's 32-bit arithmetic.
@@ -301,4 +304,24 @@ func configureSearchModes(opts *options) error {
 		return err
 	}
 	return configureDepthFirst(opts)
+}
+
+func parseProfileOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 || args[1] == "" || strings.HasPrefix(args[1], "-") {
+		return 0, fmt.Errorf("%s requires an output path", args[0])
+	}
+	var target *string
+	switch args[0] {
+	case "-debug-trace":
+		target = &opts.tracePath
+	case "-debug-cpu-profile":
+		target = &opts.cpuPath
+	case "-debug-heap-profile":
+		target = &opts.heapPath
+	}
+	if *target != "" {
+		return 0, fmt.Errorf("%s specified more than once", args[0])
+	}
+	*target = args[1]
+	return 1, nil
 }

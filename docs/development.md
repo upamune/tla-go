@@ -103,3 +103,44 @@ The auxiliary TypeScript generators call tla-ts directly and are not used by the
 ## Releases
 
 The release workflow builds CGO-free binaries for Linux, macOS, and Windows on amd64 and arm64 when a `v*` tag is pushed. It publishes archives and SHA-256 checksums to a GitHub release after the checks pass.
+
+## Profiling the CLI
+
+The standalone CLI has opt-in Go runtime diagnostics. Paths must be new files;
+the CLI refuses to overwrite existing files or create `.tla` or `.cfg` files.
+These options are specific to tla-go and are not Java TLC options:
+
+```sh
+tla-go -debug-trace run.trace -debug-cpu-profile cpu.pprof -debug-heap-profile heap.pprof Model.tla
+go tool trace run.trace
+go tool pprof -http=localhost:0 ./tla-go cpu.pprof
+go tool pprof -http=localhost:0 -sample_index=alloc_space ./tla-go heap.pprof
+```
+
+Any combination can be used. The trace includes coarse parsing/configuration,
+model initialization, and exploration/liveness regions; the latter combines
+both kinds of work. The CPU profile samples execution. The heap profile is
+captured after a garbage collection when the first search stops, while its model
+and search graph are still live (including on failure, cancellation, or checkpoint
+pause and recovery). With multiple specifications, it captures the first one
+that reaches search; later specifications do not overwrite it. If no search is
+reached, it captures the live heap at shutdown instead. Its default `inuse_space`
+shows live heap, while `alloc_space` estimates allocations over the process lifetime.
+Profiling starts after option parsing and stops before process exit, including
+when model loading or checking fails or is interrupted with Ctrl-C. Abrupt
+termination such as SIGKILL cannot flush profiles. The heap collection
+and CPU profiler shutdown add time, and tracing and profiling perturb execution
+and memory use; compare elapsed times with an unprofiled run. CPU samples may be
+sparse for short runs. Profile files can contain function names, source paths,
+and other execution details; treat them as potentially sensitive.
+
+For Go tests, the standard tooling is separate from these CLI options:
+
+```sh
+mise exec -- go test ./checker -run '^$' -bench '^BenchmarkCheckCounter$' -cpuprofile cpu-test.pprof -memprofile mem-test.pprof
+go tool pprof cpu-test.pprof
+```
+
+The `final liveness check` trace region is nested within exploration when a
+final graph check runs. Incremental liveness checks can also occur during
+exploration, outside that region.

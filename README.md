@@ -71,9 +71,10 @@ The module name must match the `.tla` filename. External modules referenced by `
 
 | Option | Purpose |
 | --- | --- |
+| `-debug-trace FILE`, `-debug-cpu-profile FILE`, `-debug-heap-profile FILE` | Write opt-in Go runtime diagnostics to new files; see [profiling](docs/development.md#profiling-the-cli). These are tla-go options, not Java TLC flags. |
 | `-config FILE` | Use a different TLC configuration file. As in Java TLC, `.cfg` is appended unless `FILE` already ends with it, and a relative name is also searched in the specification's directory. |
 | `-DTLA-Library=PATHS` | Search these directories for modules, in order. Separate paths with `:` on Unix or `;` on Windows. |
-| `-metadir DIR` | Create a timestamped run directory under `DIR`; remove it on success. Checkpoint recovery is not yet supported. |
+| `-metadir DIR` | Create a timestamped run directory under `DIR`; remove it on success. |
 | `-deadlock` | Disable deadlock reporting. |
 | `-seed N` | Set the random seed; model checking defaults to 0 and simulation chooses a random seed. |
 | `-aril N` | Advance the simulation's random stream by N double draws when `-seed` is supplied. |
@@ -84,7 +85,8 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-workers N` | Accept a positive worker count or `auto`, as Java TLC does. Eligible BFS models generate successors concurrently and merge them in serial order; other models fall back to serial exploration. Simulation accepts only one worker, and with `-dfid` more workers are rejected with Java TLC's error and exit code 255. |
 | `-maxSetSize N` | Limit the sets and other values that Java TLC builds element by element, such as `{e : x \in S}` and `(1..n) \cup S` (default 1,000,000). Deferred sets stored in states are not limited yet. |
 | `-coverage N` | Report experimental action and expression counts for a restricted set of breadth-first models. Positive intervals require runs to complete before a conservative deadline; longer runs stop with an error. See [limitations](docs/compatibility.md). |
-| `-checkpoint MINUTES` | Accept Java TLC's checkpoint interval; checkpoints are not written. |
+| `-checkpoint MINUTES` | Periodically save checkpoints for supported serial models; zero disables writes. |
+| `-recover DIR` | Resume a supported model from a tla-go checkpoint directory. |
 | `-fp N` | Select a TLC fingerprint polynomial by index (0–130; default 0). |
 | `-tool` | Emit experimental TLC-style machine-readable messages. |
 | `-view` | Print trace states, dumped states, and simulation trace files through the configured `VIEW`, as Java TLC does. |
@@ -162,27 +164,12 @@ Like Java, it replaces the text between `\* BEGIN TRANSLATION` and `\* END TRANS
 
 `-spec`, `-myspec`, `-spec2`, and `-myspec2` make Java run TLC on PlusCal's own TLA+ specification of the translation. tla-go rejects them.
 
-## Documentation
+## Checkpoints
 
-- [Compatibility and limitations](docs/compatibility.md): supported model constructs and known differences from Java TLC.
-- [Development and testing](docs/development.md): building from source, quality checks, Java TLC comparisons, and fixture provenance.
-- [Statechart compatibility plan](docs/statechart-compatibility.md): the CLI, graph, and metadata interfaces needed by statechart.
-- [Security](SECURITY.md): how to report a vulnerability.
-
-Java TLC is the compatibility target. Some regression fixtures also come from [tla-ts](https://github.com/aidenybai/tla-ts), pinned at `19c763f07fda4b098e8a24405301628a424547c0`; see [UPSTREAM-LICENSE](UPSTREAM-LICENSE).
-
-The checker contains an experimental, private checkpoint codec, currently disconnected
-from search and the CLI. It stores an ordered BFS node queue and its head, visited
-keys, parent and action-range trace metadata, and selected counters for states whose
-values are integers or Booleans. The format is versioned, checksummed, bounded to
-64 MiB. It syncs a temporary file and renames it over the destination in the same
-directory; on non-Windows systems it also syncs the directory. Windows does not
-sync the directory, and Go does not guarantee that rename is atomic on Windows.
-A directory-sync error can be reported after replacement has already occurred; crash
-durability depends on the filesystem. It is not Java TLC's checkpoint format. Checkpoint creation and recovery are not implemented: safely resuming requires
-an expansion-boundary snapshot, identities covering every loaded module and effective
-configuration and option, reconstruction of runtime and trace state, and handling or
-explicit exclusion of features such as liveness, symmetry, coverage, and parallel work.
+The checkpoint format is versioned, checksummed and limited to 64 MiB. Files
+are written through a temporary file and renamed in the same directory. On
+non-Windows systems the directory is also synced; Go does not guarantee atomic
+rename on Windows, and durability depends on the filesystem.
 
 Explicit `-checkpoint N` (positive minutes) supports a restricted pure serial
 breadth-first search: integer and Boolean states and the checker's limited
@@ -202,3 +189,12 @@ restart, and full Java output equivalence is not established.
 For deterministic debugging, `TLA_GO_DEBUG_CHECKPOINT_AFTER=N` saves after N
 state expansions and stops with a nonzero status. It is not a production
 scheduling option.
+
+## Documentation
+
+- [Compatibility and limitations](docs/compatibility.md): supported model constructs and known differences from Java TLC.
+- [Development and testing](docs/development.md): building from source, quality checks, Java TLC comparisons, and fixture provenance.
+- [Statechart compatibility plan](docs/statechart-compatibility.md): the CLI, graph, and metadata interfaces needed by statechart.
+- [Security](SECURITY.md): how to report a vulnerability.
+
+Java TLC is the compatibility target. Some regression fixtures also come from [tla-ts](https://github.com/aidenybai/tla-ts), pinned at `19c763f07fda4b098e8a24405301628a424547c0`; see [UPSTREAM-LICENSE](UPSTREAM-LICENSE).

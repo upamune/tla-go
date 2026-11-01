@@ -107,14 +107,17 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 		t.message(1000, 1, err.Error())
 		return 255
 	}
+	endParsing := profileRegion(ctx, "parsing and config")
 	parsed, err := readConfig(configPath)
 	if err != nil {
+		endParsing()
 		printToolConfigError(t, configPath, err)
 		return 255
 	}
 	t.message(2220, 0, "Starting SANY-compatible analysis...")
 	var diagnostic bytes.Buffer
 	module, source, code := loadModuleWithSource(specPath, opts.libraryPaths, &diagnostic)
+	endParsing()
 	if code != 0 {
 		return toolLoadFailure(t, &diagnostic, code)
 	}

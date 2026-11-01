@@ -3,6 +3,7 @@ package checker
 import (
 	"errors"
 	"fmt"
+	"runtime/trace"
 	"strconv"
 	"time"
 
@@ -150,6 +151,9 @@ func (s *search) explore() (Result, error) {
 }
 
 func (s *search) finishLiveness() (Result, error) {
+	if trace.IsEnabled() {
+		defer trace.StartRegion(s.model.ctx, "final liveness check").End()
+	}
 	started := s.startTemporalProgress()
 	result, err := s.checkLiveness()
 	if started != nil && err == nil && result.Failure == nil {

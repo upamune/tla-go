@@ -10,9 +10,12 @@ import (
 
 // simulationTraceFile follows SimulationWorker, which writes each state with
 // TLCStateMut.toString: through VIEW under -view and tersely under -terse.
-func simulationTraceFile(prefix string, style traceStyle) func(int, []checker.TraceStep) error {
+func simulationTraceFile(prefix string, style traceStyle, opts options) func(int, []checker.TraceStep) error {
 	return func(index int, trace []checker.TraceStep) error {
 		name := fmt.Sprintf("%s_0_%d", prefix, index)
+		if err := protectProfileOutput(opts, name); err != nil {
+			return err
+		}
 		var contents bytes.Buffer
 		fmt.Fprintf(&contents, "---------------- MODULE %s -----------------\n", name)
 		for i, step := range trace {
