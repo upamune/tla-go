@@ -17,8 +17,11 @@ type ProgressSnapshot struct {
 // observer goroutines and must stop and join them before reusing any output.
 // A zero snapshot can also mean the check failed before search began.
 type LiveProgress struct {
-	mu       sync.RWMutex
-	snapshot ProgressSnapshot
+	mu            sync.RWMutex
+	snapshot      ProgressSnapshot
+	coverage      *coverageCollector
+	finished      bool
+	finalCoverage []CoverageAction
 }
 
 // Snapshot returns a coherent copy at a publication point.
@@ -26,6 +29,66 @@ func (p *LiveProgress) Snapshot() ProgressSnapshot {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.snapshot
+}
+
+// CoverageSnapshot returns an independent, synchronized coverage report, or
+// nil before coverage is initialized or when the completed check has no
+// reliable coverage. Coverage and Snapshot are sampled separately and need not
+// represent the same instant. After return, coverage matches Result.Coverage;
+// a panic leaves no final coverage.
+func (p *LiveProgress) CoverageSnapshot() []CoverageAction {
+	p.mu.RLock()
+	if p.finished {
+		defer p.mu.RUnlock()
+		return cloneCoverage(p.finalCoverage)
+	}
+	coverage := p.coverage
+	p.mu.RUnlock()
+	if coverage == nil {
+		return nil
+	}
+	report := coverage.report()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.finished {
+		return cloneCoverage(p.finalCoverage)
+	}
+	return report
+}
+
+func cloneCoverage(actions []CoverageAction) []CoverageAction {
+	if actions == nil {
+		return nil
+	}
+	copyActions := make([]CoverageAction, len(actions))
+	copy(copyActions, actions)
+	for i := range copyActions {
+		if actions[i].Expressions != nil {
+			copyActions[i].Expressions = append([]CoverageExpression{}, actions[i].Expressions...)
+		}
+	}
+	return copyActions
+}
+
+func (p *LiveProgress) finishCoverage(coverage []CoverageAction) {
+	p.mu.Lock()
+	p.finished = true
+	p.coverage = nil
+	p.finalCoverage = cloneCoverage(coverage)
+	p.mu.Unlock()
+}
+
+func (p *LiveProgress) attachCoverage(coverage *coverageCollector) {
+	p.mu.Lock()
+	p.coverage = coverage
+	p.mu.Unlock()
+}
+
+func (m *model) configureLiveProgress(progress *LiveProgress) {
+	m.progress = progress
+	if progress != nil {
+		progress.attachCoverage(m.coverage)
+	}
 }
 
 func (p *LiveProgress) publish(snapshot ProgressSnapshot) {
