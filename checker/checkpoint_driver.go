@@ -43,7 +43,7 @@ func (d *checkpointDriver) boundary(s *search) error {
 		snapshot.ObservationLog = true
 		snapshot.Observations = exportCheckpointObservations(s.model.checkpointObserver.records)
 	}
-	if err := checkpointWrite(d.path, snapshot); err != nil {
+	if err := checkpointWriteContext(s.model.ctx, d.path, snapshot); err != nil {
 		return err
 	}
 	d.paused = d.pauseOnTick || (d.pauseAt != 0 && s.head == d.pauseAt)
@@ -94,7 +94,7 @@ func (d *checkpointDriver) run(m *model, resume bool) (Result, error) {
 	if !resume {
 		return m.check()
 	}
-	snapshot, err := checkpointRead(d.path, *m.checkpointIdentity)
+	snapshot, err := checkpointReadContext(m.ctx, d.path, *m.checkpointIdentity)
 	if err != nil {
 		return Result{}, err
 	}
