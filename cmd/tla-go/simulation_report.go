@@ -36,25 +36,22 @@ func configureCheckingMode(checkOpts *checker.Options, opts options, module *par
 	if opts.simulate {
 		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, UnlimitedTraces: opts.simulationUnlimited, Aril: opts.aril, Continue: opts.continuation, OmitLassoPropertyNames: opts.tool}
 		if opts.tool {
-			var previousBehavior *checker.TraceStep
 			checkOpts.Simulation.OnCounterexampleStart = func() { printToolTemporalHeadline(toolOutput{out: out}) }
 			checkOpts.Simulation.OnCounterexampleStates = func(trace []checker.TraceStep, from int) {
 				printToolTraceIncrement(toolOutput{out: out}, newTraceStyle(opts), trace, from, module)
 			}
 			checkOpts.Simulation.OnBehaviorStart = func(failure *checker.Failure) {
-				previousBehavior = nil
 				t := toolOutput{out: out}
 				printToolFailureHeader(t, failure)
 				t.message(2121, 1, "The behavior up to this point is:")
 			}
-			checkOpts.Simulation.OnBehaviorState = func(step checker.TraceStep, number int) {
+			checkOpts.Simulation.OnBehaviorStateWithPrevious = func(step checker.TraceStep, previous *checker.TraceStep, number int) {
 				trace := []checker.TraceStep{step}
-				if previousBehavior != nil {
-					trace = append([]checker.TraceStep{*previousBehavior}, step)
+				if previous != nil {
+					trace = append([]checker.TraceStep{*previous}, step)
 				}
 				trace = newTraceStyle(opts).trace(trace, false)
 				printToolTraceStep(toolOutput{out: out}, trace[len(trace)-1], number, module)
-				previousBehavior = &step
 			}
 		}
 		if opts.continuation {
