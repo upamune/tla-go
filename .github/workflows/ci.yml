@@ -63,7 +63,7 @@ jobs:
         env:
           TLC_JAR: ${{ runner.temp }}/tla2tools.jar
           TLC_MODERN_JAR: ${{ runner.temp }}/tla2tools-1.8.0.jar
-        run: mise exec -- go test ./checker ./cmd/tla-go -run '^TestJava(TLC|SANYRecursive)' -count=1 -timeout=60m
+        run: mise exec -- go test ./checker ./cmd/tla-go -run '^Test(Java(TLC|SANYRecursive)|PinnedJava)' -count=1 -timeout=60m
       - name: Fetch the pinned statechart corpus
         run: |
           set -eu

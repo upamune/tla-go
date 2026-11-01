@@ -24,8 +24,9 @@ until that distinction is represented.
 
 A general implementation needs pull iterators for all enumerable value kinds,
 including their actual construction and prefetch behavior. For example,
-`SetOfTuplesValue.Enumerator` opens each factor and reads its first element
-at construction, then advances its odometer before returning each tuple.
+`SetOfTuplesValue.Enumerator` opens factors in order and reads the first element
+of each at construction, stopping before later factors if one is empty. It then
+advances its odometer before returning each tuple.
 Filters evaluate predicates during `nextElement`; Java's cap and difference
 choose an enumerable operand according to Java's `Enumerable` interface. A
 callback or goroutine that starts the right child only after exhausting the left
