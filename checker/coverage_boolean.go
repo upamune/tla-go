@@ -29,7 +29,7 @@ func (m *model) coverageBooleanToggleProgram() bool {
 		return false
 	}
 	init, next, ok := m.coverageRoots()
-	if !ok || len(init.Params) != 0 || !coverageBooleanInitial(init.Body, m.names[0]) {
+	if !ok || next.Body.Kind != "Or" || len(init.Params) != 0 || !coverageBooleanInitial(init.Body, m.names[0]) {
 		return false
 	}
 	return m.coverageBooleanActions(next.Body.Args, m.names[0])

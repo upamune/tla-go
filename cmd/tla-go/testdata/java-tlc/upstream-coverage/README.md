@@ -20,6 +20,14 @@ when `TLC_JAR` is set, with Java directly. `C.coverage` records the same Java
 report for the upstream quantified-action and invariant example; Go does not
 yet support collecting that model's coverage.
 
+`G.tla`, `G.cfg`, and `G.coverage` preserve the unmodified upstream G coverage
+model and the final report from Java 1.7.4 with `-deadlock -fp 0 -workers 1
+-checkpoint 0 -coverage 9999`, following the JUnit setup. Go still rejects G:
+its alias, multiple UNCHANGED conjuncts and ENABLED invariant need additional
+cost-model support. Smaller derived cases test a direct UNCHANGED next action
+over all variables; state constraints and INSTANCE substitutions remain
+outside that implementation's scope.
+
 `three-independent.coverage` and `three-dependent.coverage` are Java 1.7.4
 reports for the small three-variable models constructed in the tests.
 
