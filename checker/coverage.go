@@ -90,7 +90,7 @@ func (m *model) emptyCoverageModel() bool {
 
 func (m *model) addCoverageProperties(c *coverageCollector) bool {
 	for _, name := range m.cfg.Invariants {
-		if m.coverageLiteralTrueInvariant(name) {
+		if m.coverageLiteralTrueInvariant(name) && m.coverageTotalUnchangedSafe() {
 			continue
 		}
 		if !m.addCoverageProperty(c, name) {
@@ -505,7 +505,7 @@ func (m *model) coverageInitialSetContext(body *parser.Expression) bool {
 	if len(m.cfg.Constraints) != 0 || !m.coverageDirectInitial(body) {
 		return false
 	}
-	return !coverageHasSetEquality(items) || m.coverageSetEqualitySafe()
+	return !coverageHasSetEquality(items) || m.coverageTotalUnchangedSafe()
 }
 
 func coverageHasSetEquality(items []*parser.Expression) bool {
@@ -517,9 +517,10 @@ func coverageHasSetEquality(items []*parser.Expression) bool {
 	return false
 }
 
-// Literal set equality was added for total direct UNCHANGED checks. Other
-// checks can replay Init and Next while reporting a violation, changing costs.
-func (m *model) coverageSetEqualitySafe() bool {
+// Newly supported constant-TRUE invariants and literal set equalities need a
+// total direct UNCHANGED check. Other checks can replay Init and Next while
+// reporting a violation, changing costs.
+func (m *model) coverageTotalUnchangedSafe() bool {
 	if len(m.module.Assumptions) != 0 || m.graph != nil {
 		return false
 	}
@@ -528,10 +529,10 @@ func (m *model) coverageSetEqualitySafe() bool {
 			return false
 		}
 	}
-	return m.coverageSetEqualityNextSafe()
+	return m.coverageTotalUnchangedNextSafe()
 }
 
-func (m *model) coverageSetEqualityNextSafe() bool {
+func (m *model) coverageTotalUnchangedNextSafe() bool {
 	next, ok := m.defs[m.cfg.Next]
 	return ok && coverageDirectDefinition(next) && next.Body != nil && !m.trueConfigured[next.Name] && m.coverageUnchangedSequence(next.Body)
 }

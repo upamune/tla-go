@@ -288,8 +288,10 @@ endpoint and does not terminate normally.
 Initial guards,
 mixed assignments and ranges, and multiple range assignments are rejected;
 their continuation-dependent TLC costs are not modeled. A literal `TRUE`
-invariant is omitted from coverage, as in Java TLC. Other supported invariants
-are subject to the expression limits above. `Init` and `Next` must be nullary,
+invariant is omitted from coverage only with a total direct UNCHANGED action,
+no assumptions or graph output, and no other kind of invariant. Other
+supported invariants are subject to the expression limits above. `Init` and
+`Next` must be nullary,
 nonrecursive, unmodified definitions. Definitions inherited through `EXTENDS`
 are supported, but substituted `INSTANCE` definitions are rejected. The
 upstream `ETest3` remains unsupported because its effectful initial predicate

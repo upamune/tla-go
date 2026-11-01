@@ -22,13 +22,20 @@ Always == TRUE`
 	for _, tc := range []struct {
 		name, config string
 		exit, event  int
+		numeric      bool
 	}{
-		{"invariant", "INVARIANTS Inv Always\nCHECK_DEADLOCK FALSE\n", 12, 2110},
-		{"deadlock", "INVARIANT Always\n", 11, 2114},
+		{"invariant", "INVARIANTS Inv Always\nCHECK_DEADLOCK FALSE\n", 12, 2110, false},
+		{"deadlock", "INVARIANT Always\n", 11, 2114, false},
+		{"numeric-invariant", "INVARIANTS Inv Always\nCHECK_DEADLOCK FALSE\n", 12, 2110, true},
+		{"numeric-deadlock", "INVARIANT Always\n", 11, 2114, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			writeCoverageModule(t, dir, "M", body)
+			model := body
+			if tc.numeric {
+				model = strings.Replace(body, "x = {}", "x = 0", 1)
+			}
+			writeCoverageModule(t, dir, "M", model)
 			writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\n"+tc.config)
 			args := []string{"-tool", "-fp", "0", "-workers", "1", "-coverage", "9999", "-checkpoint", "0", "M.tla"}
 			out, code, stderr := runGoInDir(t, dir, args)
@@ -73,4 +80,18 @@ func TestCoverageRejectsInitialLiteralSetWithGraph(t *testing.T) {
 	if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
 		t.Fatalf("expected rejection: exit %d stderr %s\n%s", code, stderr, out)
 	}
+}
+
+func TestJavaTLCCoverageLiteralTrueInvariantWithUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	writeCoverageModule(t, dir, "M", "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nAlways == TRUE")
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nINVARIANT Always\n")
+	compareParameterizedCoverage(t, dir)
+}
+
+func TestJavaTLCCoverageStateInvariantWithUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	writeCoverageModule(t, dir, "M", "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nInv == x = 0")
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nINVARIANT Inv\n")
+	compareParameterizedCoverage(t, dir)
 }
