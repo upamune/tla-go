@@ -23,6 +23,7 @@ func printResult(w io.Writer, result checker.Result, module *parser.Module) {
 	} else if printViolation(w, result, module) {
 		return
 	}
+	printCoverage(w, result.Coverage)
 	printStatistics(w, result)
 }
 

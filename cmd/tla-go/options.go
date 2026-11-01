@@ -44,11 +44,31 @@ var valueOptions = map[string]func(*options, []string) (int, error){
 	"-workers":    parseWorkersOption,
 	"-fp":         parseFingerprintOption,
 	"-checkpoint": parseCheckpointOption,
+	"-coverage":   parseCoverageOption,
 	"-maxSetSize": parseMaxSetSizeOption,
 	"-I":          parseLibraryOption,
 	"-simulate":   parseSimulationOption,
 	"-depth":      parseSimulationDepth,
 	"-dfid":       parseDepthFirstOption,
+}
+
+// parseCoverageOption validates the interval using TLC 1.7.4's 32-bit arithmetic.
+func parseCoverageOption(opts *options, args []string) (int, error) {
+	if len(args) < 2 {
+		return 0, commandLineError("Error: coverage report interval required.")
+	}
+	minutes, err := strconv.ParseInt(args[1], 10, 32)
+	if err != nil {
+		return 0, commandLineError("Error: An integer for coverage report interval required. But encountered " + args[1])
+	}
+	if int32(minutes)*60*1000 < 0 {
+		return 0, commandLineError("Error: expect a nonnegative integer for -coverage option.")
+	}
+	if minutes != 0 {
+		return 0, fmt.Errorf("periodic -coverage reports are not yet supported; use 0")
+	}
+	opts.coverage = true
+	return 1, nil
 }
 
 func setHelp(opts *options)    { opts.help = true }
@@ -66,10 +86,10 @@ func parseOptions(args []string) (options, error) {
 	if !opts.help && !opts.version && len(opts.paths) == 0 {
 		return opts, fmt.Errorf("missing model path")
 	}
-	if err := configureSimulation(&opts); err != nil {
+	if err := configureSearchModes(&opts); err != nil {
 		return opts, err
 	}
-	if err := configureDepthFirst(&opts); err != nil {
+	if err := configureCoverage(opts); err != nil {
 		return opts, err
 	}
 	return opts, nil
@@ -259,4 +279,18 @@ func parsePath(opts *options, path string) error {
 	}
 	opts.paths = append(opts.paths, path)
 	return nil
+}
+
+func configureCoverage(opts options) error {
+	if opts.coverage && (opts.simulate || opts.dfid || opts.continuation) {
+		return fmt.Errorf("-coverage is not yet supported with -simulate, -dfid, or -continue")
+	}
+	return nil
+}
+
+func configureSearchModes(opts *options) error {
+	if err := configureSimulation(opts); err != nil {
+		return err
+	}
+	return configureDepthFirst(opts)
 }

@@ -163,6 +163,7 @@ func printToolResult(t toolOutput, result checker.Result, module *parser.Module)
 		t.message(2193, 0, strings.TrimSuffix(body.String(), "\n"))
 	}
 	if toolHasStatistics(result) {
+		printToolCoverage(t, result.Coverage)
 		printToolStatistics(t, result)
 	}
 }

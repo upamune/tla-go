@@ -14,8 +14,8 @@ import (
 )
 
 // The model files and state counts come from Java TLC v1.7.4's JUnit tests.
-// Coverage assertions are not checked here: tla-go does not yet implement
-// TLC's coverage reporting.
+// Coverage assertions are not checked here; experimental coverage supports only
+// a restricted subset of models.
 func TestJavaTLCOriginalModels(t *testing.T) {
 	for _, tc := range []struct {
 		name                       string
