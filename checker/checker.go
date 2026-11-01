@@ -433,9 +433,19 @@ func checkParsedWithOutput(ctx context.Context, module *parser.Module, cfg confi
 	if err != nil {
 		return result, err
 	}
-	model.attachCoverage(&result)
+	return model.finishCoverageCheck(result, options)
+}
+
+func (model *model) finishCoverageCheck(result Result, options Options) (Result, error) {
+	if model.coverage == nil || result.Status == Success || !model.coverage.hasExistential || !model.coverageReplayUnreliable(result) {
+		model.attachCoverage(&result)
+	}
 	model.adjustContinuedEvaluationFailure(&result)
 	return model.finalizeCheckResult(result, options.OnTemporalCheck, options.OnTemporalViolation)
+}
+
+func (model *model) coverageReplayUnreliable(result Result) bool {
+	return result.Status == EvaluationFailure || model.coverage.evaluatedExistential || result.Violation != nil && len(result.Violation.Trace) > 1
 }
 
 func (m *model) finalizeCheckResult(result Result, onTemporalCheck, onTemporalViolation func(Result)) (Result, error) {

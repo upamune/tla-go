@@ -238,6 +238,10 @@ func (s *search) finishExpansion(index, count, before int) (bool, error) {
 	if count == 0 && s.model.cfg.CheckDeadlock {
 		s.result.Status = Deadlock
 		s.result.Violation = &Violation{Name: "deadlock", Trace: s.trace(index)}
+		if s.model.coverage != nil && s.model.coverage.hasExistential {
+			s.outDegrees[0]++
+			s.result.OutDegrees, s.result.HasOutDegrees = s.outDegrees, true
+		}
 		return false, nil
 	}
 	if more, err := s.checkGuardedProperties(index); err != nil || !more {

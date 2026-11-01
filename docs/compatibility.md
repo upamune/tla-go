@@ -130,10 +130,16 @@ comparisons and membership with simple operands, and nested single-bound
 quantifiers over literal integer ranges. Counts are recorded during evaluation,
 including short-circuiting; other invariant forms are rejected. The property
 fixtures include direct Java 1.7.4 comparisons and saved reports.
+One supported quantified action shape has a single preceding `x < n` guard and
+a final `\E i \in a..b : x' = i`, for a single variable and literal bounds.
+For evaluation failures, failures after this existential has been evaluated,
+or failures with a successor trace, coverage is omitted because TLC can charge
+replay to its cost model; the diagnostic and exit status are retained. Failures
+before evaluation that do not require replay retain their normal coverage behavior.
 Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, depth-first search,
 and nonzero periodic intervals. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, operator calls,
-action quantification, parameterized or inline actions, initial or action disjunctions,
+other action quantification, parameterized or inline actions, initial or action disjunctions,
 substituted instances, nested cost-model expressions, and coverage during error
 replay and liveness are not implemented or fully checked. The upstream `C`
 model therefore remains unsupported for coverage. Reporting for arbitrary

@@ -36,6 +36,9 @@ func (g *generator) existential(item work, rest *workList, partial evaluator.Sta
 // witnesses evaluates the bounds of an existential before binding them, as
 // TLC's ContextEnumerator does.
 func (g *generator) witnesses(item work, rest *workList, partial evaluator.State, action string) (bool, error) {
+	if g.model.coverage != nil {
+		g.coverExistentialDomain(item.expr, action)
+	}
 	domains, err := g.boundDomains(item.expr.Bounds, partial, item.locals)
 	if err != nil {
 		return false, err

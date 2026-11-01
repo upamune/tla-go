@@ -36,6 +36,9 @@ type coverageCollector struct {
 	memberships           map[string]map[parser.Range]int
 	assignmentMemberships map[string]map[parser.Range]int
 	properties            map[string]*coverageNode
+	existentialDomains    map[string]map[parser.Range]int
+	hasExistential        bool
+	evaluatedExistential  bool
 }
 
 func (m *model) newCoverage() (*coverageCollector, error) {
@@ -54,7 +57,7 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 	if !ok {
 		return nil, false
 	}
-	c := &coverageCollector{byName: map[string]int{}, bodies: map[string]*parser.Expression{}, expressions: map[string]map[parser.Range]int{}, guards: map[string]map[parser.Range]int{}, memberships: map[string]map[parser.Range]int{}, assignmentMemberships: map[string]map[parser.Range]int{}, properties: map[string]*coverageNode{}, initial: init.Name}
+	c := &coverageCollector{byName: map[string]int{}, bodies: map[string]*parser.Expression{}, expressions: map[string]map[parser.Range]int{}, guards: map[string]map[parser.Range]int{}, memberships: map[string]map[parser.Range]int{}, assignmentMemberships: map[string]map[parser.Range]int{}, properties: map[string]*coverageNode{}, existentialDomains: map[string]map[parser.Range]int{}, initial: init.Name}
 	if !m.coverageBodySupported(init.Body, true) || !c.add(init, true) {
 		return nil, false
 	}
@@ -109,11 +112,22 @@ func (c *coverageCollector) add(d parser.Definition, initial bool) bool {
 	c.guards[d.Name] = map[parser.Range]int{}
 	c.memberships[d.Name] = map[parser.Range]int{}
 	c.assignmentMemberships[d.Name] = map[parser.Range]int{}
+	c.existentialDomains[d.Name] = map[parser.Range]int{}
 	c.actions = append(c.actions, CoverageAction{Name: d.Name, Range: r})
 	return c.addExpression(d.Name, d.Body, initial)
 }
 
 func (c *coverageCollector) addExpression(name string, e *parser.Expression, initial bool) bool {
+	if e.Kind == "Exists" {
+		c.hasExistential = true
+		if !c.addExpression(name, e.Args[0], initial) {
+			return false
+		}
+		a := &c.actions[c.byName[name]]
+		c.existentialDomains[name][e.Location.Range] = len(a.Expressions)
+		a.Expressions = append(a.Expressions, CoverageExpression{Range: e.Bounds[0].Set.Location.Range})
+		return true
+	}
 	if e.Kind != "And" {
 		return c.addCoverageAtom(name, e, initial)
 	}
@@ -316,12 +330,23 @@ func (m *model) coverageBodySupported(body *parser.Expression, initial bool) boo
 		items = body.Args
 	}
 	g := generator{model: m, initial: initial}
-	for _, e := range items {
-		if !g.coverageItemSupported(e) {
+	if !g.coverageItemsSupported(items) {
+		return false
+	}
+	return initial || g.coverageActionOrderSupported(items)
+}
+
+func (g *generator) coverageItemsSupported(items []*parser.Expression) bool {
+	for i, e := range items {
+		if e.Kind == "Exists" {
+			if g.initial || i != len(items)-1 || !g.coverageExistentialSupported(e, items[:i]) {
+				return false
+			}
+		} else if !g.coverageItemSupported(e) {
 			return false
 		}
 	}
-	return initial || g.coverageActionOrderSupported(items)
+	return true
 }
 
 func (g *generator) coverageActionOrderSupported(items []*parser.Expression) bool {
@@ -507,18 +532,17 @@ func (c *coverageCollector) finishAction(a *CoverageAction) []CoverageExpression
 	expressions := make([]CoverageExpression, 0, len(a.Expressions))
 	for j := 0; j < len(a.Expressions); j++ {
 		e := a.Expressions[j]
+		if quantifier, ok := c.finishExistential(a, j); ok {
+			expressions = append(expressions, quantifier)
+			j++
+			continue
+		}
 		if end := c.suppressedSubtree(a, j); end > j {
 			j = end
 			continue
 		}
-		if _, ok := c.guards[a.Name][e.Range]; ok {
-			child := a.Expressions[j+1]
-			j++
-			expressions = appendCoverageGuard(expressions, e, child)
-			continue
-		}
-		if _, ok := c.assignmentMemberships[a.Name][e.Range]; ok {
-			expressions = c.appendMembership(expressions, a.Name, e, a.Expressions[j+1])
+		if pair, ok := c.finishActionPair(a, j); ok {
+			expressions = append(expressions, pair...)
 			j++
 			continue
 		}
@@ -528,6 +552,34 @@ func (c *coverageCollector) finishAction(a *CoverageAction) []CoverageExpression
 		expressions = append(expressions, e)
 	}
 	return expressions
+}
+
+func (c *coverageCollector) finishActionPair(a *CoverageAction, index int) ([]CoverageExpression, bool) {
+	e := a.Expressions[index]
+	if _, ok := c.guards[a.Name][e.Range]; ok {
+		return appendCoverageGuard(nil, e, a.Expressions[index+1]), true
+	}
+	if _, ok := c.assignmentMemberships[a.Name][e.Range]; ok {
+		return c.appendMembership(nil, a.Name, e, a.Expressions[index+1]), true
+	}
+	return nil, false
+}
+
+// The quantified action's body and domain are sibling cost nodes in TLC.
+func (c *coverageCollector) finishExistential(a *CoverageAction, index int) (CoverageExpression, bool) {
+	for quantifier, domainIndex := range c.existentialDomains[a.Name] {
+		if domainIndex != index+1 {
+			continue
+		}
+		body, domain := a.Expressions[index], a.Expressions[domainIndex]
+		if domain.Count == 0 {
+			return body, true
+		}
+		if body.Count == domain.Count {
+			return CoverageExpression{Range: quantifier, Count: body.Count}, true
+		}
+	}
+	return CoverageExpression{}, false
 }
 
 func (c *coverageCollector) suppressedSubtree(a *CoverageAction, index int) int {
@@ -594,4 +646,53 @@ func sameCoverageCounts(expressions []CoverageExpression, ignoreZero bool) bool 
 		count = e.Count
 	}
 	return count != 0
+}
+
+// coverageExistentialSupported models a final existential whose single witness
+// assigns the sole state variable. Earlier conjuncts must be ordinary guards.
+// Larger continuation trees require TLC's cost model for each branch.
+func (g *generator) coverageExistentialSupported(e *parser.Expression, earlier []*parser.Expression) bool {
+	if !g.coverageExistentialShape(e, earlier) {
+		return false
+	}
+	b := e.Bounds[0]
+	guard := earlier[0]
+	if !coverageComparisonGuard(guard) || guard.Text != "<" || guard.Args[0].Text != g.model.names[0] {
+		return false
+	}
+	return g.coverageExistentialAssignment(e.Args[0], b.Names[0])
+}
+
+func (g *generator) coverageExistentialShape(e *parser.Expression, earlier []*parser.Expression) bool {
+	if len(earlier) != 1 || len(g.model.names) != 1 || len(e.Bounds) != 1 || len(e.Args) != 1 {
+		return false
+	}
+	b := e.Bounds[0]
+	return len(b.Names) == 1 && !b.Tuple && coverageLiteralInterval(b.Set)
+}
+
+func (g *generator) coverageExistentialAssignment(body *parser.Expression, bound string) bool {
+	if body.Kind != "Apply" || body.Text != "=" || len(body.Args) != 2 || body.Args[1].Kind != "Identifier" || body.Args[1].Text != bound {
+		return false
+	}
+	return bound != g.model.names[0] && coveragePrimeVariable(body.Args[0], g.model.names[0])
+}
+
+func coveragePrimeVariable(e *parser.Expression, name string) bool {
+	return e.Kind == "Prime" && len(e.Args) == 1 && e.Args[0].Kind == "Identifier" && e.Args[0].Text == name
+}
+
+func coverageLiteralInterval(e *parser.Expression) bool {
+	return e != nil && e.Kind == "Apply" && e.Text == ".." && len(e.Args) == 2 && e.Args[0].Kind == "Number" && e.Args[1].Kind == "Number"
+}
+
+func (g *generator) coverExistentialDomain(expr *parser.Expression, action string) {
+	if g.model.coverage == nil {
+		return
+	}
+	c := g.model.coverage
+	if i, ok := c.existentialDomains[action][expr.Location.Range]; ok {
+		c.evaluatedExistential = true
+		c.actions[c.byName[action]].Expressions[i].Count++
+	}
 }

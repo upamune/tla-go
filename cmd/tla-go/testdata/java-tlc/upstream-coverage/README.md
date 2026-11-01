@@ -17,3 +17,8 @@ yet support collecting that model's coverage.
 
 `three-independent.coverage` and `three-dependent.coverage` are Java 1.7.4
 reports for the small three-variable models constructed in the tests.
+
+`exists-*.coverage` reports come from the 16 generated models in
+`java_tlc_coverage_quantified_test.go`, using the pinned Java 1.7.4 jar with
+`-workers 1 -deadlock -coverage 0`. They vary the bounded existential's
+domain and preceding guard, including repeated states and an invariant.
