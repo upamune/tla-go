@@ -236,6 +236,12 @@ func (g *generator) cover(expr *parser.Expression, action string) {
 	c := g.model.coverage
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if g.enabled {
+		if g.coverageProperty != nil {
+			g.coverageProperty.observe(expr)
+		}
+		return
+	}
 	if !g.initial && g.coverageRoot != nil {
 		c.actions[g.coverageRoot.action].Expressions[0].Count++
 		return

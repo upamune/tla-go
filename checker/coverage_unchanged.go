@@ -15,10 +15,51 @@ func (m *model) addCoverageUnchangedNext(c *coverageCollector, next parser.Defin
 	if !m.coverageDirectConfiguration(c, init, next) {
 		return false
 	}
-	if !m.coverageDirectInitial(init.Body) || !m.coverageUnchangedVariables(next.Body) || !m.coverageBodySupported(next.Body, false) {
+	if !m.coverageDirectInitial(init.Body) || !m.coverageUnchangedSequence(next.Body) || !m.coverageBodySupported(next.Body, false) {
 		return false
 	}
 	return c.add(next, false)
+}
+
+// Each conjunct must independently assign every variable. The first assigns
+// the next state; later UNCHANGED conjuncts are evaluated as state guards.
+func (m *model) coverageUnchangedSequence(expr *parser.Expression) bool {
+	items := []*parser.Expression{expr}
+	if expr.Kind == "And" {
+		items = expr.Args
+	}
+	if len(items) == 0 {
+		return false
+	}
+	for _, item := range items {
+		if item == nil || item.Kind != "Unchanged" || len(item.Args) != 1 || !m.coverageUnchangedOperand(item.Args[0], map[string]bool{}) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *model) coverageUnchangedOperand(expr *parser.Expression, seen map[string]bool) bool {
+	if expr == nil {
+		return false
+	}
+	if expr.Kind == "Identifier" {
+		if len(m.names) == 1 && expr.Text == m.names[0] {
+			return true
+		}
+		return m.coverageUnchangedAlias(expr.Text, seen)
+	}
+	return m.coverageUnchangedTuple(expr)
+}
+
+func (m *model) coverageUnchangedAlias(name string, seen map[string]bool) bool {
+	d, ok := m.defs[name]
+	if !ok || seen[name] || !coverageDirectDefinition(d) || m.trueConfigured[d.Name] || d.Body == nil {
+		return false
+	}
+	seen[name] = true
+	defer delete(seen, name)
+	return m.coverageUnchangedOperand(d.Body, seen)
 }
 
 func (m *model) coverageDirectConfiguration(c *coverageCollector, init, next parser.Definition) bool {

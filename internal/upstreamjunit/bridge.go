@@ -20,6 +20,9 @@ var goSuiteTest10Java string
 //go:embed GoBCoverageTest.java
 var goBCoverageTestJava string
 
+//go:embed GoGCoverageTest.java
+var goGCoverageTestJava string
+
 //go:embed GoCoverageStatisticsTest.java
 var goCoverageStatisticsTestJava string
 

@@ -13,6 +13,10 @@ func (m *model) enabled(action *parser.Expression, current evaluator.State, lexi
 }
 
 func (m *model) enabledWithLocals(action *parser.Expression, current evaluator.State, lexical *evaluator.LexicalScope, locals map[string]value.Value) (bool, error) {
+	return m.enabledWithCoverage(action, current, lexical, locals, nil)
+}
+
+func (m *model) enabledWithCoverage(action *parser.Expression, current evaluator.State, lexical *evaluator.LexicalScope, locals map[string]value.Value, coverage *coverageNode) (bool, error) {
 	if current == nil {
 		return false, fmt.Errorf("ENABLED needs a complete state")
 	}
@@ -22,7 +26,7 @@ func (m *model) enabledWithLocals(action *parser.Expression, current evaluator.S
 		}
 	}
 	found := false
-	g := generator{model: m, current: current, enabled: true, lexical: lexical, emit: func(evaluator.State, string, *parser.Expression) (bool, error) {
+	g := generator{model: m, current: current, enabled: true, lexical: lexical, coverageProperty: coverage, emit: func(evaluator.State, string, *parser.Expression) (bool, error) {
 		found = true
 		return false, nil
 	}}

@@ -202,8 +202,13 @@ states in the coverage action even though a constraint admits two, whereas Go's
 collector reports two. Tests compare the direct action's normal and tool
 coverage with Java, including empty initial ranges, reordered definitions,
 `SPECIFICATION`, supported invariants, and separately defined modules. The
-upstream `GCoverageTest` remains unsupported: its three UNCHANGED conjuncts,
-operator alias, and `ENABLED` invariant need additional cost-model support.
+direct UNCHANGED action is supported in the forms described below.
+The upstream `GCoverageTest` is supported, including its alias for the full
+variable tuple, repeated `UNCHANGED` conjuncts, and `ENABLED Next` invariant.
+For this form every conjunct must independently preserve every variable, and
+the invariant must directly name that next-state action. Comparisons cover
+multiple variables, initial states, and both normal and tool output. Other
+forms of `ENABLED` remain unsupported in coverage mode.
 An incomplete initial state is also rejected for this coverage subset. Without
 coverage, Java reports such a state with message 2102; Go currently adds an
 extra 1000 message and formats 2102 differently.

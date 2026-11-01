@@ -527,6 +527,14 @@ expression counts, remove a coverage record or FINISHED, inject GENERAL, and
 change the exit status. The upstream metadir path, original setup, and complete
 recorder calls remain unverified. This is a partial bridge, not a Go JUnit pass.
 
+The same experiment executes the original Java `GCoverageTest` and its
+inherited setup and teardown, then checks Go's coverage and DOT output for the
+model against Java. Its original assertion and inherited teardown also run on
+projected Go observations, with controls for missing or altered recorder
+entries, errors and exit status. The original Go-side setup, metadir path and
+complete recorder stream remain unverified, so this is a partial bridge, not a
+Go JUnit pass.
+
 ## EmptyTest assertion-method bridge
 
 The same opt-in experiment discovers and executes the pinned

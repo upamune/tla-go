@@ -20,6 +20,7 @@ type work struct {
 type generator struct {
 	coverageCompleted int
 	coverageRoot      *coverageParameterizedRoot
+	coverageProperty  *coverageNode
 	model             *model
 	current           evaluator.State
 	initial           bool
@@ -334,7 +335,7 @@ func (m *model) assignsAll(state evaluator.State) bool {
 func (g *generator) finishAssigned(items *workList, partial evaluator.State, action string) (bool, error) {
 	for ; items != nil; items = items.next {
 		if g.model.coverage != nil {
-			g.cover(items.item.expr, action)
+			g.coverAssigned(items.item.expr, action)
 		}
 		ok, err := g.holdsScopedWork(items.item, partial)
 		if !g.initial && items.item.expr.Text != "=" && items.item.expr.Text != "\\in" {
@@ -349,6 +350,15 @@ func (g *generator) finishAssigned(items *workList, partial evaluator.State, act
 		}
 	}
 	return g.complete(partial, action)
+}
+
+// TLC charges an UNCHANGED guard once for its check and once for its
+// continuation when the successor has already been fully assigned.
+func (g *generator) coverAssigned(expr *parser.Expression, action string) {
+	g.cover(expr, action)
+	if expr.Kind == "Unchanged" && !g.initial {
+		g.cover(expr, action)
+	}
 }
 
 // A fully assigned initial candidate counts even when a later guard rejects it.

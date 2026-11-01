@@ -29,9 +29,8 @@ func (m *model) addCoverageProperty(c *coverageCollector, name string) bool {
 	for _, n := range m.names {
 		vars[n] = true
 	}
-	seenState := false
-	root, ok := m.propertyCoverageNode(d.Body, vars, map[string]bool{}, &seenState)
-	if !ok || root == nil || !seenState {
+	root := m.coveragePropertyRoot(d.Body, vars)
+	if root == nil {
 		return false
 	}
 	r := d.Location.Range
@@ -41,6 +40,48 @@ func (m *model) addCoverageProperty(c *coverageCollector, name string) bool {
 	c.actions = append(c.actions, CoverageAction{Name: name, Range: r, Property: true})
 	c.properties[name] = root
 	return true
+}
+
+func (m *model) coveragePropertyRoot(expr *parser.Expression, vars map[string]bool) *coverageNode {
+	seenState := false
+	root, ok := m.propertyCoverageNode(expr, vars, map[string]bool{}, &seenState)
+	if ok && seenState {
+		return root
+	}
+	root, ok = m.coverageEnabledProperty(expr)
+	if ok {
+		return root
+	}
+	return nil
+}
+
+// ENABLED over the already validated all-variable UNCHANGED action has one
+// cost node for each of the action's conjuncts.
+func (m *model) coverageEnabledProperty(expr *parser.Expression) (*coverageNode, bool) {
+	if !m.coverageEnabledReference(expr) {
+		return nil, false
+	}
+	d, ok := m.defs[m.cfg.Next]
+	if !ok || !coverageDirectDefinition(d) || !m.coverageUnchangedSequence(d.Body) {
+		return nil, false
+	}
+	root := &coverageNode{expr: expr}
+	items := []*parser.Expression{d.Body}
+	if d.Body.Kind == "And" {
+		items = d.Body.Args
+	}
+	for _, item := range items {
+		root.children = append(root.children, &coverageNode{expr: item})
+	}
+	return root, true
+}
+
+func (m *model) coverageEnabledReference(expr *parser.Expression) bool {
+	if expr == nil || expr.Kind != "Enabled" || len(expr.Args) != 1 || expr.Args[0] == nil {
+		return false
+	}
+	arg := expr.Args[0]
+	return arg.Kind == "Identifier" && arg.Text == m.cfg.Next
 }
 
 func (m *model) coveragePropertyDefinitionSupported(d parser.Definition) bool {
@@ -301,6 +342,9 @@ func (n *coverageNode) counts(counts map[int]bool) {
 }
 
 func (n *coverageNode) report(out []CoverageExpression, depth int) []CoverageExpression {
+	if n.expr.Kind == "Enabled" {
+		return n.reportEnabled(out, depth)
+	}
 	counts := map[int]bool{}
 	for _, child := range n.children {
 		child.counts(counts)
@@ -321,6 +365,21 @@ func (n *coverageNode) report(out []CoverageExpression, depth int) []CoverageExp
 	start := len(out)
 	out, _ = n.reportBranch(out, depth)
 	slices.Reverse(out[start:])
+	return out
+}
+
+func (n *coverageNode) reportEnabled(out []CoverageExpression, depth int) []CoverageExpression {
+	if n.count > 0 {
+		out = append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: n.count})
+		depth++
+	}
+	for _, child := range n.children {
+		if child.count == 0 {
+			out = append(out, CoverageExpression{Range: child.expr.Location.Range, Depth: depth})
+		} else {
+			out = child.report(out, depth)
+		}
+	}
 	return out
 }
 
@@ -401,7 +460,13 @@ func (m *model) holdsInvariant(name string, expr *parser.Expression, state evalu
 	c := m.coverage
 	root := c.properties[name]
 
-	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: m.enabledCallback, OnEvaluate: func(expr *parser.Expression) { c.observeProperty(root, expr) }, OnBoundVisit: func(domain *parser.Expression, last bool) { c.observePropertyBound(root, domain, last) }})
+	enabled := m.enabledCallback
+	if root.expr.Kind == "Enabled" {
+		enabled = func(action *parser.Expression, current evaluator.State, lexical *evaluator.LexicalScope) (bool, error) {
+			return m.enabledWithCoverage(action, current, lexical, nil, root)
+		}
+	}
+	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: enabled, OnEvaluate: func(expr *parser.Expression) { c.observeProperty(root, expr) }, OnBoundVisit: func(domain *parser.Expression, last bool) { c.observePropertyBound(root, domain, last) }})
 	if err != nil {
 		return false, err
 	}

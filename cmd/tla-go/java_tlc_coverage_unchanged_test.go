@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestJavaTLCUpstreamGCoverageBoundary(t *testing.T) {
+func TestJavaTLCUpstreamGCoverage(t *testing.T) {
 	dir := t.TempDir()
 	fixture, err := filepath.Abs(filepath.Join("testdata", "java-tlc", "upstream-coverage"))
 	if err != nil {
@@ -24,27 +24,30 @@ func TestJavaTLCUpstreamGCoverageBoundary(t *testing.T) {
 		}
 	}
 	args := []string{"-deadlock", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "G.tla"}
-	_, code, stderr := runGoInDir(t, dir, args)
-	if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
-		t.Fatalf("upstream G should remain rejected: exit %d stderr %s", code, stderr)
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code != 0 || stderr != "" {
+		t.Fatalf("upstream G: exit %d stderr %s output %s", code, stderr, out)
+	}
+	golden, err := os.ReadFile(filepath.Join(fixture, "G.coverage"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report := coverageReport(t, out); report != string(golden) {
+		t.Fatalf("coverage report\ngot:\n%s\nwant:\n%s", report, golden)
 	}
 	if output, code, stderr := runGoInDir(t, dir, []string{"-deadlock", "-fp", "0", "-workers", "1", "G.tla"}); code != 0 || stderr != "" || !strings.Contains(output, "2 states generated, 1 distinct states found") {
 		t.Fatalf("default mode: exit %d stderr %s output %s", code, stderr, output)
 	}
 	if jar := os.Getenv("TLC_JAR"); jar != "" {
 		java, code := runJavaTLCArgs(t, jar, dir, args)
-		golden, err := os.ReadFile(filepath.Join(fixture, "G.coverage"))
-		if err != nil {
-			t.Fatal(err)
-		}
 		if code != 0 || coverageReport(t, java) != string(golden) || !strings.Contains(java, "2 states generated, 1 distinct states found") {
 			t.Fatalf("Java exit %d output %s", code, java)
 		}
 	}
 }
 
-// GCoverageTest's single Next action is UNCHANGED, although G also uses an
-// alias, multiple conjuncts and ENABLED invariant which are not yet supported.
+// GCoverageTest's single Next action combines UNCHANGED conjuncts with an
+// alias and an ENABLED invariant.
 // AbstractCoverageTest uses -coverage 9999; ModelCheckerTestCase uses
 // -deadlock -fp 0 -workers 1 -checkpoint 0.
 func TestJavaTLCCoverageDirectUnchanged(t *testing.T) {
@@ -62,6 +65,15 @@ func TestJavaTLCCoverageDirectUnchanged(t *testing.T) {
 		{"reordered", "VARIABLE x\nNext == UNCHANGED x\nInit == x = TRUE", "", ""},
 		{"spec", "VARIABLE x\nInit == x = TRUE\nNext == UNCHANGED x\nSpec == Init /\\ [][Next]_x", "", "SPECIFICATION Spec\n"},
 		{"invariant", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 0..2\nNext == UNCHANGED x\nInv == x < 3", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"enabled-scalar", "VARIABLE x\nInit == x = TRUE\nNext == UNCHANGED x\nInv == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"enabled-conjunction", "VARIABLE x\nInit == x = TRUE\nvars == <<x>>\nNext == /\\ UNCHANGED vars\n        /\\ UNCHANGED <<x>>\n        /\\ UNCHANGED x\nInv == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"enabled-range", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 0..2\nNext == /\\ UNCHANGED x\n        /\\ UNCHANGED <<x>>\nInv == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"enabled-empty", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 1..0\nNext == UNCHANGED x\nInv == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"enabled-empty-conjunction", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 1..0\nNext == /\\ UNCHANGED x\n        /\\ UNCHANGED <<x>>\nInv == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"enabled-tuple", "VARIABLES x,y\nInit == /\\ x = TRUE\n        /\\ y = FALSE\nvars == <<y,x>>\nNext == /\\ UNCHANGED vars\n        /\\ UNCHANGED <<x,y>>\nInv == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"enabled-two-invariants", "VARIABLE x\nInit == x = TRUE\nNext == UNCHANGED x\nInv1 == ENABLED Next\nInv2 == ENABLED Next", "", "INIT Init\nNEXT Next\nINVARIANTS Inv1 Inv2\n"},
+		{"enabled-spec", "VARIABLE x\nInit == x = TRUE\nNext == UNCHANGED x\nInv == ENABLED Next\nSpec == Init /\\ [][Next]_x", "", "SPECIFICATION Spec\nINVARIANT Inv\n"},
+		{"conjunction-no-invariant", "VARIABLE x\nInit == x = TRUE\nNext == /\\ UNCHANGED x\n        /\\ UNCHANGED <<x>>", "", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -109,6 +121,32 @@ func TestJavaTLCCoverageDirectUnchanged(t *testing.T) {
 			}
 			if out, code, stderr := runGoInDir(t, dir, []string{"-workers", "1", "-deadlock", "M.tla"}); code != 0 || stderr != "" || strings.Contains(out, "The coverage statistics at") {
 				t.Fatalf("default mode: exit %d stderr %s output %s", code, stderr, out)
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageUnchangedAfterAssignments(t *testing.T) {
+	for _, tc := range []struct{ name, module string }{
+		{"one-variable", "VARIABLE x\nInit == x=0\nA == /\\ x'=0\n     /\\ UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B"},
+		{"two-variables", "VARIABLES x,y\nInit == /\\ x=0\n        /\\ y=0\nA == /\\ x'=0\n     /\\ y'=0\n     /\\ UNCHANGED <<x,y>>\nB == UNCHANGED <<x,y>>\nNext == A \\/ B"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", tc.module)
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"-tool", "-deadlock", "-fp", "0", "-workers", "1", "-coverage", "9999", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java)); javaCode != code || !reflect.DeepEqual(got, want) {
+					t.Fatalf("tool coverage Go exit %d Java exit %d\nGo: %+v\nJava: %+v", code, javaCode, got, want)
+				}
 			}
 		})
 	}
@@ -247,6 +285,26 @@ func TestCoverageRejectsUnmodeledDirectNext(t *testing.T) {
 			_, code, stderr := runGoInDir(t, dir, []string{"-coverage", "9999", "M.tla"})
 			if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
 				t.Fatalf("exit %d stderr %s", code, stderr)
+			}
+		})
+	}
+}
+
+func TestCoverageRejectsUnmodeledEnabledAction(t *testing.T) {
+	for _, tc := range []struct{ name, next, extra, invariant string }{
+		{"partial-conjuncts", "UNCHANGED x /\\ UNCHANGED y", "", "ENABLED Next"},
+		{"different-action", "UNCHANGED <<x,y>>", "Other == UNCHANGED <<x,y>>", "ENABLED Other"},
+		{"nested-enabled", "UNCHANGED <<x,y>>", "", "(ENABLED Next) /\\ x = 0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", "VARIABLES x,y\nInit == /\\ x=0\n        /\\ y=0\nNext == "+tc.next+"\n"+tc.extra+"\nInv == "+tc.invariant)
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\nINVARIANT Inv\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			out, code, stderr := runGoInDir(t, dir, []string{"-coverage", "9999", "M.tla"})
+			if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
+				t.Fatalf("exit %d stderr %s output %s", code, stderr, out)
 			}
 		})
 	}
