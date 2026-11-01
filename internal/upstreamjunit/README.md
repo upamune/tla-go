@@ -91,6 +91,13 @@ For example, `pcal.CCallReturn1Test` reported Java's complete state space of
 snapshot, but the Go liveness strategy remains unresolved; they do not establish
 15 JUnit failures or nine passes.
 
+After tableau progress reporting and the subsequent diagnostic changes, a new
+limit-25 run completed 24 comparisons: 23 had no selected differences and
+`pcal.Euclid3Test` lacked Java's 2192 message in Go. Java timed out on
+`pcal.DetlefsTest`. The newer diagnostic also requests Java coverage and compares
+DOT output, so these numbers are not directly comparable to the earlier run.
+Both snapshots remain partial comparisons, not JUnit pass counts.
+
 After the progress-count change, a filtered `CCallReturn1Test` diagnostic
 reported no selected differences and both sides satisfied the extracted
 assertions, including 2192's count of 8. The sweep still intentionally failed:
