@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -270,14 +272,48 @@ func TestProfileProtectsJSONWriter(t *testing.T) {
 	}
 }
 
-// TestHeapProfileRetainsSearch checks sampled live allocations, not just the
-// profile's format. search.add grows the retained state-node graph.
+// TestHeapProfileRetainsSearch records every allocation in test-only binaries.
+// The focused inuse_space must contain a substantial retained search graph;
+// a small graph and a capture deferred until shutdown are negative controls.
 func TestHeapProfileRetainsSearch(t *testing.T) {
 	dir := t.TempDir()
-	bin := filepath.Join(dir, "tla-go")
-	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
-		t.Fatalf("build: %v %s", err, out)
+	source, err := os.ReadFile("profiles.go")
+	if err != nil {
+		t.Fatal(err)
 	}
+	build := func(name string, late bool) string {
+		t.Helper()
+		contents := string(source) + "\nfunc init() { runtime.MemProfileRate = 1 }\n"
+		if late {
+			old := "return heapcapture.With(ctx, p.captureHeap)"
+			if strings.Count(contents, old) != 1 {
+				t.Fatal("heap capture hook changed")
+			}
+			contents = strings.Replace(contents, old, "return heapcapture.With(ctx, func() {})", 1)
+		}
+		replacement := filepath.Join(dir, name+".go")
+		if err := os.WriteFile(replacement, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		original, err := filepath.Abs("profiles.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		overlay, err := json.Marshal(struct{ Replace map[string]string }{map[string]string{original: replacement}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		overlayPath := filepath.Join(dir, name+".json")
+		if err := os.WriteFile(overlayPath, overlay, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		bin := filepath.Join(dir, name)
+		if out, err := exec.Command("go", "build", "-overlay", overlayPath, "-o", bin, ".").CombinedOutput(); err != nil {
+			t.Fatalf("build: %v %s", err, out)
+		}
+		return bin
+	}
+	bin, lateBin := build("live", false), build("late", true)
 	model := filepath.Join(dir, "Graph.tla")
 	if err := os.WriteFile(model, []byte("---- MODULE Graph ----\nEXTENDS Naturals\nVARIABLE x\nInit == x = 0\nNext == x' = IF x < 20000 THEN x + 1 ELSE 0\n====\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -292,13 +328,40 @@ func TestHeapProfileRetainsSearch(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "Small.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	heap := filepath.Join(dir, "heap.pprof")
-	if out, err := exec.Command(bin, "-debug-heap-profile", heap, model, second).CombinedOutput(); err != nil {
-		t.Fatalf("check: %v %s", err, out)
+	profile := func(name, binary string, models ...string) int64 {
+		t.Helper()
+		heap := filepath.Join(dir, name+".pprof")
+		args := append([]string{"-debug-heap-profile", heap}, models...)
+		if out, err := exec.Command(binary, args...).CombinedOutput(); err != nil {
+			t.Fatalf("check: %v %s", err, out)
+		}
+		out, err := exec.Command("go", "tool", "pprof", "-top", "-sample_index=inuse_space", "-focus=checker[.]\\(\\*search\\)[.]add$", "-nodefraction=0", "-unit=bytes", binary, heap).CombinedOutput()
+		if err != nil {
+			t.Fatalf("pprof: %v %s", err, out)
+		}
+		match := regexp.MustCompile(`Showing nodes accounting for ([0-9]+)B?`).FindSubmatch(out)
+		if match == nil {
+			t.Fatalf("cannot read focused inuse_space: %s", out)
+		}
+		n, err := strconv.ParseInt(string(match[1]), 10, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
 	}
-	out, err := exec.Command("go", "tool", "pprof", "-top", "-sample_index=inuse_space", "-nodefraction=0", bin, heap).CombinedOutput()
-	if err != nil || !strings.Contains(string(out), "checker.(*search).add") {
-		t.Fatalf("live graph allocation missing: %v\n%s", err, out)
+	const minimumGraphBytes = 100000
+	live := profile("first", bin, model, second)
+	small := profile("small", bin, second)
+	late := profile("late", lateBin, model, second)
+	t.Logf("search.add inuse_space: first=%d small=%d late=%d bytes", live, small, late)
+	if live < minimumGraphBytes {
+		t.Errorf("first graph missing: %d bytes", live)
+	}
+	if small >= minimumGraphBytes {
+		t.Errorf("small graph unexpectedly passed: %d bytes", small)
+	}
+	if late >= minimumGraphBytes {
+		t.Errorf("late capture unexpectedly passed: %d bytes", late)
 	}
 }
 
