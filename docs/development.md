@@ -120,6 +120,14 @@ text. A Java TLC 1.7.4 recorder probe compares these selected calls and argument
 types across successful and failing models, in tool and non-tool mode; finish
 durations naturally differ.
 
+The selected recorder calls are compared against Java TLC 1.7.4, not 1.8.0.
+For example, on an empty specification, 1.8.0 records search depth 2194 as
+`0`, while 1.7.4 and tla-go record `1`. On a next-state division-by-zero error,
+1.8.0 records 2194 with `1`, while 1.7.4 and tla-go omit that call. CI also
+uses the pinned 1.8.0 JAR to compare the printed SANY start/end messages in
+selected successful and load-error cases; it does not compare these recorder
+events against 1.8.0.
+
 Other recorder calls, hidden calls, Java object values, and ordering relative
 to unobserved calls are not represented. This debugging aid is not a complete
 Java recorder or evidence that the upstream JUnit suite passes. The EmptyTest
