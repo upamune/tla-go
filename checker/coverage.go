@@ -90,11 +90,20 @@ func (m *model) emptyCoverageModel() bool {
 
 func (m *model) addCoverageProperties(c *coverageCollector) bool {
 	for _, name := range m.cfg.Invariants {
+		if m.coverageLiteralTrueInvariant(name) {
+			continue
+		}
 		if !m.addCoverageProperty(c, name) {
 			return false
 		}
 	}
 	return true
+}
+
+// TLC omits constant TRUE invariants from the property coverage report.
+func (m *model) coverageLiteralTrueInvariant(name string) bool {
+	d, ok := m.defs[name]
+	return ok && m.trueConfigured[name] && coverageDirectDefinition(d) && d.Body != nil && d.Body.Kind == "Identifier" && d.Body.Text == "TRUE"
 }
 
 func (m *model) coverageRoots() (parser.Definition, parser.Definition, bool) {
@@ -262,12 +271,12 @@ func coverageAtomic(e *parser.Expression, initial bool) bool {
 	if e.Kind != "Apply" || len(e.Args) != 2 {
 		return false
 	}
-	rhs := coverageOperand(e.Args[1]) || coverageInitialSetMembership(e, initial)
+	rhs := coverageOperand(e.Args[1]) || coverageInitialSetAssignment(e, initial)
 	return coverageAtomicOperator(e.Text) && coverageOperand(e.Args[0]) && rhs
 }
 
-func coverageInitialSetMembership(e *parser.Expression, initial bool) bool {
-	return initial && e.Kind == "Apply" && e.Text == "\\in" && len(e.Args) == 2 && coverageInitialSet(e.Args[1])
+func coverageInitialSetAssignment(e *parser.Expression, initial bool) bool {
+	return initial && e.Kind == "Apply" && (e.Text == "\\in" || e.Text == "=") && len(e.Args) == 2 && coverageInitialSet(e.Args[1])
 }
 
 func coverageAtomicOperator(op string) bool { return op == "=" || op == "<" || op == "\\in" }
@@ -486,12 +495,11 @@ func (m *model) coverageBodySupported(body *parser.Expression, initial bool) boo
 	return initial || g.coverageActionOrderSupported(items)
 }
 
-// Set-enumeration costs are modeled only when this one membership is the
-// complete initial predicate. Constraints and additional work can change the
-// way TLC attributes the cost of the enumerator.
+// Set assignments are modeled only when every initial conjunct directly
+// assigns a complete variable and no state constraint affects the count.
 func (m *model) coverageInitialSetContext(body *parser.Expression) bool {
 	items := coverageConjuncts(body)
-	return !coverageHasSetOperand(items) || len(items) == 1 && len(m.names) == 1 && len(m.cfg.Constraints) == 0
+	return !coverageHasSetOperand(items) || len(m.cfg.Constraints) == 0 && m.coverageDirectInitial(body)
 }
 
 func coverageConjuncts(body *parser.Expression) []*parser.Expression {
@@ -589,7 +597,7 @@ func (g *generator) coverageItemSupported(e *parser.Expression) bool {
 		return false
 	}
 	for i, arg := range e.Args {
-		if i == 1 && coverageInitialSetMembership(e, g.initial) {
+		if i == 1 && coverageInitialSetAssignment(e, g.initial) {
 			continue
 		}
 		if !g.model.coverageAliasesSupported(arg, map[string]bool{}) {
@@ -604,13 +612,17 @@ func (g *generator) coverageItemSupported(e *parser.Expression) bool {
 }
 
 func coverageOperationSupported(e *parser.Expression, initial, assignment bool) bool {
-	if e.Args[1].Kind == "SetEnumeration" && (!initial || e.Text != "\\in" || !assignment) {
+	if e.Args[1].Kind == "SetEnumeration" && !coverageSetAssignmentAllowed(e.Text, initial, assignment) {
 		return false
 	}
 	if e.Text == "\\in" {
 		return coverageMembershipOperation(e, initial, assignment)
 	}
 	return assignment || (e.Args[0].Kind == "Identifier" && e.Args[1].Kind == "Number")
+}
+
+func coverageSetAssignmentAllowed(op string, initial, assignment bool) bool {
+	return initial && assignment && (op == "\\in" || op == "=")
 }
 
 func coverageMembershipOperation(e *parser.Expression, initial, assignment bool) bool {

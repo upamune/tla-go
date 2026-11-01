@@ -270,7 +270,10 @@ It also supports a direct named `Next == UNCHANGED x` for one variable, or
 `Next == UNCHANGED <<...>>` listing every variable exactly once. Its initial
 predicate must assign a nonnegative decimal integer within TLC's 32-bit range
 or a Boolean literal to every variable exactly once, or assign a range with
-such literal endpoints to the sole variable. It may instead assign the sole
+such literal endpoints to the sole variable. It may also assign literal sets
+of nonnegative integers or Booleans to variables, including multiple variables
+in the same initial conjunction; each set must have a single element type.
+It may instead assign the sole
 variable from an explicit set of nonnegative decimal integer literals or an
 explicit set of Boolean literals. Empty sets and duplicates are supported;
 mixed types, compound members, additional initial conjuncts, and constraints
@@ -280,11 +283,14 @@ must be below 2,147,483,647: Java TLC's interval enumerator wraps after that
 endpoint and does not terminate normally.
 Initial guards,
 mixed assignments and ranges, and multiple range assignments are rejected;
-their continuation-dependent TLC costs are not modeled. Supported invariants
+their continuation-dependent TLC costs are not modeled. A literal `TRUE`
+invariant is omitted from coverage, as in Java TLC. Other supported invariants
 are subject to the expression limits above. `Init` and `Next` must be nullary,
-nonrecursive, unmodified definitions;
-definitions inherited through `EXTENDS` are supported, but substituted
-`INSTANCE` definitions are rejected. State constraints are rejected for this
+nonrecursive, unmodified definitions. Definitions inherited through `EXTENDS`
+are supported, but substituted `INSTANCE` definitions are rejected. The
+upstream `ETest3` remains unsupported because its effectful initial predicate
+and its direct action containing `SUBSET` require additional cost and
+counterexample-replay handling. State constraints are rejected for this
 direct-action subset: in one initial-range example Java reports three initial
 states in the coverage action even though a constraint admits two, whereas Go's
 collector reports two. Tests compare the direct action's normal and tool

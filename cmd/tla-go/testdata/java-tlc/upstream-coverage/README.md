@@ -1,4 +1,5 @@
-These models and configurations are from `test-model/coverage` in TLA+ Tools commit
+These models and configurations are from `test-model/coverage` and
+`test-model/suite` in TLA+ Tools commit
 `5a47802b5c391f59ecdd44117981f4ff8c0656ba` (Java TLC 1.7.4). See
 [UPSTREAM-LICENSE](../../../../../UPSTREAM-LICENSE).
 
@@ -10,8 +11,12 @@ guards, range assignments and unused parameters. All use `-deadlock -fp 0
 -workers 1 -checkpoint 0 -coverage 9999`, selected from the JUnit arguments.
 These CLI runs do not execute JUnit setup, assertions or teardown, and omit its
 DOT dump. Go supports the restricted direct-assignment and UNCHANGED variants;
-the original A, guard and range-assignment variants remain unsupported. See the
+the original A and guard variants remain unsupported. See the
 [cost-model investigation](../../../../../docs/investigations/coverage-cost-model-a.md).
+
+`etest3.tla` and `etest3.cfg` preserve the upstream ETest3 model. The boundary
+test checks Java's complete coverage report and trace-replay Print effects;
+the Go coverage implementation still rejects this model.
 
 `guard-*.coverage` contains Java 1.7.4 CLI reports for the models in
 `java_tlc_coverage_guard_oracle_test.go`. They cover false and mixed guards,

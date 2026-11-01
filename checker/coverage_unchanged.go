@@ -93,11 +93,15 @@ func (m *model) coverageInitialAssignment(e *parser.Expression, seen map[string]
 		return false
 	}
 	name := e.Args[0].Text
-	if !slices.Contains(m.names, name) || seen[name] || !coverageInitialLiteral(e.Text, e.Args[1]) {
+	if !slices.Contains(m.names, name) || seen[name] || !coverageDirectInitialValue(e.Text, e.Args[1]) {
 		return false
 	}
 	seen[name] = true
 	return true
+}
+
+func coverageDirectInitialValue(op string, e *parser.Expression) bool {
+	return coverageInitialLiteral(op, e) || op == "=" && coverageInitialSet(e)
 }
 
 func coverageInitialLiteral(op string, e *parser.Expression) bool {

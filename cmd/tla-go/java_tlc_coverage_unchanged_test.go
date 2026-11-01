@@ -566,6 +566,72 @@ func TestCoverageRejectsDirectInitialOutsideIntegerSubset(t *testing.T) {
 	}
 }
 
+func TestJavaTLCCoverageInitialLiteralSetAssignments(t *testing.T) {
+	for _, tc := range []struct{ name, variables, initial, next, config string }{
+		{"empty", "x", "x = {}", "UNCHANGED x", ""},
+		{"numeric", "x", "x = {1,2,2}", "UNCHANGED x", ""},
+		{"boolean", "x", "x = {TRUE,FALSE,TRUE}", "UNCHANGED x", ""},
+		{"multiple", "x,y,z", "/\\ x = {}\n        /\\ y = {1,2}\n        /\\ z = 1", "UNCHANGED <<x,y,z>>", ""},
+		{"inline", "x,y", "x = {1} /\\ y = {}", "UNCHANGED <<x,y>>", ""},
+		{"invariant", "x", "x = {}", "UNCHANGED x\nInv == TRUE", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"spec", "x", "x = {}", "UNCHANGED x\nSpec == Init /\\ [][Next]_x", "SPECIFICATION Spec\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", "VARIABLES "+tc.variables+"\nInit == "+tc.initial+"\nNext == "+tc.next)
+			cfg := tc.config
+			if cfg == "" {
+				cfg = "INIT Init\nNEXT Next\n"
+			}
+			writeParameterizedConfig(t, dir, cfg)
+			compareParameterizedCoverage(t, dir)
+		})
+	}
+}
+
+func TestCoverageRejectsUnmodeledInitialSetAssignments(t *testing.T) {
+	for _, initial := range []string{
+		"x = {1, TRUE}",
+		"x = {1 + 1}",
+		"x = {} /\\ x = {}",
+	} {
+		t.Run(initial, func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", "EXTENDS Naturals\nVARIABLE x\nInit == "+initial+"\nNext == UNCHANGED x")
+			writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\n")
+			out, code, stderr := runGoInDir(t, dir, coverageAArgs("M.tla", true))
+			if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
+				t.Fatalf("expected rejection: exit %d stderr %s output %s", code, stderr, out)
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageInitialLiteralSetAndNamedActions(t *testing.T) {
+	dir := t.TempDir()
+	writeCoverageModule(t, dir, "M", "VARIABLES x,y\nInit == /\\ x = {}\n        /\\ y = 0\nA == /\\ x' = x\n     /\\ y' = y\nB == /\\ x' = x\n     /\\ y' = y\nNext == A \\/ B")
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\n")
+	compareParameterizedCoverage(t, dir)
+}
+
+func TestJavaTLCCoverageInitialLiteralSetAssignmentMaxSize(t *testing.T) {
+	dir := t.TempDir()
+	writeCoverageModule(t, dir, "M", "VARIABLE x\nInit == x = {1,2,3}\nNext == UNCHANGED x")
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\n")
+	args := []string{"-tool", "-deadlock", "-fp", "0", "-workers", "1", "-coverage", "9999", "-maxSetSize", "2", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code != 0 || stderr != "" {
+		t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java))
+		if javaCode != code || !reflect.DeepEqual(got, want) {
+			t.Fatalf("Java exit %d\nGo: %+v\nJava: %+v", javaCode, got, want)
+		}
+	}
+}
+
 func TestCoverageRejectsInstantiatedDirectUnchanged(t *testing.T) {
 	for _, tc := range []struct{ name, body, cfg string }{
 		{"next", "VARIABLE x\nInit == x=0\nI == INSTANCE Aux WITH x <- x", "INIT Init\nNEXT I!Act\n"},
