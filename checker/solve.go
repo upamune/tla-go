@@ -107,6 +107,9 @@ func (g *generator) solveInScope(items *workList, partial evaluator.State, actio
 func (g *generator) atomic(items *workList, partial evaluator.State, action string) (bool, error) {
 	expr := items.item.expr
 	if g.model.coverage != nil {
+		if handled, more, err := g.maybeAssignWithCoverage(items, partial, action); handled {
+			return more, err
+		}
 		g.cover(expr, action)
 	}
 	rest := items.next
@@ -117,6 +120,37 @@ func (g *generator) atomic(items *workList, partial evaluator.State, action stri
 		return g.assign(name, operator, expr.Args[1], items, partial, action)
 	}
 	return g.guard(items, partial, action)
+}
+
+func (g *generator) maybeAssignWithCoverage(items *workList, partial evaluator.State, action string) (bool, bool, error) {
+	if g.initial || g.enabled || g.coverageRoot != nil {
+		return false, false, nil
+	}
+	name, operator, ok := g.assignment(items.item.expr, items.item.locals)
+	if !ok || !g.deferAssignmentCoverage(name, operator, partial) {
+		return false, false, nil
+	}
+	more, err := g.assignWithCoverage(name, operator, items, partial, action)
+	return true, more, err
+}
+
+func (g *generator) assignWithCoverage(name, operator string, items *workList, partial evaluator.State, action string) (bool, error) {
+	expr := items.item.expr
+	g.coverageAssignmentAttempt(expr, action)
+	completed := g.coverageCompleted
+	more, err := g.assign(name, operator, expr.Args[1], items, partial, action)
+	if err == nil && g.coverageCompleted > completed {
+		g.coverageAssignmentSuccess(expr, action)
+	}
+	return more, err
+}
+
+func (g *generator) deferAssignmentCoverage(name, operator string, partial evaluator.State) bool {
+	if operator != "=" {
+		return false
+	}
+	_, assigned := partial[name]
+	return !assigned
 }
 
 func (g *generator) structural(item work, rest *workList, partial evaluator.State, action string) (bool, bool, error) {

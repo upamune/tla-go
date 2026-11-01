@@ -35,6 +35,7 @@ type CoverageExpression struct {
 // runs while mu is held.
 type coverageCollector struct {
 	mu                    sync.Mutex
+	model                 *model
 	actions               []CoverageAction
 	byName                map[string]int
 	expressions           map[string]map[parser.Range]int
@@ -43,6 +44,7 @@ type coverageCollector struct {
 	guards                map[string]map[parser.Range]int
 	memberships           map[string]map[parser.Range]int
 	assignmentMemberships map[string]map[parser.Range]int
+	assignmentOperands    map[string]map[parser.Range]int
 	properties            map[string]*coverageNode
 	existentialDomains    map[string]map[parser.Range]int
 	parameterCalls        map[*parser.Expression]*coverageParameterizedRoot
@@ -72,7 +74,7 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 	if !ok {
 		return nil, false
 	}
-	c := &coverageCollector{byName: map[string]int{}, bodies: map[string]*parser.Expression{}, expressions: map[string]map[parser.Range]int{}, guards: map[string]map[parser.Range]int{}, memberships: map[string]map[parser.Range]int{}, assignmentMemberships: map[string]map[parser.Range]int{}, properties: map[string]*coverageNode{}, existentialDomains: map[string]map[parser.Range]int{}, initial: init.Name}
+	c := &coverageCollector{model: m, byName: map[string]int{}, bodies: map[string]*parser.Expression{}, expressions: map[string]map[parser.Range]int{}, guards: map[string]map[parser.Range]int{}, memberships: map[string]map[parser.Range]int{}, assignmentMemberships: map[string]map[parser.Range]int{}, assignmentOperands: map[string]map[parser.Range]int{}, properties: map[string]*coverageNode{}, existentialDomains: map[string]map[parser.Range]int{}, initial: init.Name}
 	if !m.coverageBodySupported(init.Body, true) || !m.coverageInitialSetContext(init.Body) || !c.add(init, true) {
 		return nil, false
 	}
@@ -181,9 +183,7 @@ func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, i
 	a := &c.actions[i]
 	c.expressions[name][e.Location.Range] = len(a.Expressions)
 	a.Expressions = append(a.Expressions, CoverageExpression{Range: e.Location.Range})
-	if coverageAssignmentMembership(e, initial) {
-		c.assignmentMemberships[name][e.Location.Range] = len(a.Expressions) - 1
-		a.Expressions = append(a.Expressions, CoverageExpression{Range: e.Args[1].Location.Range, Depth: 1})
+	if c.addAssignmentCoverageNode(a, name, e, initial) {
 		return true
 	}
 	if !initial && coverageComparisonGuard(e) {
@@ -198,6 +198,38 @@ func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, i
 		}
 	}
 	return true
+}
+
+func (c *coverageCollector) addAssignmentCoverageNode(a *CoverageAction, name string, e *parser.Expression, initial bool) bool {
+	var indices map[parser.Range]int
+	if coverageAssignmentMembership(e, initial) {
+		indices = c.assignmentMemberships[name]
+	} else if !initial && c.coverageAssignmentOperand(name, e) {
+		indices = c.assignmentOperands[name]
+		if indices == nil {
+			indices = make(map[parser.Range]int)
+			c.assignmentOperands[name] = indices
+		}
+	} else {
+		return false
+	}
+	indices[e.Location.Range] = len(a.Expressions) - 1
+	a.Expressions = append(a.Expressions, CoverageExpression{Range: e.Args[1].Location.Range, Depth: 1})
+	return true
+}
+
+// Arithmetic and identifiers on the right of an assignment have their own
+// TLC cost node, independent of continuation success.
+func (c *coverageCollector) coverageAssignmentOperand(name string, e *parser.Expression) bool {
+	if len(c.model.defs[name].Params) != 0 {
+		return false
+	}
+	g := generator{model: c.model}
+	if _, operator, ok := g.assignment(e, nil); !ok || operator != "=" {
+		return false
+	}
+	rhs := e.Args[1]
+	return rhs.Kind == "Apply" && rhs.Text == "+" || rhs.Kind == "Identifier"
 }
 
 func coverageAtomSupported(e *parser.Expression, initial bool) bool {
@@ -280,6 +312,9 @@ func (c *coverageCollector) coverExpression(expr *parser.Expression, action stri
 		}
 		return
 	}
+	if i, ok := c.assignmentOperands[action][expr.Location.Range]; ok {
+		a.Expressions[i+1].Count++
+	}
 	a.Expressions[i].Count++
 	if _, ok := c.assignmentMemberships[action][expr.Location.Range]; ok {
 		a.Expressions[i+1].Count++
@@ -295,6 +330,26 @@ func (c *coverageCollector) coverExpression(expr *parser.Expression, action stri
 
 func isInitialSetMembership(c *coverageCollector, action string, expr *parser.Expression) bool {
 	return action == c.initial && len(expr.Args) == 2 && expr.Args[1].Kind == "SetEnumeration"
+}
+
+// coverageAssignmentAttempt records evaluation of a deterministic assignment
+// independently of whether its continuation ultimately emits a successor.
+func (g *generator) coverageAssignmentAttempt(expr *parser.Expression, action string) {
+	c := g.model.coverage
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if i, ok := c.assignmentOperands[action][expr.Location.Range]; ok {
+		c.actions[c.byName[action]].Expressions[i+1].Count++
+	}
+}
+
+func (g *generator) coverageAssignmentSuccess(expr *parser.Expression, action string) {
+	c := g.model.coverage
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if i, ok := c.expressions[action][expr.Location.Range]; ok {
+		c.actions[c.byName[action]].Expressions[i].Count++
+	}
 }
 
 // Initial memberships are charged for each member that completes a state.
@@ -739,6 +794,13 @@ func (c *coverageCollector) finishAction(a *CoverageAction) []CoverageExpression
 
 func (c *coverageCollector) finishActionPair(a *CoverageAction, index int) ([]CoverageExpression, bool) {
 	e := a.Expressions[index]
+	if _, ok := c.assignmentOperands[a.Name][e.Range]; ok {
+		child := a.Expressions[index+1]
+		if e.Count != child.Count {
+			return []CoverageExpression{e, child}, true
+		}
+		return []CoverageExpression{e}, true
+	}
 	if _, ok := c.guards[a.Name][e.Range]; ok {
 		return appendCoverageGuard(nil, e, a.Expressions[index+1]), true
 	}
@@ -767,6 +829,9 @@ func (c *coverageCollector) finishExistential(a *CoverageAction, index int) (Cov
 
 func (c *coverageCollector) suppressedSubtree(a *CoverageAction, index int) int {
 	_, assignment := c.assignmentMemberships[a.Name][a.Expressions[index].Range]
+	if _, ok := c.assignmentOperands[a.Name][a.Expressions[index].Range]; ok {
+		return index
+	}
 	if a.Name != c.initial && assignment {
 		return index
 	}

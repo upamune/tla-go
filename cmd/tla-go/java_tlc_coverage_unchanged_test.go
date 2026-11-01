@@ -173,6 +173,130 @@ func TestJavaTLCCoverageUnchangedAfterAssignments(t *testing.T) {
 	}
 }
 
+// A deterministic assignment is charged only if its continuation generates a
+// successor, whereas an evaluated arithmetic RHS has its own cost node.
+func TestJavaTLCCoverageAssignmentContinuation(t *testing.T) {
+	for _, tc := range []struct{ name, rhs, assignment, child string }{
+		{"one-success", "0", "line 5, col 9 to line 5, col 14 of module M: 1", ""},
+		{"all-rejected", "3", "line 5, col 9 to line 5, col 14 of module M: 0", ""},
+		{"all-success", "x", "line 5, col 9 to line 5, col 14 of module M: 3", ""},
+		{"all-success-expression", "x + 0", "line 5, col 9 to line 5, col 18 of module M: 3", ""},
+		{"one-success-expression", "x + x", "line 5, col 9 to line 5, col 18 of module M: 1", "|line 5, col 14 to line 5, col 18 of module M: 3"},
+		{"all-rejected-expression", "x + 1", "line 5, col 9 to line 5, col 18 of module M: 0", "|line 5, col 14 to line 5, col 18 of module M: 3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			module := "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 0..2\nA == /\\ x' = " + tc.rhs + "\n     /\\ UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B"
+			writeCoverageModule(t, dir, "M", module)
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			for _, tool := range []bool{false, true} {
+				args := []string{"-deadlock", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"}
+				if tool {
+					args = append([]string{"-tool"}, args...)
+				}
+				out, code, stderr := runGoInDir(t, dir, args)
+				if code != 0 || stderr != "" || !strings.Contains(out, tc.assignment) || !strings.Contains(out, tc.child) {
+					t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+				}
+				if jar := os.Getenv("TLC_JAR"); jar != "" {
+					java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+					if javaCode != code {
+						t.Fatalf("Java exit %d Go exit %d\n%s", javaCode, code, java)
+					}
+					if tool {
+						if got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java)); !reflect.DeepEqual(got, want) {
+							t.Fatalf("tool coverage\nGo: %+v\nJava: %+v", got, want)
+						}
+					} else if got, want := coverageReport(t, out), coverageReport(t, java); got != want {
+						t.Fatalf("coverage\nGo:\n%s\nJava:\n%s", got, want)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageAssignmentContinuationMultipleVariables(t *testing.T) {
+	for _, tc := range []struct{ name, first, second string }{
+		{"success", "x", "y"},
+		{"first-rejected", "x + 1", "y"},
+		{"second-rejected", "x", "y + 1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			module := "EXTENDS Naturals\nVARIABLES x, y\nInit == /\\ x = 0\n        /\\ y = 0\nA == /\\ x' = " + tc.first + "\n     /\\ y' = " + tc.second + "\n     /\\ UNCHANGED <<x,y>>\nB == UNCHANGED <<x,y>>\nNext == A \\/ B"
+			writeCoverageModule(t, dir, "M", module)
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"-tool", "-deadlock", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java)); javaCode != code || !reflect.DeepEqual(got, want) {
+					t.Fatalf("tool coverage Go exit %d Java exit %d\nGo: %+v\nJava: %+v", code, javaCode, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageAssignmentContinuationAliases(t *testing.T) {
+	for _, tc := range []struct{ name, definitions, target, rhs, constants string }{
+		{"constant-operator", "D == 1\n", "x'", "D", ""},
+		{"state-operator", "D == x + 1\n", "x'", "D", ""},
+		{"variable-operator", "D == x\n", "x'", "D", ""},
+		{"nested-operator", "E == x + 1\nD == E\n", "x'", "D", ""},
+		{"primed-operator", "P == x'\nD == 1\n", "P", "D", ""},
+		{"configured-constant", "CONSTANT N\n", "x'", "N", "CONSTANT N = 1\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			module := "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 0..2\n" + tc.definitions + "A == /\\ " + tc.target + " = " + tc.rhs + "\n     /\\ UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B"
+			writeCoverageModule(t, dir, "M", module)
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte(tc.constants+"INIT Init\nNEXT Next\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"-tool", "-deadlock", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java)); javaCode != code || !reflect.DeepEqual(got, want) {
+					t.Fatalf("tool coverage Go exit %d Java exit %d\nGo: %+v\nJava: %+v", code, javaCode, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageAssignmentContinuationBoolean(t *testing.T) {
+	dir := t.TempDir()
+	module := "VARIABLE x\nInit == x = TRUE\nA == /\\ x' = FALSE\n     /\\ UNCHANGED x\nB == x' = FALSE\nNext == A \\/ B"
+	writeCoverageModule(t, dir, "M", module)
+	if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"-tool", "-deadlock", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code != 0 || stderr != "" || !strings.Contains(out, "|line 4, col 14 to line 4, col 18 of module M: 2") {
+		t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+	}
+	if jar := os.Getenv("TLC_JAR"); jar != "" {
+		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+		if got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java)); javaCode != code || !reflect.DeepEqual(got, want) {
+			t.Fatalf("tool coverage Go exit %d Java exit %d\nGo: %+v\nJava: %+v", code, javaCode, got, want)
+		}
+	}
+}
+
 // TLC counts initial states before the constraint filters them, whereas the
 // current collector counts only accepted initial states.
 func TestCoverageRejectsDirectUnchangedWithConstraint(t *testing.T) {

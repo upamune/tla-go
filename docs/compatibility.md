@@ -371,3 +371,10 @@ Action guards following a deterministic assignment, before any range
 assignment, are rejected: their preceding assignment costs are not yet modeled.
 A guard or assignment after `UNCHANGED` is also rejected because its continuation
 can change the cost TLC attributes to `UNCHANGED`, even for an empty range.
+For the supported deterministic assignments followed by `UNCHANGED`, the
+assignment cost counts evaluations whose continuation generated a successor;
+the evaluated right-hand-side cost is reported separately when the counts
+differ. Java 1.7.4 comparisons cover successful and rejected continuations,
+variable and constant operands, aliases, arithmetic, and multiple variables.
+Coverage costs for general error replay and unsupported continuation forms
+remain unverified.
