@@ -32,7 +32,7 @@ func configureRecorder(opts *options) error {
 		return nil
 	}
 	opts.recorder = &recorderConfig{path: path}
-	if !opts.tool || opts.simulate || opts.dfid || len(opts.paths) != 1 {
+	if !recorderModelCheckMode(*opts) {
 		return fmt.Errorf("TLA_GO_DEBUG_RECORDER requires one model in tool model-checking mode")
 	}
 	paths, err := expandModelPaths(opts.paths, opts.configPath != "")
@@ -43,6 +43,10 @@ func configureRecorder(opts *options) error {
 		return fmt.Errorf("TLA_GO_DEBUG_RECORDER requires exactly one expanded model")
 	}
 	return nil
+}
+
+func recorderModelCheckMode(opts options) bool {
+	return opts.tool && !opts.simulate && !opts.dfid && !opts.help && !opts.version && !opts.sanyMetadata && len(opts.paths) == 1
 }
 
 func recorderPath(opts options) string {

@@ -130,6 +130,42 @@ func TestRecorderDebugProtectsExistingFiles(t *testing.T) {
 	}
 }
 
+func TestRecorderDebugRejectsNonModelModes(t *testing.T) {
+	dir := t.TempDir()
+	model := filepath.Join(dir, "M.tla")
+	source := []byte("---- MODULE M ----\n====\n")
+	if err := os.WriteFile(model, source, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, option := range []string{"-sany-metadata", "-version", "-help"} {
+		t.Run(option, func(t *testing.T) {
+			args := []string{"-tool", option, model}
+			t.Setenv("TLA_GO_DEBUG_RECORDER", "")
+			var plain, plainErr bytes.Buffer
+			if code := run(context.Background(), args, &plain, &plainErr); code != 0 || plainErr.Len() != 0 {
+				t.Fatalf("ordinary mode exit=%d stdout=%s stderr=%s", code, &plain, &plainErr)
+			}
+			path := filepath.Join(t.TempDir(), "recorder.jsonl")
+			output := filepath.Join(t.TempDir(), "user.txt")
+			t.Setenv("TLA_GO_DEBUG_RECORDER", path)
+			var out, errout bytes.Buffer
+			code := run(context.Background(), append(args, "-userFile", output), &out, &errout)
+			if code == 0 || !strings.Contains(errout.String(), "requires one model in tool model-checking mode") {
+				t.Fatalf("unsupported mode exit=%d stdout=%s stderr=%s", code, &out, &errout)
+			}
+			for _, name := range []string{path, output} {
+				if _, err := os.Lstat(name); !os.IsNotExist(err) {
+					t.Fatalf("unsupported mode created %s: %v", name, err)
+				}
+			}
+		})
+	}
+	data, err := os.ReadFile(model)
+	if err != nil || !bytes.Equal(data, source) {
+		t.Fatalf("model changed: %q %v", data, err)
+	}
+}
+
 func TestJavaTLCRecorderDebugParallel(t *testing.T) {
 	dir := t.TempDir()
 	model := filepath.Join(dir, "M.tla")
@@ -231,6 +267,59 @@ func TestRecorderDebugPropagatesWriteAndCloseFailure(t *testing.T) {
 	recordStrings(profile, 2186, "1ms")
 	if profile.err == nil || (&profiles{recorder: profile}).close() == nil {
 		t.Fatal("recorder write or close error was discarded")
+	}
+}
+
+func TestRecorderDebugCloseFailureAlone(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "recorder")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	profile := &profileFile{file: f}
+	if profile.err != nil {
+		t.Fatal("fixture unexpectedly contains a write error")
+	}
+	if err := (&profiles{recorder: profile}).close(); err == nil || !strings.Contains(err.Error(), "close ") || strings.Contains(err.Error(), "write ") {
+		t.Fatalf("close-only error not reported: %v", err)
+	}
+}
+
+func TestRecorderDebugCloseFailureThroughCLI(t *testing.T) {
+	t.Setenv("TLA_GO_DEBUG_RECORDER", "")
+	for _, tc := range []struct {
+		name, body string
+		want       int
+	}{
+		{"success", "", 255},
+		{"semantic error", "Bad == Missing\n", 150},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			model := filepath.Join(dir, "M.tla")
+			if err := os.WriteFile(model, []byte("---- MODULE M ----\n"+tc.body+"====\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			f, err := os.CreateTemp(dir, "recorder")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatal(err)
+			}
+			profile := &profileFile{file: f}
+			start := func(options) (*profiles, error) { return &profiles{recorder: profile}, nil }
+			var out, errout bytes.Buffer
+			code := runWithProfileStarter(context.Background(), []string{"-tool", model}, strings.NewReader(""), &out, &errout, start)
+			if code != tc.want || profile.err != nil || !hasToolMessage(readToolMessages(out.String()), 2186) || !strings.Contains(errout.String(), "close ") || strings.Contains(errout.String(), "write ") {
+				t.Fatalf("exit=%d write error=%v stdout=%s stderr=%s", code, profile.err, &out, &errout)
+			}
+		})
 	}
 }
 

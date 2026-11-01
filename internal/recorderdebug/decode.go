@@ -63,7 +63,8 @@ func decodeStream(data []byte) ([]Event, error) {
 }
 
 func decodeLine(line []byte) (Event, error) {
-	if err := uniqueKeys(line); err != nil {
+	keys, err := uniqueKeys(line)
+	if err != nil {
 		return Event{}, err
 	}
 	var raw struct {
@@ -84,6 +85,9 @@ func decodeLine(line []byte) (Event, error) {
 	}
 	if raw.Complete == nil {
 		return Event{}, fmt.Errorf("missing recorder completeness marker")
+	}
+	if err := validateFieldSet(keys, raw.Kind); err != nil {
+		return Event{}, err
 	}
 	event := Event{Kind: raw.Kind, Version: raw.Version, Complete: *raw.Complete, Code: raw.Code, Array: raw.Array}
 	values, err := decodeValues(raw.Values)
@@ -106,29 +110,73 @@ func decodeValues(raw []json.RawMessage) ([]string, error) {
 	return values, nil
 }
 
-func uniqueKeys(line []byte) error {
+func uniqueKeys(line []byte) (map[string]bool, error) {
 	decoder := json.NewDecoder(bytes.NewReader(line))
 	token, err := decoder.Token()
 	if err != nil || token != json.Delim('{') {
-		return fmt.Errorf("recorder event must be an object")
+		return nil, fmt.Errorf("recorder event must be an object")
 	}
 	seen := make(map[string]bool)
 	for decoder.More() {
-		key, err := decoder.Token()
-		if err != nil {
-			return err
-		}
-		name, ok := key.(string)
-		if !ok || seen[name] {
-			return fmt.Errorf("duplicate or invalid recorder field")
-		}
-		seen[name] = true
-		if err := decoder.Decode(new(json.RawMessage)); err != nil {
-			return err
+		if err := readRecorderField(decoder, seen); err != nil {
+			return nil, err
 		}
 	}
 	_, err = decoder.Token()
-	return err
+	return seen, err
+}
+
+func readRecorderField(decoder *json.Decoder, seen map[string]bool) error {
+	key, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	name, ok := key.(string)
+	if !ok {
+		return fmt.Errorf("invalid recorder field")
+	}
+	if err := addRecorderKey(seen, name); err != nil {
+		return err
+	}
+	return decoder.Decode(new(json.RawMessage))
+}
+
+func validateFieldSet(keys map[string]bool, kind string) error {
+	var required []string
+	switch kind {
+	case "header":
+		required = []string{"kind", "version", "complete"}
+	case "record":
+		required = []string{"kind", "complete", "code", "array", "values"}
+	default:
+		return fmt.Errorf("unsupported recorder kind %q", kind)
+	}
+	if len(keys) != len(required) {
+		return fmt.Errorf("unexpected recorder fields")
+	}
+	for _, key := range required {
+		if !keys[key] {
+			return fmt.Errorf("missing recorder field %q", key)
+		}
+	}
+	return nil
+}
+
+func addRecorderKey(seen map[string]bool, name string) error {
+	if seen[name] || !allowedRecorderKey(name) {
+		return fmt.Errorf("duplicate or unsupported recorder field %q", name)
+	}
+	seen[name] = true
+	return nil
+}
+
+func allowedRecorderKey(name string) bool {
+	switch name {
+	case "kind", "version", "complete", "code", "array", "values":
+		return true
+	default:
+		return false
+	}
 }
 
 func validate(event Event, index int) error {

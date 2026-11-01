@@ -76,6 +76,10 @@ func validateOutputPaths(opts options, out io.Writer) error {
 }
 
 func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) (code int) {
+	return runWithProfileStarter(ctx, args, input, out, errout, startProfiles)
+}
+
+func runWithProfileStarter(ctx context.Context, args []string, input io.Reader, out, errout io.Writer, start func(options) (*profiles, error)) (code int) {
 	opts, err := parseOptions(args)
 	if err == nil {
 		err = configureDiagnosticOptions(&opts, out)
@@ -83,7 +87,7 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	if err != nil {
 		return reportOptionErrorWithTranslateHint(opts, err, out, errout)
 	}
-	profiles, err := startProfiles(opts)
+	profiles, err := start(opts)
 	if err != nil {
 		fmt.Fprintln(errout, err)
 		return 255
