@@ -596,3 +596,51 @@ final-only and intermediate checks. Implement Java-compatible late expansion
 and its timing only after these observations and liveness outcomes agree; retain
 negative tests showing that effectful replay cannot be replaced by a distinct
 state count.
+
+### Record-set ordering microprobes (2026-11-01)
+
+`TestPinnedRecordOrderProbe` compiles `testdata/record_order/RecordOrderProbe.java`
+against the verified 1.7.4 jar and runs each scenario three times in fresh JVMs.
+It allocates `op` and `adr` in both orders and checks the actual token numbers,
+uncached and fingerprint-cached enumeration, field-name-array sharing, and a
+literal record before and after fingerprinting. In these isolated runs the
+first two tokens are 1 and 2. When `op` is interned first, enumerated records
+use `op, adr` even though the constructor receives `adr, op`, and the second
+record changes `adr`; reversing intern allocation gives `adr, op` and the second
+record changes `adr` in its first position. The direct literal initially keeps
+its supplied `adr, op` order, then fingerprinting normalizes it to intern
+order. The two enumerated records share the Java name array. The cached set
+produces the same observed sequence as the uncached set in these cases.
+These token numbers describe the minimal JVM probe, not a SANY model run.
+
+`TestRecordOrderModel` runs isolated Go and, if configured, Java TLC processes
+on a tiny model with `Print`, `ToString`, a nested tuple/function containing a
+shared record, and equality against a literal with reversed fields. It checks
+selected DOT labels and counts with no symmetry, reversed source order,
+symmetry, and VIEW. Both implementations report 8 generated/4 distinct
+without symmetry and 6/2 with symmetry. With `op` parsed first Java prints
+`op, adr`, while Go prints `adr, op`; the reversed source control prints
+`adr, op` on both. The Java model runs use `-fp 0`, one worker, private
+metadata and DOT paths. The Java model comparison is opt-in; its assertions
+are selected observations, not whole-output or JUnit parity. Java 1.7.4
+rejects the `ALIAS` configuration keyword (see `checker/dfid_report.go`), so
+there is no Java 1.7.4 ALIAS comparison here.
+
+```sh
+TLA_GO_JUNIT_ROOT=/tmp/tlaplus-java-v1.7.4 \
+TLA_GO_JUNIT_JAR=/tmp/tla2tools-v1.7.4.jar \
+go test ./value ./internal/upstreamjunit -run 'Test(PinnedRecordOrderProbe|RecordSetEnumerationCanonicalIdentity|RecordOrderModel)$' -count=1
+```
+
+No production behavior is changed by these probes. The current Go record-set
+constructor canonicalizes fields lexically, and Cartesian enumeration visits
+factors in that order. Preserving just a display-order list would leave the
+observable enumeration and, potentially, exploration order different. A safe
+change must carry check-local intern provenance through construction and
+enumeration while retaining canonical membership, equality and fingerprint
+semantics; it must also account for permutations that currently reconstruct
+functions without their presentation provenance. Literal normalization and
+shared nested values cannot be modeled by globally sorting every output.
+The model samples do not establish complete token-allocation fidelity, all
+cache paths, permutation presentation, ALIAS behavior in later Java releases,
+or scheduling-independent output; those remain open before a general fix.
