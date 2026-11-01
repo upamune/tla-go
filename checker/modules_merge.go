@@ -3,6 +3,8 @@ package checker
 import "github.com/upamune/tla-go/syntax/parser"
 
 func mergeExtensions(root *parser.Module, units []*parser.Module, standard []string) *parser.Module {
+	units = isolateExtensionBindings(units)
+	root = units[len(units)-1]
 	result := *root
 	result.Extends = standard
 	result.Constants = nil
