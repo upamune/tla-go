@@ -11,7 +11,10 @@ import (
 // options. Set Dir and any explicit Env before calling Apply. Use only for
 // Java processes.
 func Apply(cmd *exec.Cmd) *exec.Cmd {
-	environ := cmd.Environ()
+	environ := cmd.Env
+	if environ == nil {
+		environ = cmd.Environ()
+	}
 	result := make([]string, 0, len(environ))
 	for _, entry := range environ {
 		name, _, _ := strings.Cut(entry, "=")

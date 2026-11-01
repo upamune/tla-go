@@ -35,6 +35,15 @@ func TestApplyEnvironmentNameCase(t *testing.T) {
 	}
 }
 
+func TestApplyPreservesInvalidExplicitEnvironment(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "-test.run=^TestApplyEnvironmentChild$")
+	cmd.Env = []string{"BAD=contains\x00nul", "_JAVA_OPTIONS=-Dexample=1"}
+	Apply(cmd)
+	if err := cmd.Run(); err == nil {
+		t.Fatal("expected the explicit invalid environment to reject execution")
+	}
+}
+
 func TestApplyEnvironmentChild(t *testing.T) {
 	if !strings.Contains(strings.Join(os.Args, " "), "^TestApplyEnvironmentChild$") {
 		t.Skip("child process only")
