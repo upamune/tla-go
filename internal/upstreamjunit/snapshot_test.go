@@ -56,55 +56,64 @@ func TestParseSweepLogRejectsInvalid(t *testing.T) {
 }
 
 func TestSweepSnapshotConsistency(t *testing.T) {
-	data, err := os.ReadFile("testdata/snapshots/sweep-2399b153.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var snap SweepSnapshot
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&snap); err != nil {
-		t.Fatal(err)
-	}
-	if snap.Schema != 1 || snap.TlaGoCommit != "2399b1535d1ef68aa78d81bba2b9559cf8e586f7" || snap.UpstreamCommit != UpstreamCommit || snap.JarSHA256 != JarSHA256 || snap.SourceSHA256 != "4769aef155298934c93845b6a0130091bbd0f1060d03ebd94762068acdcb755a" {
-		t.Fatal("incorrect provenance")
-	}
-	counts := SweepCounts{Candidates: len(snap.Classes)}
-	last := ""
-	for _, r := range snap.Classes {
-		if r.Class <= last {
-			t.Fatalf("duplicate or unsorted class: %s", r.Class)
-		}
-		last = r.Class
-		switch r.Status {
-		case "unsafe_setup":
-			counts.Unsafe++
-			if r.JavaExit != nil || r.GoExit != nil || r.Unavailable != "" {
-				t.Fatal(r)
+	for _, tc := range []struct {
+		file, commit, hash string
+		counts             SweepCounts
+	}{
+		{"sweep-2399b153.json", "2399b1535d1ef68aa78d81bba2b9559cf8e586f7", "4769aef155298934c93845b6a0130091bbd0f1060d03ebd94762068acdcb755a", SweepCounts{340, 309, 31, 276, 224, 52, 33}},
+		{"sweep-56336d54.json", "56336d54f659dbb744aff66ffa8e653a6117c06a", "fa1bf74a467a45cbd1d029017dbafb7ae0305221d5f1e5e91201fc7a6cc29ec5", SweepCounts{340, 309, 31, 293, 236, 57, 16}},
+	} {
+		t.Run(tc.file, func(t *testing.T) {
+			data, err := os.ReadFile("testdata/snapshots/" + tc.file)
+			if err != nil {
+				t.Fatal(err)
 			}
-		case "unavailable":
-			counts.Attempted++
-			counts.Unavailable++
-			if r.JavaExit != nil || r.GoExit != nil || r.Unavailable == "" {
-				t.Fatal(r)
+			var snap SweepSnapshot
+			dec := json.NewDecoder(bytes.NewReader(data))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(&snap); err != nil {
+				t.Fatal(err)
 			}
-		case "compared":
-			counts.Attempted++
-			counts.Compared++
-			if r.JavaExit == nil || r.GoExit == nil || r.Unavailable != "" {
-				t.Fatal(r)
+			if snap.Schema != 1 || snap.TlaGoCommit != tc.commit || snap.UpstreamCommit != UpstreamCommit || snap.JarSHA256 != JarSHA256 || snap.SourceSHA256 != tc.hash {
+				t.Fatal("incorrect provenance")
 			}
-			if len(r.Differences) == 0 {
-				counts.NoDifferences++
-			} else {
-				counts.Differences++
+			counts := SweepCounts{Candidates: len(snap.Classes)}
+			last := ""
+			for _, r := range snap.Classes {
+				if r.Class <= last {
+					t.Fatalf("duplicate or unsorted class: %s", r.Class)
+				}
+				last = r.Class
+				switch r.Status {
+				case "unsafe_setup":
+					counts.Unsafe++
+					if r.JavaExit != nil || r.GoExit != nil || r.Unavailable != "" {
+						t.Fatal(r)
+					}
+				case "unavailable":
+					counts.Attempted++
+					counts.Unavailable++
+					if r.JavaExit != nil || r.GoExit != nil || r.Unavailable == "" {
+						t.Fatal(r)
+					}
+				case "compared":
+					counts.Attempted++
+					counts.Compared++
+					if r.JavaExit == nil || r.GoExit == nil || r.Unavailable != "" {
+						t.Fatal(r)
+					}
+					if len(r.Differences) == 0 {
+						counts.NoDifferences++
+					} else {
+						counts.Differences++
+					}
+				default:
+					t.Fatalf("invalid status: %s", r.Status)
+				}
 			}
-		default:
-			t.Fatalf("invalid status: %s", r.Status)
-		}
-	}
-	want := SweepCounts{340, 309, 31, 276, 224, 52, 33}
-	if counts != want || snap.Counts != counts {
-		t.Fatalf("counts: %+v / %+v", counts, snap.Counts)
+			if counts != tc.counts || snap.Counts != counts {
+				t.Fatalf("counts: %+v / %+v", counts, snap.Counts)
+			}
+		})
 	}
 }
