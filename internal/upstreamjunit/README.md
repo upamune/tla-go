@@ -80,6 +80,26 @@ For example, `pcal.CCallReturn1Test` reported Java's complete state space of
 snapshot, but the Go liveness strategy remains unresolved; they do not establish
 15 JUnit failures or nine passes.
 
+After the progress-count change, a filtered `CCallReturn1Test` diagnostic
+reported no selected differences and both sides satisfied the extracted
+assertions, including 2192's count of 8. The sweep still intentionally failed:
+coverage, lifecycle, translation messages, test-specific overrides, and the
+equivalence of Go's exploration-time liveness strategy remain unresolved.
+
+In Java 1.7.4 `LiveCheck.check0` sums each checker's `diskGraph.size()` before
+checking and prints 2267 after the result (including the violation trace).
+`DiskGraph` counts fingerprint entries; despite the product graph,
+`TableauDiskGraph.size()` delegates to `TableauNodePtrTable.size()`, which
+counts fingerprint keys, not the tableau indices stored under each key.
+`setDone` inserts even a fingerprint with no consistent tableau node. Completed,
+unreduced pure exploration therefore provides the count per branch: every
+explored fingerprint is marked done, and replay of a done state cannot discover
+an outside fingerprint. This is not a general equivalence between reachable
+product nodes and states. Go continues to omit tableau progress when reduction
+or unstable/effectful definitions make replay equivalence unproven, and omits
+oversized or unsafe normalization. It does not reproduce intermediate Java
+liveness checks.
+
 After suite resolution was added, the verified inventory reported 340 recovered
 specs, 31 candidates with unsafe or unresolved invocation setup, and 340 unresolved
 non-abstract candidates. Each of three filtered runs attempted one case. Test10
