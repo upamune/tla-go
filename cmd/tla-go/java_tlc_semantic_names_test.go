@@ -64,7 +64,7 @@ func TestJavaTLCInstanceReferenceOrder(t *testing.T) {
 			if code != 150 || errout.Len() != 0 || !hasToolMessage(readToolMessages(out.String()), 3002) {
 				t.Fatalf("Go exit %d, stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 			}
-			if jar := os.Getenv("TLC_JAR"); jar != "" {
+			if jar := pinnedFairnessEffectJar(t); jar != "" {
 				java, javaCode := runJavaTLCArgs(t, jar, dir, []string{"-tool", "-workers", "1", "-fp", "0", "M.tla"})
 				if javaCode != 150 || !hasToolMessage(readToolMessages(java), 3002) {
 					t.Fatalf("Java TLC exit %d:\n%s", javaCode, java)
@@ -92,7 +92,7 @@ func TestJavaTLCInstanceShadowKnownGap(t *testing.T) {
 	if code != 255 || !strings.Contains(out.String(), "Multiply-defined symbol 'I!F'") {
 		t.Fatalf("Go exit %d, stdout:\n%s\nstderr:\n%s", code, out.String(), errout.String())
 	}
-	if jar := os.Getenv("TLC_JAR"); jar != "" {
+	if jar := pinnedFairnessEffectJar(t); jar != "" {
 		java, javaCode := runJavaTLCArgs(t, jar, dir, []string{"-tool", "-workers", "1", "-fp", "0", "M.tla"})
 		if javaCode != 0 || !strings.Contains(java, "Multiple declarations or definitions for symbol I") {
 			t.Fatalf("Java TLC exit %d:\n%s", javaCode, java)
