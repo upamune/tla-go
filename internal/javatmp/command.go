@@ -9,7 +9,7 @@ import (
 // Apply removes _JAVA_OPTIONS, which the JVM processes after command-line
 // options. Set Dir and any explicit Env before calling Apply. Use only for
 // Java processes.
-func Apply(cmd *exec.Cmd) {
+func Apply(cmd *exec.Cmd) *exec.Cmd {
 	var result []string
 	for _, entry := range cmd.Environ() {
 		name, _, _ := strings.Cut(entry, "=")
@@ -18,4 +18,5 @@ func Apply(cmd *exec.Cmd) {
 		}
 	}
 	cmd.Env = result
+	return cmd
 }
