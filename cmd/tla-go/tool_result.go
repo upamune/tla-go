@@ -10,12 +10,22 @@ import (
 )
 
 func printToolFailure(t toolOutput, failure *checker.Failure, module *parser.Module) {
+	printToolFailureAfterStart(t, failure, module, false)
+}
+
+func printToolTemporalHeadline(t toolOutput) {
+	t.message(2116, 1, "Temporal properties were violated.\n")
+	t.message(2264, 1, "The following behavior constitutes a counter-example:\n")
+}
+
+func printToolFailureAfterStart(t toolOutput, failure *checker.Failure, module *parser.Module, started bool) {
 	if printToolInitialFailure(t, failure) {
 		return
 	}
 	if failure.TemporalViolation {
-		t.message(2116, 1, "Temporal properties were violated.\n")
-		t.message(2264, 1, "The following behavior constitutes a counter-example:\n")
+		if !started {
+			printToolTemporalHeadline(t)
+		}
 		printToolTrace(t, failure.TemporalTrace, module)
 	}
 	printToolFailureHeader(t, failure)
@@ -178,12 +188,29 @@ func printToolViolationHeadline(t toolOutput, result checker.Result) {
 }
 
 func printToolTrace(t toolOutput, trace []checker.TraceStep, module *parser.Module) {
-	for i, step := range trace {
-		var body bytes.Buffer
-		fmt.Fprintf(&body, "%d: <%s>\n", i+1, actionLabelWithRange(module, step.Action, step.ActionRange))
-		printTraceState(&body, step)
-		t.message(2217, 4, body.String())
+	printToolTraceFrom(t, trace, 0, module)
+}
+
+func printToolTraceFrom(t toolOutput, trace []checker.TraceStep, from int, module *parser.Module) {
+	for i := from; i < len(trace); i++ {
+		printToolTraceStep(t, trace[i], i+1, module)
 	}
+}
+
+// Style only new states and, for -difftrace, their predecessor.
+func printToolTraceIncrement(t toolOutput, style traceStyle, trace []checker.TraceStep, from int, module *parser.Module) {
+	start := max(from-1, 0)
+	styled := style.trace(trace[start:], false)
+	for i := from; i < len(trace); i++ {
+		printToolTraceStep(t, styled[i-start], i+1, module)
+	}
+}
+
+func printToolTraceStep(t toolOutput, step checker.TraceStep, number int, module *parser.Module) {
+	var body bytes.Buffer
+	fmt.Fprintf(&body, "%d: <%s>\n", number, actionLabelWithRange(module, step.Action, step.ActionRange))
+	printTraceState(&body, step)
+	t.message(2217, 4, body.String())
 }
 
 func printToolLoop(t toolOutput, v *checker.Violation, module *parser.Module) {

@@ -24,19 +24,19 @@ type liveTraceKey struct {
 }
 
 // liveTrace is the sampled trace that LiveCheck1 checks. Like TLC
-// fingerprints, its keys identify states up to VIEW and SYMMETRY. TLC
-// evaluates each check on every node and edge of each solution's graph;
-// tla-go evaluates a leaf once per state, or per step for an action, which
-// only skips repeated side effects.
+// fingerprints, its keys identify states up to VIEW and SYMMETRY. The opt-in
+// tool-compatible mode reevaluates leaves as TLC does; otherwise leaves are cached.
 type liveTrace struct {
 	states []evaluator.State
 	keys   []string
+	// Disable the cache in tool-compatible mode.
+	uncached bool
 	// leaves holds, by leaf tag and slot, 1 for a true and -1 for a false leaf.
 	leaves [][]int8
 }
 
-func newLiveTrace(m *model, states []evaluator.State) (*liveTrace, error) {
-	t := &liveTrace{states: states, keys: make([]string, len(states))}
+func newLiveTrace(m *model, states []evaluator.State, omitNames bool) (*liveTrace, error) {
+	t := &liveTrace{states: states, keys: make([]string, len(states)), uncached: omitNames}
 	for i, state := range states {
 		key, err := m.stateKey(state)
 		if err != nil {
@@ -49,15 +49,17 @@ func newLiveTrace(m *model, states []evaluator.State) (*liveTrace, error) {
 
 func (t *liveTrace) leaf(n *liveNode, current, next int) (bool, error) {
 	slot, cached := liveLeafSlot(n, current, next)
-	values := t.leafValues(n.leaf.tag)
-	if cached && values[slot] != 0 {
-		return values[slot] > 0, nil
+	if t.uncached {
+		cached = false
 	}
-	var nextState evaluator.State
-	if next >= 0 {
-		nextState = t.states[next]
+	var values []int8
+	if cached {
+		values = t.leafValues(n.leaf.tag)
+		if values[slot] != 0 {
+			return values[slot] > 0, nil
+		}
 	}
-	holds, err := n.leaf.eval(t.states[current], nextState)
+	holds, err := t.evaluateLeaf(n, current, next)
 	if err == nil && cached {
 		values[slot] = -1
 		if holds {
@@ -65,6 +67,18 @@ func (t *liveTrace) leaf(n *liveNode, current, next int) (bool, error) {
 		}
 	}
 	return holds, err
+}
+
+func (t *liveTrace) evaluateLeaf(n *liveNode, current, next int) (bool, error) {
+	var nextState evaluator.State
+	if next >= 0 {
+		nextState = t.states[next]
+	}
+	eval := n.leaf.eval
+	if t.uncached && n.leaf.javaEval != nil {
+		eval = n.leaf.javaEval
+	}
+	return eval(t.states[current], nextState)
 }
 
 // liveLeafSlot caches a state leaf per state and an action leaf per
