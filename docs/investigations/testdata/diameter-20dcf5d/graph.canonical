@@ -1,0 +1,112 @@
+E /\\ big = 0\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 0\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 1 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 1 -> /\\ big = 0\n/\\ small = 1
+E /\\ big = 0\n/\\ small = 1 -> /\\ big = 0\n/\\ small = 1
+E /\\ big = 0\n/\\ small = 1 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 0\n/\\ small = 1 -> /\\ big = 1\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 1 -> /\\ big = 5\n/\\ small = 1
+E /\\ big = 0\n/\\ small = 2 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 2 -> /\\ big = 0\n/\\ small = 2
+E /\\ big = 0\n/\\ small = 2 -> /\\ big = 0\n/\\ small = 2
+E /\\ big = 0\n/\\ small = 2 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 0\n/\\ small = 2 -> /\\ big = 2\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 2 -> /\\ big = 5\n/\\ small = 2
+E /\\ big = 0\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 0\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 0\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 0\n/\\ small = 3 -> /\\ big = 3\n/\\ small = 0
+E /\\ big = 0\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 1\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 1\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 1
+E /\\ big = 1\n/\\ small = 0 -> /\\ big = 1\n/\\ small = 0
+E /\\ big = 1\n/\\ small = 0 -> /\\ big = 1\n/\\ small = 0
+E /\\ big = 1\n/\\ small = 0 -> /\\ big = 1\n/\\ small = 3
+E /\\ big = 1\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 1\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 1\n/\\ small = 3 -> /\\ big = 1\n/\\ small = 0
+E /\\ big = 1\n/\\ small = 3 -> /\\ big = 1\n/\\ small = 3
+E /\\ big = 1\n/\\ small = 3 -> /\\ big = 1\n/\\ small = 3
+E /\\ big = 1\n/\\ small = 3 -> /\\ big = 4\n/\\ small = 0
+E /\\ big = 1\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 2\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 2\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 2
+E /\\ big = 2\n/\\ small = 0 -> /\\ big = 2\n/\\ small = 0
+E /\\ big = 2\n/\\ small = 0 -> /\\ big = 2\n/\\ small = 0
+E /\\ big = 2\n/\\ small = 0 -> /\\ big = 2\n/\\ small = 3
+E /\\ big = 2\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 2\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 2\n/\\ small = 3 -> /\\ big = 2\n/\\ small = 0
+E /\\ big = 2\n/\\ small = 3 -> /\\ big = 2\n/\\ small = 3
+E /\\ big = 2\n/\\ small = 3 -> /\\ big = 2\n/\\ small = 3
+E /\\ big = 2\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 2\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 3\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 3\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 3\n/\\ small = 0 -> /\\ big = 3\n/\\ small = 0
+E /\\ big = 3\n/\\ small = 0 -> /\\ big = 3\n/\\ small = 0
+E /\\ big = 3\n/\\ small = 0 -> /\\ big = 3\n/\\ small = 3
+E /\\ big = 3\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 3\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 3\n/\\ small = 3 -> /\\ big = 3\n/\\ small = 0
+E /\\ big = 3\n/\\ small = 3 -> /\\ big = 3\n/\\ small = 3
+E /\\ big = 3\n/\\ small = 3 -> /\\ big = 3\n/\\ small = 3
+E /\\ big = 3\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 1
+E /\\ big = 3\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 4\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 4\n/\\ small = 0 -> /\\ big = 1\n/\\ small = 3
+E /\\ big = 4\n/\\ small = 0 -> /\\ big = 4\n/\\ small = 0
+E /\\ big = 4\n/\\ small = 0 -> /\\ big = 4\n/\\ small = 0
+E /\\ big = 4\n/\\ small = 0 -> /\\ big = 4\n/\\ small = 3
+E /\\ big = 4\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 4\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 4\n/\\ small = 3 -> /\\ big = 4\n/\\ small = 0
+E /\\ big = 4\n/\\ small = 3 -> /\\ big = 4\n/\\ small = 3
+E /\\ big = 4\n/\\ small = 3 -> /\\ big = 4\n/\\ small = 3
+E /\\ big = 4\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 2
+E /\\ big = 4\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 0 -> /\\ big = 0\n/\\ small = 0
+E /\\ big = 5\n/\\ small = 0 -> /\\ big = 2\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 5\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 5\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 5\n/\\ small = 0 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 1 -> /\\ big = 0\n/\\ small = 1
+E /\\ big = 5\n/\\ small = 1 -> /\\ big = 3\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 1 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 5\n/\\ small = 1 -> /\\ big = 5\n/\\ small = 1
+E /\\ big = 5\n/\\ small = 1 -> /\\ big = 5\n/\\ small = 1
+E /\\ big = 5\n/\\ small = 1 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 2 -> /\\ big = 0\n/\\ small = 2
+E /\\ big = 5\n/\\ small = 2 -> /\\ big = 4\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 2 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 5\n/\\ small = 2 -> /\\ big = 5\n/\\ small = 2
+E /\\ big = 5\n/\\ small = 2 -> /\\ big = 5\n/\\ small = 2
+E /\\ big = 5\n/\\ small = 2 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 3 -> /\\ big = 0\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 0
+E /\\ big = 5\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+E /\\ big = 5\n/\\ small = 3 -> /\\ big = 5\n/\\ small = 3
+V initial=false label=/\\ big = 0\n/\\ small = 1
+V initial=false label=/\\ big = 0\n/\\ small = 2
+V initial=false label=/\\ big = 0\n/\\ small = 3
+V initial=false label=/\\ big = 1\n/\\ small = 0
+V initial=false label=/\\ big = 1\n/\\ small = 3
+V initial=false label=/\\ big = 2\n/\\ small = 0
+V initial=false label=/\\ big = 2\n/\\ small = 3
+V initial=false label=/\\ big = 3\n/\\ small = 0
+V initial=false label=/\\ big = 3\n/\\ small = 3
+V initial=false label=/\\ big = 4\n/\\ small = 0
+V initial=false label=/\\ big = 4\n/\\ small = 3
+V initial=false label=/\\ big = 5\n/\\ small = 0
+V initial=false label=/\\ big = 5\n/\\ small = 1
+V initial=false label=/\\ big = 5\n/\\ small = 2
+V initial=false label=/\\ big = 5\n/\\ small = 3
+V initial=true label=/\\ big = 0\n/\\ small = 0

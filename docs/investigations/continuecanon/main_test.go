@@ -72,3 +72,49 @@ func TestRejectMalformedOrTruncatedGraphs(t *testing.T) {
 		})
 	}
 }
+
+func TestMultipleRankVertices(t *testing.T) {
+	const base = `strict digraph DiskGraph {
+nodesep=0.35;
+subgraph cluster_graph {
+color="white";
+1 [label="one",style = filled]
+2 [label="two"];
+1 -> 2 [label="",color="black",fontcolor="black"];
+{rank = same; 1;2;}
+}
+}`
+	got, err := parseGraph(base)
+	if err != nil || len(got) != 3 {
+		t.Fatalf("got %v, %v", got, err)
+	}
+	for _, mutation := range []string{
+		"{rank = same; 1;3;}",
+		"{rank = same; 1;;2;}",
+		"{rank = same; 1;evil;}",
+	} {
+		if _, err := parseGraph(strings.Replace(base, "{rank = same; 1;2;}", mutation, 1)); err == nil {
+			t.Fatalf("accepted invalid rank %q", mutation)
+		}
+	}
+}
+
+func TestCapturedDiameterGraphsCanonicalize(t *testing.T) {
+	dir := filepath.Join("..", "testdata", "diameter-20dcf5d")
+	want, err := os.ReadFile(filepath.Join(dir, "graph.canonical"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"java-1.dot", "java-4-depth8.dot", "java-4-depth9.dot", "go-4.dot"} {
+		t.Run(name, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := parseGraph(string(data))
+			if err != nil || strings.Join(got, "\n")+"\n" != string(want) {
+				t.Fatalf("canonical output differs: %v", err)
+			}
+		})
+	}
+}

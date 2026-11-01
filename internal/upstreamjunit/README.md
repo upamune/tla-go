@@ -637,6 +637,8 @@ JUnit lifecycle. Timeouts, scheduling and other nondeterminism make snapshot
 count changes insufficient to establish a general improvement or regression.
 The later [timeout follow-up](../../docs/investigations/sweep-51c3a77-timeouts.md)
 records bounded reruns of SimpleMultiProc and Java EWD840MC2.
+The [DiameterTest investigation](../../docs/investigations/diameter-worker-order.md)
+compares repeated worker-dependent depth and DOT output with Java 1.7.4.
 
 The extractor recognizes only the five documented source hashes and associates
 each with its recorded binary revision; the logs themselves do not establish
