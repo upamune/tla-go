@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/upamune/tla-go/checker"
 	"github.com/upamune/tla-go/internal/recorderdebug"
@@ -18,7 +19,7 @@ type recorderConfig struct {
 	mu   sync.Mutex
 }
 
-const recorderModeError = "TLA_GO_DEBUG_RECORDER requires one model in tool model-checking mode"
+const recorderModeError = "TLA_GO_DEBUG_RECORDER requires one model in model-checking mode"
 
 func startRecorderOutput(file *profileFile) error {
 	if file == nil {
@@ -50,7 +51,42 @@ func configureRecorder(opts *options) error {
 }
 
 func recorderModelCheckMode(opts options) bool {
-	return opts.tool && !opts.simulate && !opts.dfid && !opts.help && !opts.version && !opts.sanyMetadata && len(opts.paths) == 1 && recorderOrdinarySearch(opts)
+	return !opts.simulate && !opts.dfid && !opts.help && !opts.version && !opts.sanyMetadata && len(opts.paths) == 1 && recorderOrdinarySearch(opts)
+}
+
+// javaHumanDuration follows TLC 1.7.4's UTC SimpleDateFormat selection.
+func javaHumanDuration(elapsed time.Duration) string {
+	millis := elapsed.Milliseconds()
+	second := millis / 1000
+	switch {
+	case millis > 24*60*60*1000:
+		date := time.UnixMilli(millis - 24*60*60*1000).UTC()
+		return fmt.Sprintf("%dd %02dh", date.YearDay(), date.Hour())
+	case millis > 60*60*1000:
+		return fmt.Sprintf("%02dh %02dmin", second/3600%24, second/60%60)
+	case millis > 60*1000:
+		return fmt.Sprintf("%02dmin %02ds", second/60%60, second%60)
+	default:
+		return fmt.Sprintf("%02ds", second%60)
+	}
+}
+
+// recordHumanResult records only values already emitted by the checker. The
+// recorder header remains incomplete; failures and startup are not complete.
+func recordHumanResult(recorder *recorderConfig, result checker.Result) {
+	if recorder == nil {
+		return
+	}
+	if result.Failure == nil && result.Violation == nil {
+		recordSuccess(recorder, result)
+	}
+	if toolHasStatistics(result) {
+		printToolCoverage(toolOutput{out: io.Discard, recorder: recorder}, result.Coverage)
+		recordStatistics(recorder, result)
+		if result.Failure == nil || !result.Failure.SuppressDepth {
+			recordStrings(recorder, 2194, strconv.Itoa(result.Depth))
+		}
+	}
 }
 
 func recorderOrdinarySearch(opts options) bool {

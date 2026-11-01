@@ -59,7 +59,7 @@ type options struct {
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-recover dir] [-coverage N] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-debug-trace FILE, -debug-cpu-profile FILE, and -debug-heap-profile FILE write Go diagnostics to new files.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 	fmt.Fprintln(w, compatUsage)
-	fmt.Fprintln(w, "TLA_GO_DEBUG_RECORDER=FILE writes partial recorder diagnostics to a new file in -tool mode.")
+	fmt.Fprintln(w, "TLA_GO_DEBUG_RECORDER=FILE writes partial recorder diagnostics to a new file during model checking.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -249,6 +249,14 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 	if opts.tool {
 		return runToolModel(ctx, opts, out, errout)
 	}
+	return runHumanModel(ctx, opts, out, errout)
+}
+
+func runHumanModel(ctx context.Context, opts options, out, errout io.Writer) int {
+	if opts.recorder != nil {
+		started := time.Now()
+		defer func() { recordStrings(opts.recorder, 2186, javaHumanDuration(time.Since(started))) }()
+	}
 	specPath, configPath, err := inputPaths(opts)
 	if err != nil {
 		fmt.Fprintln(errout, err)
@@ -270,11 +278,13 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 		parsed.CheckDeadlock = false
 	}
 	printChecking(out, specPath, configPath, opts)
+	recordStrings(opts.recorder, 2185)
 	result, err := checkModelWithOutput(ctx, opts, module, source, parsed, specPath, out, errout)
 	if err != nil {
 		return reportModelError(out, errout, err)
 	}
 	printConfiguredResult(out, result, module, opts)
+	recordHumanResult(opts.recorder, result)
 	if result.Failure != nil {
 		return result.Failure.ExitCode
 	}

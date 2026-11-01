@@ -264,19 +264,31 @@ func validRecordValues(event Event) bool {
 	if event.Code == 2190 || event.Code == 2191 {
 		return validInitialValues(event.Values)
 	}
+	if event.Code == 2186 {
+		return validFinishDuration(event.Values[0])
+	}
 	for _, value := range event.Values {
-		if event.Code == 2186 {
-			var ok bool
-			value, ok = strings.CutSuffix(value, "ms")
-			if !ok {
-				return false
-			}
-		}
 		if !decimal(value) {
 			return false
 		}
 	}
 	return true
+}
+
+var (
+	humanDuration    = regexp.MustCompile(`^(?:[0-5][0-9]s|[0-5][0-9]min [0-5][0-9]s|(?:[01][0-9]|2[0-3])h [0-5][0-9]min)$`)
+	humanDayDuration = regexp.MustCompile(`^([1-9][0-9]{0,2})d (?:[01][0-9]|2[0-3])h$`)
+)
+
+func validFinishDuration(value string) bool {
+	if millis, ok := strings.CutSuffix(value, "ms"); ok {
+		return decimal(millis)
+	}
+	if match := humanDayDuration.FindStringSubmatch(value); match != nil {
+		day, err := strconv.Atoi(match[1])
+		return err == nil && day <= 366
+	}
+	return humanDuration.MatchString(value)
 }
 
 var probabilityPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]+)?(E-?[0-9]+)?$`)

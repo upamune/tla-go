@@ -98,11 +98,20 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 			}
 		}
 	}
+	if opts.recorder == nil {
+		return func(event checker.SearchEvent) { printHumanModelSearch(out, event) }
+	}
+	recorder := opts.recorder
 	return func(event checker.SearchEvent) {
-		if event.Kind == checker.TemporalCheckStart {
-			fmt.Fprintln(out, temporalProgressStats(event))
-			printHumanSearch(out, event)
-		}
+		recordSearchEvent(recorder, event)
+		printHumanModelSearch(out, event)
+	}
+}
+
+func printHumanModelSearch(out io.Writer, event checker.SearchEvent) {
+	if event.Kind == checker.TemporalCheckStart {
+		fmt.Fprintln(out, temporalProgressStats(event))
+		printHumanSearch(out, event)
 	}
 }
 

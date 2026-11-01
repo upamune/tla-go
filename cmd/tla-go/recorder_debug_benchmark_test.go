@@ -39,3 +39,22 @@ func BenchmarkRecorderDisabledCLI(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkRecorderDisabledHumanCLI(b *testing.B) {
+	b.Setenv("TLA_GO_DEBUG_RECORDER", "")
+	dir := b.TempDir()
+	model := filepath.Join(dir, "M.tla")
+	if err := os.WriteFile(model, []byte("---- MODULE M ----\n====\n"), 0o600); err != nil {
+		b.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "M.cfg"), nil, 0o600); err != nil {
+		b.Fatal(err)
+	}
+	args := []string{"-workers", "1", model}
+	b.ReportAllocs()
+	for b.Loop() {
+		if code := run(context.Background(), args, io.Discard, io.Discard); code != 0 {
+			b.Fatalf("exit %d", code)
+		}
+	}
+}

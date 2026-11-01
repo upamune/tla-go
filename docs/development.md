@@ -138,21 +138,24 @@ For supported reduced tableau checks, `-debug-liveness` emits `tableau-node` eve
 ### Recorder diagnostics
 
 For recorder investigations, set `TLA_GO_DEBUG_RECORDER` to a new file path
-when running one model in `-tool` breadth-first model-checking mode. Active
+when running one model in breadth-first model-checking mode, with or without
+`-tool`. Active
 checkpointing and recovery are unsupported; `-checkpoint 0` is accepted.
 The file is created exclusively with mode 0600. Translation, metadata,
 version, help, simulation, and DFID modes reject the variable without creating
 a file. JSON lines start with a version 1 header marking the stream incomplete,
-followed by selected observations in emission order: SANY start/end, starting,
+followed by selected observations in emission order: tool-mode SANY start/end, starting,
 liveness branch count, initial-state start/progress/completion, complete-space
 temporal-check start, selected success probabilities, final coverage action and
 expression records, statistics, search depth, and finish. Liveness observations
 are present only when the checker emits the corresponding progress events. Periodic
 coverage records and other recorder calls remain unobserved.
 Their `strings` arrays come from Go events and results rather than parsed tool
-text. A Java TLC 1.7.4 recorder probe compares these selected calls and argument
-types across successful and failing models, in tool and non-tool mode; finish
-durations naturally differ.
+text. Java TLC 1.7.4 recorder probes compare selected tool-mode calls across
+successful and failing models, and selected ordinary-mode calls for successful
+models; finish durations naturally differ.
+The human-mode finish observation uses Java's human-readable duration format.
+Both modes remain incomplete, including on a successful check.
 
 For success message 2193, Java 1.7.4 records a second probability when its
 unrounded optimistic probability is at least `1e-10`. That second value depends

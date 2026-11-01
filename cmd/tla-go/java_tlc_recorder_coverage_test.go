@@ -53,4 +53,23 @@ func TestJavaTLCRecorderCoverageEvents(t *testing.T) {
 	if got := searchComparable(events, true); !reflect.DeepEqual(java, got) {
 		t.Fatalf("Java recorder=%+v Go recorder=%+v", java, got)
 	}
+
+	args = args[1:]
+	t.Setenv("TLA_GO_DEBUG_RECORDER", "")
+	plain.Reset()
+	plainErr.Reset()
+	plainCode = run(context.Background(), args, &plain, &plainErr)
+	path = filepath.Join(dir, "human.jsonl")
+	t.Setenv("TLA_GO_DEBUG_RECORDER", path)
+	observed.Reset()
+	observedErr.Reset()
+	code = run(context.Background(), args, &observed, &observedErr)
+	if code != 0 || code != plainCode || plainErr.String() != observedErr.String() || normalizeTemporalProgress(plain.String()) != normalizeTemporalProgress(observed.String()) {
+		t.Fatalf("human plain exit=%d stderr=%s; recorder exit=%d stderr=%s\nplain=%s\nrecorder=%s", plainCode, &plainErr, code, &observedErr, &plain, &observed)
+	}
+	events = readSearchRecorder(t, path)
+	java = runSearchRecorderJava(t, jar, classes, dir, 0, 1, false, false, "-coverage", "0")
+	if got := searchComparable(events, false); !reflect.DeepEqual(java, got) {
+		t.Fatalf("human Java recorder=%+v Go recorder=%+v", java, got)
+	}
 }

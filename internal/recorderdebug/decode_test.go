@@ -5,6 +5,33 @@ import (
 	"testing"
 )
 
+func TestDecodeHumanFinishDuration(t *testing.T) {
+	header := `{"kind":"header","version":1,"complete":false}` + "\n"
+	for _, tc := range []struct {
+		duration string
+		valid    bool
+	}{
+		{"00s", true},
+		{"01min 00s", true},
+		{"01h 00min", true},
+		{"1d 00h", true},
+		{"0ms", true},
+		{"10ms", true},
+		{"01ms", false},
+		{"60s", false},
+		{"0d 00h", false},
+		{"1d 24h", false},
+		{"367d 00h", false},
+		{"garbage", false},
+	} {
+		line := `{"kind":"record","complete":false,"code":2186,"array":"strings","values":["` + tc.duration + `"]}` + "\n"
+		_, err := Decode(strings.NewReader(header + line))
+		if (err == nil) != tc.valid {
+			t.Errorf("duration %q: %v", tc.duration, err)
+		}
+	}
+}
+
 func TestDecodePartialEvents(t *testing.T) {
 	header := `{"kind":"header","version":1,"complete":false}` + "\n"
 	stats := `{"kind":"record","complete":false,"code":2199,"array":"strings","values":["0","0","0"]}` + "\n"

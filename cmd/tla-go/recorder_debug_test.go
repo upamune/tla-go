@@ -163,7 +163,7 @@ func TestRecorderDebugRejectsNonModelModes(t *testing.T) {
 			t.Setenv("TLA_GO_DEBUG_RECORDER", path)
 			var out, errout bytes.Buffer
 			code := run(context.Background(), append(args, "-userFile", output), &out, &errout)
-			if code == 0 || !strings.Contains(errout.String(), "requires one model in tool model-checking mode") {
+			if code == 0 || !strings.Contains(errout.String(), "requires one model in model-checking mode") {
 				t.Fatalf("unsupported mode exit=%d stdout=%s stderr=%s", code, &out, &errout)
 			}
 			for _, name := range []string{path, output} {
