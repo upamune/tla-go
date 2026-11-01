@@ -102,6 +102,33 @@ func TestDecodeSearchRecords(t *testing.T) {
 	}
 }
 
+func TestDecodeCoverageRecords(t *testing.T) {
+	header := `{"kind":"header","version":1,"complete":false}` + "\n"
+	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2221,"array":"strings","values":["|line 3, col 1 of module M","0"]}`,
+		`{"kind":"record","complete":false,"code":2772,"array":"strings","values":["<Next line 3 of module M>","1","2"]}`,
+		`{"kind":"record","complete":false,"code":2773,"array":"strings","values":["<Init line 1 of module M>","1","1"]}`,
+		`{"kind":"record","complete":false,"code":2774,"array":"strings","values":["<Inv line 5 of module M>"]}`,
+		`{"kind":"record","complete":false,"code":2775,"array":"strings","values":["||line 3 of module M","3","4"]}`,
+	} {
+		if _, err := Decode(strings.NewReader(header + record + "\n")); err != nil {
+			t.Errorf("valid event %s: %v", record, err)
+		}
+	}
+	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2221,"array":"strings","values":["","0"]}`,
+		`{"kind":"record","complete":false,"code":2221,"array":"strings","values":["line\nbreak","0"]}`,
+		`{"kind":"record","complete":false,"code":2772,"array":"strings","values":["location","-1","2"]}`,
+		`{"kind":"record","complete":false,"code":2773,"array":"strings","values":["location","1"]}`,
+		`{"kind":"record","complete":false,"code":2774,"array":"objects","values":["location"]}`,
+		`{"kind":"record","complete":false,"code":2775,"array":"strings","values":["location","01","2"]}`,
+	} {
+		if _, err := Decode(strings.NewReader(header + record + "\n")); err == nil {
+			t.Errorf("accepted invalid event %s", record)
+		}
+	}
+}
+
 func TestDecodeSuccessProbabilityOmission(t *testing.T) {
 	header := `{"kind":"header","version":1,"complete":false}` + "\n"
 	omission := `{"kind":"omission","complete":false,"code":2193,"reason":"observed-fingerprint-probability-unavailable"}` + "\n"

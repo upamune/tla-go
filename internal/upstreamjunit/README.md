@@ -504,7 +504,7 @@ input. This transport supports more than the text projection can infer: it does
 not manufacture TLCStateInfo, exceptions or other Java objects from printed
 text. Each text-projected record is explicitly a `String[]` hypothesis.
 
-For the upstream B coverage model, the experiment also compares the projected
+For the upstream B coverage model, the experiment also compares selected Go typed
 2190, 2194, 2199, 2221 and 2772–2775 records, including order, duplicates,
 array type and arguments, against a fresh run of the verified Java TLC JAR with
 an actual instrumented `MPRecorder`. This is a comparison of those selected
@@ -512,7 +512,7 @@ records for that model, not a completeness guarantee for other cases. The Go
 invocation enables both coverage and DOT output; the test requires its nonempty
 DOT file to match the Java capture byte for byte. Both use isolated explicit
 paths, rather than the upstream harness's metadir path. The real `BCoverageTest`
-method and inherited teardown execute against the projected records; a changed
+method and inherited teardown execute against the selected typed Go records; a changed
 action count must fail the original coverage assertion. Other recorder events,
 setup and lifecycle effects remain unverified, so this is not an upstream JUnit
 pass for Go.
@@ -521,7 +521,7 @@ The same experiment discovers and runs the original Java
 `CoverageStatisticsTest` with its inherited setup and teardown, then runs Go
 with coverage and DOT enabled. The selected typed recorder calls are compared
 in order against Java, and the nonempty DOT files are compared byte for byte.
-The upstream assertion method and inherited teardown run against the projected
+The upstream assertion method and inherited teardown run against selected typed
 Go records; negative controls change the depth, statistics, action and
 expression counts, remove a coverage record or FINISHED, inject GENERAL, and
 change the exit status. The upstream metadir path, original setup, and complete
@@ -529,11 +529,14 @@ recorder calls remain unverified. This is a partial bridge, not a Go JUnit pass.
 
 The same experiment executes the original Java `GCoverageTest` and its
 inherited setup and teardown, then checks Go's coverage and DOT output for the
-model against Java. Its original assertion and inherited teardown also run on
-projected Go observations, with controls for missing or altered recorder
-entries, errors and exit status. The original Go-side setup, metadir path and
-complete recorder stream remain unverified, so this is a partial bridge, not a
-Go JUnit pass.
+model against Java. Its original assertion and inherited teardown run on
+selected typed Go recorder events, including final action and expression
+coverage, rather than values inferred from printed tool messages. Tool output
+is independently projected and must agree with those events, and the selected
+records are compared with an instrumented Java recorder. Controls detect
+missing or altered recorder entries, errors and exit status. The original
+Go-side setup, metadir path, periodic coverage and complete recorder stream
+remain unverified, so this is a partial bridge, not a Go JUnit pass.
 
 ## EmptyTest assertion-method bridge
 

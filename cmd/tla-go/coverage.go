@@ -66,20 +66,29 @@ func printToolCoverage(t toolOutput, actions []checker.CoverageAction) {
 	}
 	t.message(2201, 0, "The coverage statistics at "+toolTime())
 	for i, a := range actions {
-		code := 2772
-		if i == 0 {
-			code = 2773
-		}
-		if a.Property {
-			t.message(2774, 0, fmt.Sprintf("<%s %s>", a.Name, coverageLocation(a.Range)))
-		} else {
-			t.message(code, 0, fmt.Sprintf("<%s %s>: %d:%d", a.Name, coverageLocation(a.Range), a.Distinct, a.Generated))
-		}
-		for _, e := range a.Expressions {
-			printToolCoverageExpression(t, e)
-		}
+		printToolCoverageAction(t, a, i == 0)
 	}
 	t.message(2202, 0, "End of statistics.")
+}
+
+func printToolCoverageAction(t toolOutput, a checker.CoverageAction, first bool) {
+	code := 2772
+	if first {
+		code = 2773
+	}
+	location := fmt.Sprintf("<%s %s>", a.Name, coverageLocation(a.Range))
+	if a.Property {
+		recordStrings(t.recorder, 2774, location)
+		t.message(2774, 0, location)
+	} else {
+		if t.recorder != nil {
+			recordStrings(t.recorder, code, location, fmt.Sprint(a.Distinct), fmt.Sprint(a.Generated))
+		}
+		t.message(code, 0, fmt.Sprintf("%s: %d:%d", location, a.Distinct, a.Generated))
+	}
+	for _, e := range a.Expressions {
+		printToolCoverageExpression(t, e)
+	}
 }
 
 func coverageExpression(e checker.CoverageExpression) string {
@@ -95,5 +104,17 @@ func printToolCoverageExpression(t toolOutput, e checker.CoverageExpression) {
 	if e.Cost > 0 {
 		code = 2775
 	}
+	if t.recorder != nil {
+		recordCoverageExpression(t.recorder, code, e)
+	}
 	t.message(code, 0, fmt.Sprintf("  %s%s", strings.Repeat("|", e.Depth), coverageExpression(e)))
+}
+
+func recordCoverageExpression(recorder *recorderConfig, code int, e checker.CoverageExpression) {
+	location := strings.Repeat("|", e.Depth) + coverageLocation(e.Range)
+	if e.Cost > 0 {
+		recordStrings(recorder, code, location, fmt.Sprint(e.Count), fmt.Sprint(e.Cost))
+	} else {
+		recordStrings(recorder, code, location, fmt.Sprint(e.Count))
+	}
 }

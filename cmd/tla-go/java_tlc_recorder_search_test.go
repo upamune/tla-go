@@ -92,7 +92,7 @@ public class SearchRecorder {
   public static void main(String[] args) throws Exception {
     MP.setRecorder(new MPRecorder() {
       public synchronized void record(int code, Object... values) {
-        if (!(code == 2185 || code == 2186 || code == 2189 || code == 2190 || code == 2191 || code == 2193 || code == 2194 || code == 2199 || code == 2219 || code == 2220 || code == 2269)) return;
+        if (!(code == 2185 || code == 2186 || code == 2189 || code == 2190 || code == 2191 || code == 2193 || code == 2194 || code == 2199 || code == 2219 || code == 2220 || code == 2269 || code == 2221 || (code >= 2772 && code <= 2775))) return;
         String line = code + "\t" + values.getClass().getName();
         for (Object value : values) line += "\t" + value;
         try { Files.write(Paths.get(args[0]), (line + "\n").getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND); }
@@ -132,7 +132,7 @@ func readSearchRecorder(t *testing.T, path string) []recorderdebug.Event {
 	return events
 }
 
-func runSearchRecorderJava(t *testing.T, jar, classes, dir string, wantExit, workers int, tool, effectful bool) []string {
+func runSearchRecorderJava(t *testing.T, jar, classes, dir string, wantExit, workers int, tool, effectful bool, extra ...string) []string {
 	t.Helper()
 	mode := "human"
 	if tool {
@@ -143,6 +143,7 @@ func runSearchRecorderJava(t *testing.T, jar, classes, dir string, wantExit, wor
 	if tool {
 		args = append(args, "-tool")
 	}
+	args = append(args, extra...)
 	args = append(args, "M.tla")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

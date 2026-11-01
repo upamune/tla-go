@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func checkJavaStatisticsJUnit(t *testing.T, classes string, deps []string, temp, runDir string, statistics DiscoveryRecord) {
@@ -28,18 +27,7 @@ func checkCoverageStatisticsBridge(t *testing.T, binary, modelDir, classes strin
 	t.Helper()
 	dump := filepath.Join(dir, "statistics-go.dot")
 	args := []string{"-tool", "-deadlock", "-fp", "0", "-coverage", "1", "-workers", "1", "-checkpoint", "0", "-dump", "dot", dump, "-coverage", "9999", "CoverageStatistics"}
-	result, err := runCommand(modelDir, 30*time.Second, binary, args...)
-	if err != nil || result.ExitCode != 0 || result.TimedOut {
-		t.Fatalf("statistics coverage invocation: result %+v error %v", result, err)
-	}
-	messages, err := Messages(result.Output)
-	if err != nil || len(messages["2201"]) != 1 || len(messages["2202"]) != 1 || len(messages["2776"]) != 0 {
-		t.Fatalf("statistics coverage report incomplete: error %v output %s", err, result.Output)
-	}
-	records, omissions, err := projectBridge(result.Output)
-	if err != nil {
-		t.Fatal(err)
-	}
+	result, records, omissions := runCoverageRecorder(t, binary, modelDir, filepath.Join(dir, "statistics-recorder.jsonl"), args)
 	checkCoverageRecorderAgainstJava(t, modelDir, classes, deps, dir, "statistics", args, records)
 	if err := os.WriteFile(filepath.Join(dir, "bridge-target"), []byte("CoverageStatisticsTest"), 0o600); err != nil {
 		t.Fatal(err)
@@ -49,8 +37,8 @@ func checkCoverageStatisticsBridge(t *testing.T, binary, modelDir, classes strin
 	}
 	checkBridgeLifecycle(t, classes, deps, dir, "GoCoverageStatisticsTest", "CoverageStatisticsTest.java:47", records, result.ExitCode)
 	checkStatisticsNegativeAssertions(t, classes, deps, dir, result.Output, records)
-	omissions = append(omissions, "upstream metadir dump path and setup were not reproduced", "tool projection cannot establish complete typed recorder calls")
-	t.Logf("original CoverageStatisticsTest assertion and teardown ran on projected Go observations; no Go JUnit pass: %v", bridgeVerdict(nil, omissions))
+	omissions = append(omissions, "upstream metadir dump path and setup were not reproduced", "typed recorder diagnostics omit other calls")
+	t.Logf("original CoverageStatisticsTest assertion and teardown ran on partial typed Go observations; no Go JUnit pass: %v", bridgeVerdict(nil, omissions))
 }
 
 func checkStatisticsNegativeAssertions(t *testing.T, classes string, deps []string, dir, goodOutput string, records []bridgeRecord) {

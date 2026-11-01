@@ -219,7 +219,22 @@ func validPayloadValues(event Event) bool {
 	if event.Code == 2193 {
 		return validProbability(event.Values[0])
 	}
+	if event.Code == 2221 || event.Code >= 2772 && event.Code <= 2775 {
+		return validCoverageValues(event.Values)
+	}
 	return validRecordValues(event)
+}
+
+func validCoverageValues(values []string) bool {
+	if values[0] == "" || strings.ContainsAny(values[0], "\r\n") {
+		return false
+	}
+	for _, value := range values[1:] {
+		if !decimal(value) {
+			return false
+		}
+	}
+	return true
 }
 
 func validRecordValues(event Event) bool {
@@ -279,11 +294,11 @@ func recordArity(code int) int {
 	switch code {
 	case 2185, 2189, 2219, 2220:
 		return 0
-	case 2190:
+	case 2190, 2221:
 		return 2
-	case 2191, 2199:
+	case 2191, 2199, 2772, 2773, 2775:
 		return 3
-	case 2193, 2194, 2269, 2186:
+	case 2193, 2194, 2269, 2186, 2774:
 		return 1
 	default:
 		return -1

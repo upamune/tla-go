@@ -15,20 +15,9 @@ func checkBridgeBCoverage(t *testing.T, binary, modelDir, classes string, deps [
 	// options. The result remains a partial observation, not a JUnit pass.
 	dump := filepath.Join(dir, "b-go.dot")
 	args := []string{"-tool", "-deadlock", "-fp", "0", "-coverage", "1", "-workers", "1", "-checkpoint", "0", "-dump", "dot", dump, "-coverage", "9999", "B"}
-	result, err := runCommand(modelDir, 30*time.Second, binary, args...)
-	if err != nil || result.ExitCode != 0 || result.TimedOut {
-		t.Fatalf("B coverage invocation: result %+v error %v", result, err)
-	}
-	messages, err := Messages(result.Output)
-	if err != nil || len(messages["2201"]) != 1 || len(messages["2202"]) != 1 || len(messages["2776"]) != 0 {
-		t.Fatalf("B coverage report incomplete: error %v output %s", err, result.Output)
-	}
-	records, omissions, err := projectBridge(result.Output)
-	if err != nil {
-		t.Fatal(err)
-	}
+	result, records, omissions := runCoverageRecorder(t, binary, modelDir, filepath.Join(dir, "b-recorder.jsonl"), args)
 	checkCoverageRecorderAgainstJava(t, modelDir, classes, deps, dir, "b", args, records)
-	omissions = append(omissions, "upstream metadir dump path and setup were not reproduced", "tool projection cannot establish complete typed recorder calls")
+	omissions = append(omissions, "upstream metadir dump path and setup were not reproduced", "typed recorder diagnostics omit other calls")
 	if err := os.WriteFile(filepath.Join(dir, "bridge-target"), []byte("BCoverageTest"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +35,7 @@ func checkBridgeBCoverage(t *testing.T, binary, modelDir, classes string, deps [
 			if outcome, err := runBridge(tampered); err != nil || outcome != executionUpstreamAssertion {
 				t.Fatalf("B tampered action coverage: outcome %v error %v", outcome, err)
 			}
-			t.Logf("original BCoverageTest assertions and teardown ran on projected Go observations; no Go JUnit pass: %v", bridgeVerdict(nil, omissions))
+			t.Logf("original BCoverageTest assertions and teardown ran on partial typed Go observations; no Go JUnit pass: %v", bridgeVerdict(nil, omissions))
 			return
 		}
 	}
@@ -79,7 +68,7 @@ func checkCoverageRecorderAgainstJava(t *testing.T, modelDir, classes string, de
 	var selected []bridgeRecord
 	for _, record := range projected {
 		switch record.code {
-		case "2190", "2194", "2199", "2221", "2772", "2773", "2774", "2775":
+		case "2190", "2194", "2199", "2221", "2269", "2772", "2773", "2774", "2775":
 			selected = append(selected, record)
 		}
 	}

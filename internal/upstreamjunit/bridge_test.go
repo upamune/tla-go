@@ -63,3 +63,22 @@ func TestBridgeCannotPassWithoutCompleteness(t *testing.T) {
 		t.Fatal("missing observation was counted as a pass")
 	}
 }
+
+func TestBridgeInitialProgressProjection(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want bool
+	}{
+		{"Computed 2 initial states...", true},
+		{"Computed two initial states...", false},
+		{"Computed 2 initial states.", false},
+	} {
+		records, omissions, err := projectBridge(msg("2269", tc.body))
+		if err != nil || (len(records) == 1) != tc.want {
+			t.Fatalf("body %q: records=%v omissions=%v error=%v", tc.body, records, omissions, err)
+		}
+		if tc.want && (records[0].code != "2269" || len(records[0].values) != 1 || records[0].values[0] != "2") {
+			t.Fatalf("body %q: records=%v", tc.body, records)
+		}
+	}
+}

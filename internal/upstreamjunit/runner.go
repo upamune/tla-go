@@ -244,10 +244,17 @@ func copyFixture(root, dest, name string) error {
 }
 
 func runCommand(dir string, timeout time.Duration, name string, args ...string) (Result, error) {
+	return runCommandWithEnv(dir, timeout, nil, name, args...)
+}
+
+func runCommandWithEnv(dir string, timeout time.Duration, env []string, name string, args ...string) (Result, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	if env != nil {
+		cmd.Env = append(cmd.Environ(), env...)
+	}
 	if name == "java" {
 		javatmp.Apply(cmd)
 	}

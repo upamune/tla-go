@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func checkJavaGCoverageJUnit(t *testing.T, classes string, deps []string, temp, runDir string, test DiscoveryRecord) {
@@ -27,18 +26,8 @@ func checkGCoverageBridge(t *testing.T, binary, modelDir, classes string, deps [
 	t.Helper()
 	dump := filepath.Join(dir, "g-go.dot")
 	args := []string{"-tool", "-deadlock", "-fp", "0", "-coverage", "1", "-workers", "1", "-checkpoint", "0", "-dump", "dot", dump, "-coverage", "9999", "G"}
-	result, err := runCommand(modelDir, 30*time.Second, binary, args...)
-	if err != nil || result.ExitCode != 0 || result.TimedOut {
-		t.Fatalf("G coverage invocation: result %+v error %v", result, err)
-	}
-	messages, err := Messages(result.Output)
-	if err != nil || len(messages["2201"]) != 1 || len(messages["2202"]) != 1 || len(messages["2776"]) != 0 {
-		t.Fatalf("G coverage report incomplete: error %v output %s", err, result.Output)
-	}
-	records, omissions, err := projectBridge(result.Output)
-	if err != nil {
-		t.Fatal(err)
-	}
+	recorderPath := filepath.Join(dir, "g-recorder.jsonl")
+	result, records, omissions := runCoverageRecorder(t, binary, modelDir, recorderPath, args)
 	checkCoverageRecorderAgainstJava(t, modelDir, classes, deps, dir, "g", args, records)
 	if err := os.WriteFile(filepath.Join(dir, "bridge-target"), []byte("GCoverageTest"), 0o600); err != nil {
 		t.Fatal(err)
@@ -48,8 +37,8 @@ func checkGCoverageBridge(t *testing.T, binary, modelDir, classes string, deps [
 	}
 	checkBridgeLifecycle(t, classes, deps, dir, "GoGCoverageTest", "GCoverageTest.java:46", records, result.ExitCode)
 	checkGNegativeAssertions(t, classes, deps, dir, result.Output, records)
-	omissions = append(omissions, "upstream metadir dump path and setup were not reproduced", "tool projection cannot establish complete typed recorder calls")
-	t.Logf("original GCoverageTest assertion and teardown ran on projected Go observations; no Go JUnit pass: %v", bridgeVerdict(nil, omissions))
+	omissions = append(omissions, "upstream metadir dump path and setup were not reproduced", "typed recorder diagnostics omit other calls")
+	t.Logf("original GCoverageTest assertion and teardown ran on partial typed Go observations; no Go JUnit pass: %v", bridgeVerdict(nil, omissions))
 }
 
 func checkGNegativeAssertions(t *testing.T, classes string, deps []string, dir, goodOutput string, records []bridgeRecord) {

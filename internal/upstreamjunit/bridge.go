@@ -47,6 +47,7 @@ var (
 	bridgeStats    = regexp.MustCompile(`^([0-9]+) states generated, ([0-9]+) distinct states found, ([0-9]+) states left on queue\.$`)
 	bridgeFinished = regexp.MustCompile(`^Finished in (.+) at \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)$`)
 	bridgeInitial  = regexp.MustCompile(`^Finished computing initial states: ([0-9]+) distinct state(s?) generated at [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.$`)
+	bridgeProgress = regexp.MustCompile(`^Computed ([0-9]+) initial states\.\.\.$`)
 	bridgeDepth    = regexp.MustCompile(`^The depth of the complete state graph search is ([0-9]+)\.$`)
 	bridgeCoverage = regexp.MustCompile(`^  (.+): ([0-9]+)$`)
 	bridgeCost     = regexp.MustCompile(`^  (.+): ([0-9]+):([0-9]+)$`)
@@ -117,8 +118,8 @@ func projectParameterizedMessage(id, body string) (bridgeRecord, string) {
 		m = bridgeStats.FindStringSubmatch(body)
 	case "2194":
 		m = bridgeDepth.FindStringSubmatch(body)
-	case "2221", "2772", "2773", "2774", "2775":
-		m = bridgeCoverageMatch(id, body)
+	case "2221", "2269", "2772", "2773", "2774", "2775":
+		m = bridgeRecorderMatch(id, body)
 	case "1000", "2776":
 		// The upstream assertions check only presence. The placeholder array has
 		// no inferred arguments; its type and Java's hidden calls are unknown.
@@ -132,8 +133,10 @@ func projectParameterizedMessage(id, body string) (bridgeRecord, string) {
 	return bridgeRecord{id, m[1:]}, ""
 }
 
-func bridgeCoverageMatch(id, body string) []string {
+func bridgeRecorderMatch(id, body string) []string {
 	switch id {
+	case "2269":
+		return bridgeProgress.FindStringSubmatch(body)
 	case "2221":
 		return bridgeCoverage.FindStringSubmatch(body)
 	case "2772", "2773":
