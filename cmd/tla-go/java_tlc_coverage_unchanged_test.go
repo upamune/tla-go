@@ -195,6 +195,25 @@ func TestCoverageRejectsUnmodeledInitialSetCosts(t *testing.T) {
 		{"mixed kinds", "VARIABLE x\nInit == x \\in {1,TRUE}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
 		{"nonliteral", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,1+1}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
 		{"set assignment", "VARIABLE x\nInit == x = {1,2}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
+		{"set alias in unchanged", `EXTENDS Naturals
+VARIABLE x
+S == {1,2,3}
+Init == x \in 0..2
+A == /\ x' = 0
+     /\ UNCHANGED x
+     /\ UNCHANGED S
+B == UNCHANGED x
+Next == A \/ B`, "INIT Init\nNEXT Next\n"},
+		{"indirect set alias in unchanged", `EXTENDS Naturals
+VARIABLE x
+S == {1,2,3}
+T == S
+Init == x \in 0..2
+A == /\ x' = 0
+     /\ UNCHANGED x
+     /\ UNCHANGED T
+B == UNCHANGED x
+Next == A \/ B`, "INIT Init\nNEXT Next\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -205,6 +224,12 @@ func TestCoverageRejectsUnmodeledInitialSetCosts(t *testing.T) {
 			out, code, stderr := runGoInDir(t, dir, []string{"-coverage", "9999", "M.tla"})
 			if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
 				t.Fatalf("expected rejection: exit %d stderr %s output %s", code, stderr, out)
+			}
+			if strings.Contains(tc.name, "set alias in unchanged") {
+				out, code, stderr = runGoInDir(t, dir, []string{"M.tla"})
+				if code != 0 || !strings.Contains(out, "7 states generated, 3 distinct states found") {
+					t.Fatalf("default mode: exit %d stderr %s output %s", code, stderr, out)
+				}
 			}
 		})
 	}

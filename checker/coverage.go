@@ -201,7 +201,7 @@ func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, i
 }
 
 func coverageAtomSupported(e *parser.Expression, initial bool) bool {
-	return (coverageAtomic(e) || (!initial && coverageBooleanToggleSyntax(e))) && coverageMembershipSupported(e, initial)
+	return (coverageAtomic(e, initial) || (!initial && coverageBooleanToggleSyntax(e))) && coverageMembershipSupported(e, initial)
 }
 
 func coverageComparisonGuard(e *parser.Expression) bool {
@@ -220,14 +220,19 @@ func coverageMembershipSupported(e *parser.Expression, initial bool) bool {
 	return initial || e.Kind != "Apply" || e.Text != "\\in" || coverageNat(e) || (e.Args[1].Kind == "Apply" && e.Args[1].Text == "..")
 }
 
-func coverageAtomic(e *parser.Expression) bool {
+func coverageAtomic(e *parser.Expression, initial bool) bool {
 	if e.Kind == "Unchanged" {
 		return len(e.Args) == 1 && coverageOperand(e.Args[0])
 	}
 	if e.Kind != "Apply" || len(e.Args) != 2 {
 		return false
 	}
-	return coverageAtomicOperator(e.Text) && coverageOperand(e.Args[0]) && coverageOperand(e.Args[1])
+	rhs := coverageOperand(e.Args[1]) || coverageInitialSetMembership(e, initial)
+	return coverageAtomicOperator(e.Text) && coverageOperand(e.Args[0]) && rhs
+}
+
+func coverageInitialSetMembership(e *parser.Expression, initial bool) bool {
+	return initial && e.Kind == "Apply" && e.Text == "\\in" && len(e.Args) == 2 && coverageInitialSet(e.Args[1])
 }
 
 func coverageAtomicOperator(op string) bool { return op == "=" || op == "<" || op == "\\in" }
@@ -381,8 +386,6 @@ func coverageOperand(e *parser.Expression) bool {
 		return len(e.Args) == 1 && e.Args[0].Kind == "Identifier"
 	case "Tuple":
 		return coverageOperandArgs(e, false)
-	case "SetEnumeration":
-		return coverageInitialSet(e)
 	case "Apply":
 		return coverageOperandApply(e)
 	}
@@ -509,7 +512,10 @@ func (g *generator) coverageItemSupported(e *parser.Expression) bool {
 	if e.Kind == "And" {
 		return false
 	}
-	for _, arg := range e.Args {
+	for i, arg := range e.Args {
+		if i == 1 && coverageInitialSetMembership(e, g.initial) {
+			continue
+		}
 		if !g.model.coverageAliasesSupported(arg, map[string]bool{}) {
 			return false
 		}
