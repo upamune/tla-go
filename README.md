@@ -1,16 +1,5 @@
 # tla-go
 
-Breadth-first temporal-check progress (TLC messages 2192 and 2267) is
-reported for a final check with one normalized liveness branch and no
-tableau, when its diagnostic is safe to evaluate. The count is then the
-number of distinct states in that branch's liveness graph. TLC instead sums
-the sizes of all liveness disk graphs; tableau branches count reachable
-state/tableau pairs, not just states. Progress for those branches, multiple
-branches, effectful or oversized normal forms, and intermediate checks is
-omitted rather than estimated. The checker uses its own exploration-time
-liveness processing; it does not reproduce Java's periodic check scheduling.
-Simulation and depth-first checking do not use these messages.
-
 A TLA+ model checker written in Go. It aims to be compatible with the original [Java TLC](https://github.com/tlaplus/tlaplus), and runs as a standalone binary without Java.
 
 > **Experimental:** TLA+ and TLC support is incomplete. A successful check does not yet guarantee the same result as Java TLC. Verify important models with Java TLC; see [compatibility and limitations](docs/compatibility.md).
@@ -67,13 +56,13 @@ tla-go -config path/to/Other.cfg path/to/Model.tla
 tla-go 'models/*.tla'                          # checks matching models with configs
 ```
 
-The module name must match the `.tla` filename. External modules referenced by `EXTENDS` or `INSTANCE` are searched in the root module's directory, followed by any directories supplied with `-DTLA-Library`. A `.cfg` path can also be passed directly.
+The module name must match the `.tla` filename. External modules referenced by `EXTENDS` or `INSTANCE` are searched in the root module's directory, followed by the directories supplied with `-DTLA-Library` and `-I`, in the resulting list order. A `.cfg` path can also be passed directly.
 
 | Option | Purpose |
 | --- | --- |
 | `-debug-trace FILE`, `-debug-cpu-profile FILE`, `-debug-heap-profile FILE` | Write opt-in Go runtime diagnostics to new files; see [profiling](docs/development.md#profiling-the-cli). These are tla-go options, not Java TLC flags. |
 | `-config FILE` | Use a different TLC configuration file. As in Java TLC, `.cfg` is appended unless `FILE` already ends with it, and a relative name is also searched in the specification's directory. |
-| `-DTLA-Library=PATHS` | Search these directories for modules, in order. Separate paths with `:` on Unix or `;` on Windows. |
+| `-DTLA-Library=PATHS`, `-I DIR` | Set or extend the module search list. `-DTLA-Library` replaces all previously supplied paths; separate its paths with `:` on Unix or `;` on Windows. Each `-I` appends one directory, so option order matters. |
 | `-metadir DIR` | Create a timestamped run directory under `DIR`; remove it on success. |
 | `-deadlock` | Disable deadlock reporting. |
 | `-seed N` | Set the random seed; model checking defaults to 0 and simulation chooses a random seed. |
@@ -95,6 +84,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-dump dot[,colorize][,actionlabels] FILE` | Write a DOT state graph during exploration, optionally with colored edges and action labels; `.dot` is appended if absent. The `snapshot` option is not supported. |
 | `-sany-metadata [-I DIR] FILE` | Emit experimental SANY-shaped XML containing variable order and definition levels, without checking a model. |
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |
+| `-lncheck STRATEGY` | Accept a liveness strategy argument for CLI compatibility; it does not change checking or reproduce Java's scheduling. |
 | `-modern-random-subsets` | Use the newer TLC random-subset algorithm. |
 | `-difftrace` | In error traces, print only the variables that changed from the previous state, following Java TLC's rules for which states are printed in full. |
 | `-terse` | Print `SUBSET`, function-set, record-set, and Cartesian-product values as formulas instead of enumerating them in `Print`/`PrintT` output, traces, and state dumps. |
@@ -104,7 +94,9 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-fpmem X`, `-fpbits N`, `-gzip`, `-modelcheck`, `-debug` | Accepted with Java TLC's argument checks. They configure Java TLC internals and have no effect, except that `-fpmem` above 1 prints Java's deprecation notice. |
 | `-version`, `-help` | Show the version or usage. |
 
-The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and state dumps are compared with Java TLC for representative models, but full compatibility is not yet established. Parallel BFS currently requires a direct next-state expression using only scalar arithmetic and Boolean operations, integer or Boolean states, no constants or non-arithmetic modules, and no liveness, view, symmetry, coverage, graph output, continuation, or checkpoint option. Other cases use serial exploration. Workers are capped by GOMAXPROCS and 32; queues with fewer than 32 pending states and next-state expressions with fewer than 80 syntax nodes run serially. These thresholds are experimental, not a guarantee of speedup. Java-style worker-count reporting shows the requested count, not the number actually running. Parallel execution can be slower and allocate more for inexpensive actions. A complete search reports the same state counts as Java TLC, but the statistics and counterexample reported at a violation can differ from a parallel Java TLC run. State identity and fingerprint collision behavior can still differ from Java TLC.
+The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and state dumps are compared with Java TLC for representative models, but full compatibility is not yet established.
+
+Parallel BFS is experimental and applies only to restricted models; other cases use serial exploration. Workers are capped by GOMAXPROCS and 32, and small queues or expressions run serially. The reported worker count is the requested count, not the number actually running. Statistics and counterexamples can differ from Java TLC, as can state identity and fingerprint collision behavior. See [parallel model checking limitations](docs/compatibility.md#model-checking).
 
 The worker implementation is experimental. On an Apple M3, dedicated `go test ./checker -run '^$' -bench '^BenchmarkParallel(BFS|WideBFS|HeavyBFS)$' -benchtime=1s -count=3` runs measured the inexpensive models at 0.25–0.32 ms and 3.4–4.7 ms per check for both worker counts. A finite model with 1,000 initial states and 200 arithmetic terms per successor took 125–153 ms with one worker and 67–90 ms with four. The heavy model is synthetic; these measurements do not establish a general speedup, and parallel execution allocated more memory.
 
@@ -210,4 +202,4 @@ scheduling option.
 - [Statechart compatibility plan](docs/statechart-compatibility.md): the CLI, graph, and metadata interfaces needed by statechart.
 - [Security](SECURITY.md): how to report a vulnerability.
 
-Java TLC is the compatibility target. Some regression fixtures also come from [tla-ts](https://github.com/aidenybai/tla-ts), pinned at `19c763f07fda4b098e8a24405301628a424547c0`; see [UPSTREAM-LICENSE](UPSTREAM-LICENSE).
+Java TLC is the compatibility target. Java TLC 1.7.4 fixtures are traceable to TLA+ Tools commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`. Some regression fixtures also come from [tla-ts](https://github.com/aidenybai/tla-ts), pinned at `19c763f07fda4b098e8a24405301628a424547c0`; see [fixture provenance](docs/development.md#compare-with-java-tlc) and [UPSTREAM-LICENSE](UPSTREAM-LICENSE).
