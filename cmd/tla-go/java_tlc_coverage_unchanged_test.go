@@ -259,6 +259,62 @@ func TestJavaTLCCoverageInitialSetDisjunction(t *testing.T) {
 	}
 }
 
+func TestJavaTLCCoverageInitialSetBulletDisjunction(t *testing.T) {
+	for _, cfg := range []string{"INIT Init\nNEXT Next\n", "SPECIFICATION Spec\n"} {
+		t.Run(strings.Fields(cfg)[0], func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", "VARIABLE x\nInit == /\\ x \\in {1,2,3}\nA == x' = 1\nB == x' = 2\nNext == A \\/ B\nSpec == Init /\\ [][Next]_x")
+			writeParameterizedConfig(t, dir, cfg)
+			compareParameterizedCoverage(t, dir)
+		})
+	}
+}
+
+func TestCoverageRejectsInitialSetFalseContinuation(t *testing.T) {
+	for _, tc := range []struct{ name, initial, cfg string }{
+		{"direct", `Init == x \in {0,1,2}`, "INIT Init\nNEXT Next\n"},
+		{"bullet", `Init == /\ x \in {0,1,2}`, "INIT Init\nNEXT Next\n"},
+		{"parenthesized", `Init == (x \in {0,1,2})`, "INIT Init\nNEXT Next\n"},
+		{"bullet parentheses", `Init == /\ (x \in {0,1,2})`, "INIT Init\nNEXT Next\n"},
+		{"nested bullet", `Init == /\ (/\ x \in {0,1,2})`, "INIT Init\nNEXT Next\n"},
+		{"spec bullet", `Init == /\ x \in {0,1,2}`, "SPECIFICATION Spec\n"},
+		{"initial alias", "P == x \\in {0,1,2}\nInit == P", "INIT Init\nNEXT Next\n"},
+		{"nested initial alias", "P == x \\in {0,1,2}\nQ == P\nInit == Q", "INIT Init\nNEXT Next\n"},
+		{"set alias", "S == {0,1,2}\nInit == x \\in S", "INIT Init\nNEXT Next\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\n" + tc.initial + "\nA == /\\ x' = 0\n     /\\ UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nSpec == Init /\\ [][Next]_x"
+			writeCoverageModule(t, dir, "M", body)
+			writeParameterizedConfig(t, dir, tc.cfg)
+			args := []string{"-deadlock", "-fp", "0", "-workers", "1", "-coverage", "9999", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
+				t.Fatalf("expected rejection: exit %d stderr %s output %s", code, stderr, out)
+			}
+			out, code, stderr = runGoInDir(t, dir, []string{"-deadlock", "M.tla"})
+			if code != 0 || !strings.Contains(out, "7 states generated, 3 distinct states found") {
+				t.Fatalf("default mode: exit %d stderr %s output %s", code, stderr, out)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 || !strings.Contains(java, "7 states generated, 3 distinct states found") {
+					t.Fatalf("Java: exit %d output %s", javaCode, java)
+				}
+				report := coverageReport(t, java)
+				start := strings.Index(report, "<A line ")
+				if start < 0 {
+					t.Fatalf("Java action missing from coverage: %s", report)
+				}
+				lines := strings.Split(report[start:], "\n")
+				if len(lines) < 2 || !strings.HasSuffix(lines[1], ": 1") {
+					t.Fatalf("Java assignment count is not 1: %s", report[start:])
+				}
+			}
+		})
+	}
+}
+
 func TestJavaTLCCoverageInitialSetInvariantViolation(t *testing.T) {
 	dir := t.TempDir()
 	writeCoverageModule(t, dir, "M", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x\nInv == x < 3")

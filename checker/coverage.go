@@ -411,10 +411,7 @@ func (m *model) coverageBodySupported(body *parser.Expression, initial bool) boo
 	if !initial && coverageBooleanToggleSyntax(body) && m.coverageBooleanToggleProgram() {
 		return true
 	}
-	items := []*parser.Expression{body}
-	if body.Kind == "And" {
-		items = body.Args
-	}
+	items := coverageConjuncts(body)
 	g := generator{model: m, initial: initial}
 	if !g.coverageItemsSupported(items) {
 		return false
@@ -426,16 +423,24 @@ func (m *model) coverageBodySupported(body *parser.Expression, initial bool) boo
 // complete initial predicate. Constraints and additional work can change the
 // way TLC attributes the cost of the enumerator.
 func (m *model) coverageInitialSetContext(body *parser.Expression) bool {
-	items := []*parser.Expression{body}
+	items := coverageConjuncts(body)
+	return !coverageHasSetOperand(items) || len(items) == 1 && len(m.names) == 1 && len(m.cfg.Constraints) == 0
+}
+
+func coverageConjuncts(body *parser.Expression) []*parser.Expression {
 	if body.Kind == "And" {
-		items = body.Args
+		return body.Args
 	}
+	return []*parser.Expression{body}
+}
+
+func coverageHasSetOperand(items []*parser.Expression) bool {
 	for _, e := range items {
 		if e.Kind == "Apply" && len(e.Args) == 2 && e.Args[1].Kind == "SetEnumeration" {
-			return len(items) == 1 && len(m.names) == 1 && len(m.cfg.Constraints) == 0
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (g *generator) coverageItemsSupported(items []*parser.Expression) bool {
@@ -453,7 +458,7 @@ func (g *generator) coverageItemsSupported(items []*parser.Expression) bool {
 
 func (g *generator) coverageActionOrderSupported(items []*parser.Expression) bool {
 	init := g.model.defs[g.model.cfg.Init]
-	state := coverageActionOrder{assigned: map[string]bool{}, initialSet: coverageInitialSetMembership(init.Body, true)}
+	state := coverageActionOrder{assigned: map[string]bool{}, initialSet: coverageHasSetOperand(coverageConjuncts(init.Body))}
 	for _, e := range items {
 		if !state.acceptUnchangedOrder(e) {
 			return false
