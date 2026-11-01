@@ -16,6 +16,9 @@ func unary(name string, v value.Value) (value.Value, error) {
 		if err != nil {
 			return value.Value{}, err
 		}
+		if n == -2147483648 {
+			return value.Value{}, arithmeticOverflow("--2147483648")
+		}
 		return value.Integer(-n)
 	case "SUBSET":
 		return value.Subsets(v)
