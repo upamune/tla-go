@@ -10,8 +10,8 @@ import (
 func TestJavaTLCMaxSetSizeCachedUnionRegression(t *testing.T) {
 	jar := maxSetOracleJar(t)
 	dir := t.TempDir()
-	body := "VARIABLE x\nF(S) == IF S = {1,2,3,4} THEN Cardinality(UNION {S, 2..7}) ELSE 0\nInit == x = F(UNION {1..3, 2..4})\nNext == UNCHANGED x"
-	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n")
+	body := "VARIABLE x\nF(S) == IF S = {1,2,3,4} THEN Cardinality(UNION {S, 2..7}) ELSE 0\nInit == x = F(UNION {1..3, 2..4})\nNext == UNCHANGED x\nCorrect == x = 7"
+	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\nINVARIANT Correct\n")
 	args := maxSetOracleArgs()
 	out, code, stderr := runGoInDir(t, dir, args)
 	if code != 0 || stderr != "" || !strings.Contains(out, "2 states generated, 1 distinct states found") {
@@ -72,14 +72,16 @@ func checkMaxSetAssertion(t *testing.T, engine, out string, code int, stderr str
 	}
 }
 
+// Go's current error is a known compatibility gap; this asserts it alongside
+// the absence of output so a different early failure cannot masquerade as it.
 func TestJavaTLCMaxSetSizeCupIteratorSetupRegression(t *testing.T) {
 	jar := maxSetOracleJar(t)
 	dir := t.TempDir()
 	body := "VARIABLE x\nInit == x = Cardinality({i \\in (UNION {1..6,2..7}) \\cup (SUBSET Nat) : PrintT(i)})\nNext == UNCHANGED x"
 	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n")
 	args := maxSetOracleArgs()
-	out, code, stderr := runGoInDir(t, dir, args)
-	if code == 0 || stderr != "" || maxSetInitialPrints(t, out, "@!@!@STARTMSG 1000:") != "" {
+	out, code, stderr := runBoundedMaxSetCLI(t, dir)
+	if code != 255 || stderr != "" || !strings.Contains(out, "@!@!@STARTMSG 1000:1 @!@!@\nexpected an enumerable set\n@!@!@ENDMSG 1000 @!@!@") || maxSetInitialPrints(t, out, "@!@!@STARTMSG 1000:") != "" {
 		t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
 	}
 	if jar != "" {
