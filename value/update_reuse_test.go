@@ -2,6 +2,8 @@ package value
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/upamune/tla-go/syntax/parser"
@@ -60,6 +62,45 @@ func TestUpdateExistingNoopEvaluatesCallback(t *testing.T) {
 	})
 	if found || calls != 2 || err != nil {
 		t.Fatalf("out-of-domain: found=%v calls=%d error=%v", found, calls, err)
+	}
+}
+
+func TestUpdateExistingNoopConcurrentBranches(t *testing.T) {
+	one, _ := Integer(1)
+	original, err := FunctionWithDomain([]Pair{{Key: one, Value: Bool(false)}}, Interval(1, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, found, err := original.UpdateExisting(one, func(v Value) (Value, error) { return v, nil })
+	if err != nil || !found || shared == original {
+		t.Fatalf("update: found=%v err=%v", found, err)
+	}
+	var group sync.WaitGroup
+	errorsOut := make(chan error, 8)
+	for range 8 {
+		group.Go(func() {
+			current := shared
+			for i := range 200 {
+				var updateErr error
+				current, _, updateErr = current.UpdateExisting(one, func(Value) (Value, error) { return Bool(i%2 == 0), nil })
+				if updateErr != nil {
+					errorsOut <- updateErr
+					return
+				}
+				for _, base := range []Value{original, shared} {
+					got, readErr := base.Lookup(one)
+					if readErr != nil || got != Bool(false) {
+						errorsOut <- fmt.Errorf("shared value changed: %v, %v", got, readErr)
+						return
+					}
+				}
+			}
+		})
+	}
+	group.Wait()
+	close(errorsOut)
+	for err := range errorsOut {
+		t.Error(err)
 	}
 }
 
