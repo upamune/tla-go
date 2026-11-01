@@ -51,7 +51,7 @@ func (r *instanceResolver) extendNestedModule(module *parser.Module) (*parser.Mo
 
 func (r *instanceResolver) nestedDependency(module *parser.Module, name string) (*parser.Module, error) {
 	binding, ok := r.nested[name]
-	if !ok || (!binding.inherited && binding.module.Location.Range.Start.Line >= module.Location.Range.Start.Line) {
+	if !ok || (!binding.inherited && !nestedPositionBefore(binding.module.Location.Range.Start, module.Location.Range.Start)) {
 		return nil, fmt.Errorf("nested module extension %s is not yet supported", name)
 	}
 	return isolateLocalDefinitions(binding.module)

@@ -114,7 +114,7 @@ func (r *instanceResolver) instanceModule(instance parser.Instance) (*parser.Mod
 		return nil, err
 	}
 	if binding, ok := r.nested[instance.Module]; ok {
-		if !binding.inherited && binding.module.Location.Range.Start.Line >= instance.Location.Line {
+		if !binding.inherited && !nestedPositionBefore(binding.module.Location.Range.Start, instance.Location.Position) {
 			return nil, fmt.Errorf("nested module %s is not yet defined", instance.Module)
 		}
 		return binding.module, nil
