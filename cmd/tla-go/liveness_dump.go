@@ -82,6 +82,9 @@ func safeLivenessDumpPath(opts options, module *parser.Module) (string, error) {
 
 func livenessDumpInputs(opts options, module *parser.Module, spec, cfg string) []string {
 	inputs := []string{opts.dumpPath, opts.compat.userFile, spec, cfg}
+	if opts.compat.specTE != nil {
+		inputs = append(inputs, filepath.Join(filepath.Dir(spec), "SpecTE.tla"), filepath.Join(filepath.Dir(spec), "SpecTE.cfg"))
+	}
 	roots := append([]string{filepath.Dir(spec)}, opts.libraryPaths...)
 	for _, root := range roots {
 		if filepath.Dir(spec) == "." {

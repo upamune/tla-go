@@ -27,6 +27,7 @@ func TestJavaTLCLivenessDOT(t *testing.T) {
 		{"color", `x = 0`, `x' \in 0..2`, `<>[](x = 0)`, "dot,colorize,actionlabels"},
 		{"stuttering only", `x = 0`, `UNCHANGED x`, `<>[](x = 0)`, "dot"},
 		{"structured state", "", "", "", "dot"},
+		{"literal constant", "", "", "", "dot"},
 		{"fingerprint polynomial", `x = 0`, `x' \in 0..3`, `<>[](x = 0)`, "dot"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -39,6 +40,10 @@ Next == /\ x' \in 0..1 /\ UNCHANGED y
 P == []<>(x = 0)`
 			}
 			cfg := "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n"
+			if tc.name == "literal constant" {
+				body = "CONSTANT N\nVARIABLE x\nInit == x = 0\nNext == x' \\in 0..N\nP == <>[](x = 0)"
+				cfg += "CONSTANT N = 2\n"
+			}
 			writeDOTFixture(t, javaDir, body, cfg)
 			writeDOTFixture(t, goDir, body, cfg)
 			args := []string{"-tool", "-fp", "0", "-workers", "1", "-lncheck", "final", "-dump", tc.options, "out.dot", "M.tla"}
@@ -63,7 +68,7 @@ P == []<>(x = 0)`
 }
 
 func TestLivenessDOTOutputSafety(t *testing.T) {
-	for _, mode := range []string{"input alias", "destination directory", "profile alias", "user file alias", "unrelated symlink", "unrelated hardlink", "existing graph"} {
+	for _, mode := range []string{"input alias", "destination directory", "profile alias", "user file alias", "SpecTE alias", "unrelated symlink", "unrelated hardlink", "existing graph"} {
 		t.Run(mode, func(t *testing.T) {
 			dir := t.TempDir()
 			writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nP == <>[](x = 0)", "INIT Init\nNEXT Next\nPROPERTY P\nCHECK_DEADLOCK FALSE\n")
@@ -82,6 +87,14 @@ func TestLivenessDOTOutputSafety(t *testing.T) {
 				args = append([]string{"-debug-cpu-profile", "out_liveness.dot"}, args...)
 			case "user file alias":
 				args = append([]string{"-userFile", "out_liveness.dot"}, args...)
+			case "SpecTE alias":
+				if err := os.WriteFile(filepath.Join(dir, "SpecTE.tla"), []byte("existing"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Link(filepath.Join(dir, "SpecTE.tla"), path); err != nil {
+					t.Skipf("hard links unavailable: %v", err)
+				}
+				args = append([]string{"-generateSpecTE"}, args...)
 			case "unrelated symlink", "unrelated hardlink":
 				if err := os.WriteFile(filepath.Join(dir, "other"), []byte("preserve"), 0o600); err != nil {
 					t.Fatal(err)
@@ -140,6 +153,12 @@ func TestLivenessDOTOutputSafety(t *testing.T) {
 				got, err := os.ReadFile(path)
 				if err != nil || len(got) != 0 {
 					t.Fatalf("user output file was overwritten: %q, %v", got, err)
+				}
+			}
+			if mode == "SpecTE alias" {
+				got, err := os.ReadFile(filepath.Join(dir, "SpecTE.tla"))
+				if err != nil || string(got) != "existing" {
+					t.Fatalf("SpecTE output was overwritten: %q, %v", got, err)
 				}
 			}
 			files, err := filepath.Glob(filepath.Join(dir, ".tla-liveness-*.tmp"))

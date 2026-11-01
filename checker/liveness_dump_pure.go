@@ -3,13 +3,64 @@ package checker
 import (
 	"slices"
 
+	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
 // This is a deliberately closed expression language: unrecognized syntax,
 // operators, modules and operator-valued arguments disable reconstruction.
 func (m *model) pureLivenessDumpModel() bool {
-	return m.pureLivenessDumpRoot() && m.pureLivenessDumpDefinitions()
+	if !m.pureLivenessDumpRoot() || !m.pureLivenessDumpConfig() {
+		return false
+	}
+	root := m.sourceUnits[m.module.Name]
+	return m.pureLivenessDumpUnit(root) && m.pureLivenessDumpUnit(m.module)
+}
+
+func (m *model) pureLivenessDumpStatements(module *parser.Module) bool {
+	for _, assumption := range module.Assumptions {
+		if !m.pureLivenessDumpExpr(assumption.Expression) {
+			return false
+		}
+	}
+	for _, theorem := range module.Theorems {
+		if !m.pureLivenessDumpExpr(theorem.Statement) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *model) pureLivenessDumpConfig() bool {
+	return pureLivenessDumpAssignments(m.sourceConfig.Constants) && pureLivenessDumpAssignments(m.cfg.Constants)
+}
+
+func pureLivenessDumpAssignments(assignments []config.Assignment) bool {
+	for _, assignment := range assignments {
+		if assignment.Module != "" || len(assignment.Args) != 0 || !pureLivenessDumpValue(assignment.Value, 0) {
+			return false
+		}
+	}
+	return true
+}
+
+func pureLivenessDumpValue(value config.Value, depth int) bool {
+	if depth >= 64 {
+		return false
+	}
+	switch value.Kind {
+	case "Number", "String", "Boolean", "ModelValue":
+		return len(value.Elements) == 0
+	case "Set":
+		for _, element := range value.Elements {
+			if !pureLivenessDumpValue(element, depth+1) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *model) pureLivenessDumpRoot() bool {
@@ -25,8 +76,12 @@ func (m *model) pureLivenessDumpRoot() bool {
 	return true
 }
 
-func (m *model) pureLivenessDumpDefinitions() bool {
-	for _, def := range m.module.Definitions {
+func (m *model) pureLivenessDumpUnit(module *parser.Module) bool {
+	return m.pureLivenessDumpDefinitions(module) && m.pureLivenessDumpStatements(module)
+}
+
+func (m *model) pureLivenessDumpDefinitions(module *parser.Module) bool {
+	for _, def := range module.Definitions {
 		if def.Recursive || len(def.Params) != 0 || len(def.Bounds) != 0 || !m.pureLivenessDumpExpr(def.Body) {
 			return false
 		}

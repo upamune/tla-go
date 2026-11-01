@@ -71,12 +71,14 @@ For completed pure breadth-first checks with a single non-tableau liveness
 solution, a `.dot` dump also writes Java's separate `_liveness.dot` graph.
 It is reconstructed after exploration, in Java's successor-set order. This
 experimental path excludes `VIEW`, symmetry, continuation, side effects,
-operator-valued constants, substitutions, instances, external modules,
+operator-valued constants, substitutions, scoped or operator-table assignments,
+instances, external modules,
 parameterized definitions, `LET`, unknown syntax or operators, oversized
 liveness normalization, and empty or incomplete searches; those cases do not
 create a liveness graph. Only a closed set of pure expressions and the
 `Naturals`, `Integers`, `Sequences`, `FiniteSets`, and `TLC` standard modules
-are eligible; new operators and modules remain excluded until reviewed.
+are eligible. Definitions, assumptions, and theorem statements must use that
+closed expression set; new operators and modules remain excluded until reviewed.
 It also requires a dump path ending in a single `.dot` suffix and avoids paths
 that alias the main graph, input files, or active diagnostic outputs. Unavailable or non-regular existing
 destinations are not written; Java may report an error earlier for these paths.

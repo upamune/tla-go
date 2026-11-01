@@ -60,7 +60,7 @@ func (s *search) completedLivenessGraphEligible() bool {
 }
 
 func (s *search) safeLivenessGraphBindings() bool {
-	return !hasOperatorConstants(s.model.module.Constants) && len(s.model.cfg.Substitutions) == 0 && len(s.model.module.Instances) == 0
+	return !hasOperatorConstants(s.model.module.Constants) && len(s.model.sourceConfig.Substitutions) == 0 && len(s.model.cfg.Substitutions) == 0 && len(s.model.module.Instances) == 0
 }
 
 func (s *search) emitLivenessInitial(index int) error {
