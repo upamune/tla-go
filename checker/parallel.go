@@ -32,11 +32,11 @@ func (m *model) parallelCallbacks() bool {
 }
 
 func (m *model) parallelModules() bool {
-	if len(m.module.Constants) != 0 || m.parallelInstances() {
+	if !primitiveState(m.constants) || m.parallelInstances() {
 		return true
 	}
 	for _, name := range m.module.Extends {
-		if name != "Naturals" && name != "Integers" {
+		if name != "Naturals" && name != "Integers" && name != "Sequences" && name != "FiniteSets" {
 			return true
 		}
 	}
@@ -77,7 +77,7 @@ func (m *model) parallelExpressionKind(e *parser.Expression) bool {
 	case "Number", "And", "Or", "Prime", "Unchanged":
 		return true
 	case "Identifier":
-		return m.variables[e.Text] || e.Text == "TRUE" || e.Text == "FALSE"
+		return m.parallelIdentifier(e)
 	case "Apply":
 		if _, ok := m.defs[e.Text]; ok {
 			return false
@@ -86,6 +86,20 @@ func (m *model) parallelExpressionKind(e *parser.Expression) bool {
 	default:
 		return false
 	}
+}
+
+func (m *model) parallelIdentifier(e *parser.Expression) bool {
+	if e.BuiltinNatural || e.BuiltinTLC || e.BuiltinStandard != "" {
+		return false
+	}
+	if m.variables[e.Text] || e.Text == "TRUE" || e.Text == "FALSE" {
+		return true
+	}
+	if _, defined := m.defs[e.Text]; defined {
+		return false
+	}
+	_, constant := m.constants[e.Text]
+	return constant
 }
 
 type parallelCandidate struct {
@@ -124,7 +138,7 @@ func (b *parallelBudget) reserve() bool {
 // forkParallelModel has private generator scratch, evaluator caches, ordering,
 // and runtime. AST and definition indexes are read only in the accepted subset.
 func (m *model) forkParallelModel() *model {
-	fork := &model{ctx: m.ctx, module: m.module, cfg: m.cfg, defs: m.defs, variables: m.variables, constants: map[string]value.Value{}, names: m.names, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, valueRanks: maps.Clone(m.valueRanks), rankedSets: map[value.Value][]value.Value{}, rankedFunctions: map[value.Value][]value.Pair{}}
+	fork := &model{ctx: m.ctx, module: m.module, cfg: m.cfg, defs: m.defs, variables: m.variables, constants: maps.Clone(m.constants), names: m.names, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, valueRanks: maps.Clone(m.valueRanks), rankedSets: map[value.Value][]value.Value{}, rankedFunctions: map[value.Value][]value.Pair{}}
 	fork.tlcRuntime = newTLCRuntime(m.cfg, m.tlcRuntime.options)
 	fork.tlcRuntime.model = fork
 	fork.program = evaluator.New(m.module)
