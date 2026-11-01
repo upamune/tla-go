@@ -399,6 +399,64 @@ or nondeterministic rerun remains unresolved. Comparing category names alone
 also cannot detect changes in the underlying differing values. Use the snapshot
 as an index for targeted reproduction, not a complete parity guard.
 
+## Follow-up: symmetry fingerprints and record order
+
+At tla-go `3840db5c62ad76e902af7cf0072737702c82d7ab`, the DOT path
+fingerprinted the concrete state even though Java `DotStateWriter` calls
+`TLCStateMut.fingerPrint`, which fingerprints the lexicographically smallest
+symmetry image. For the OneBitMutex state shown in the preceding investigation,
+the concrete state's Go FP64 was `-4001293080066318631`; its symmetry image
+produces Java's `-3946579319044950398`. The label remains the concrete state;
+the fingerprint is for its representative. The search already uses a separate
+reduced state key. The DOT path now calls the existing Java fingerprint routine,
+including its symmetry and VIEW handling, without changing that key or collision
+semantics.
+
+A new run with the same pinned checkout and jar, `-fp 0`, one worker, separate
+model copies and explicit per-copy `-metadir metadata` produced byte-identical
+NQ, OneBitMutex and TwoPhaseCommit dumps. For SymmetryTableau both dumps have
+1,123 lines; masking only state label contents leaves identical lines in this
+run. For instance both use ID `579606404721062638`, while the Java label has
+`[op |-> "Rd", adr |-> e]` and Go has `[adr |-> e, op |-> "Rd"]`.
+These are observed runs, not a guarantee of graph order across schedules. The
+new Java oracle regression asserts selected IDs on both sides rather than full
+DOT equality. The pinned no-symmetry OneBitMutex test checks 244 generated and
+127 distinct states. Existing Unicode collision fixtures and a graph callback
+control check that a Java FP64 collision still merges states where the checker
+uses FP64.
+
+A separate direct Java 1.7.4 probe used `FP64.Init(0)`, interned `op` before
+`adr`, and constructed both `RecordValue` and `FcnRcdValue` for the mapping
+`op -> "Rd", adr -> 1`. Both returned `0x56131a998eb0afd4`; the record printed
+`[adr |-> 1, op |-> "Rd"]` before fingerprinting and
+`[op |-> "Rd", adr |-> 1]` afterward. The corresponding Go direct test uses
+the same intern order and expected fingerprint. Thus equal mathematical
+records/functions and matching FP64 need not have equal display order. Java's
+`RecordValue.fingerPrint` and `permute` normalize the record in place, and
+`toString` reads its current field array. The Go value fingerprint orders a
+copy and its formatter retains Go's representation. The probe establishes
+that normalization can change presentation; it does not identify every point
+where the Tableau record is shared or normalized during exploration.
+
+Both implementations explicitly selected polynomial index 0 in the model
+runs; the direct polynomial digest test covers all Java 1.7.4 polynomial
+indices separately. A different polynomial is therefore not needed to explain
+these particular ID differences. The next experiment for the remaining labels
+is to instrument the pinned Java Tableau run at record construction, permutation,
+normalization and DOT emission, recording object identity, field tokens and
+order, then compare the matching Go value construction and sharing events,
+including a no-symmetry record/function control. Only after determining whether
+the observed mutation affects shared values should normalization or formatting
+behavior be changed. The run remains a partial harness diagnostic, not a JUnit
+lifecycle result.
+
+The graph-only symmetry fingerprint microbenchmark on Apple M3, three 1 s
+samples, measured 54.8–57.1 ns/op and 24 B/op before this correction versus
+294–351 ns/op and 400 B/op afterward for a one-variable, two-model-value
+symmetry. This deliberately isolates the added representative computation;
+it is not an end-to-end throughput measurement and runs only when graph events
+are requested.
+
 ## Liveness DOT investigation
 
 Using tla-go revision `75220398a63252c9afc6ddc6edd756d97333b5de` and the

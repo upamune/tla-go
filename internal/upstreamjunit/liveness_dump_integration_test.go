@@ -33,18 +33,21 @@ func TestPinnedLivenessDumpOracle(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name, path, model, initial, witness string
+		exit                                int
 	}{
-		{"OneBitMutex", "symmetry/OneBitMutex", "OneBitMutexMC", "-8407932991663587895 [label=", "-3946579319044950398 [label="},
-		{"SymmetryTableau", "symmetry", "SymmetryLivenessTableauMC", "-2383001886493292559 [label=", `579606404721062638 [label="/\\ mem =`},
+		{"NQ", "symmetry/NQ", "MC", "5659690209985959133 [label=", "-5139828646329981039 [label=", 13},
+		{"OneBitMutex", "symmetry/OneBitMutex", "OneBitMutexMC", "-8407932991663587895 [label=", `-3946579319044950398 [label="/\\ unchecked = (A :> {} @@ B :> {})\n/\\ other = (A :> A @@ B :> B)\n/\\ x = (A :> FALSE @@ B :> FALSE)\n/\\ pc = (A :> \"e1\" @@ B :> \"ncs\")"`, 13},
+		{"SymmetryTableau", "symmetry", "SymmetryLivenessTableauMC", "-2383001886493292559 [label=", `579606404721062638 [label="/\\ mem =`, 13},
+		{"TwoPhaseCommit", "symmetry/TwoPhaseCommit", "MC", "-8348026569971206050 [label=", "-7140997411712456272 [label=", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			if err := copyModels(root, dir); err != nil {
 				t.Fatal(err)
 			}
-			c := Case{Model: tc.model, Path: tc.path, Coverage: true, Dump: true, Workers: "1"}
+			c := Case{Model: tc.model, Path: tc.path, Coverage: true, Dump: true, Workers: "1", Args: []string{"-metadir", "metadata"}}
 			j, g, diffs, err := runModelCase(dir, jar, binary, c, 60*time.Second)
-			if err != nil || j.ExitCode != 13 || g.ExitCode != 13 {
+			if err != nil || j.ExitCode != tc.exit || g.ExitCode != tc.exit {
 				t.Fatalf("Java exit=%d Go exit=%d error=%v", j.ExitCode, g.ExitCode, err)
 			}
 			java, err := os.ReadFile(filepath.Join(dir, "java.dot"))
@@ -59,6 +62,9 @@ func TestPinnedLivenessDumpOracle(t *testing.T) {
 				if !strings.Contains(string(java), needle) {
 					t.Errorf("Java graph missing oracle witness %q", needle)
 				}
+			}
+			if !strings.Contains(string(goDump), tc.witness) {
+				t.Errorf("Go graph missing witness %q", tc.witness)
 			}
 			if !strings.Contains(string(goDump), tc.initial) {
 				t.Errorf("Go graph missing common initial node %q", tc.initial)
