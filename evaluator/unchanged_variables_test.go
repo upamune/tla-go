@@ -139,6 +139,74 @@ func errorText(err error) string {
 	return err.Error()
 }
 
+func TestUnchangedVariablesReturnsFalseOnComparisonError(t *testing.T) {
+	m, err := parser.ParseModule("---- MODULE M ----\nVARIABLES x, y\nvars == <<x,y>>\nCheck == UNCHANGED vars\n====")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filtered, err := value.Filter(value.Interval(1, 4), func(v value.Value) (bool, error) {
+		n, _ := v.Int()
+		return n > 2, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	one, _ := value.Integer(1)
+	for _, tc := range []struct {
+		name string
+		set  value.Value
+	}{
+		{"infinite set", value.NaturalNumbers()},
+		{"deferred filter", filtered},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := Context{Current: State{"x": one, "y": tc.set}, Next: State{"x": one, "y": one}}
+			p := New(m)
+			fast, fastErr := p.Evaluate(m.Definitions[1].Body, ctx)
+			ctx.OnEvaluate = func(*parser.Expression) {}
+			slow, slowErr := p.Evaluate(m.Definitions[1].Body, ctx)
+			if fast.String() != "FALSE" || slow.String() != "FALSE" || fastErr == nil || errorText(fastErr) != errorText(slowErr) {
+				t.Fatalf("fast=%v, %v; slow=%v, %v; want FALSE and the same error", fast, fastErr, slow, slowErr)
+			}
+		})
+	}
+}
+
+func TestUnchangedVariablesValueMatrix(t *testing.T) {
+	m, err := parser.ParseModule("---- MODULE M ----\nVARIABLES x, y\nvars == <<x,y>>\nCheck == UNCHANGED vars\n====")
+	if err != nil {
+		t.Fatal(err)
+	}
+	one, _ := value.Integer(1)
+	two, _ := value.Integer(2)
+	set, _ := value.Set([]value.Value{one, two})
+	tuple, _ := value.Tuple([]value.Value{one, two})
+	filtered, err := value.Filter(value.Interval(1, 4), func(v value.Value) (bool, error) {
+		n, _ := v.Int()
+		return n > 2, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := []value.Value{one, two, value.Bool(true), value.String("x"), value.Interval(1, 2), set, tuple, filtered, value.NaturalNumbers()}
+	p := New(m)
+	for _, a := range values {
+		for _, b := range values {
+			for _, c := range values {
+				for _, d := range values {
+					ctx := Context{Current: State{"x": a, "y": b}, Next: State{"x": c, "y": d}}
+					fast, fastErr := p.Evaluate(m.Definitions[1].Body, ctx)
+					ctx.OnEvaluate = func(*parser.Expression) {}
+					slow, slowErr := p.Evaluate(m.Definitions[1].Body, ctx)
+					if fast.String() != slow.String() || errorText(fastErr) != errorText(slowErr) {
+						t.Fatalf("states %v,%v -> %v,%v: fast=%v,%v slow=%v,%v", a, b, c, d, fast, fastErr, slow, slowErr)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestUnchangedVariablesEligibility(t *testing.T) {
 	m, err := parser.ParseModule("---- MODULE M ----\nVARIABLES x, y\nvars == <<x,y>>\nCheck == UNCHANGED vars\n====")
 	if err != nil {

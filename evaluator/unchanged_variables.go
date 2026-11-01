@@ -28,7 +28,7 @@ func compareUnchangedValues(current, next []value.Value) (bool, error) {
 	for i := range current {
 		same, err := value.Equal(current[i], next[i])
 		if err != nil || !same {
-			return same, err
+			return false, err
 		}
 	}
 	return true, nil
