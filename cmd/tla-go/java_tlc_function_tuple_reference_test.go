@@ -79,7 +79,16 @@ Next == UNCHANGED x`
 	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\nCHECK_DEADLOCK FALSE\n")
 	output, code := runJavaTLCArgs(t, jar, dir, []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "0", "M.tla"})
 	prints := "{}\n{1}\n{2}\n{1, 2}\n[a \\in {{}, {1}, {2}, {1, 2}}, <<i, j>> \\in {<<3, 4>>, <<5, 6>>} |-> <expression 0>]"
-	if code != 0 || strings.Count(output, prints) != 1 || strings.Count(output, "\n{1, 2}\n") != 1 {
+	if code != 0 || strings.Count(output, prints) != 1 {
 		t.Fatalf("deferred function effects: exit %d\n%s", code, output)
+	}
+	counts := make(map[string]int)
+	for line := range strings.SplitSeq(output, "\n") {
+		counts[line]++
+	}
+	for _, effect := range []string{"{}", "{1}", "{2}", "{1, 2}"} {
+		if counts[effect] != 1 {
+			t.Errorf("effect %q printed %d times, want 1\n%s", effect, counts[effect], output)
+		}
 	}
 }
