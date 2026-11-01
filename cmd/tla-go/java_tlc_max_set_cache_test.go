@@ -77,7 +77,7 @@ func checkMaxSetAssertion(t *testing.T, engine, out string, code int, stderr str
 func TestJavaTLCMaxSetSizeCupIteratorSetupRegression(t *testing.T) {
 	jar := maxSetOracleJar(t)
 	dir := t.TempDir()
-	body := "VARIABLE x\nInit == x = Cardinality({i \\in (UNION {1..6,2..7}) \\cup (SUBSET Nat) : PrintT(i)})\nNext == UNCHANGED x"
+	body := "VARIABLE x\nInit == x = Cardinality({i \\in (UNION {1..6,2..7}) \\cup (UNION {2}) : PrintT(i)})\nNext == UNCHANGED x"
 	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n")
 	args := maxSetOracleArgs()
 	out, code, stderr := runBoundedMaxSetCLI(t, dir)
@@ -86,7 +86,7 @@ func TestJavaTLCMaxSetSizeCupIteratorSetupRegression(t *testing.T) {
 	}
 	if jar != "" {
 		java, javaCode := runJavaTLCArgs(t, jar, dir, args)
-		if javaCode != 75 || maxSetInitialPrints(t, java, "@!@!@STARTMSG 1000:") != "" || !strings.Contains(java, "Attempted to compute the number of elements in the overridden value Nat") {
+		if javaCode != 75 || maxSetInitialPrints(t, java, "@!@!@STARTMSG 1000:") != "" || !strings.Contains(java, "Attempted to enumerate UNION(s), but some element of s is nonenumerable") {
 			t.Fatalf("Java exit %d output:\n%s", javaCode, java)
 		}
 	}
