@@ -3,6 +3,7 @@ package checker
 import (
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/upamune/tla-go/syntax/parser"
 )
@@ -19,6 +20,7 @@ type resolver struct {
 	assumeProve   map[string]bool
 	position      parser.Position
 	proofScope    bool
+	blockedSelf   map[string]bool
 	arithmetic    bool
 	finiteSets    bool
 	sequences     bool
@@ -183,8 +185,23 @@ func (r *resolver) definitionInScope(d parser.Definition, scope map[string]symbo
 	if d.Kind == "Operator" && !d.Recursive {
 		delete(local, d.Name)
 	}
-	if err := r.definitionParameters(d.Params, local); err != nil {
+	if err := r.definitionParameters(d, local); err != nil {
 		return err
+	}
+	return r.scopedDefinitionBody(d, local)
+}
+
+func (r *resolver) scopedDefinitionBody(d parser.Definition, local map[string]symbol) error {
+	// Linked instances and internal definitions may contain substituted names;
+	// their source-level binding cannot be inferred from the generated body.
+	if d.Kind == "Operator" && !d.Recursive && !r.proofScope && len(d.Origins) == 0 && !strings.Contains(d.Name, "!") {
+		bodyResolver := *r
+		bodyResolver.blockedSelf = maps.Clone(r.blockedSelf)
+		if bodyResolver.blockedSelf == nil {
+			bodyResolver.blockedSelf = make(map[string]bool)
+		}
+		bodyResolver.blockedSelf[d.Name] = true
+		return bodyResolver.definitionBody(d, local)
 	}
 	return r.definitionBody(d, local)
 }
@@ -201,8 +218,11 @@ func (r *resolver) definitionBody(d parser.Definition, local map[string]symbol) 
 	return r.expression(d.Body, local)
 }
 
-func (r *resolver) definitionParameters(params []parser.Declaration, local map[string]symbol) error {
-	for _, param := range params {
+func (r *resolver) definitionParameters(d parser.Definition, local map[string]symbol) error {
+	for _, param := range d.Params {
+		if param.Name == d.Name {
+			return fmt.Errorf("parameter %s conflicts with its operator", param.Name)
+		}
 		if err := r.bound(parser.Bound{Names: []string{param.Name}}, local); err != nil {
 			return err
 		}
@@ -213,6 +233,11 @@ func (r *resolver) definitionParameters(params []parser.Declaration, local map[s
 
 // SANY allows a parameter to use a name defined later in the module.
 func (r *resolver) declaredBefore(name string) bool {
+	// A non-recursive definition is not visible in its own body, including
+	// when checking whether a new local binding conflicts with a global.
+	if r.blockedSelf[name] {
+		return false
+	}
 	if _, exists := r.globals[name]; !exists {
 		return false
 	}
@@ -240,6 +265,9 @@ func cloneScope(scope map[string]symbol) map[string]symbol {
 func (r *resolver) lookup(name string, scope map[string]symbol) (symbol, bool) {
 	if arity, ok := scope[name]; ok {
 		return arity, true
+	}
+	if r.blockedSelf[name] {
+		return symbol{}, false
 	}
 	if arity, ok := r.globals[name]; ok {
 		return arity, true
