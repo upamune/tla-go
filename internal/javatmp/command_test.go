@@ -1,20 +1,29 @@
 package javatmp
 
 import (
+	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-func TestEnvironmentRemovesOnlyJavaOptions(t *testing.T) {
+func TestApplyPreservesEnvironmentAndWorkingDirectory(t *testing.T) {
 	t.Setenv("_JAVA_OPTIONS", "-Djava.io.tmpdir=/shared")
 	t.Setenv("JAVA_TOOL_OPTIONS", "-Dtest.tool=present")
 	t.Setenv("JDK_JAVA_OPTIONS", "-Dtest.jdk=present")
-	seen := make(map[string]bool)
-	for _, entry := range Environment() {
+	cmd := exec.Command("java")
+	dir := t.TempDir()
+	cmd.Dir = dir
+	Apply(cmd)
+	seen := make(map[string]string)
+	for _, entry := range cmd.Env {
 		name, value, _ := strings.Cut(entry, "=")
-		seen[name] = value != ""
+		seen[name] = value
 	}
-	if seen["_JAVA_OPTIONS"] || !seen["JAVA_TOOL_OPTIONS"] || !seen["JDK_JAVA_OPTIONS"] {
+	if _, exists := seen["_JAVA_OPTIONS"]; exists || seen["JAVA_TOOL_OPTIONS"] == "" || seen["JDK_JAVA_OPTIONS"] == "" {
 		t.Fatalf("unexpected Java environment: %v", seen)
+	}
+	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" && seen["PWD"] != dir {
+		t.Fatalf("child PWD %q does not match %q", seen["PWD"], dir)
 	}
 }
