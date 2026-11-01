@@ -156,7 +156,7 @@ func (c *coverageCollector) add(d parser.Definition, initial bool) bool {
 func (c *coverageCollector) addExpression(name string, e *parser.Expression, initial bool) bool {
 	if e.Kind == "Exists" {
 		c.hasExistential = true
-		if !c.addExpression(name, e.Args[0], initial) {
+		if !c.addCoverageAtom(name, e.Args[0], initial, true) {
 			return false
 		}
 		a := &c.actions[c.byName[name]]
@@ -165,7 +165,7 @@ func (c *coverageCollector) addExpression(name string, e *parser.Expression, ini
 		return true
 	}
 	if e.Kind != "And" {
-		return c.addCoverageAtom(name, e, initial)
+		return c.addCoverageAtom(name, e, initial, false)
 	}
 	for _, arg := range e.Args {
 		if !c.addExpression(name, arg, initial) {
@@ -175,7 +175,7 @@ func (c *coverageCollector) addExpression(name string, e *parser.Expression, ini
 	return true
 }
 
-func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, initial bool) bool {
+func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, initial, existential bool) bool {
 	if !coverageAtomSupported(e, initial) {
 		return false
 	}
@@ -183,7 +183,7 @@ func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, i
 	a := &c.actions[i]
 	c.expressions[name][e.Location.Range] = len(a.Expressions)
 	a.Expressions = append(a.Expressions, CoverageExpression{Range: e.Location.Range})
-	if c.addAssignmentCoverageNode(a, name, e, initial) {
+	if c.addAssignmentCoverageNode(a, name, e, initial, existential) {
 		return true
 	}
 	if !initial && coverageComparisonGuard(e) {
@@ -200,7 +200,10 @@ func (c *coverageCollector) addCoverageAtom(name string, e *parser.Expression, i
 	return true
 }
 
-func (c *coverageCollector) addAssignmentCoverageNode(a *CoverageAction, name string, e *parser.Expression, initial bool) bool {
+func (c *coverageCollector) addAssignmentCoverageNode(a *CoverageAction, name string, e *parser.Expression, initial, existential bool) bool {
+	if existential {
+		return false
+	}
 	var indices map[parser.Range]int
 	if coverageAssignmentMembership(e, initial) {
 		indices = c.assignmentMemberships[name]
