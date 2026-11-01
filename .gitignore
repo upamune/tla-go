@@ -64,3 +64,9 @@ yarn-error.log*
 ### 追加禁止 ###
 # .claude/（スキルの symlink 先）と .backlog/（タスクは backlog が管理する）は
 # コミット対象なので無視に加えない
+
+# Pinned upstream Java sources used by resolver regression tests.
+!/internal/upstreamjunit/testdata/upstream/tlc2/tool/coverage/
+/internal/upstreamjunit/testdata/upstream/tlc2/tool/coverage/*
+!/internal/upstreamjunit/testdata/upstream/tlc2/tool/coverage/AbstractCoverageTest.java
+!/internal/upstreamjunit/testdata/upstream/tlc2/tool/coverage/CCoverageTest.java
