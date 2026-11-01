@@ -38,6 +38,15 @@ runs these Go comparisons with the 1.7.4 JAR; it does **not** run every upstream
 JUnit test against tla-go. No complete mapping of upstream test cases to
 passing, failing, or unimplemented tla-go tests exists yet.
 
+The Go diagnostic in [`internal/upstreamjunit`](../internal/upstreamjunit/README.md)
+now inventories candidate test classes from the pinned Git tree and compares
+selected Java and Go observations. Its November 2026 snapshot found 340 lexical
+non-abstract candidates, including 236 with a recovered specification name;
+these are not a JUnit test count. Setup, inherited assertions, and other behavior
+remain unresolved, so it cannot yet verify the proposed 336-case sweep or the
+earlier reported match count. The opt-in diagnostic deliberately fails until
+its coverage is complete; its README records commands and current limitations.
+
 To reproduce these counts from the upstream checkout and this repository:
 
 ```sh
