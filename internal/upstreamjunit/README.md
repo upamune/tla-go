@@ -38,6 +38,17 @@ compares translated TLA and CFG files when applicable. Test-specific Java
 classes are not compiled or loaded; C and other Java overrides therefore remain
 unresolved. No output from these diagnostic invocations is a JUnit match.
 
+For `pcal.Euclid3Test`, the pinned Java diagnostic reports 94 fingerprints in
+2192 while Go omits the message. `safeLivenessDiagnostic` rejects the fairness
+action `Next`, which reaches `lp` and its `PrintT`; even without that first
+guard, `safeTableauProgress` rejects the effectful definition. Java's late tableau
+expansion regenerates successors and rechecks both constraints; effects and
+dynamic expressions can change the graph, so Go cannot derive this count from
+its completed exploration without reproducing that replay. This is a deliberate
+omission, not evidence that Java's count equals Go's distinct-state count in
+general. The direct `TestPinnedCCallReturn1TemporalProgress` comparison checks
+the independent pure case's 2192 count of 8, but remains a partial diagnostic.
+
 The diagnostic ignores Java comments and literals when finding recorder message
 IDs and ignores comments when extracting literal assertion values. It compares
 selected tool messages, including 2194. For 2190, 2191, and 2192 it removes only
