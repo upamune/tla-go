@@ -4,8 +4,47 @@ import (
 	"fmt"
 	"maps"
 
+	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/syntax/parser"
 )
+
+// checkpointPreflight runs before model binding, which can evaluate even unused
+// definitions. Admit only syntax whose evaluation cannot perform effects.
+func checkpointPreflight(module *parser.Module, sources map[string]*parser.Module, cfg config.Config) error {
+	m := &model{module: module, cfg: cfg, sourceUnits: sources, fromSpecification: cfg.Specification != "", defs: map[string]parser.Definition{}, variables: map[string]bool{}}
+	for _, d := range module.Definitions {
+		m.defs[d.Name] = d
+	}
+	for _, v := range module.Variables {
+		m.variables[v.Name] = true
+	}
+	if m.checkpointUnsupportedFeatures() {
+		return fmt.Errorf("unsupported checkpoint model configuration or modules")
+	}
+	for _, d := range module.Definitions {
+		if !m.checkpointPreparationExpression(d.Body) {
+			return fmt.Errorf("unsupported checkpoint preparation expression in %q", d.Name)
+		}
+	}
+	return nil
+}
+
+func (m *model) checkpointPreparationExpression(e *parser.Expression) bool {
+	if e == nil {
+		return false
+	}
+	if m.checkpointExpression(e) {
+		return true
+	}
+	// Pure EXCEPT expressions can produce preparation warnings. Restrict their
+	// children in the same way as the search subset, including update paths.
+	if (e.Kind != "Except" && e.Kind != "Tuple") || len(e.Selectors)+len(e.Instances)+len(e.EnabledBindings)+len(e.EnabledScopes)+len(e.InstanceScopes) != 0 {
+		return false
+	}
+	ok := true
+	walkChildren(e, func(child *parser.Expression) { ok = ok && m.checkpointPreparationExpression(child) })
+	return ok
+}
 
 // checkpointSupported deliberately recognizes a closed language. Identity is
 // bound to a source-aware model before snapshots can be used.

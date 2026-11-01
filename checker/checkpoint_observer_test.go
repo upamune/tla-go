@@ -131,10 +131,15 @@ func TestCheckpointObserverEvaluationOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	observer := &checkpointObserver{}
-	m, err := prepareCheckpointModelObserved(context.Background(), source, observerConfig, cfg, Options{}, observer)
+	module, err := parser.ParseModule(source)
 	if err != nil {
 		t.Fatal(err)
 	}
+	m, err := prepareWithOutput(module, cfg, Options{OnPrint: observer.print, OnWarning: observer.warning, OnSearch: observer.search})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.checkpointObserver = observer
 	if err := m.checkpointSupported(); err == nil {
 		t.Fatal("effectful model accepted")
 	}

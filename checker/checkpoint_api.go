@@ -9,7 +9,8 @@ import (
 )
 
 // CheckpointOptions configures a supported pure serial breadth-first search.
-// Interval must be positive. Checkpoints are written atomically at the first
+// Interval must be positive for a new search; zero on recovery disables writes,
+// including DebugPauseAfterExpansions and PauseOnCheckpoint. Checkpoints are written atomically at the first
 // expansion boundary after each interval, not while evaluating a state.
 // PauseOnCheckpoint returns after the first successful checkpoint write.
 // Resume requires an existing matching checkpoint and never starts over.
@@ -24,10 +25,18 @@ type CheckpointOptions struct {
 	// Config, if non-nil, is the effective configuration including overrides.
 	// Configuration source is still required and participates in identity.
 	Config *config.Config
+	// DebugPauseAfterExpansions saves and pauses at an absolute expansion count.
+	DebugPauseAfterExpansions int
+	// Stream receives new observations synchronously in order. The caller must
+	// drain it until this call returns. Previously persisted records are not replayed.
+	// Delivery occurs before persistence and may be repeated after a crash.
+	// Consumers must coordinate acknowledgments themselves; no exactly-once delivery
+	// or equivalence with non-checkpointed output is guaranteed.
+	Stream chan<- CheckpointObservation
 }
 
 // CheckpointObservation is one entry in the ordered output log. Exactly one
-// field is set. Values are returned after exploration, never through callbacks.
+// field is set. Values can be streamed or returned after exploration, never through callbacks.
 type CheckpointObservation struct {
 	Search  *SearchEvent
 	Warning *Warning
@@ -52,7 +61,7 @@ type CheckpointRun struct {
 // and semantic options against the checkpoint before resuming.
 func CheckWithCheckpoint(ctx context.Context, source, configuration string, options CheckpointOptions) (CheckpointRun, error) {
 	var out CheckpointRun
-	if options.Path == "" || options.Interval <= 0 {
+	if !validPublicCheckpointOptions(options) {
 		return out, fmt.Errorf("invalid checkpoint schedule")
 	}
 	cfg, err := checkpointEffectiveConfig(configuration, options.Config)
@@ -65,9 +74,14 @@ func CheckWithCheckpoint(ctx context.Context, source, configuration string, opti
 		return out, err
 	}
 	if err = m.checkpointSupported(); err != nil {
-		return out, err
+		return out, &CheckpointUnsupportedError{Err: err}
 	}
-	d := &checkpointDriver{path: options.Path, interval: options.Interval, next: time.Now().Add(options.Interval), pauseOnTick: options.PauseOnCheckpoint, persistObservations: true}
+	// Fresh runs deliver preparation observations after the subset check.
+	// Recovery starts delivery only after the checkpoint is fully restored.
+	if !options.Resume {
+		observer.startStream(options.Stream)
+	}
+	d := &checkpointDriver{path: options.Path, interval: options.Interval, next: time.Now().Add(options.Interval), pauseOnTick: options.PauseOnCheckpoint, persistObservations: true, pauseAt: options.DebugPauseAfterExpansions, stream: options.Stream}
 	m.checkpointDriver = d
 	result, err := d.run(m, options.Resume)
 	out.Observations = exportCheckpointObservations(observer.records)
@@ -125,4 +139,14 @@ func validateCheckpointObservations(records []CheckpointObservation) error {
 		}
 	}
 	return nil
+}
+
+// CheckpointUnsupportedError identifies a model rejected before exploration.
+type CheckpointUnsupportedError struct{ Err error }
+
+func (e *CheckpointUnsupportedError) Error() string { return e.Err.Error() }
+func (e *CheckpointUnsupportedError) Unwrap() error { return e.Err }
+
+func validPublicCheckpointOptions(options CheckpointOptions) bool {
+	return options.Path != "" && (options.Interval > 0 || (options.Resume && options.Interval == 0)) && options.DebugPauseAfterExpansions >= 0
 }

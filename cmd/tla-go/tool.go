@@ -113,7 +113,7 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 	}
 	t.message(2220, 0, "Starting SANY-compatible analysis...")
 	var diagnostic bytes.Buffer
-	module, code := loadModule(specPath, opts.libraryPaths, &diagnostic)
+	module, source, code := loadModuleWithSource(specPath, opts.libraryPaths, &diagnostic)
 	if code != 0 {
 		return toolLoadFailure(t, &diagnostic, code)
 	}
@@ -122,7 +122,7 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 		parsed.CheckDeadlock = false
 	}
 	t.message(2185, 0, fmt.Sprintf("Starting... (%s)", toolTime()))
-	result, err := checkModelWithOutput(ctx, opts, module, parsed, specPath, out, errout)
+	result, err := checkModelWithOutput(ctx, opts, module, source, parsed, specPath, out, errout)
 	if err != nil {
 		return toolModelError(t, err)
 	}

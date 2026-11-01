@@ -21,6 +21,8 @@ type options struct {
 	paths                      []string
 	libraryPaths               []string
 	metaRoot                   string
+	metaDir, recoverDir        string
+	checkpointInterval         time.Duration
 	deadlockOff, help, version bool
 	debugLiveness              bool
 	coverage                   bool
@@ -51,7 +53,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-coverage 0] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-recover dir] [-coverage 0] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 	fmt.Fprintln(w, compatUsage)
 }
 
@@ -114,12 +116,18 @@ func reportOptionError(opts options, err error, out, errout io.Writer) int {
 }
 
 func runModel(ctx context.Context, opts options, out, errout io.Writer) (code int) {
-	if opts.metaRoot != "" {
-		metaDir, err := makeMetaDir(opts.metaRoot, time.Now())
-		if err != nil {
-			fmt.Fprintf(errout, "Cannot create metadata directory: %s\n", err)
-			return 255
+	if opts.recoverDir != "" {
+		opts.metaDir = opts.recoverDir
+	} else if opts.metaRoot != "" || opts.checkpointInterval > 0 {
+		root := opts.metaRoot
+		if root == "" {
+			root = filepath.Join(filepath.Dir(opts.path), "states")
 		}
+		metaDir, err := makeMetaDir(root, time.Now())
+		if err != nil {
+			return checkpointMetaError(ctx, opts, out, errout, err)
+		}
+		opts.metaDir = metaDir
 		defer func() {
 			if code == 0 {
 				_ = os.RemoveAll(metaDir)
@@ -130,6 +138,16 @@ func runModel(ctx context.Context, opts options, out, errout io.Writer) (code in
 		}
 	}
 	return runConfiguredModel(ctx, opts, out, errout)
+}
+
+func checkpointMetaError(ctx context.Context, opts options, out, errout io.Writer, err error) int {
+	if opts.metaRoot == "" && opts.checkpointInterval > 0 {
+		fmt.Fprintf(errout, "Checkpointing unavailable (cannot create metadata directory: %s); checking normally without checkpoints.\n", err)
+		opts.checkpointInterval = 0
+		return runConfiguredModel(ctx, opts, out, errout)
+	}
+	fmt.Fprintf(errout, "Cannot create metadata directory: %s\n", err)
+	return 255
 }
 
 func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer) int {
@@ -146,7 +164,7 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 		printConfigError(out, configPath, err)
 		return 255
 	}
-	module, code := loadModule(specPath, opts.libraryPaths, errout)
+	module, source, code := loadModuleWithSource(specPath, opts.libraryPaths, errout)
 	if code != 0 {
 		return code
 	}
@@ -154,7 +172,7 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 		parsed.CheckDeadlock = false
 	}
 	printChecking(out, specPath, configPath, opts)
-	result, err := checkModelWithOutput(ctx, opts, module, parsed, specPath, out, errout)
+	result, err := checkModelWithOutput(ctx, opts, module, source, parsed, specPath, out, errout)
 	if err != nil {
 		return reportModelError(out, errout, err)
 	}
@@ -165,7 +183,17 @@ func runConfiguredModel(ctx context.Context, opts options, out, errout io.Writer
 	return exitCode(result.Status)
 }
 
-func checkModelWithOutput(ctx context.Context, opts options, module *parser.Module, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
+func checkModelWithOutput(ctx context.Context, opts options, module *parser.Module, source []byte, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
+	if opts.checkpointInterval > 0 || opts.recoverDir != "" {
+		result, handled, err := checkCLIWithCheckpoint(ctx, opts, parsed, source, specPath, out, errout)
+		if handled {
+			return result, err
+		}
+	}
+	return checkModelNormally(ctx, opts, module, parsed, specPath, out, errout)
+}
+
+func checkModelNormally(ctx context.Context, opts options, module *parser.Module, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
 	graph, err := openStateDump(opts.dumpPath, opts.dumpDOT)
 	if err != nil {
 		return checker.Result{}, err
@@ -243,6 +271,27 @@ func writeJSONFile(path, text string) error {
 }
 
 func loadModule(specPath string, libraries []string, errout io.Writer) (*parser.Module, int) {
+	module, _, code := loadModuleWithSource(specPath, libraries, errout)
+	return module, code
+}
+
+func loadModuleWithSource(specPath string, libraries []string, errout io.Writer) (*parser.Module, []byte, int) {
+	source, err := readRootModule(specPath, libraries)
+	if err != nil {
+		fmt.Fprintf(errout, "Cannot find the specification file %s\n", specPath)
+		return nil, nil, 151
+	}
+	module, err := parser.ParseModule(string(source))
+	if err != nil {
+		return nil, nil, reportError(errout, &checker.SyntaxError{Err: err})
+	}
+	if err := validateModuleName(specPath, module.Name); err != nil {
+		return nil, nil, reportError(errout, &checker.SyntaxError{Err: err})
+	}
+	return module, source, 0
+}
+
+func readRootModule(specPath string, libraries []string) ([]byte, error) {
 	source, err := os.ReadFile(specPath)
 	if errors.Is(err, os.ErrNotExist) && filepath.Dir(specPath) == "." {
 		for _, dir := range libraries {
@@ -252,18 +301,7 @@ func loadModule(specPath string, libraries []string, errout io.Writer) (*parser.
 			}
 		}
 	}
-	if err != nil {
-		fmt.Fprintf(errout, "Cannot find the specification file %s\n", specPath)
-		return nil, 151
-	}
-	module, err := parser.ParseModule(string(source))
-	if err != nil {
-		return nil, reportError(errout, &checker.SyntaxError{Err: err})
-	}
-	if err := validateModuleName(specPath, module.Name); err != nil {
-		return nil, reportError(errout, &checker.SyntaxError{Err: err})
-	}
-	return module, 0
+	return source, err
 }
 
 func readConfig(configPath string) (config.Config, error) {
@@ -300,10 +338,12 @@ func makeMetaDir(root string, now time.Time) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(root, now.Format("06-01-02-15-04-05"))
-	if err := os.Mkdir(dir, 0o777); err != nil {
+	if err := os.Mkdir(dir, 0o777); err == nil {
+		return dir, nil
+	} else if !errors.Is(err, os.ErrExist) {
 		return "", err
 	}
-	return dir, nil
+	return os.MkdirTemp(root, now.Format("06-01-02-15-04-05")+"-")
 }
 
 func reportError(w io.Writer, err error) int {

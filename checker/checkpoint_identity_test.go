@@ -98,11 +98,18 @@ func TestCheckpointIdentityFailsClosed(t *testing.T) {
 	if err == nil || called {
 		t.Fatalf("callback: %v, called=%v", err, called)
 	}
-	for _, pair := range [][2]string{{"", cfgText}, {root, ""}} {
-		_, _, _, err = resolveCheckpointIdentity(context.Background(), pair[0], pair[1], cfg, Options{})
-		if err == nil {
-			t.Fatal("missing source accepted")
-		}
+	_, _, _, err = resolveCheckpointIdentity(context.Background(), "", cfgText, cfg, Options{})
+	if err == nil {
+		t.Fatal("missing module source accepted")
+	}
+	empty := "---- MODULE Empty ----\n===="
+	_, _, emptyID, err := resolveCheckpointIdentity(context.Background(), empty, "", config.Config{}, Options{})
+	if err != nil {
+		t.Fatalf("empty config: %v", err)
+	}
+	_, _, whitespaceID, err := resolveCheckpointIdentity(context.Background(), empty, "\n", config.Config{}, Options{})
+	if err != nil || emptyID == whitespaceID {
+		t.Fatalf("config source not bound to identity: %v", err)
 	}
 }
 

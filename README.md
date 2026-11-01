@@ -183,3 +183,22 @@ durability depends on the filesystem. It is not Java TLC's checkpoint format. Ch
 an expansion-boundary snapshot, identities covering every loaded module and effective
 configuration and option, reconstruction of runtime and trace state, and handling or
 explicit exclusion of features such as liveness, symmetry, coverage, and parallel work.
+
+Explicit `-checkpoint N` (positive minutes) supports a restricted pure serial
+breadth-first search: integer and Boolean states and the checker's limited
+expression subset, with INIT/NEXT and invariants. Unsupported models or options
+are checked normally with a diagnostic and no checkpoints. `-checkpoint 0`
+disables checkpoint writes, including when recovering; an omitted interval on
+recovery uses Java TLC 1.7.4's default of 30 minutes plus 42 milliseconds. Checkpoints use tla-go's own format,
+not Java TLC's.
+The diagnostic identifies the timestamped directory beneath `-metadir` (or
+`states` beside the specification). Resume with `-recover directory` and the
+same model, configuration, and semantic options. Missing, damaged, incompatible,
+or unsupported checkpoints fail rather than starting over. Output is streamed
+in order during each run; recovery does not replay output from before the saved
+checkpoint. Output emitted after the last checkpoint can be repeated after a
+restart, and full Java output equivalence is not established.
+
+For deterministic debugging, `TLA_GO_DEBUG_CHECKPOINT_AFTER=N` saves after N
+state expansions and stops with a nonzero status. It is not a production
+scheduling option.

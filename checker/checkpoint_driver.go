@@ -19,6 +19,7 @@ type checkpointDriver struct {
 	next                time.Time
 	pauseOnTick         bool
 	persistObservations bool
+	stream              chan<- CheckpointObservation
 }
 
 func (s *search) checkpointBoundary() (bool, error) {
@@ -31,7 +32,7 @@ func (s *search) checkpointBoundary() (bool, error) {
 }
 
 func (d *checkpointDriver) boundary(s *search) error {
-	if !d.due(s.head) {
+	if !d.boundaryDue(s.head) {
 		return nil
 	}
 	snapshot, err := s.checkpoint(*s.model.checkpointIdentity)
@@ -56,7 +57,7 @@ func (d *checkpointDriver) due(head int) bool {
 	if d.interval > 0 {
 		return !time.Now().Before(d.next)
 	}
-	return head%d.every == 0
+	return d.every > 0 && head%d.every == 0
 }
 
 // runCheckpointSearch always prepares a fresh model. Resume reads and validates
@@ -97,7 +98,7 @@ func (d *checkpointDriver) run(m *model, resume bool) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	if d.pauseAt != 0 && d.pauseAt <= snapshot.Head {
+	if d.enabled() && d.pauseAt != 0 && d.pauseAt <= snapshot.Head {
 		return Result{}, fmt.Errorf("pause tick already passed")
 	}
 	if err := d.restoreObservations(m, snapshot); err != nil {
@@ -107,6 +108,9 @@ func (d *checkpointDriver) run(m *model, resume bool) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	// Preparation records have already been emitted in the original run and
+	// the restored log is cumulative. Only subsequent observations are new.
+	m.checkpointObserver.stream = d.stream
 	return s.explore()
 }
 
@@ -123,3 +127,9 @@ func (d *checkpointDriver) restoreObservations(m *model, snapshot checkpointSnap
 	m.checkpointObserver.records = importCheckpointObservations(snapshot.Observations)
 	return nil
 }
+
+func (d *checkpointDriver) boundaryDue(head int) bool {
+	return d.due(head) || (d.enabled() && d.pauseAt != 0 && head == d.pauseAt)
+}
+
+func (d *checkpointDriver) enabled() bool { return d.interval > 0 || d.every > 0 }

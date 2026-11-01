@@ -48,8 +48,8 @@ func (s *instanceSession) recordSource(name, source string) error {
 // the search, never reload them after constructing the identity.
 func resolveCheckpointIdentity(ctx context.Context, source, configSource string, effective config.Config, options Options) (*parser.Module, *instanceSession, checkpointIdentity, error) {
 	var zero checkpointIdentity
-	if source == "" || configSource == "" {
-		return nil, nil, zero, fmt.Errorf("checkpoint requires complete module and config source")
+	if source == "" {
+		return nil, nil, zero, fmt.Errorf("checkpoint requires complete module source")
 	}
 	if _, err := config.Parse(configSource); err != nil {
 		return nil, nil, zero, err
@@ -156,6 +156,9 @@ func prepareCheckpointModelObserved(ctx context.Context, source, configSource st
 	module, session, identity, err := resolveCheckpointIdentity(ctx, source, configSource, effective, options)
 	if err != nil {
 		return nil, err
+	}
+	if err := checkpointPreflight(module, session.sourceUnits, effective); err != nil {
+		return nil, &CheckpointUnsupportedError{Err: err}
 	}
 	if observer != nil {
 		options.OnSearch = observer.search
