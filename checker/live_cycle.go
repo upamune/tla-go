@@ -268,7 +268,7 @@ func (b *liveTraceBuilder) appendNode(node int) error {
 	return nil
 }
 
-func (c *liveSCC) violation(recover liveRecovery) (*Violation, error) {
+func (c *liveSCC) violation(recover liveRecovery, onStart func(), onStates func([]TraceStep, int)) (*Violation, error) {
 	node := c.bad
 	stack, err := c.cycle(node)
 	if err != nil {
@@ -278,7 +278,14 @@ func (c *liveSCC) violation(recover liveRecovery) (*Violation, error) {
 	if err != nil {
 		return nil, err
 	}
+	if onStart != nil {
+		onStart()
+	}
 	b := liveTraceBuilder{graph: c.graph, recover: recover}
+	return b.build(node, prefix, stack, onStates)
+}
+
+func (b *liveTraceBuilder) build(node int, prefix, stack []int, onStates func([]TraceStep, int)) (*Violation, error) {
 	for _, step := range prefix {
 		if err := b.appendNode(step); err != nil {
 			return nil, err
@@ -286,13 +293,20 @@ func (c *liveSCC) violation(recover liveRecovery) (*Violation, error) {
 	}
 	loop := len(b.trace) - 1
 	b.shown = len(b.trace)
+	if onStates != nil {
+		onStates(b.trace, 0)
+	}
 	cycleKey := b.printed
-	b.previous = c.graph.nodeKey(stack[0])
+	b.previous = b.graph.nodeKey(stack[0])
 	for _, step := range stack[1:] {
+		before := len(b.trace)
 		if err := b.appendNode(step); err != nil {
 			return nil, err
 		}
 		b.shown = len(b.trace)
+		if onStates != nil && len(b.trace) > before {
+			onStates(b.trace, before)
+		}
 	}
 	return b.loop(node, loop, cycleKey)
 }

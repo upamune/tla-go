@@ -35,6 +35,8 @@ type liveNode struct {
 type liveLeaf struct {
 	tag  int
 	eval func(current, next evaluator.State) (bool, error)
+	// javaEval is used only by the opt-in LiveCheck1 evaluation path.
+	javaEval func(current, next evaluator.State) (bool, error)
 }
 
 func liveBoolNode(value bool) *liveNode { return &liveNode{kind: liveBool, value: value} }

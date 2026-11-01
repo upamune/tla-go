@@ -92,6 +92,12 @@ type Result struct {
 	TemporalCheckDuration *time.Duration
 	// TemporalCheckReported indicates that OnTemporalCheck completed reporting.
 	TemporalCheckReported bool
+	// SimulationCounterexampleStarted indicates that OnCounterexampleStart ran.
+	SimulationCounterexampleStarted bool
+	// SimulationCounterexampleStates indicates that counterexample states were streamed.
+	SimulationCounterexampleStates bool
+	// SimulationBehaviorStreamed indicates that the sampled failure behavior was emitted.
+	SimulationBehaviorStreamed bool
 }
 
 // Failure describes an evaluation that stopped exploration.
@@ -273,6 +279,33 @@ type Options struct {
 type SimulationOptions struct {
 	Traces int
 	Depth  int
+	// OmitLassoPropertyNames skips replay used to identify properties violated by
+	// a recovered lasso. Such violations have an empty Name and nil Properties.
+	// Without ALIAS and with a compatible VIEW, graph leaves are evaluated without
+	// caching. Other models retain the previous path and property names. A VIEW
+	// with effects, TLCGet, unstable reads, or reachable higher-order operators
+	// and operator constants is conservatively treated as incompatible.
+	// This does not guarantee Java-compatible effects for every model. The default is false.
+	OmitLassoPropertyNames bool
+	// OnCounterexampleStart runs synchronously after a liveness counterexample
+	// is found and before its states are recovered. Recovery may subsequently
+	// fail. It is not called for finite safety violations. The default is nil.
+	// It requires OmitLassoPropertyNames and the compatible ALIAS/VIEW conditions above.
+	OnCounterexampleStart func()
+	// OnCounterexampleStates receives the complete recovered prefix, then the
+	// complete trace after each recovered cycle state. The slice, steps, state maps,
+	// and StateOrder slices are read-only; copy them before modifying. Previously
+	// returned prefixes may be retained and remain unchanged as recovery proceeds.
+	// The second argument is the first new index.
+	// A failed prefix is never reported; a failed cycle retains prior reports.
+	// It requires OmitLassoPropertyNames and the compatible ALIAS/VIEW conditions above.
+	OnCounterexampleStates func([]TraceStep, int)
+	// OnBehaviorStart and OnBehaviorState opt in together to streaming the
+	// sampled behavior after counterexample recovery fails. They run synchronously
+	// and require OmitLassoPropertyNames and the compatible ALIAS/VIEW conditions above.
+	// State numbers are one based.
+	OnBehaviorStart func(*Failure)
+	OnBehaviorState func(TraceStep, int)
 	// UnlimitedTraces removes the trace-count limit and reports -1 to TLCGet.
 	UnlimitedTraces bool
 	// Aril advances the master random stream by this many double draws.

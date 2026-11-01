@@ -34,7 +34,29 @@ func printToolModeBanner(t toolOutput, opts options) {
 
 func configureCheckingMode(checkOpts *checker.Options, opts options, module *parser.Module, out io.Writer) {
 	if opts.simulate {
-		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, UnlimitedTraces: opts.simulationUnlimited, Aril: opts.aril, Continue: opts.continuation}
+		checkOpts.Simulation = &checker.SimulationOptions{Traces: opts.simulationTraces, Depth: opts.simulationDepth, UnlimitedTraces: opts.simulationUnlimited, Aril: opts.aril, Continue: opts.continuation, OmitLassoPropertyNames: opts.tool}
+		if opts.tool {
+			var previousBehavior *checker.TraceStep
+			checkOpts.Simulation.OnCounterexampleStart = func() { printToolTemporalHeadline(toolOutput{out: out}) }
+			checkOpts.Simulation.OnCounterexampleStates = func(trace []checker.TraceStep, from int) {
+				printToolTraceIncrement(toolOutput{out: out}, newTraceStyle(opts), trace, from, module)
+			}
+			checkOpts.Simulation.OnBehaviorStart = func(failure *checker.Failure) {
+				previousBehavior = nil
+				t := toolOutput{out: out}
+				printToolFailureHeader(t, failure)
+				t.message(2121, 1, "The behavior up to this point is:")
+			}
+			checkOpts.Simulation.OnBehaviorState = func(step checker.TraceStep, number int) {
+				trace := []checker.TraceStep{step}
+				if previousBehavior != nil {
+					trace = append([]checker.TraceStep{*previousBehavior}, step)
+				}
+				trace = newTraceStyle(opts).trace(trace, false)
+				printToolTraceStep(toolOutput{out: out}, trace[len(trace)-1], number, module)
+				previousBehavior = &step
+			}
+		}
 		if opts.continuation {
 			checkOpts.Simulation.OnViolation = simulationViolationOutput(opts, module, out)
 		}
@@ -127,11 +149,7 @@ func modelViolationOutput(opts options, module *parser.Module, out io.Writer) fu
 }
 
 func printToolSimulationResult(t toolOutput, result checker.Result, module *parser.Module, seed, aril int64) {
-	if result.Failure != nil {
-		printToolSimulationFailure(t, result.Failure, module)
-	} else if result.Violation != nil {
-		printToolViolation(t, result, module)
-	}
+	printToolSimulationOutcome(t, result, module)
 	if !simulationHasStatistics(result) {
 		return
 	}
@@ -144,11 +162,41 @@ func printToolSimulationResult(t toolOutput, result checker.Result, module *pars
 	}
 }
 
+func printToolSimulationOutcome(t toolOutput, result checker.Result, module *parser.Module) {
+	if result.Failure != nil {
+		printToolStreamedFailure(t, result, module)
+	} else if result.Violation != nil {
+		printToolStreamedViolation(t, result, module)
+	}
+}
+
+func printToolStreamedFailure(t toolOutput, result checker.Result, module *parser.Module) {
+	if result.SimulationBehaviorStreamed {
+		return
+	}
+	failure := *result.Failure
+	if result.SimulationCounterexampleStates {
+		failure.TemporalTrace = nil
+	}
+	printToolSimulationFailure(t, &failure, module, result.SimulationCounterexampleStarted)
+}
+
+func printToolStreamedViolation(t toolOutput, result checker.Result, module *parser.Module) {
+	if !result.SimulationCounterexampleStarted {
+		printToolViolation(t, result, module)
+		return
+	}
+	if !result.SimulationCounterexampleStates {
+		printToolTrace(t, result.Violation.Trace, module)
+	}
+	printToolLoop(t, result.Violation, module)
+}
+
 func printToolSimulationProgress(t toolOutput, generated int) {
 	t.message(2209, 0, fmt.Sprintf("Progress(-1) at %s: %d states generated, -1 distinct states found, -1 states left on queue.", toolTime(), generated))
 }
 
-func printToolSimulationFailure(t toolOutput, failure *checker.Failure, module *parser.Module) {
+func printToolSimulationFailure(t toolOutput, failure *checker.Failure, module *parser.Module, started bool) {
 	if failure.ToolCode == 2111 || failure.ToolCode == 2113 {
 		t.message(failure.ToolCode, 1, failure.Message)
 		t.message(2121, 1, "The behavior up to this point is:")
@@ -156,7 +204,7 @@ func printToolSimulationFailure(t toolOutput, failure *checker.Failure, module *
 		return
 	}
 	if !printToolInitialStateFailure(t, failure) {
-		printToolFailure(t, failure, module)
+		printToolFailureAfterStart(t, failure, module, started)
 	}
 }
 

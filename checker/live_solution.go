@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/upamune/tla-go/evaluator"
+	"github.com/upamune/tla-go/value"
 )
 
 // liveSolution is TLC's OrderOfSolution: one tableau formula and the possible
@@ -287,7 +288,7 @@ func (c *liveConverter) atom(formula *ltlFormula) (*liveNode, error) {
 	}
 	leaf, ok := c.leaves[formula.leaf]
 	if !ok {
-		leaf = c.newLeaf(c.formulaEvaluator(formula))
+		leaf = c.newFormulaLeaf(formula)
 		c.leaves[formula.leaf] = leaf
 	}
 	node := &liveNode{kind: liveState, leaf: leaf}
@@ -298,6 +299,14 @@ func (c *liveConverter) atom(formula *ltlFormula) (*liveNode, error) {
 		return liveUnary(liveNeg, node), nil
 	}
 	return node, nil
+}
+
+func (c *liveConverter) newFormulaLeaf(formula *ltlFormula) *liveLeaf {
+	leaf := c.newLeaf(c.formulaEvaluator(formula))
+	if formula.fairness && formula.atom.Kind == "AngleAction" && len(formula.atom.Args) == 2 {
+		leaf.javaEval = c.model.liveFairnessEvaluator(fairnessCondition{action: formula.atom.Args[0], subscript: formula.atom.Args[1], locals: formula.locals})
+	}
+	return leaf
 }
 
 // formulaEvaluator evaluates the body of an LNStateAST or LNAction leaf.
@@ -351,11 +360,44 @@ func (c *liveConverter) fairness(fair fairnessCondition) (*liveNode, error) {
 	step := &liveNode{kind: liveAction, leaf: c.newLeaf(func(current, next evaluator.State) (bool, error) {
 		return m.holdsFair(fair, current, next)
 	})}
+	// LNAction checks its subscript before evaluating its body. The general
+	// evaluator uses the opposite order, so preserve that API and select this
+	// evaluator only for Java-compatible LiveCheck1 graph operations.
+	step.leaf.javaEval = m.liveFairnessEvaluator(fair)
 	disabled := liveUnary(liveNeg, enabled)
 	if fair.strong {
 		return liveJunction(liveDisj, liveUnary(liveEven, liveUnary(liveAll, disabled)), liveUnary(liveAll, liveUnary(liveEven, step))), nil
 	}
 	return liveUnary(liveAll, liveUnary(liveEven, liveJunction(liveDisj, disabled, step))), nil
+}
+
+func (m *model) liveFairnessEvaluator(fair fairnessCondition) func(evaluator.State, evaluator.State) (bool, error) {
+	return func(current, next evaluator.State) (bool, error) {
+		ctx := evaluator.Context{Current: current, Constants: m.constants, Locals: fair.locals, Enabled: m.enabledCallback}
+		before, err := m.program.Evaluate(fair.subscript, ctx)
+		if err != nil {
+			return false, err
+		}
+		ctx.Current = next
+		after, err := m.program.Evaluate(fair.subscript, ctx)
+		if err != nil {
+			return false, err
+		}
+		same, err := value.Equal(before, after)
+		if err != nil || same {
+			return false, err
+		}
+		ctx.Current, ctx.Next = current, next
+		result, err := m.program.Evaluate(fair.action, ctx)
+		if err != nil {
+			return false, err
+		}
+		holds, ok := result.Bool()
+		if !ok {
+			return false, liveNonBoolean(true)
+		}
+		return holds, nil
+	}
 }
 
 func (c *liveConverter) recurrence(fair fairnessCondition) (*liveNode, error) {

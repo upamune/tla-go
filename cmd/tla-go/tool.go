@@ -146,6 +146,10 @@ func toolLoadFailure(t toolOutput, diagnostic *bytes.Buffer, code int) int {
 }
 
 func toolModelError(t toolOutput, err error) int {
+	if behaviorErr, ok := errors.AsType[*checker.SimulationBehaviorError](err); ok {
+		printToolFailureHeader(t, behaviorErr.Failure)
+		return 255
+	}
 	if modelErr, ok := errors.AsType[*checker.ModelValidationError](err); ok {
 		t.message(modelErr.Code, 1, modelErr.Message)
 		return modelErr.ExitCode

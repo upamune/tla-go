@@ -1,5 +1,28 @@
 # Java TLC weak-fairness effects investigation
 
+## Current WIP status
+
+The simulation tool streaming experiment uses the existing graph and reporting
+path for models containing ALIAS, or a VIEW with effects, runtime TLCGet reads,
+unstable reads, or reachable higher-order operators or operator constants. For other
+models, the opt-in path
+reevaluates graph leaves at each graph operation and streams prefix and cycle
+states at recovery boundaries. After recovery fails it emits the error and 2121,
+then recovers sampled actions before printing each nonstuttering state; even
+suppressed stutters evaluate their actions. Java oracle comparisons cover initial
+and cycle recovery failures, sampled stutters, and a separate division error
+during sampled-behavior recovery. Selected weak and strong fairness assumptions,
+multiple fairness conditions, an effectful fairness subscript, and fairness in a
+property also match the pinned oracle for their selected tool messages. These
+examples do not establish equivalence for general fairness formulas or failures.
+Effectful and runtime-dependent VIEW remain known mismatches: state fingerprints are evaluated eagerly
+before liveness checks and printed VIEW evaluations are grouped differently from
+Java. Set `TLA_GO_KNOWN_VIEW_EFFECTS=1` with `TLC_JAR` and run
+`TestJavaTLCSimulationToolEffects/view-effects`, `view-level`, or `view-higher-order`
+to reproduce them. Other recovery
+errors and presentation callbacks also need further verification. The historical
+observations below describe earlier revisions.
+
 Oracle: tla2tools v1.7.4, upstream commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`, JAR SHA-256 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`. `TestJavaTLCFairnessEffectsLifecycle` exercises the isolated models; set `TLC_JAR` to the pinned JAR to run the Java comparisons. Each Java invocation uses one worker, fingerprint polynomial 0, and its own temporary model and metadata directory. Plain and `-tool` were compared. The original was also run three times with a fresh metadir per run and one worker: Java printed 10 times and Go 7 times on all three runs, with 3 generated and 2 distinct states and a liveness violation. This is not a determinism claim for multiple workers, arbitrary fingerprint polynomials, periodic checks, or other models.
 
 In additional single-worker runs with fingerprint polynomial indices 0 through 5, the labeled model produced the same ten values in the same order. This sample does not establish a general ordering guarantee.
@@ -26,3 +49,76 @@ Go's `evaluateIncrementalAtom` caches state atoms by source state across success
 No production fix is included. The next step is to model Java's per-solution, per-concrete-successor check execution, including short-circuiting and the ordering of effectful state subexpressions, while retaining the actual check results for SCC analysis. Separately, model trace recovery of the closing action using Java's actual successor generation and failure behavior, including nondeterministic candidates and reductions. First add differential cases where register writes change fairness or successor selection, failed recovery, multiple successors and constraints, and error/termination behavior. Avoid simply invalidating all caches or adding unconditional replay: either can change reachability, verdicts, registers, errors, or termination. Existing tests deliberately assert Java's oracle and matching controls but log the known Go output divergence; they do not claim that the bug is fixed.
 
 Additional pinned-oracle cases in `TestJavaTLCFairnessRegisterSensitiveOracle` put a counter update and a counter-dependent guard or assertion inside `Next`. The guard makes Java reject the later successor after fairness checks have advanced the counter; the assertion fails during those checks. These characterize the Java sequence and state counts in fresh directories in plain and tool mode, repeated with one worker. The ordinary lifecycle test also includes pure satisfied and violated controls and a fixed register read. These do not establish safe eligibility for replay: even a print-only action can contain a failing or nondeterministic expression, and output in the fairness action can call definitions with register effects. A safe implementation needs a conservative, transitive effect/totality and determinism classification, Java-compatible per-solution successor checks with separately stored results, and trace recovery that actually generates and selects the closing successor and propagates failures. Until those pieces are available, there is no general basis for turning on an extra evaluation solely from the presence of `Print` or a fairness condition.
+
+## Earlier scoped LiveCheck1 change and remaining model-checking gap
+
+Simulation's `LiveCheck1.constructBEGraph` evaluates each check at the points
+where it builds the sampled behavior graph. It reuses those check results for
+product nodes and edges as appropriate, but does not memoize individual leaves
+across operations or solutions. The Go `liveTrace` leaf cache incorrectly
+suppressed repeated evaluations, including `ENABLED` nested in an action
+check; it could also reuse an old truth value or hide a later error. Disabling
+that cache for one configured property makes graph-construction calls execute independently. Multiple configured properties retain the previous cache and its known divergence.
+`TestSimulationLivenessFairnessEffects` compares the print sequence and state
+count of a deterministic weak-fairness simulation to the pinned JAR. The unit
+regression also verifies a later error is propagated. This increment does not
+implement model-checking `LiveCheck` graph construction or late expansion.
+
+Known uncorrected cases remain the weak-violation, register, guard and assertion
+models above: model checking still caches `ENABLED` across concrete successors
+and does not reconstruct every closing transition. Late tableau insertion must
+regenerate successors and apply constraints at insertion time, not after the
+entire state search. Simulation also computes all trace VIEW keys before any
+solution check, whereas Java computes fingerprints as it constructs each
+solution; effectful or failing VIEWs can therefore have different order or
+results. TLCGet in simulation liveness predicates remains unsupported. Do not
+infer general fairness, error or counterexample fidelity from the new case.
+
+On an Apple M3, two short runs of `BenchmarkSimulationFairness` before this
+change used about 10.83 MB and 133,076 allocations per operation; after it,
+about 12.17 MB and 157,500 allocations. Elapsed samples were noisy (18.9–24.3
+ms before, 25.7–26.3 ms after). Both reported 4,812 generated states per
+operation. The added evaluation is observable and required here; no claim is
+made that this establishes performance for other models.
+
+## Simulation violation names and graph evidence
+
+`TestSimulationLivenessViolationEffectsOracle` compares the pinned JAR on
+single and multiple properties, with and without a tableau. Java reports a
+violation without evaluating `Q` during name reporting. The opt-in now skips
+that evaluation and returns no names; this test compares the resulting effects
+with Java. Java itself prints no names. This does not establish complete tool
+output compatibility. `TestJavaTLCSimulationToolEffects/fairness-cycle`
+exposes both extra graph evaluation effects and an ordering difference during
+recovery: Java interleaves recovered states and effects, whereas Go recovers
+all states before printing them. The counterexample-start callback fixes the
+headline order but does not fix those differences. This remains a WIP.
+
+Provenance alone cannot recover all names from the current graph. DNF merges
+`[]<>` disjuncts into a single `[]<>(P \/ Q)` check; short-circuiting can
+leave the value of `Q` unknown. A successful PEM therefore establishes the
+merged disjunction, not which source properties it satisfies. Only the first
+accepted solution and PEM are explored, so another violated property might
+have checks or a tableau in an unbuilt solution. Even a proof for that PEM
+concerns its product-graph walk: plain graph nodes can store state checks made
+on the preceding trace state, and recovery can choose a different concrete
+state for a reduced fingerprint. The returned lasso can thus differ from the
+behavior for which those checks were recorded. Tableau consistency checks may
+also repeat effectful evaluations, and are not stored as an expression-by-state
+truth table. Keying results by expression and state or edge would conflate
+different evaluations and change short-circuiting, errors and effects.
+
+The existing fallback returns every property when replay fails or finds no
+violation; it is preserved for compatibility, including its known potential
+to name a satisfied property. Directly assigning the sole configured name
+would avoid replay effects, and splitting or quantifier expansion retains that
+name. However, the API documents names as properties violated by the reported
+lasso. Graph checks can describe a different behavior from the recovered
+lasso, particularly with VIEW or symmetry; effectful predicates also do not
+have a stable truth value across evaluations. A graph violation therefore does
+not prove the documented claim about the returned lasso. No direct-assignment
+fix is included until that contract is resolved or the correspondence proven.
+The oracle test remains a failing regression test when TLC_JAR is set: it
+exposes the additional replay effects rather than asserting a false match.
+Theorem and finite-trace cases need independent verification before changing
+the naming contract. Separate review is required for this WIP.
