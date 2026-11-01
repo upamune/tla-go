@@ -1,6 +1,7 @@
 package upstreamjunit
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,12 +27,42 @@ func TestUpstreamJUnitSweep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := VerifyInputs(root, jar); err != nil {
+	discoveryCtx, discoveryCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer discoveryCancel()
+	if err := verifyInputs(discoveryCtx, root, jar); err != nil {
 		t.Fatal(err)
 	}
-	classes, err := inventoryTracked(filepath.Join(root, "tlatools", "org.lamport.tlatools", "test"), UpstreamCommit)
+	classes, err := inventoryTrackedContext(discoveryCtx, filepath.Join(root, "tlatools", "org.lamport.tlatools", "test"), UpstreamCommit)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Optional runner metadata annotates the existing diagnostic candidates. It
+	// never changes which candidates are attempted or historical sweep counts.
+	var junitInventory map[string]JUnitInventory
+	if os.Getenv("TLA_GO_JUNIT_DISCOVERY") == "1" {
+		junit, hamcrest := os.Getenv("TLA_GO_JUNIT_JUNIT"), os.Getenv("TLA_GO_JUNIT_HAMCREST")
+		if junit == "" || hamcrest == "" {
+			t.Fatal("set JUnit and Hamcrest jar paths for discovery")
+		}
+		junit, err = filepath.Abs(junit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hamcrest, err = filepath.Abs(hamcrest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var names []string
+		for _, class := range classes {
+			if !class.Abstract {
+				names = append(names, class.Name)
+			}
+		}
+		records, err := discover(discoveryCtx, root, jar, junit, hamcrest, t.TempDir(), names)
+		if err != nil {
+			t.Fatal(err)
+		}
+		junitInventory = inventoryByClass(records)
 	}
 	binary := filepath.Join(t.TempDir(), "tla-go")
 	cmd := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go")
@@ -54,6 +85,16 @@ func TestUpstreamJUnitSweep(t *testing.T) {
 	for _, class := range classes {
 		if class.Abstract {
 			continue
+		}
+		if junitInventory != nil {
+			m := junitInventory[class.Name]
+			t.Logf("junit-inventory %s cases=%d ignored-methods=%d ignored-classes=%d empty=%d uncertain=%d errors=%d", class.Name, len(m.Cases), len(m.Ignored), len(m.IgnoredClasses), len(m.Empty), len(m.Uncertain), len(m.Errors))
+			for _, record := range append(append([]DiscoveryRecord{}, m.Ignored...), m.IgnoredClasses...) {
+				t.Logf("junit-ignore %s kind=%s display=%q reason=%q", class.Name, record.Kind, record.Display, record.Reason)
+			}
+			for _, record := range m.Uncertain {
+				t.Logf("junit-uncertain %s display=%q reason=%q", class.Name, record.Display, record.Reason)
+			}
 		}
 		r := Resolve(testRoot, classes, class)
 		if r.Case.Model != "" {

@@ -310,6 +310,22 @@ An `initializationError` leaf carrying `@Test` is retained as a test method.
 Runner construction can execute code, including parameter factories; discovery
 does not execute test methods or their assertions. JUnit descriptions do not reliably distinguish an empty suite from a leaf. Custom runners can choose
 what they expose, and the results depend on the Java runtime and environment.
+Discovery records use an isolated temporary protocol file; runner stdout and
+stderr are retained for diagnostics if discovery fails.
+The sweep and pinned discovery callers give Git input verification, compilation,
+and runner construction a shared five-minute context, independently of the remaining
+test work. The context bounds subprocesses; filesystem operations themselves can
+still block. A one-second
+`WaitDelay` starts when that context ends or the direct command exits, whichever
+occurs first; it bounds waiting for inherited output pipes, not a running command
+whose context has no deadline. If a command exits successfully but pipes remain open,
+discovery returns `exec.ErrWaitDelay` and does not consume the protocol. A nonzero
+exit retains its exit error; cancellation reports the context error. Cancellation
+kills the direct command only, and closing pipes does not kill or reap descendants.
+Descendants may outlive discovery on any OS, so use trusted inputs and external
+process isolation and cleanup. Temporary protocol removal is best effort, not a
+guarantee. Runner code is not sandboxed and can access the protocol file and other
+process resources.
 
 The inputs are checked by SHA-256: TLC jar `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`,
 JUnit 4.12 `59721f0805e223d84b90677887d9ff567dc534d7c502ca903c0c2b17f05c116a`,
@@ -838,3 +854,31 @@ shared nested values cannot be modeled by globally sorting every output.
 The model samples do not establish complete token-allocation fidelity, all
 cache paths, permutation presentation, ALIAS behavior in later Java releases,
 or scheduling-independent output; those remain open before a general fix.
+
+### Ignored tests in diagnostic inventory
+
+Set `TLA_GO_JUNIT_DISCOVERY=1` together with the JUnit and Hamcrest paths above
+when running `TestUpstreamJUnitSweep` to add `junit-inventory` and
+`junit-ignore` records for each selected diagnostic candidate. The metadata
+comes from the same verified runner descriptions, including inherited methods,
+parameterized leaves and nested suites. It reports unannotated case descriptions,
+confirmed ignored method leaves, ignored class descriptions, empty standard suites,
+uncertain descriptions and runner errors separately, with
+JUnit display names and `@Ignore` reasons. A candidate can have both runnable
+and ignored leaves; an ignored class description does not provide a method
+count. Ignore annotations under arbitrary runners, including inherited suite
+annotations, are uncertain; an empty custom description is also uncertain.
+Nested suites are classified conservatively because their child runner identity
+is not available from a Description. A case description does not guarantee that
+a custom runner executes it. These records describe the selected runner, not whether
+a model run passes or whether every method in a custom runner is visible.
+
+For example, the pinned `tlc2.tool.TLCGetNonDeterminismTest` has an ignored
+`testSpec` with reason `No known fix/By design`. Its inherited custom runner
+makes the discovery classification uncertain, although a separate JUnitCore run
+observed it ignored. Its model remains a diagnostic
+candidate and can still be run by the sweep. The optional metadata does not
+change which diagnostic runs are attempted, their counts, or the interpretation
+and schema of historical snapshots. A diagnostic comparison is not a JUnit
+execution or a JUnit pass. `TestUpstreamJUnitDiscovery` verifies this example
+against the pinned source and jars.

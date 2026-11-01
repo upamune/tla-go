@@ -119,3 +119,17 @@ func TestSweepSnapshotConsistency(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSweepLogIgnoresJUnitMetadata(t *testing.T) {
+	baseline, err := ParseSweepLog(strings.NewReader(tinySweep))
+	if err != nil {
+		t.Fatal(err)
+	}
+	annotated := "    integration_test.go:88: junit-inventory example.A cases=1 ignored-methods=1 ignored-classes=0 empty=0 uncertain=1 errors=0\n" +
+		"    integration_test.go:90: junit-ignore example.A kind=ignored display=\"testSpec(example.A)\" reason=\"reason\"\n" +
+		"    integration_test.go:93: junit-uncertain example.A display=\"unknown(example.A)\" reason=\"reason\"\n" + tinySweep
+	got, err := ParseSweepLog(strings.NewReader(annotated))
+	if err != nil || !reflect.DeepEqual(got, baseline) {
+		t.Fatalf("metadata changed snapshot: %+v %v", got, err)
+	}
+}

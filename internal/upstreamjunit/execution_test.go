@@ -313,7 +313,9 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := VerifyInputs(root, jar); err != nil {
+	discoveryCtx, discoveryCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer discoveryCancel()
+	if err := verifyInputs(discoveryCtx, root, jar); err != nil {
 		t.Fatal(err)
 	}
 	for _, dep := range []struct{ path, hash string }{{junit, junitSHA}, {hamcrest, hamcrestSHA}} {
@@ -323,12 +325,12 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 	}
 	temp := t.TempDir()
 	// Discovery compiles only tracked sources and establishes that this exact leaf exists.
-	records, err := discover(root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest"})
+	records, err := discover(discoveryCtx, root, jar, junit, hamcrest, temp, []string{"tlc2.tool.suite.Test10", "tlc2.tool.EmptyTest"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := DiscoveryRecord{"case", "tlc2.tool.suite.Test10", "testSpec(tlc2.tool.suite.Test10)"}
-	empty := DiscoveryRecord{"case", "tlc2.tool.EmptyTest", "testSpec(tlc2.tool.EmptyTest)"}
+	want := DiscoveryRecord{"case", "tlc2.tool.suite.Test10", "testSpec(tlc2.tool.suite.Test10)", ""}
+	empty := DiscoveryRecord{"case", "tlc2.tool.EmptyTest", "testSpec(tlc2.tool.EmptyTest)", ""}
 	if len(records) != 2 || !slices.Contains(records, want) || !slices.Contains(records, empty) {
 		t.Fatalf("unsupported lifecycle or discovery: %+v", records)
 	}
@@ -370,7 +372,13 @@ func TestUpstreamJUnitExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("Java JUnit pass: %s#testSpec (inherited setup, assertion and teardown); events=%v", want.Class, events)
-	emptyEvents, err := executeJUnit(classes, deps, runDir, runDir, empty.Class, "testSpec")
+	// TLC names its states directory at one-second resolution. Keep each JVM's
+	// working directory separate even when both cases finish in the same second.
+	emptyDir := filepath.Join(temp, "empty-run")
+	if err := os.Mkdir(emptyDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	emptyEvents, err := executeJUnit(classes, deps, emptyDir, runDir, empty.Class, "testSpec")
 	if err != nil {
 		t.Fatal(err)
 	}
