@@ -26,6 +26,9 @@ func (e *evaluator) finiteSetsValue(name string, v value.Value) (value.Value, er
 	}
 	size, err := v.Cardinality()
 	if err != nil {
+		if _, ok := errors.AsType[*value.UnionFirstElementError](err); ok {
+			return value.Value{}, &RuntimeError{Message: javaOverrideMessage(cardinalitySignature, err.Error()), ToolCode: 2154, TrackSource: true}
+		}
 		if overflow, ok := errors.AsType[*value.CardinalityOverflowError](err); ok {
 			return value.Value{}, cardinalityOverflow(overflow.Set, err)
 		}

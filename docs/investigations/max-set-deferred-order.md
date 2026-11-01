@@ -34,9 +34,21 @@ The following behavior prevents a stateless, one-pass replacement for
    `SetCupValue.Enumerator` obtains both operands' `elements()` in its
    constructor. For a union with `UNION {2}` on the right, Java reports that
    a union member is not enumerable before a `PrintT` filter sees any left-side
-   values. Current Go also emits no values for this finite model, but its error
-   details differ. Checking each operand only when its first item is requested
-   changes both the error and the observable output.
+   values. Go now reports the same nested 2154 error for this finite model.
+   This is only error classification: Go still opens the right operand after
+   enumerating the left, so left-side effects in other models can differ.
+   Checking each operand only when its first item is requested changes both
+   the error and the observable output.
+
+For `Cardinality(UNION {1})`, the error is raised while opening the UNION
+enumerator and wrapped by the `Cardinality` Java override. Go now reports the
+same error, including for nested UNIONs and successor evaluation. The same
+first-element validation applies to the Go value API without assuming a
+particular outer-set representation. Error reporting still differs when an
+earlier expression has a side effect: Java replays the expression while building
+the error stack, whereas Go does not. Membership in an invalid UNION is also a
+separate path: for `1 \in UNION {1}`, Java reports a fingerprint error and Go
+still emits a generic enumeration error.
 
 An experimental implementation counted deferred UNION and set-operation
 elements before deduplication and stopped at the bound. It correctly handled

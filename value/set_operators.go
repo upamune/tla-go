@@ -181,7 +181,12 @@ func advanceCombination(indices []int, n int) bool {
 
 func (v Value) eachUnion(visit func(Value) (bool, error)) error {
 	var elements []Value
+	first := true
 	err := v.data.domain.Each(func(set Value) (bool, error) {
+		if first && !set.tlcEnumerable() {
+			return false, &UnionFirstElementError{Cause: &UnexpectedError{Message: "Attempted to enumerate UNION(s), but some element of s is nonenumerable.", TLCAssert: true}}
+		}
+		first = false
 		return true, set.Each(func(item Value) (bool, error) {
 			elements = append(elements, item)
 			return true, nil

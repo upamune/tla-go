@@ -20,6 +20,13 @@ type UnexpectedError struct {
 
 func (e *UnexpectedError) Error() string { return e.Message }
 
+// UnionFirstElementError represents TLC's failure when the first outer element
+// of a UNION iterator is not enumerable.
+type UnionFirstElementError struct{ Cause *UnexpectedError }
+
+func (e *UnionFirstElementError) Error() string { return e.Cause.Error() }
+func (e *UnionFirstElementError) Unwrap() error { return e.Cause }
+
 // FingerprintError records the source expressions of nested lazy values.
 type FingerprintError struct {
 	Cause   error

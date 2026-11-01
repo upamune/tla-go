@@ -72,8 +72,6 @@ func checkMaxSetAssertion(t *testing.T, engine, out string, code int, stderr str
 	}
 }
 
-// Go's current error is a known compatibility gap; this asserts it alongside
-// the absence of output so a different early failure cannot masquerade as it.
 func TestJavaTLCMaxSetSizeCupIteratorSetupRegression(t *testing.T) {
 	jar := maxSetOracleJar(t)
 	dir := t.TempDir()
@@ -81,7 +79,7 @@ func TestJavaTLCMaxSetSizeCupIteratorSetupRegression(t *testing.T) {
 	writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n")
 	args := maxSetOracleArgs()
 	out, code, stderr := runBoundedMaxSetCLI(t, dir)
-	if code != 255 || stderr != "" || !strings.Contains(out, "@!@!@STARTMSG 1000:1 @!@!@\nexpected an enumerable set\n@!@!@ENDMSG 1000 @!@!@") || maxSetInitialPrints(t, out, "@!@!@STARTMSG 1000:") != "" {
+	if code != 75 || stderr != "" || !strings.Contains(out, "@!@!@STARTMSG 2154:0") || !strings.Contains(out, "Attempted to enumerate UNION(s), but some element of s is nonenumerable.") || maxSetInitialPrints(t, out, "@!@!@STARTMSG 1000:") != "" {
 		t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
 	}
 	if jar != "" {
@@ -89,6 +87,118 @@ func TestJavaTLCMaxSetSizeCupIteratorSetupRegression(t *testing.T) {
 		if javaCode != 75 || maxSetInitialPrints(t, java, "@!@!@STARTMSG 1000:") != "" || !strings.Contains(java, "Attempted to enumerate UNION(s), but some element of s is nonenumerable") {
 			t.Fatalf("Java exit %d output:\n%s", javaCode, java)
 		}
+		if got, want := errorBehaviorMessages(readToolMessages(out)), errorBehaviorMessages(readToolMessages(java)); !reflect.DeepEqual(got, want) {
+			t.Fatalf("Go errors %q; Java errors %q", got, want)
+		}
+	}
+}
+
+func TestJavaTLCUnionFirstNonEnumerable(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, element := range []string{"1", "TRUE", `"text"`, "Nat"} {
+		t.Run(element, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = Cardinality(UNION {" + element + "})\nNext == UNCHANGED x"
+			writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n")
+			args := maxSetOracleArgs()
+			out, code, stderr := runGoInDir(t, dir, args)
+			const message = "Attempted to enumerate UNION(s), but some element of s is nonenumerable."
+			if code != 75 || stderr != "" || !strings.Contains(out, message) || !strings.Contains(out, "@!@!@STARTMSG 2154:0") {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 75 || !strings.Contains(java, message) {
+					t.Fatalf("Java exit %d output:\n%s", javaCode, java)
+				}
+				if got, want := errorBehaviorMessages(readToolMessages(out)), errorBehaviorMessages(readToolMessages(java)); !reflect.DeepEqual(got, want) {
+					t.Fatalf("Go errors %q; Java errors %q", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCUnionFirstNonEnumerableContexts(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, tc := range []struct{ name, body string }{
+		{"nested", "Init == x = Cardinality(UNION {UNION {1}})\nNext == UNCHANGED x"},
+		{"successor", "Init == x = 0\nNext == x = 0 /\\ x' = Cardinality(UNION {1})"},
+		{"print", "Init == x = IF PrintT(UNION {1}) THEN 0 ELSE 1\nNext == UNCHANGED x"},
+		{"initial effect", "Init == x = IF PrintT(5) THEN Cardinality(UNION {1}) ELSE 0\nNext == UNCHANGED x"},
+		{"successor effect", "Init == x = 0\nNext == x = 0 /\\ PrintT(5) /\\ x' = Cardinality(UNION {1})"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeMaxSetSizeFixture(t, dir, "VARIABLE x\n"+tc.body, "INIT Init\nNEXT Next\n")
+			args := maxSetOracleArgs()
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 75 || stderr != "" || !strings.Contains(out, "@!@!@STARTMSG 2154:0") {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if strings.Contains(tc.name, "effect") && strings.Count(out, "\n5\n") != 1 {
+				t.Fatalf("Go effect output:\n%s", out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != code || !reflect.DeepEqual(errorBehaviorMessages(readToolMessages(out)), errorBehaviorMessages(readToolMessages(java))) {
+					t.Fatalf("Go exit %d output:\n%s\nJava exit %d output:\n%s", code, out, javaCode, java)
+				}
+				// Java replays evaluation while constructing the stack; Go does not.
+				if strings.Contains(tc.name, "effect") && strings.Count(java, "\n5\n") != 2 {
+					t.Fatalf("Java effect output:\n%s", java)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCUnionEnumerationControls(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, tc := range []struct{ name, expression string }{
+		{"unreached", "IF FALSE THEN Cardinality(UNION {1}) ELSE 0"},
+		{"interval", "Cardinality(UNION {1..3})"},
+		{"empty", "Cardinality(UNION {{}})"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = " + tc.expression + "\nNext == UNCHANGED x"
+			writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n")
+			args := maxSetOracleArgs()
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" || !strings.Contains(out, "2 states generated, 1 distinct states found") {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 || !strings.Contains(java, "2 states generated, 1 distinct states found") {
+					t.Fatalf("Java exit %d output:\n%s", javaCode, java)
+				}
+			}
+		})
+	}
+}
+
+func TestJavaTLCUnionFirstNonEnumerableBounds(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, bound := range []string{"1", "100"} {
+		t.Run(bound, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = Cardinality(UNION {1})\nNext == UNCHANGED x"
+			writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT Next\n")
+			args := maxSetOracleArgs()
+			args[len(args)-2] = bound
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 75 || stderr != "" || !strings.Contains(out, "Attempted to enumerate UNION(s), but some element of s is nonenumerable.") {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != code || !reflect.DeepEqual(errorBehaviorMessages(readToolMessages(out)), errorBehaviorMessages(readToolMessages(java))) {
+					t.Fatalf("Go exit %d output:\n%s\nJava exit %d output:\n%s", code, out, javaCode, java)
+				}
+			}
+		})
 	}
 }
 
