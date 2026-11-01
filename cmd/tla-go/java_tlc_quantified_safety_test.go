@@ -48,16 +48,26 @@ func TestJavaTLCQuantifiedSafetyProperties(t *testing.T) {
 }
 
 func TestJavaTLCEmptyQuantifiedSafetyWithOtherProperty(t *testing.T) {
-	dir := t.TempDir()
-	body := "VARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == \\A v \\in {} : [](x # v)\nQ == <>(x = 1)"
-	writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nPROPERTY P Q\n")
-	args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", filepath.Join(dir, "M.tla")}
-	messages, code, stderr := runGoToolInDir(t, dir, args)
-	if code != 13 || stderr != "" || !hasToolMessage(messages, 2116) || hasToolMessage(messages, 2253) {
-		t.Fatalf("exit %d, messages %+v, stderr %s", code, messages, stderr)
-	}
-	if jar := os.Getenv("TLC_JAR"); jar != "" {
-		compareJavaToolMessages(t, jar, dir, code, messages)
+	for _, tc := range []struct {
+		name, property string
+		code, message  int
+	}{
+		{"temporal", "<>(x = 1)", 13, 2116},
+		{"safety", "[](x < 5)", 77, 2253},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = 0\nNext == x' = (x + 1) % 3\nP == \\A v \\in {} : [](x # v)\nQ == " + tc.property
+			writeDOTFixture(t, dir, body, "INIT Init\nNEXT Next\nPROPERTY P Q\n")
+			args := []string{"-tool", "-workers", "1", "-fp", "0", "-lncheck", "final", filepath.Join(dir, "M.tla")}
+			messages, code, stderr := runGoToolInDir(t, dir, args)
+			if code != tc.code || stderr != "" || !hasToolMessage(messages, tc.message) {
+				t.Fatalf("exit %d, messages %+v, stderr %s", code, messages, stderr)
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				compareJavaToolMessages(t, jar, dir, code, messages)
+			}
+		})
 	}
 }
 
