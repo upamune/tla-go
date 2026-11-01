@@ -42,8 +42,7 @@ func TestUpstreamCorpusProjection(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Tokens are local ordering metadata, outside the serialized AST projection.
-			got.SourceTokens = nil
+			got = upstreamProjection(t, got)
 			if !reflect.DeepEqual(*got, sample.Want) {
 				t.Fatalf("parsed AST differs from the upstream projection")
 			}

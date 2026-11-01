@@ -5,7 +5,7 @@ func (p *parser) letExpression() (*Expression, error) {
 	t := p.next()
 	p.pushRecursiveScope()
 	defer p.popRecursiveScope()
-	definitions, instances, err := p.letUnits()
+	definitions, instances, recursive, err := p.letUnits()
 	if err != nil {
 		return nil, err
 	}
@@ -16,12 +16,14 @@ func (p *parser) letExpression() (*Expression, error) {
 	result := node("Let", "", p.location(t, start), body)
 	result.Definitions = definitions
 	result.Instances = instances
+	result.RecursiveDeclarations = recursive
 	return result, nil
 }
 
 type letDefinitions struct {
 	definitions []Definition
 	instances   []Instance
+	recursive   []Declaration
 }
 
 func (u *letDefinitions) add(d Definition, inst *Instance) {
@@ -32,24 +34,26 @@ func (u *letDefinitions) add(d Definition, inst *Instance) {
 	}
 }
 
-func (p *parser) letUnits() ([]Definition, []Instance, error) {
+func (p *parser) letUnits() ([]Definition, []Instance, []Declaration, error) {
 	var result letDefinitions
 	for !p.accept("IN") {
 		if p.accept("RECURSIVE") {
-			if err := p.letRecursive(); err != nil {
-				return nil, nil, err
+			decls, err := p.declareRecursive()
+			if err != nil {
+				return nil, nil, nil, err
 			}
+			result.recursive = append(result.recursive, decls...)
 			continue
 		}
 		d, inst, err := p.definition(false)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		result.add(d, inst)
 	}
-	return result.definitions, result.instances, nil
+	return result.definitions, result.instances, result.recursive, nil
 }
-func (p *parser) letRecursive() error { _, err := p.declareRecursive(); return err }
+
 func (p *parser) fairness() (*Expression, error) {
 	start := p.pos
 	t := p.next()

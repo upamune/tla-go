@@ -38,9 +38,11 @@ type Expression struct {
 	Updates         []Update
 	Arms            []CaseArm
 	Definitions     []Definition
-	Instances       []Instance
-	Location        Location
-	Args            []*Expression
+	// RecursiveDeclarations is parse-time LET metadata omitted from the JSON projection.
+	RecursiveDeclarations []Declaration `json:"-"`
+	Instances             []Instance
+	Location              Location
+	Args                  []*Expression
 	// Instance metadata preserves substitution boundaries for ENABLED.
 	EnabledScopes   []string         `json:"-"`
 	EnabledBindings []EnabledBinding `json:"-"`

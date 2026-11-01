@@ -381,7 +381,9 @@ func CheckConfigWithLoader(ctx context.Context, source string, cfg config.Config
 	return checkParsedWithOptions(ctx, module, cfg, Options{Loader: loader})
 }
 
-// CheckModuleWithLoader checks a parsed module and configuration.
+// CheckModuleWithLoader checks a parsed module and configuration. Use the module
+// returned by parser.ParseModule directly: the JSON AST projection omits LET
+// recursive declarations, so a JSON round trip loses their validation metadata.
 func CheckModuleWithLoader(ctx context.Context, module *parser.Module, cfg config.Config, loader ModuleLoader) (Result, error) {
 	if module == nil {
 		return Result{}, fmt.Errorf("missing module")
@@ -389,7 +391,8 @@ func CheckModuleWithLoader(ctx context.Context, module *parser.Module, cfg confi
 	return checkParsedWithOptions(ctx, module, cfg, Options{Loader: loader})
 }
 
-// CheckModuleWithOptions checks a parsed module with an output callback.
+// CheckModuleWithOptions checks a parsed module with an output callback. As with
+// CheckModuleWithLoader, a JSON round trip loses LET recursive declaration metadata.
 func CheckModuleWithOptions(ctx context.Context, module *parser.Module, cfg config.Config, options Options) (Result, error) {
 	if module == nil {
 		return Result{}, fmt.Errorf("missing module")

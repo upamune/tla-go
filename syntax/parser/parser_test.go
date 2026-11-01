@@ -27,8 +27,7 @@ func TestUpstreamExamples(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Source tokens are metadata, not part of the upstream AST projection.
-			got.SourceTokens = nil
+			got = upstreamProjection(t, got)
 			if !reflect.DeepEqual(*got, f.Want) {
 				a, _ := json.Marshal(got)
 				b, _ := json.Marshal(f.Want)
@@ -36,6 +35,20 @@ func TestUpstreamExamples(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Ignore local-only metadata when comparing with the serialized upstream AST.
+func upstreamProjection(t *testing.T, module *Module) *Module {
+	t.Helper()
+	data, err := json.Marshal(module)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var projected Module
+	if err := json.Unmarshal(data, &projected); err != nil {
+		t.Fatal(err)
+	}
+	return &projected
 }
 
 func TestPrecedenceConflicts(t *testing.T) {
