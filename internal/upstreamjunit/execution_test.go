@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -152,6 +153,26 @@ Experimental: supports a subset of TLA+ model checking and simulation.
 Java TLC options: [-difftrace] [-terse] [-userFile file] [-cleanup] [-fpmem num] [-fpbits num] [-gzip] [-modelcheck] [-debug] [-generateSpecTE [nomonolith]]
 `
 
+// Match the complete observed Test10 stream, including severity, ordering, and
+// finish record. Variable process metadata is restricted to its expected form.
+var coverageShapeRejection = func() *regexp.Regexp {
+	pattern := `\A@!@!@STARTMSG 2262:0 @!@!@\ntla-go [^\n]+\n@!@!@ENDMSG 2262 @!@!@\n` +
+		`@!@!@STARTMSG 2187:0 @!@!@\nRunning breadth-first search Model-Checking with fp 0 and seed 0 with 1 worker on [0-9]+ cores\.\n@!@!@ENDMSG 2187 @!@!@\n` +
+		`@!@!@STARTMSG 2220:0 @!@!@\nStarting SANY-compatible analysis\.\.\.\n@!@!@ENDMSG 2220 @!@!@\n` +
+		`@!@!@STARTMSG 2219:0 @!@!@\nAnalysis finished\.\n@!@!@ENDMSG 2219 @!@!@\n` +
+		`@!@!@STARTMSG 2185:0 @!@!@\nStarting\.\.\. \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)\n@!@!@ENDMSG 2185 @!@!@\n`
+	for i := 1; i <= 31; i++ {
+		space := " "
+		if i == 27 {
+			space = "  "
+		}
+		pattern += fmt.Sprintf(`"Test %d%sOK"  TRUE\n`, i, space)
+	}
+	pattern += `@!@!@STARTMSG 1000:1 @!@!@\n-coverage does not yet support this model's action or expression forms\n@!@!@ENDMSG 1000 @!@!@\n` +
+		`@!@!@STARTMSG 2186:0 @!@!@\nFinished in [0-9]+(?:ms|s) at \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)\n@!@!@ENDMSG 2186 @!@!@\n\z`
+	return regexp.MustCompile(pattern)
+}()
+
 func runBridgeModel(run func(bool) (Result, error)) (Result, []bridgeRecord, []string, error) {
 	result, err := run(true)
 	if err != nil {
@@ -160,7 +181,16 @@ func runBridgeModel(run func(bool) (Result, error)) (Result, []bridgeRecord, []s
 	if result.TimedOut {
 		return result, nil, nil, fmt.Errorf("coverage invocation timed out")
 	}
-	fallback := result.ExitCode == 255 && result.Output == periodicCoverageRejection
+	fallbackReason := ""
+	if result.ExitCode == 255 {
+		switch {
+		case result.Output == periodicCoverageRejection:
+			fallbackReason = "periodic -coverage 1 unsupported"
+		case coverageShapeRejection.MatchString(result.Output):
+			fallbackReason = "coverage model shape unsupported"
+		}
+	}
+	fallback := fallbackReason != ""
 	if fallback {
 		result, err = run(false)
 		if err != nil {
@@ -175,13 +205,26 @@ func runBridgeModel(run func(bool) (Result, error)) (Result, []bridgeRecord, []s
 		return result, nil, nil, fmt.Errorf("invalid Go tool output: %w", err)
 	}
 	if fallback {
-		omissions = append(omissions, "coverage-enabled invocation rejected: periodic -coverage 1 unsupported")
+		omissions = append(omissions, "coverage-enabled invocation rejected: "+fallbackReason)
 	}
 	return result, records, omissions, nil
 }
 
 func TestBridgeCoverageFallbackClassification(t *testing.T) {
 	valid := "@!@!@STARTMSG 2199:0 @!@!@\n2 states generated, 1 distinct states found, 0 states left on queue.\n@!@!@ENDMSG 2199 @!@!@\n"
+	shape := msg("2262", "tla-go dev") +
+		msg("2187", "Running breadth-first search Model-Checking with fp 0 and seed 0 with 1 worker on 8 cores.") +
+		msg("2220", "Starting SANY-compatible analysis...") + msg("2219", "Analysis finished.") +
+		msg("2185", "Starting... (2026-11-01 13:36:31)")
+	for i := 1; i <= 31; i++ {
+		space := " "
+		if i == 27 {
+			space = "  "
+		}
+		shape += fmt.Sprintf("\"Test %d%sOK\"  TRUE\n", i, space)
+	}
+	shape += "@!@!@STARTMSG 1000:1 @!@!@\n-coverage does not yet support this model's action or expression forms\n@!@!@ENDMSG 1000 @!@!@\n" +
+		msg("2186", "Finished in 3ms at (2026-11-01 13:36:31)")
 	for _, tc := range []struct {
 		name      string
 		first     Result
@@ -192,6 +235,14 @@ func TestBridgeCoverageFallbackClassification(t *testing.T) {
 		ok        bool
 	}{
 		{"expected rejection", Result{ExitCode: 255, Output: periodicCoverageRejection}, nil, Result{Output: valid}, nil, 2, true},
+		{"shape rejection", Result{ExitCode: 255, Output: shape}, nil, Result{Output: valid}, nil, 2, true},
+		{"shape wrong severity", Result{ExitCode: 255, Output: strings.Replace(shape, "1000:1", "1000:0", 1)}, nil, Result{}, nil, 1, false},
+		{"shape wrong text", Result{ExitCode: 255, Output: strings.Replace(shape, "expression forms", "expression form", 1)}, nil, Result{}, nil, 1, false},
+		{"shape extra error", Result{ExitCode: 255, Output: shape + msg("1000", "unknown error")}, nil, Result{}, nil, 1, false},
+		{"shape truncated finish", Result{ExitCode: 255, Output: shape[:len(shape)-2]}, nil, Result{}, nil, 1, false},
+		{"shape malformed marker", Result{ExitCode: 255, Output: shape + "@!@!@STARTMSG"}, nil, Result{}, nil, 1, false},
+		{"shape wrong exit", Result{ExitCode: 1, Output: shape}, nil, Result{}, nil, 1, false},
+		{"shape timeout", Result{TimedOut: true, ExitCode: 255, Output: shape}, nil, Result{}, nil, 1, false},
 		{"coverage succeeds", Result{Output: valid}, nil, Result{}, nil, 1, true},
 		{"malformed marker", Result{Output: valid + "@!@!@BROKEN"}, nil, Result{}, nil, 1, false},
 		{"truncated message", Result{Output: "@!@!@STARTMSG 2199:0 @!@!@\npartial"}, nil, Result{}, nil, 1, false},
@@ -227,6 +278,22 @@ func TestBridgeCoverageFallbackClassification(t *testing.T) {
 				t.Fatalf("omissions=%v", omissions)
 			}
 		})
+	}
+}
+
+func TestBridgeCoverageSuccessRetainsObservations(t *testing.T) {
+	output := msg("2201", "start") + msg("2221", "line 1: 0") + msg("2202", "end")
+	calls := 0
+	result, records, omissions, err := runBridgeModel(func(coverage bool) (Result, error) {
+		calls++
+		return Result{Output: output}, nil
+	})
+	if err != nil || calls != 1 || result.Output != output {
+		t.Fatalf("calls=%d result=%+v err=%v", calls, result, err)
+	}
+	zero, err := ZeroCoverage(result)
+	if err != nil || len(zero) != 1 || len(records) != 1 || records[0].code != "2221" {
+		t.Fatalf("coverage=%v records=%v omissions=%v err=%v", zero, records, omissions, err)
 	}
 }
 

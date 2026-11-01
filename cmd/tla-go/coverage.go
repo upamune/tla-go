@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -9,6 +10,33 @@ import (
 	"github.com/upamune/tla-go/checker"
 	"github.com/upamune/tla-go/syntax/parser"
 )
+
+// Positive intervals are currently limited to runs completed before the first
+// interval. Cancel rather than emit an incomplete periodic coverage stream.
+func checkWithCoverageDeadline(ctx context.Context, interval time.Duration, withTimeout func(context.Context, time.Duration) (context.Context, context.CancelFunc), check func(context.Context) (checker.Result, error)) (checker.Result, error) {
+	return checkWithCoverageDeadlineClock(ctx, interval, withTimeout, time.Now, check)
+}
+
+func checkWithCoverageDeadlineClock(ctx context.Context, interval time.Duration, withTimeout func(context.Context, time.Duration) (context.Context, context.CancelFunc), now func() time.Time, check func(context.Context) (checker.Result, error)) (checker.Result, error) {
+	if interval == 0 {
+		return check(ctx)
+	}
+	// Java 1.7.4 starts with count = interval / progressInterval, checks it
+	// after the initial three-second wait, and decrements it after each check.
+	// Use the earlier of that first report and the effective interval.
+	firstReport := 3*time.Second + (interval/time.Minute)*time.Minute
+	if firstReport < interval {
+		interval = firstReport
+	}
+	start := now()
+	timed, cancel := withTimeout(ctx, interval)
+	defer cancel()
+	result, err := check(timed)
+	if ctx.Err() == nil && (timed.Err() == context.DeadlineExceeded || now().Sub(start) >= interval) {
+		return checker.Result{}, fmt.Errorf("-coverage interval elapsed; periodic coverage reports are not yet supported")
+	}
+	return result, err
+}
 
 func coverageLocation(r parser.Range) string {
 	return fmt.Sprintf("line %d, col %d to line %d, col %d of module %s", r.Start.Line, r.Start.Column, r.End.Line, r.End.Column, r.Module)

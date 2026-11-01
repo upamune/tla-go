@@ -143,12 +143,12 @@ Inv == x < 2
 			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\n"+tc.invariant), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			out, code, stderr := runGoInDir(t, dir, []string{"-workers", "1", "-coverage", "0", "M.tla"})
+			out, code, stderr := runGoInDir(t, dir, []string{"-workers", "1", "-coverage", "1", "M.tla"})
 			if code == 0 || stderr != "" || strings.Contains(out, "End of statistics.") == tc.omit {
 				t.Fatalf("exit %d stderr %s output %s", code, stderr, out)
 			}
 			if jar := os.Getenv("TLC_JAR"); jar != "" {
-				java, javaCode := runJavaTLCArgs(t, jar, dir, []string{"-workers", "1", "-coverage", "0", "M.tla"})
+				java, javaCode := runJavaTLCArgs(t, jar, dir, []string{"-workers", "1", "-coverage", "1", "M.tla"})
 				if javaCode == 0 {
 					t.Fatalf("Java unexpectedly succeeded: %s", java)
 				}

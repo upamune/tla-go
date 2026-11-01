@@ -259,9 +259,10 @@ go test -v ./internal/upstreamjunit -run 'Test(ValidateExecution|JUnitExecutionF
 ## Test10 assertion-method bridge (experimental, unsupported result)
 
 The opt-in `TestUpstreamJUnitExecution` also runs Go with coverage enabled on a
-separate copied model directory. Go rejects the upstream periodic `-coverage 1`
-setting; only the exact CLI rejection (exit 255 and complete expected output)
-permits a retry without coverage. Timeouts, other exits, and malformed or
+separate copied model directory. A retry without coverage is permitted only for
+exit 255 with either the exact legacy periodic-coverage CLI rejection or the
+complete observed Test10 tool stream reporting the unsupported coverage model
+shape. If coverage succeeds, its observations are retained. Timeouts, other exits, and malformed or
 truncated output fail the experiment. The driver records the omission and feeds
 a conservative projection of that output to a fresh upstream `Test10` instance. A JUnit wrapper invokes the
 original inherited `testSpec` method itself. It does not translate the method's

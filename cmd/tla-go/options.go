@@ -63,13 +63,12 @@ func parseCoverageOption(opts *options, args []string) (int, error) {
 	if err != nil {
 		return 0, commandLineError("Error: An integer for coverage report interval required. But encountered " + args[1])
 	}
-	if int32(minutes)*60*1000 < 0 {
+	milliseconds := int32(minutes) * 60 * 1000
+	if milliseconds < 0 {
 		return 0, commandLineError("Error: expect a nonnegative integer for -coverage option.")
 	}
-	if minutes != 0 {
-		return 0, fmt.Errorf("periodic -coverage reports are not yet supported; use 0")
-	}
 	opts.coverage = true
+	opts.coverageInterval = time.Duration(milliseconds) * time.Millisecond
 	return 1, nil
 }
 

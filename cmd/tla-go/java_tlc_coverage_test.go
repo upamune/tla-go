@@ -72,7 +72,7 @@ func TestJavaTLCUpstreamCoverageStatistics(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			args := []string{"-workers", "1", "-coverage", "0", "CoverageStatistics.tla"}
+			args := []string{"-workers", "1", "-coverage", "1", "CoverageStatistics.tla"}
 			out, code, stderr := runGoInDir(t, dir, args)
 			if code != 0 || stderr != "" {
 				t.Fatalf("exit %d, stderr %s, output %s", code, stderr, out)
@@ -258,7 +258,7 @@ Next == A \/ B
 }
 
 func TestCoverageUnsupportedModes(t *testing.T) {
-	for _, args := range [][]string{{"-coverage", "1", "M.tla"}, {"-coverage", "0", "-simulate", "M.tla"}, {"-coverage", "0", "-dfid", "3", "M.tla"}, {"-coverage", "0", "-continue", "M.tla"}} {
+	for _, args := range [][]string{{"-coverage", "1", "-simulate", "M.tla"}, {"-coverage", "0", "-simulate", "M.tla"}, {"-coverage", "0", "-dfid", "3", "M.tla"}, {"-coverage", "0", "-continue", "M.tla"}} {
 		if _, err := parseOptions(args); err == nil {
 			t.Errorf("accepted unsupported options %v", args)
 		}
@@ -330,7 +330,7 @@ func TestJavaTLCToolCoverage(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	args := []string{"-tool", "-workers", "1", "-coverage", "0", "CoverageStatistics.tla"}
+	args := []string{"-tool", "-workers", "1", "-coverage", "1", "CoverageStatistics.tla"}
 	out, code, stderr := runGoInDir(t, dir, args)
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d, stderr %s, output %s", code, stderr, out)
@@ -710,6 +710,36 @@ func TestCoverageRejectsUnsupportedInvariantCosts(t *testing.T) {
 			_, code, stderr := runGoInDir(t, dir, []string{"-coverage", "0", "M.tla"})
 			if code == 0 || !strings.Contains(stderr, "-coverage does not yet support") {
 				t.Fatalf("exit %d, stderr %s", code, stderr)
+			}
+		})
+	}
+}
+
+func TestJavaTLCCoverageWrappedIntervals(t *testing.T) {
+	dir := t.TempDir()
+	for _, ext := range []string{".tla", ".cfg"} {
+		name := "CoverageStatistics" + ext
+		data, err := os.ReadFile(filepath.Join("testdata", "java-tlc", "upstream-coverage", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	jar := os.Getenv("TLC_JAR")
+	for _, interval := range []string{"71583", "1073741824", "-2147483648"} {
+		t.Run(interval, func(t *testing.T) {
+			args := []string{"-workers", "1", "-coverage", interval, "CoverageStatistics.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			if code != 0 || stderr != "" {
+				t.Fatalf("exit %d stderr %s output %s", code, stderr, out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 0 || coverageReport(t, out) != coverageReport(t, java) {
+					t.Fatalf("Go exit %d:\n%s\nJava exit %d:\n%s", code, out, javaCode, java)
+				}
 			}
 		})
 	}
