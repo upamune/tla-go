@@ -2,6 +2,7 @@ package value
 
 import (
 	"fmt"
+	"math"
 	"sync"
 )
 
@@ -104,6 +105,12 @@ func (v Value) lazyPairs() ([]Pair, error) {
 	if v.data.domain.kind == InfiniteSetKind {
 		return nil, &TLCError{Message: fmt.Sprintf("Attempted to compute the number of elements in the overridden value %s.", v.data.domain)}
 	}
+	if v.data.domain.kind == ProductSetKind || v.data.domain.kind == FunctionSetKind {
+		_, _, err := lazyProductSize(v.data.domain)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var pairs []Pair
 	err := v.data.domain.Each(func(key Value) (bool, error) {
 		item, err := v.Lookup(key)
@@ -114,6 +121,156 @@ func (v Value) lazyPairs() ([]Pair, error) {
 		return true, nil
 	})
 	return pairs, err
+}
+
+// TLC sizes function parameters before enumerating or evaluating their bodies.
+// Only inspect sizes that are cheap and have no evaluation side effects; an
+// unknown factor leaves the existing enumeration path intact.
+func lazyProductSize(v Value) (int64, bool, error) {
+	switch v.kind {
+	case InfiniteSetKind:
+		return 0, true, &TLCError{Message: fmt.Sprintf("Attempted to compute the number of elements in the overridden value %s.", v)}
+	case SetKind:
+		return int64(len(v.data.elements)), true, nil
+	case IntervalKind:
+		n, err := equalityIntervalSize(v)
+		return n, true, err
+	case SubsetKind:
+		return lazySubsetSize(v)
+	case FunctionSetKind:
+		return lazyFunctionSetSize(v)
+	case ProductSetKind:
+		return lazyProductFactorsSize(v)
+	case RecordSetKind:
+		return lazyRecordSetSize(v)
+	default:
+		return 0, false, nil
+	}
+}
+
+// Record fields are sorted in Go, but Java can size them in a different
+// order. For multiple fields only use the result when every ordering is safe.
+func lazyRecordSetSize(v Value) (int64, bool, error) {
+	if len(v.data.pairs) <= 1 {
+		return lazyProductFactorsSize(v)
+	}
+	sizes := recordSizeProduct{size: 1}
+	for _, field := range v.data.pairs {
+		if !sizes.addField(field.Value) {
+			return 0, false, nil
+		}
+	}
+	return sizes.result()
+}
+
+func (p recordSizeProduct) result() (int64, bool, error) {
+	if p.overflow {
+		if p.empty || p.fieldErr != nil {
+			return 0, false, nil
+		}
+		return 0, true, lazySizeOverflow()
+	}
+	if p.fieldErr != nil {
+		return 0, true, p.fieldErr
+	}
+	if p.empty {
+		return 0, true, nil
+	}
+	return p.size, true, nil
+}
+
+type recordSizeProduct struct {
+	size            int64
+	empty, overflow bool
+	fieldErr        error
+}
+
+func (p *recordSizeProduct) addField(field Value) bool {
+	n, known, err := lazyProductSize(field)
+	if !known {
+		return false
+	}
+	if err != nil {
+		if p.fieldErr != nil {
+			return false
+		}
+		p.fieldErr = err
+	} else {
+		p.add(n)
+	}
+	return true
+}
+
+func (p *recordSizeProduct) add(n int64) {
+	if n == 0 {
+		p.empty = true
+	} else if !p.overflow && p.size > math.MaxInt32/n {
+		p.overflow = true
+	} else if !p.overflow {
+		p.size *= n
+	}
+}
+
+func lazySubsetSize(v Value) (int64, bool, error) {
+	n, known, err := lazyProductSize(v.data.domain)
+	if err != nil || !known {
+		return 0, known, err
+	}
+	if n >= 31 {
+		message := "Overflow when computing the number of elements"
+		if v.data.domain.kind == IntervalKind {
+			message += " in:\nSUBSET " + v.data.domain.String()
+		}
+		return 0, true, &UnexpectedError{Message: message, TLCAssert: true, ToolCode: 2178}
+	}
+	return int64(1) << uint(n), true, nil
+}
+
+func lazyFunctionSetSize(v Value) (int64, bool, error) {
+	domain, known, err := lazyProductSize(v.data.domain)
+	if err != nil || !known {
+		return 0, known, err
+	}
+	base, known, err := lazyProductSize(v.data.codomain)
+	if err != nil || !known {
+		return 0, known, err
+	}
+	return lazyFunctionSetPower(base, domain)
+}
+
+func lazyFunctionSetPower(base, domain int64) (int64, bool, error) {
+	if domain == 0 || base == 1 {
+		return 1, true, nil
+	}
+	if base == 0 {
+		return 0, true, nil
+	}
+	n, err := checkedPower(base, domain)
+	if err != nil {
+		return 0, true, lazySizeOverflow()
+	}
+	return n, true, nil
+}
+
+func lazyProductFactorsSize(product Value) (int64, bool, error) {
+	size := int64(1)
+	for _, factor := range product.data.pairs {
+		n, known, err := lazyProductSize(factor.Value)
+		if err != nil || !known {
+			return 0, known, err
+		}
+		if n != 0 && size > math.MaxInt32/n {
+			return 0, true, lazySizeOverflow()
+		}
+		size *= n
+	}
+	return size, true, nil
+}
+
+func lazySizeOverflow() error {
+	// Rendering arbitrary set elements can materialize lazy functions and run
+	// their bodies while constructing the error itself.
+	return &TLCError{Message: "Overflow when computing the number of elements"}
 }
 
 func (v Value) materializedFunction() (Value, error) {

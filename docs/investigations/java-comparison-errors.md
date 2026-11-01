@@ -143,6 +143,45 @@ Failed materialization, other definition forms, and concurrent effects have not
 been characterized; changing caching needs separate Java-oracle investigation.
 
 For `LET f[x \in Nat, y \in Nat] == x IN f = f`, Java TLC 1.7.4
-reports that it cannot compute the cardinality of `Nat` and exits 10. Go
-currently reports `expected an enumerable set`: a product domain containing
-an infinite set is not covered by the single-domain materialization error.
+reports that it cannot compute the number of elements in `Nat` and exits 10.
+Go now matches this for products of explicit sets, intervals, nested products,
+and the overridden infinite sets. Java sizes factors from left to right even
+after an empty factor, before evaluating any function body; all bound expressions
+are evaluated first. Tests compare Nat, Int, ANY, tuple bounds, nested products,
+empty and finite factors, and effectful bounds against the pinned JAR. A direct
+Java API probe of `FcnParams.size()` and `SetOfTuplesValue.size()` with empty,
+Int, and Nat factors reports Int in both cases. Go's equality, distinct-function
+comparison, pairs, key, and fingerprint paths have matching value-level tests.
+
+The sizing pass also handles powersets, function sets and record sets whose
+component sizes it can determine without enumeration, and stops at the first
+overflow. It checks a single function-set domain as well as product domains.
+Go sorts record fields, whereas Java sizes them in `UniqueString` intern order.
+For multiple fields, the pass reports a single field error if all other sizes
+are known and their nonzero product cannot overflow. It reports product overflow
+if all sizes are known and nonzero; otherwise it accepts a size only when every
+field order gives that size, and falls back to enumeration for ambiguous cases.
+For example, `[a : Nat, b : Int]` can report either overridden value depending
+on prior field-name interning; a zero alongside overflowing factors can suppress
+overflow depending on order. Fallback can still miss the Java error, evaluate a
+body early, or enumerate a large set in these cases. Exact behavior requires
+intern provenance, including prior field names, across parsing and evaluation.
+`TestJavaTLCRecordSetMultipleErrorsInternOrder` captures three Java orderings.
+Union, set operations,
+filtered sets and sequence sets also remain unknown: determining their sizes
+may enumerate values, invoke predicates, or change errors and effects. An
+unknown factor stops the pass, so subsequent overflow is not guaranteed to be
+detected before enumeration or body evaluation. Go's overflow
+diagnostic omits the product or parameter bindings Java prints: formatting
+arbitrary elements can itself materialize lazy values and evaluate their bodies.
+The direct ordering API still has its identity shortcut for a function itself.
+
+Finite multi-bound function bodies have a separate ordering gap. For
+`LET f[x \in {2,1}, y \in {4,3}] == Print("body", <<x,y>>) IN f = f`, Java
+TLC 1.7.4 evaluates `<<1,3>>, <<2,3>>, <<1,4>>, <<2,4>>`, while Go evaluates
+`<<1,3>>, <<1,4>>, <<2,3>>, <<2,4>>`. This can change the first body error.
+Go's Cartesian enumerator is shared by other set consumers, and a function
+domain can also contain a nested Cartesian product as a single bound. Reversing
+that shared enumerator would change those operations too; the function-specific
+enumeration and nested-bound semantics require separate oracle coverage before
+changing their order.

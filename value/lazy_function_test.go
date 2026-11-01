@@ -208,3 +208,157 @@ func TestLazyFunctionFiniteMaterializationConsumers(t *testing.T) {
 		t.Fatalf("fingerprint = %d, want %d; error = %v", got, want, err)
 	}
 }
+
+func TestLazyFunctionProductMaterialization(t *testing.T) {
+	empty, _ := Set(nil)
+	nested, _ := ProductSet([]Value{empty, Integers(), NaturalNumbers()})
+	domain, _ := ProductSet([]Value{Interval(1, 2000000000), nested})
+	calls := 0
+	makeFunction := func() Value {
+		f, err := LazyFunction(domain, func(k, _ Value) (Value, error) {
+			calls++
+			return k, nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	f, g := makeFunction(), makeFunction()
+	checks := map[string]func() error{
+		"equal":       func() error { _, err := Equal(f, f); return err },
+		"compare":     func() error { _, err := Compare(f, g); return err },
+		"pairs":       func() error { _, err := f.Pairs(); return err },
+		"key":         func() error { _, err := f.Key(); return err },
+		"fingerprint": func() error { _, err := TLCFingerprint([]Value{f}); return err },
+	}
+	for name, check := range checks {
+		t.Run(name, func(t *testing.T) {
+			var tlcErr *TLCError
+			err := check()
+			if !errors.As(err, &tlcErr) || err.Error() != "Attempted to compute the number of elements in the overridden value Int." {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+	if calls != 0 {
+		t.Fatalf("body called %d times", calls)
+	}
+}
+
+func TestLazyProductSizeStopsAtUnknown(t *testing.T) {
+	unknown := Sequences(Interval(1, 1))
+	domain, _ := ProductSet([]Value{unknown, NaturalNumbers()})
+	if _, known, err := lazyProductSize(domain); known || err != nil {
+		t.Fatalf("size known = %v, error = %v", known, err)
+	}
+}
+
+func TestLazyFunctionSymbolicDomainOverflow(t *testing.T) {
+	one, _ := Integer(1)
+	field, _ := RecordSet([]Pair{{String("k"), Interval(1, 1)}})
+	product, _ := ProductSet([]Value{field, Interval(1, 50000), Interval(1, 50000)})
+	functionSet, _ := FunctionSet(Interval(1, 31), Interval(1, 2))
+	for _, domain := range []Value{product, functionSet} {
+		calls := 0
+		fn, _ := LazyFunction(domain, func(_, _ Value) (Value, error) { calls++; return one, nil })
+		checks := []func() error{
+			func() error { _, err := fn.Pairs(); return err },
+			func() error { _, err := fn.Key(); return err },
+			func() error { _, err := TLCFingerprint([]Value{fn}); return err },
+			func() error { _, err := Equal(fn, fn); return err },
+		}
+		for _, check := range checks {
+			if allocs := testing.AllocsPerRun(3, func() {
+				if err := check(); err == nil || !strings.Contains(err.Error(), "Overflow when computing the number of elements") {
+					t.Fatalf("error = %v", err)
+				}
+			}); allocs > 100 {
+				t.Fatalf("overflow used %.0f allocations", allocs)
+			}
+		}
+		if calls != 0 {
+			t.Fatalf("body called %d times", calls)
+		}
+	}
+}
+
+func TestLazyRecordSetSizeConservative(t *testing.T) {
+	for _, tc := range []struct {
+		fields []Pair
+		size   int64
+		known  bool
+	}{
+		{nil, 1, true},
+		{[]Pair{{String("a"), Interval(1, 2)}, {String("b"), Interval(1, 3)}}, 6, true},
+		{[]Pair{{String("a"), Interval(1, 0)}, {String("b"), Interval(1, 50000)}, {String("c"), Interval(1, 50000)}}, 0, false},
+		{[]Pair{{String("a"), NaturalNumbers()}, {String("b"), Integers()}}, 0, false},
+		{[]Pair{{String("a"), NaturalNumbers()}, {String("b"), Interval(1, 50000)}, {String("c"), Interval(1, 50000)}}, 0, false},
+	} {
+		record, err := RecordSet(tc.fields)
+		if err != nil {
+			t.Fatal(err)
+		}
+		size, known, err := lazyProductSize(record)
+		if size != tc.size || known != tc.known || err != nil {
+			t.Fatalf("size = %d, known = %v, error = %v", size, known, err)
+		}
+	}
+}
+
+func TestLazyRecordSetOrderIndependentErrors(t *testing.T) {
+	inner, _ := RecordSet([]Pair{{String("a"), Interval(1, 50000)}, {String("b"), Interval(1, 50000)}})
+	for _, fields := range [][]Pair{
+		{{String("a"), Interval(1, 0)}, {String("b"), NaturalNumbers()}},
+		{{String("a"), Interval(1, 50000)}, {String("b"), Interval(1, 50000)}},
+		{{String("a"), inner}, {String("b"), Interval(1, 1)}},
+	} {
+		record, _ := RecordSet(fields)
+		domain, _ := ProductSet([]Value{record, Interval(1, 1)})
+		calls := 0
+		fn, _ := LazyFunction(domain, func(k, _ Value) (Value, error) { calls++; return k, nil })
+		if allocs := testing.AllocsPerRun(3, func() {
+			if _, err := fn.Pairs(); err == nil {
+				t.Fatal("expected size error")
+			}
+		}); allocs > 100 || calls != 0 {
+			t.Fatalf("allocations = %.0f, body calls = %d", allocs, calls)
+		}
+	}
+}
+
+func TestLazyProductOverflowDoesNotEnumerate(t *testing.T) {
+	empty, _ := Set(nil)
+	for _, last := range []Value{empty, Interval(1, 1), NaturalNumbers()} {
+		domain, _ := ProductSet([]Value{Interval(1, 50000), Interval(1, 50000), last})
+		calls := 0
+		fn, _ := LazyFunction(domain, func(k, _ Value) (Value, error) { calls++; return k, nil })
+		_, err := fn.Pairs()
+		if err == nil || !strings.Contains(err.Error(), "Overflow when computing the number of elements") || calls != 0 {
+			t.Fatalf("error = %v, body calls = %d", err, calls)
+		}
+	}
+	nested, _ := ProductSet([]Value{Interval(1, 50000), Interval(1, 50000)})
+	domain, _ := ProductSet([]Value{nested, NaturalNumbers()})
+	fn, _ := LazyFunction(domain, func(k, _ Value) (Value, error) { t.Fatal("body evaluated"); return k, nil })
+	if allocs := testing.AllocsPerRun(3, func() {
+		if _, err := fn.Pairs(); err == nil {
+			t.Fatal("expected overflow")
+		}
+	}); allocs > 100 {
+		t.Fatalf("overflow used %.0f allocations", allocs)
+	}
+}
+
+func TestLazyProductOverflowDoesNotRenderLaterFactors(t *testing.T) {
+	calls := 0
+	item, _ := LazyFunction(Interval(1, 1), func(k, _ Value) (Value, error) { calls++; return k, nil })
+	// The payload is built directly so constructing the set does not itself
+	// normalize the lazy function before the overflow check.
+	later := Value{kind: SetKind, data: &payload{elements: []Value{item}}}
+	domain, _ := ProductSet([]Value{Interval(1, 50000), Interval(1, 50000), later})
+	fn, _ := LazyFunction(domain, func(k, _ Value) (Value, error) { calls++; return k, nil })
+	if _, err := fn.Pairs(); err == nil || calls != 0 {
+		t.Fatalf("error = %v, body calls = %d", err, calls)
+	}
+}
