@@ -17,7 +17,7 @@ import (
 const workerModel = "VARIABLES x, y\nInit == x = 0 /\\ y = 0\nNext == x' \\in 0..3 /\\ y' = (y + x) % 4\nInv == x \\in 0..3"
 
 // Java TLC accepts any positive worker count and checkpoint interval. tla-go
-// accepts them but explores states sequentially and writes no checkpoints.
+// accepts them and writes no checkpoints; eligible BFS searches may run in parallel.
 func TestJavaTLCWorkerAndCheckpointOptions(t *testing.T) {
 	for _, tc := range []struct {
 		args    []string
