@@ -75,6 +75,18 @@ Java TLC 1.7.4 and 1.8.0 differ on some temporal formulas. For example, `~(\E i 
 
 Configuration syntax errors also differ: Java TLC 1.7.4 wraps them in an unexpected exception and exits 255; Java TLC 1.8.0 emits the configuration error directly and exits 151. tla-go currently follows the 1.7.4 behavior.
 
+In `-tool` mode, a missing or unreadable root module exits 151 in tla-go but 150
+in Java TLC 1.7.4. Both emit SANY start, SANY end, starting, parse failure, and
+finished tool messages; the unframed diagnostics still differ. Java's recorder
+also receives two calls for parse failure 3002,
+while the partial Go recorder diagnostics do not model them. In ordinary mode,
+for example, a syntax error causes Java to print SANY diagnostics, starting,
+failure and finished messages on stdout; tla-go instead prints its error on
+stderr. For a missing imported module or missing root, Java also writes search
+diagnostics to stderr. For missing or invalid configuration, both exit 255 and
+report a configuration exception on stdout, but tla-go omits Java's finished
+message. Ordinary output compatibility in these cases remains incomplete.
+
 Java TLC 1.7.4's configuration lexer treats some invalid tokens as end of input. tla-go follows this behavior, so an invalid character or unfinished comment after valid directives may leave those directives in effect. Configuration syntax and diagnostics are still not fully compatible.
 
 ## Language and modules

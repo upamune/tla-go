@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/upamune/tla-go/checker"
@@ -233,6 +234,9 @@ func printToolStatistics(t toolOutput, result checker.Result) {
 	t.message(2199, 0, counts)
 	if result.Failure != nil && result.Failure.SuppressDepth {
 		return
+	}
+	if t.recorder != nil {
+		recordStrings(t.recorder, 2194, strconv.Itoa(result.Depth))
 	}
 	t.message(2194, 0, fmt.Sprintf("The depth of the complete state graph search is %d.", result.Depth))
 	if result.HasOutDegrees {

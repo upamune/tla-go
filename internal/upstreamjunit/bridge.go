@@ -46,6 +46,7 @@ var (
 	bridgeCost     = regexp.MustCompile(`^  (.+): ([0-9]+):([0-9]+)$`)
 	bridgeAction   = regexp.MustCompile(`^(<[^\n]+>): ([0-9]+):([0-9]+)$`)
 	bridgeProperty = regexp.MustCompile(`^(<[^\n]+>)$`)
+	bridgeStarting = regexp.MustCompile(`^Starting\.\.\. \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)$`)
 )
 
 // projectBridge is deliberately incomplete: every unrepresentable message is
@@ -78,6 +79,22 @@ func projectBridge(output string) ([]bridgeRecord, []string, error) {
 }
 
 func projectMessage(id, body string) (bridgeRecord, string) {
+	switch id {
+	case "2185":
+		if bridgeStarting.MatchString(body) {
+			return bridgeRecord{id, nil}, ""
+		}
+		return bridgeRecord{}, "unsupported arguments for message " + id
+	case "2189":
+		if body == "Computing initial states..." {
+			return bridgeRecord{id, nil}, ""
+		}
+		return bridgeRecord{}, "unsupported arguments for message " + id
+	}
+	return projectParameterizedMessage(id, body)
+}
+
+func projectParameterizedMessage(id, body string) (bridgeRecord, string) {
 	var m []string
 	switch id {
 	case "2186":

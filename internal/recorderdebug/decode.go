@@ -89,6 +89,9 @@ func decodeLine(line []byte) (Event, error) {
 	if err := validateFieldSet(keys, raw.Kind); err != nil {
 		return Event{}, err
 	}
+	if raw.Kind == "record" && raw.Values == nil {
+		return Event{}, fmt.Errorf("recorder values must be an array")
+	}
 	event := Event{Kind: raw.Kind, Version: raw.Version, Complete: *raw.Complete, Code: raw.Code, Array: raw.Array}
 	values, err := decodeValues(raw.Values)
 	event.Values = values
@@ -190,13 +193,16 @@ func validate(event Event, index int) error {
 }
 
 func validateRecordPayload(event Event) error {
-	if n := recordArity(event.Code); n != 0 && len(event.Values) == n && validRecordValues(event) {
+	if n := recordArity(event.Code); n >= 0 && len(event.Values) == n && validRecordValues(event) {
 		return nil
 	}
 	return fmt.Errorf("unsupported recorder code or arguments: %d", event.Code)
 }
 
 func validRecordValues(event Event) bool {
+	if event.Code == 2190 || event.Code == 2191 {
+		return validInitialValues(event.Values)
+	}
 	for _, value := range event.Values {
 		if event.Code == 2186 {
 			var ok bool
@@ -210,6 +216,20 @@ func validRecordValues(event Event) bool {
 		}
 	}
 	return true
+}
+
+func validInitialValues(values []string) bool {
+	if !decimal(values[0]) {
+		return false
+	}
+	plural := "s"
+	if values[0] == "1" {
+		plural = ""
+	}
+	if values[1] != plural {
+		return false
+	}
+	return len(values) == 2 || decimal(values[2])
 }
 
 func decimal(s string) bool {
@@ -226,12 +246,16 @@ func decimal(s string) bool {
 
 func recordArity(code int) int {
 	switch code {
-	case 2199:
+	case 2185, 2189, 2219, 2220:
+		return 0
+	case 2190:
+		return 2
+	case 2191, 2199:
 		return 3
-	case 2186:
+	case 2194, 2269, 2186:
 		return 1
 	default:
-		return 0
+		return -1
 	}
 }
 

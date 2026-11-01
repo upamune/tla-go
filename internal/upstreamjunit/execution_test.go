@@ -160,8 +160,8 @@ TLA_GO_DEBUG_RECORDER=FILE writes partial recorder diagnostics to a new file in 
 var coverageShapeRejection = func() *regexp.Regexp {
 	pattern := `\A@!@!@STARTMSG 2262:0 @!@!@\ntla-go [^\n]+\n@!@!@ENDMSG 2262 @!@!@\n` +
 		`@!@!@STARTMSG 2187:0 @!@!@\nRunning breadth-first search Model-Checking with fp 0 and seed 0 with 1 worker on [0-9]+ cores\.\n@!@!@ENDMSG 2187 @!@!@\n` +
-		`@!@!@STARTMSG 2220:0 @!@!@\nStarting SANY-compatible analysis\.\.\.\n@!@!@ENDMSG 2220 @!@!@\n` +
-		`@!@!@STARTMSG 2219:0 @!@!@\nAnalysis finished\.\n@!@!@ENDMSG 2219 @!@!@\n` +
+		`@!@!@STARTMSG 2220:0 @!@!@\nStarting SANY\.\.\.\n@!@!@ENDMSG 2220 @!@!@\n` +
+		`@!@!@STARTMSG 2219:0 @!@!@\nSANY finished\.\n@!@!@ENDMSG 2219 @!@!@\n` +
 		`@!@!@STARTMSG 2185:0 @!@!@\nStarting\.\.\. \([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\)\n@!@!@ENDMSG 2185 @!@!@\n`
 	for i := 1; i <= 31; i++ {
 		space := " "
@@ -216,7 +216,7 @@ func TestBridgeCoverageFallbackClassification(t *testing.T) {
 	valid := "@!@!@STARTMSG 2199:0 @!@!@\n2 states generated, 1 distinct states found, 0 states left on queue.\n@!@!@ENDMSG 2199 @!@!@\n"
 	shape := msg("2262", "tla-go dev") +
 		msg("2187", "Running breadth-first search Model-Checking with fp 0 and seed 0 with 1 worker on 8 cores.") +
-		msg("2220", "Starting SANY-compatible analysis...") + msg("2219", "Analysis finished.") +
+		msg("2220", "Starting SANY...") + msg("2219", "SANY finished.") +
 		msg("2185", "Starting... (2026-11-01 13:36:31)")
 	for i := 1; i <= 31; i++ {
 		space := " "

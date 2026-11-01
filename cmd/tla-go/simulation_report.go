@@ -73,7 +73,14 @@ func configuredSearchOutput(opts options, out io.Writer) func(checker.SearchEven
 		return depthFirstSearchOutput(opts.tool, out)
 	}
 	if opts.tool {
-		return func(event checker.SearchEvent) { printToolSearch(out, event) }
+		if opts.recorder == nil {
+			return func(event checker.SearchEvent) { printToolSearch(out, event) }
+		}
+		recorder := opts.recorder
+		return func(event checker.SearchEvent) {
+			recordSearchEvent(recorder, event)
+			printToolSearch(out, event)
+		}
 	}
 	if opts.simulate {
 		return func(event checker.SearchEvent) {

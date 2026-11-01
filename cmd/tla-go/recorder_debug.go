@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/upamune/tla-go/checker"
 	"github.com/upamune/tla-go/internal/recorderdebug"
@@ -14,6 +15,7 @@ import (
 type recorderConfig struct {
 	path string
 	file *profileFile
+	mu   sync.Mutex
 }
 
 const recorderModeError = "TLA_GO_DEBUG_RECORDER requires one model in tool model-checking mode"
@@ -48,7 +50,11 @@ func configureRecorder(opts *options) error {
 }
 
 func recorderModelCheckMode(opts options) bool {
-	return opts.tool && !opts.simulate && !opts.dfid && !opts.help && !opts.version && !opts.sanyMetadata && len(opts.paths) == 1
+	return opts.tool && !opts.simulate && !opts.dfid && !opts.help && !opts.version && !opts.sanyMetadata && len(opts.paths) == 1 && recorderOrdinarySearch(opts)
+}
+
+func recorderOrdinarySearch(opts options) bool {
+	return opts.recoverDir == "" && opts.checkpointInterval == 0
 }
 
 func recorderPath(opts options) string {
@@ -56,13 +62,6 @@ func recorderPath(opts options) string {
 		return ""
 	}
 	return opts.recorder.path
-}
-
-func recorderFile(opts options) *profileFile {
-	if opts.recorder == nil {
-		return nil
-	}
-	return opts.recorder.file
 }
 
 func bindRecorder(opts *options, file *profileFile) {
@@ -78,17 +77,49 @@ func configureDiagnosticOptions(opts *options, out io.Writer) error {
 	return validateOutputPaths(*opts, out)
 }
 
-func recordStrings(recorder *profileFile, code int, values ...string) {
+func recordStrings(recorder *recorderConfig, code int, values ...string) {
 	if recorder == nil {
 		return
 	}
+	if values == nil {
+		values = []string{}
+	}
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
 	// profileFile retains write errors for runWithInput's deferred close.
-	_ = json.NewEncoder(recorder).Encode(recorderdebug.Event{Kind: "record", Code: code, Array: "strings", Values: values})
+	_ = json.NewEncoder(recorder.file).Encode(recorderRecord{Kind: "record", Code: code, Array: "strings", Values: values})
 }
 
-func recordStatistics(recorder *profileFile, result checker.Result) {
+type recorderRecord struct {
+	Kind     string   `json:"kind"`
+	Complete bool     `json:"complete"`
+	Code     int      `json:"code"`
+	Array    string   `json:"array"`
+	Values   []string `json:"values"`
+}
+
+func recordStatistics(recorder *recorderConfig, result checker.Result) {
 	if recorder == nil {
 		return
 	}
 	recordStrings(recorder, 2199, strconv.Itoa(result.GeneratedStates), strconv.Itoa(result.DistinctStates), strconv.Itoa(result.QueuedStates))
+}
+
+func recordSearchEvent(recorder *recorderConfig, event checker.SearchEvent) {
+	if recorder == nil {
+		return
+	}
+	switch event.Kind {
+	case checker.InitialStart:
+		recordStrings(recorder, 2189)
+	case checker.InitialProgress:
+		recordStrings(recorder, 2269, strconv.Itoa(event.GeneratedStates))
+	case checker.InitialComplete:
+		generated, distinct := event.GeneratedStates, event.DistinctStates
+		if generated == distinct {
+			recordStrings(recorder, 2190, strconv.Itoa(generated), plural(generated))
+		} else {
+			recordStrings(recorder, 2191, strconv.Itoa(generated), plural(generated), strconv.Itoa(distinct))
+		}
+	}
 }

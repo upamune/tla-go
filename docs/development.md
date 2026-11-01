@@ -108,20 +108,22 @@ For supported reduced tableau checks, `-debug-liveness` emits `tableau-node` eve
 ### Recorder diagnostics
 
 For recorder investigations, set `TLA_GO_DEBUG_RECORDER` to a new file path
-when running one model in `-tool` breadth-first model-checking mode. The file
-is created exclusively with mode 0600. Translation, metadata, version, and help modes
-reject the variable without creating a file. Its JSON lines start with a version 1
-header marking the stream incomplete, followed by selected observations in
-emission order. Currently these are state statistics (2199) and the finish
-call (2186), each with a `strings` array. Their values come directly from Go's
-result and timer, rather than parsed tool text. A Java TLC 1.7.4 recorder probe
-checks argument types and deterministic statistics for an empty model;
+when running one model in `-tool` breadth-first model-checking mode. Active
+checkpointing and recovery are unsupported; `-checkpoint 0` is accepted.
+The file is created exclusively with mode 0600. Translation, metadata,
+version, help, simulation, and DFID modes reject the variable without creating
+a file. JSON lines start with a version 1 header marking the stream incomplete,
+followed by selected observations in emission order: SANY start/end, starting,
+initial-state start/progress/completion, statistics, search depth, and finish.
+Their `strings` arrays come from Go events and results rather than parsed tool
+text. A Java TLC 1.7.4 recorder probe compares these selected calls and argument
+types across successful and failing models, in tool and non-tool mode; finish
 durations naturally differ.
 
 Other recorder calls, hidden calls, Java object values, and ordering relative
 to unobserved calls are not represented. This debugging aid is not a complete
 Java recorder or evidence that the upstream JUnit suite passes. The EmptyTest
-bridge consumes these two observations while retaining its incomplete verdict.
+bridge consumes the selected observations while retaining its incomplete verdict.
 Diagnostic file failures cause a nonzero exit. The option is off by default
 and does not reevaluate model expressions.
 

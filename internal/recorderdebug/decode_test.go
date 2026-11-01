@@ -62,3 +62,34 @@ func TestDecodeRejectsCaseAliases(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeSearchRecords(t *testing.T) {
+	header := `{"kind":"header","version":1,"complete":false}` + "\n"
+	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2220,"array":"strings","values":[]}`,
+		`{"kind":"record","complete":false,"code":2219,"array":"strings","values":[]}`,
+		`{"kind":"record","complete":false,"code":2185,"array":"strings","values":[]}`,
+		`{"kind":"record","complete":false,"code":2189,"array":"strings","values":[]}`,
+		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["0","s"]}`,
+		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["1",""]}`,
+		`{"kind":"record","complete":false,"code":2191,"array":"strings","values":["2","s","1"]}`,
+		`{"kind":"record","complete":false,"code":2194,"array":"strings","values":["1"]}`,
+		`{"kind":"record","complete":false,"code":2269,"array":"strings","values":["2"]}`,
+	} {
+		if _, err := Decode(strings.NewReader(header + record + "\n")); err != nil {
+			t.Errorf("valid event %s: %v", record, err)
+		}
+	}
+	for _, record := range []string{
+		`{"kind":"record","complete":false,"code":2189,"array":"strings","values":null}`,
+		`{"kind":"record","complete":false,"code":2189,"array":"strings","values":[""]}`,
+		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["0",""]}`,
+		`{"kind":"record","complete":false,"code":2190,"array":"strings","values":["1","s"]}`,
+		`{"kind":"record","complete":false,"code":2191,"array":"strings","values":["2","s","x"]}`,
+		`{"kind":"record","complete":false,"code":2194,"array":"strings","values":[null]}`,
+	} {
+		if _, err := Decode(strings.NewReader(header + record + "\n")); err == nil {
+			t.Errorf("accepted invalid event %s", record)
+		}
+	}
+}

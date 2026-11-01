@@ -44,6 +44,7 @@ func originalEmptyGoHelper() error {
 		return err
 	}
 	omissions = append(omissions, "recorder diagnostics cover only selected calls; other recorder calls remain unknown")
+	omissions = append(omissions, "finish duration is from tool mode, not the original non-tool recorder")
 	encoded, err := originalEmptyRecords(records, mode)
 	if err != nil {
 		return err

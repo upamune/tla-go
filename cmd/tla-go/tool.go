@@ -18,7 +18,7 @@ import (
 type toolOutput struct {
 	out      io.Writer
 	started  time.Time
-	recorder *profileFile
+	recorder *recorderConfig
 }
 
 func (t toolOutput) message(code, level int, body string) {
@@ -105,7 +105,7 @@ func plural(n int) string {
 }
 
 func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int {
-	t := toolOutput{out: out, started: time.Now(), recorder: recorderFile(opts)}
+	t := toolOutput{out: out, started: time.Now(), recorder: opts.recorder}
 	defer t.finish()
 	t.message(2262, 0, "tla-go "+version)
 	printToolModeBanner(t, opts)
@@ -121,17 +121,20 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 		printToolConfigError(t, configPath, err)
 		return 255
 	}
-	t.message(2220, 0, "Starting SANY-compatible analysis...")
+	recordStrings(t.recorder, 2220)
+	t.message(2220, 0, "Starting SANY...")
 	var diagnostic bytes.Buffer
 	module, source, code := loadModuleWithSource(specPath, opts.libraryPaths, &diagnostic)
 	endParsing()
 	if code != 0 {
 		return toolLoadFailure(t, &diagnostic, code)
 	}
-	t.message(2219, 0, "Analysis finished.")
+	recordStrings(t.recorder, 2219)
+	t.message(2219, 0, "SANY finished.")
 	if opts.deadlockOff {
 		parsed.CheckDeadlock = false
 	}
+	recordStrings(t.recorder, 2185)
 	t.message(2185, 0, fmt.Sprintf("Starting... (%s)", toolTime()))
 	result, err := checkModelWithOutput(ctx, opts, module, source, parsed, specPath, out, errout)
 	if err != nil {
@@ -147,7 +150,10 @@ func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int 
 
 func toolLoadFailure(t toolOutput, diagnostic *bytes.Buffer, code int) int {
 	fmt.Fprint(t.out, diagnostic.String())
-	t.message(2219, 0, "Analysis finished.")
+	recordStrings(t.recorder, 2219)
+	t.message(2219, 0, "SANY finished.")
+	recordStrings(t.recorder, 2185)
+	t.message(2185, 0, fmt.Sprintf("Starting... (%s)", toolTime()))
 	t.message(3002, 1, "Parsing or semantic analysis failed.")
 	return code
 }

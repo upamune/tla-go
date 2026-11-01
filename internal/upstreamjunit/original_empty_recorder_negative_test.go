@@ -8,10 +8,10 @@ import (
 )
 
 func TestEmptyRecorderUsesDirectValues(t *testing.T) {
-	projected := []bridgeRecord{{"2199", []string{"999", "0", "0"}}, {"2186", []string{"text"}}}
-	events := []recorderdebug.Event{{Code: 2199, Values: []string{"0", "0", "0"}}, {Code: 2186, Values: []string{"1ms"}}}
+	projected := []bridgeRecord{{"2185", nil}, {"2189", nil}, {"2190", []string{"999", "s"}}, {"2199", []string{"999", "0", "0"}}, {"2194", []string{"99"}}, {"2186", []string{"text"}}}
+	events := []recorderdebug.Event{{Code: 2220}, {Code: 2219}, {Code: 2185}, {Code: 2189}, {Code: 2190, Values: []string{"0", "s"}}, {Code: 2199, Values: []string{"0", "0", "0"}}, {Code: 2194, Values: []string{"1"}}, {Code: 2186, Values: []string{"1ms"}}}
 	got, err := replaceEmptyRecorderValues(projected, events)
-	want := []bridgeRecord{{"2199", []string{"0", "0", "0"}}, {"2186", []string{"1ms"}}}
+	want := []bridgeRecord{{"2185", nil}, {"2189", nil}, {"2190", []string{"0", "s"}}, {"2199", []string{"0", "0", "0"}}, {"2194", []string{"1"}}, {"2186", []string{"1ms"}}}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("records=%v error=%v", got, err)
 	}

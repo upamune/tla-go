@@ -2,21 +2,31 @@ package upstreamjunit
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/upamune/tla-go/internal/recorderdebug"
 )
 
-// Use the typed observations for these two calls, while requiring the text
+// Use the typed observations for the selected calls, while requiring the text
 // stream to contain them in the same order. Other calls are still incomplete.
 func replaceEmptyRecorderValues(records []bridgeRecord, events []recorderdebug.Event) ([]bridgeRecord, error) {
-	if len(events) != 2 || events[0].Code != 2199 || events[1].Code != 2186 {
+	codes := []int{2220, 2219, 2185, 2189, 2190, 2199, 2194, 2186}
+	if len(events) != len(codes) {
 		return nil, fmt.Errorf("incomplete Empty recorder observations")
 	}
+	for i, code := range codes {
+		if events[i].Code != code {
+			return nil, fmt.Errorf("unexpected Empty recorder observation order")
+		}
+	}
+	// The upstream setup is non-tool and does not record SANY start/end.
+	events, codes = events[2:], codes[2:]
 	result := make([]bridgeRecord, 0, len(records))
 	index := 0
 	for _, record := range records {
-		if record.code == "2199" || record.code == "2186" {
+		code, _ := strconv.Atoi(record.code)
+		if slices.Contains(codes, code) {
 			if index >= len(events) || record.code != strconv.Itoa(events[index].Code) {
 				return nil, fmt.Errorf("recorder observation does not match tool message order")
 			}

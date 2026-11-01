@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,10 +45,21 @@ func TestJavaTLCRecorderDebugObservations(t *testing.T) {
 	}
 	defer f.Close()
 	events, err := recorderdebug.Decode(f)
+	events = coreRecorderEvents(events)
 	if err != nil || len(events) != 2 || events[0].Code != 2199 || strings.Join(events[0].Values, ",") != "0,0,0" || events[1].Code != 2186 || !regexp.MustCompile(`^[0-9]+ms$`).MatchString(events[1].Values[0]) {
 		t.Fatalf("events=%+v error=%v", events, err)
 	}
 	checkJavaRecorderObservations(t, dir, events, "1")
+}
+
+func coreRecorderEvents(events []recorderdebug.Event) []recorderdebug.Event {
+	var result []recorderdebug.Event
+	for _, event := range events {
+		if event.Code == 2199 || event.Code == 2186 {
+			result = append(result, event)
+		}
+	}
+	return result
 }
 
 func normalizeRecorderToolOutput(s string) string {
@@ -252,6 +264,7 @@ func TestJavaTLCRecorderDebugParallel(t *testing.T) {
 	}
 	defer f.Close()
 	events, err := recorderdebug.Decode(f)
+	events = coreRecorderEvents(events)
 	if err != nil || len(events) != 2 || strings.Join(events[0].Values, ",") != "256,128,0" || events[1].Code != 2186 {
 		t.Fatalf("parallel events=%+v error=%v", events, err)
 	}
@@ -276,6 +289,9 @@ func TestRecorderDebugRejectsCollidingPaths(t *testing.T) {
 		{"user file", filepath.Join(dir, "user.txt"), []string{"-tool", "-userFile", filepath.Join(dir, "user.txt"), model}},
 		{"runtime trace", filepath.Join(dir, "trace.out"), []string{"-tool", "-debug-trace", filepath.Join(dir, "trace.out"), model}},
 		{"simulation", filepath.Join(dir, "simulation.json"), []string{"-tool", "-simulate", model}},
+		{"dfid", filepath.Join(dir, "dfid.json"), []string{"-tool", "-dfid", "2", model}},
+		{"checkpoint", filepath.Join(dir, "checkpoint.json"), []string{"-tool", "-checkpoint", "1", model}},
+		{"recovery", filepath.Join(dir, "recovery.json"), []string{"-tool", "-recover", filepath.Join(dir, "states"), model}},
 		{"glob", filepath.Join(dir, "glob.json"), []string{"-tool", filepath.Join(dir, "*.tla")}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -319,9 +335,42 @@ func TestRecorderDebugPropagatesWriteAndCloseFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	profile := &profileFile{file: f}
-	recordStrings(profile, 2186, "1ms")
+	recordStrings(&recorderConfig{file: profile}, 2186, "1ms")
 	if profile.err == nil || (&profiles{recorder: profile}).close() == nil {
 		t.Fatal("recorder write or close error was discarded")
+	}
+}
+
+func TestRecorderDebugConcurrentWrites(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "recorder")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := &profileFile{file: f}
+	if err := startRecorderOutput(profile); err != nil {
+		t.Fatal(err)
+	}
+	recorder := &recorderConfig{file: profile}
+	var group sync.WaitGroup
+	for range 8 {
+		group.Go(func() {
+			for range 40 {
+				recordStrings(recorder, 2189)
+			}
+		})
+	}
+	group.Wait()
+	if err := (&profiles{recorder: profile}).close(); err != nil {
+		t.Fatal(err)
+	}
+	r, err := os.Open(f.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	events, err := recorderdebug.Decode(r)
+	if err != nil || len(events) != 320 {
+		t.Fatalf("events=%d error=%v", len(events), err)
 	}
 }
 
@@ -404,6 +453,7 @@ func TestRecorderDebugFailureIsIncomplete(t *testing.T) {
 	}
 	defer f.Close()
 	events, err := recorderdebug.Decode(f)
+	events = coreRecorderEvents(events)
 	if err != nil || len(events) != 1 || events[0].Code != 2186 {
 		t.Fatalf("incomplete error observations=%+v error=%v", events, err)
 	}
