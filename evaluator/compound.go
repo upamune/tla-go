@@ -248,6 +248,12 @@ func (e *evaluator) prime(expr *parser.Expression) (value.Value, error) {
 }
 
 func (e *evaluator) unchanged(expr *parser.Expression) (value.Value, error) {
+	arg := expr.Args[0]
+	if arg != nil && (arg.Kind == "Tuple" || arg.Kind == "Identifier" && !e.variables[arg.Text]) {
+		if same, ok, err := e.unchangedVariables(expr); ok {
+			return value.Bool(same), err
+		}
+	}
 	current, err := e.eval(expr.Args[0])
 	if err != nil {
 		return value.Value{}, err
