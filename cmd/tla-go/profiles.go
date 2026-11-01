@@ -30,10 +30,10 @@ func (f *profileFile) Write(p []byte) (int, error) {
 }
 
 type profiles struct {
-	trace, cpu, heap         *profileFile
-	traceStarted, cpuStarted bool
-	heapCaptured             bool
-	heapErr                  error
+	trace, cpu, heap, recorder *profileFile
+	traceStarted, cpuStarted   bool
+	heapCaptured               bool
+	heapErr                    error
 }
 
 func startProfiles(opts options) (*profiles, error) {
@@ -41,12 +41,16 @@ func startProfiles(opts options) (*profiles, error) {
 	paths := []struct {
 		name, path string
 		dst        **profileFile
-	}{{"trace", opts.tracePath, &p.trace}, {"CPU profile", opts.cpuPath, &p.cpu}, {"heap profile", opts.heapPath, &p.heap}}
+	}{{"trace", opts.tracePath, &p.trace}, {"CPU profile", opts.cpuPath, &p.cpu}, {"heap profile", opts.heapPath, &p.heap}, {"recorder diagnostics", recorderPath(opts), &p.recorder}}
 	for _, item := range paths {
 		if err := createProfile(item.name, item.path, item.dst); err != nil {
 			p.discard()
 			return nil, err
 		}
+	}
+	if err := startRecorderOutput(p.recorder); err != nil {
+		p.discard()
+		return nil, err
 	}
 	if p.trace != nil {
 		if err := trace.Start(p.trace); err != nil {
@@ -89,7 +93,7 @@ func (p *profiles) discard() {
 	if p.traceStarted {
 		trace.Stop()
 	}
-	for _, f := range []*profileFile{p.trace, p.cpu, p.heap} {
+	for _, f := range []*profileFile{p.trace, p.cpu, p.heap, p.recorder} {
 		if f != nil {
 			name := f.file.Name()
 			_ = f.file.Close()
@@ -110,7 +114,7 @@ func (p *profiles) close() error {
 		p.captureHeap()
 		errs = append(errs, p.heapErr)
 	}
-	for _, f := range []*profileFile{p.trace, p.cpu} {
+	for _, f := range []*profileFile{p.trace, p.cpu, p.recorder} {
 		errs = append(errs, closeProfile(f))
 	}
 	errs = append(errs, p.closeHeap())
@@ -243,7 +247,7 @@ func protectProfileOutput(opts options, path string) error {
 	if path == "" {
 		return nil
 	}
-	for _, profile := range []string{opts.tracePath, opts.cpuPath, opts.heapPath} {
+	for _, profile := range []string{opts.tracePath, opts.cpuPath, opts.heapPath, recorderPath(opts)} {
 		if profile == "" {
 			continue
 		}
@@ -259,8 +263,8 @@ func protectProfileOutput(opts options, path string) error {
 }
 
 func validateProfilePaths(opts options) error {
-	profiles := []string{opts.tracePath, opts.cpuPath, opts.heapPath}
-	if profiles[0] == "" && profiles[1] == "" && profiles[2] == "" {
+	profiles := []string{opts.tracePath, opts.cpuPath, opts.heapPath, recorderPath(opts)}
+	if !hasProfilePaths(profiles) {
 		return nil
 	}
 	if err := validateMetadataDump(opts.dumpPath); err != nil {
@@ -276,6 +280,15 @@ func validateProfilePaths(opts options) error {
 		}
 	}
 	return protectProfileDirectories(profiles, profileCleanupRoots(opts, paths))
+}
+
+func hasProfilePaths(paths []string) bool {
+	for _, path := range paths {
+		if path != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func validateMetadataDump(path string) error {

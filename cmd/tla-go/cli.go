@@ -26,6 +26,7 @@ type options struct {
 	deadlockOff, help, version   bool
 	debugLiveness                bool
 	tracePath, cpuPath, heapPath string
+	recorder                     *recorderConfig
 	coverage                     bool
 	coverageInterval             time.Duration
 	checkpoint                   bool
@@ -57,6 +58,7 @@ type options struct {
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-recover dir] [-coverage N] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-debug-trace FILE, -debug-cpu-profile FILE, and -debug-heap-profile FILE write Go diagnostics to new files.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
 	fmt.Fprintln(w, compatUsage)
+	fmt.Fprintln(w, "TLA_GO_DEBUG_RECORDER=FILE writes partial recorder diagnostics to a new file in -tool mode.")
 }
 
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
@@ -76,7 +78,7 @@ func validateOutputPaths(opts options, out io.Writer) error {
 func runWithInput(ctx context.Context, args []string, input io.Reader, out, errout io.Writer) (code int) {
 	opts, err := parseOptions(args)
 	if err == nil {
-		err = validateOutputPaths(opts, out)
+		err = configureDiagnosticOptions(&opts, out)
 	}
 	if err != nil {
 		return reportOptionErrorWithTranslateHint(opts, err, out, errout)
@@ -112,6 +114,7 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 		return reportOptionError(options{tool: opts.compat.userFileTool}, err, out, errout)
 	}
 	defer finish()
+	bindRecorder(&opts, profiles.recorder)
 	reader := bufio.NewReader(input)
 	opts.onPause = func() { _, _ = reader.ReadString('\n') }
 	return runModels(ctx, opts, runOut, errout)

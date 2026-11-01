@@ -94,6 +94,9 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-fpmem X`, `-fpbits N`, `-gzip`, `-modelcheck`, `-debug` | Accepted with Java TLC's argument checks. They configure Java TLC internals and have no effect, except that `-fpmem` above 1 prints Java's deprecation notice. |
 | `-version`, `-help` | Show the version or usage. |
 
+For recorder investigations, `TLA_GO_DEBUG_RECORDER=FILE` writes partial typed
+observations to a new file. See [recorder diagnostics](docs/development.md#recorder-diagnostics) for the supported events and limitations.
+
 The exit code is 0 on success, 11 for deadlock, 12 for invariant or property violations, and 13 for liveness violations. Other errors can have different codes; exact Java TLC output and exit-code compatibility is still in progress. The `-tool` protocol and state dumps are compared with Java TLC for representative models, but full compatibility is not yet established.
 
 Parallel BFS is experimental and applies only to restricted models; other cases use serial exploration. Workers are capped by GOMAXPROCS and 32, and small queues or expressions run serially. The reported worker count is the requested count, not the number actually running. Statistics and counterexamples can differ from Java TLC, as can state identity and fingerprint collision behavior. See [parallel model checking limitations](docs/compatibility.md#model-checking).

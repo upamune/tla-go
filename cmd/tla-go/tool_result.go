@@ -227,6 +227,9 @@ func printToolLoop(t toolOutput, v *checker.Violation, module *parser.Module) {
 func printToolStatistics(t toolOutput, result checker.Result) {
 	counts := fmt.Sprintf("%d states generated, %d distinct states found, %d states left on queue.", result.GeneratedStates, result.DistinctStates, result.QueuedStates)
 	t.message(2200, 0, fmt.Sprintf("Progress(%d) at %s: %s", result.Depth, toolTime(), counts))
+	if t.recorder != nil {
+		recordStatistics(t.recorder, result)
+	}
 	t.message(2199, 0, counts)
 	if result.Failure != nil && result.Failure.SuppressDepth {
 		return

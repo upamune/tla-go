@@ -152,6 +152,7 @@ Experimental: supports a subset of TLA+ model checking and simulation.
 -debug-liveness writes JSON debugging events to stderr.
 -modern-random-subsets selects the newer TLC random-subset algorithm.
 Java TLC options: [-difftrace] [-terse] [-userFile file] [-cleanup] [-fpmem num] [-fpbits num] [-gzip] [-modelcheck] [-debug] [-generateSpecTE [nomonolith]]
+TLA_GO_DEBUG_RECORDER=FILE writes partial recorder diagnostics to a new file in -tool mode.
 `
 
 // Match the complete observed Test10 stream, including severity, ordering, and

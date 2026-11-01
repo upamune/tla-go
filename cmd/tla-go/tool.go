@@ -16,8 +16,9 @@ import (
 )
 
 type toolOutput struct {
-	out     io.Writer
-	started time.Time
+	out      io.Writer
+	started  time.Time
+	recorder *profileFile
 }
 
 func (t toolOutput) message(code, level int, body string) {
@@ -44,7 +45,13 @@ func (t toolOutput) nestedInlineError(code int, heading string, nestedCode int, 
 }
 
 func (t toolOutput) finish() {
-	t.message(2186, 0, fmt.Sprintf("Finished in %dms at (%s)", time.Since(t.started).Milliseconds(), toolTime()))
+	if t.recorder == nil {
+		t.message(2186, 0, fmt.Sprintf("Finished in %dms at (%s)", time.Since(t.started).Milliseconds(), toolTime()))
+		return
+	}
+	duration := fmt.Sprintf("%dms", time.Since(t.started).Milliseconds())
+	recordStrings(t.recorder, 2186, duration)
+	t.message(2186, 0, fmt.Sprintf("Finished in %s at (%s)", duration, toolTime()))
 }
 
 func toolTime() string { return time.Now().Format("2006-01-02 15:04:05") }
@@ -98,7 +105,7 @@ func plural(n int) string {
 }
 
 func runToolModel(ctx context.Context, opts options, out, errout io.Writer) int {
-	t := toolOutput{out: out, started: time.Now()}
+	t := toolOutput{out: out, started: time.Now(), recorder: recorderFile(opts)}
 	defer t.finish()
 	t.message(2262, 0, "tla-go "+version)
 	printToolModeBanner(t, opts)

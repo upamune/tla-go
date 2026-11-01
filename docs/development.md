@@ -105,6 +105,25 @@ The upstream `test-model/symmetry` directory includes general temporal propertie
 
 For supported reduced tableau checks, `-debug-liveness` emits `tableau-node` events with product-node, reduced-state and tableau indices, plus their outgoing edges. It also emits `tableau-regenerated` when a node's successors are regenerated. These events inspect the constructed graph without re-evaluating model expressions. Counterexample construction follows TLC's component order and removes repeated reduced states; compare both the loop marker and the recovered concrete states when changing it.
 
+### Recorder diagnostics
+
+For recorder investigations, set `TLA_GO_DEBUG_RECORDER` to a new file path
+when running one model in `-tool` breadth-first model-checking mode. The file
+is created exclusively with mode 0600. Its JSON lines start with a version 1
+header marking the stream incomplete, followed by selected observations in
+emission order. Currently these are state statistics (2199) and the finish
+call (2186), each with a `strings` array. Their values come directly from Go's
+result and timer, rather than parsed tool text. A Java TLC 1.7.4 recorder probe
+checks argument types and deterministic statistics for an empty model;
+durations naturally differ.
+
+Other recorder calls, hidden calls, Java object values, and ordering relative
+to unobserved calls are not represented. This debugging aid is not a complete
+Java recorder or evidence that the upstream JUnit suite passes. The EmptyTest
+bridge consumes these two observations while retaining its incomplete verdict.
+Diagnostic file failures cause a nonzero exit. The option is off by default
+and does not reevaluate model expressions.
+
 Additional lexer, parser, evaluator, and checker fixtures come from tla-ts commit `19c763f07fda4b098e8a24405301628a424547c0`. They provide regression coverage but do not establish Java TLC compatibility. See the fixture READMEs and [UPSTREAM-LICENSE](../UPSTREAM-LICENSE).
 
 The auxiliary TypeScript generators call tla-ts and are not run by the normal Go build or CI. See [scripts/README.md](../scripts/README.md) for their purpose and usage.
