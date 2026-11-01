@@ -1,4 +1,4 @@
-`Github179c.tla` and `Github179c.cfg` are copied from the TLA+ Tools test
+`Github179a`, `Github179b`, and `Github179c` TLA and CFG files are copied from the TLA+ Tools test
 models at Java TLC v1.7.4, commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`.
 They exercise `tlc2.tool.Github179cTest` and are covered by
 `TestJavaTLCGithub179c`. The upstream project is distributed under the MIT

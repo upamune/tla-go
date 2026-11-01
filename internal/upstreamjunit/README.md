@@ -321,6 +321,16 @@ coverage equivalence. The experiment does not claim lifecycle completeness.
 
 ## Full diagnostic snapshot
 
+Targeted follow-up for `ETest7` and `Github179a/b/c` reproduces the original
+models with the pinned 1.7.4 jar and the resolver's worker, fingerprint,
+deadlock and checkpoint flags. Tool-mode nested codes 2280 and 2154 were
+missing from Go output; direct differential tests now cover the messages,
+exit codes, selected evaluation stacks and trace states. The original snapshot
+is retained as historical evidence. A rerun still reports a DOT content
+difference for Github179a, and the resolver's coverage, dump lifecycle and
+JUnit limitations described above remain. These diagnostics do not establish
+JUnit pass counts or full compatibility.
+
 [`testdata/snapshots/sweep-2399b153.json`](testdata/snapshots/sweep-2399b153.json)
 records the completed opt-in full run at tla-go commit
 `2399b1535d1ef68aa78d81bba2b9559cf8e586f7`, against the pinned upstream

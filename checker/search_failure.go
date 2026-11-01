@@ -140,7 +140,7 @@ func nextUnexpectedFailure(failure *evaluator.RuntimeError) *evaluator.RuntimeEr
 		cause = "util.Assert$TLCRuntimeException: " + cause
 	}
 	result.Message = unexpectedExceptionMessage(runtimeExceptionClass, cause)
-	if failure.ToolCode == 2261 {
+	if failure.ToolCode == 2261 || failure.ToolCode == 2154 {
 		result.NestedMessage = cause
 		result.NestedToolCode, result.ToolCode = failure.ToolCode, 1000
 	} else if failure.Fingerprint != nil && failure.Unexpected.ToolCode != 0 {

@@ -57,5 +57,7 @@ cmd/tla-go/testdata/java-tlc/test217.tla whitespace=-trailing-space
 cmd/tla-go/testdata/java-tlc/test217a.tla whitespace=-trailing-space
 cmd/tla-go/testdata/java-tlc/test217.cfg whitespace=-trailing-space
 checker/testdata/detlefs/Detlefs.tla whitespace=-trailing-space
+cmd/tla-go/testdata/java-tlc/Github179a.tla whitespace=-trailing-space
+cmd/tla-go/testdata/java-tlc/Github179b.tla whitespace=-trailing-space
 cmd/tla-go/testdata/java-tlc/dot-initial-errors/Continue.tla whitespace=-trailing-space
 cmd/tla-go/testdata/java-tlc/dot-initial-errors/etest4.cfg whitespace=-trailing-space

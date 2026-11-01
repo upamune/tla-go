@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/upamune/tla-go/checker"
+	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
@@ -158,11 +159,21 @@ func toolModelError(t toolOutput, err error) int {
 		if code == 0 {
 			code = 1000
 		}
-		t.message(code, 1, configErr.Message)
+		printToolConfigurationError(t, code, configErr)
 		return 151
 	}
 	t.message(1000, 1, err.Error())
 	return 255
+}
+
+func printToolConfigurationError(t toolOutput, code int, err *checker.ConfigurationError) {
+	if _, ok := errors.AsType[*evaluator.UnboundVariable](err.Err); code == 2281 && ok {
+		if heading, detail, found := strings.Cut(err.Message, " - specifically: "); found {
+			t.nestedInlineError(code, heading+" - specifically:", 2280, detail)
+			return
+		}
+	}
+	t.message(code, 1, err.Message)
 }
 
 func printToolResult(t toolOutput, result checker.Result, module *parser.Module) {

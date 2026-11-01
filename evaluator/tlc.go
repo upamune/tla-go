@@ -108,7 +108,7 @@ func printFailure(name string, err error) error {
 		signature += ",tlc2.value.impl.Value"
 	}
 	wrapped.Message = fmt.Sprintf("Attempted to apply the operator overridden by the Java method\npublic static tlc2.value.impl.Value tlc2.module.TLC.%s(%s),\nbut it produced the following error:\n%s", name, signature, failure.Message)
-	return &RuntimeError{Message: wrapped.Message, Unexpected: &wrapped}
+	return &RuntimeError{Message: wrapped.Message, ToolCode: 2154, Unexpected: &wrapped}
 }
 
 func assert(args []value.Value) (value.Value, error) {
