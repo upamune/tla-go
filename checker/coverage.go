@@ -319,6 +319,10 @@ func (c *coverageCollector) coverExpression(expr *parser.Expression, action stri
 		a.Expressions[i+1].Count++
 	}
 	a.Expressions[i].Count++
+	c.coverMembershipExpression(a, action, expr, i)
+}
+
+func (c *coverageCollector) coverMembershipExpression(a *CoverageAction, action string, expr *parser.Expression, i int) {
 	if _, ok := c.assignmentMemberships[action][expr.Location.Range]; ok {
 		a.Expressions[i+1].Count++
 		if isInitialSetMembership(c, action, expr) {

@@ -440,11 +440,11 @@ func TestCoverageRejectsInitialSetFalseContinuation(t *testing.T) {
 }
 
 func TestJavaTLCCoverageInitialSetInvariantViolation(t *testing.T) {
-	dir := t.TempDir()
-	writeCoverageModule(t, dir, "M", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x\nInv == x < 3")
-	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nINVARIANT Inv\n")
 	for _, tool := range []bool{false, true} {
 		t.Run(boolName(tool), func(t *testing.T) {
+			dir := t.TempDir()
+			writeCoverageModule(t, dir, "M", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,2,3}\nNext == UNCHANGED x\nInv == x < 3")
+			writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nINVARIANT Inv\n")
 			args := []string{"-deadlock", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"}
 			if tool {
 				args = append([]string{"-tool"}, args...)
