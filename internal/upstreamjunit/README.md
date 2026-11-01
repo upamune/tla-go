@@ -441,14 +441,58 @@ where the Tableau record is shared or normalized during exploration.
 Both implementations explicitly selected polynomial index 0 in the model
 runs; the direct polynomial digest test covers all Java 1.7.4 polynomial
 indices separately. A different polynomial is therefore not needed to explain
-these particular ID differences. The next experiment for the remaining labels
-is to instrument the pinned Java Tableau run at record construction, permutation,
-normalization and DOT emission, recording object identity, field tokens and
-order, then compare the matching Go value construction and sharing events,
-including a no-symmetry record/function control. Only after determining whether
-the observed mutation affects shared values should normalization or formatting
-behavior be changed. The run remains a partial harness diagnostic, not a JUnit
-lifecycle result.
+these particular ID differences. The run remains a partial harness diagnostic,
+not a JUnit lifecycle result.
+
+### Record-set lifecycle follow-up
+
+An isolated instrumentation run against the pinned jar and source revision
+shows a more specific cause for this witness than fingerprint-time mutation.
+The source copy of `RecordValue` was compiled separately and placed before the
+unchanged jar on the classpath; it logged object and array identities, field
+order, normalization flag and call stacks. In one single-worker run, record
+object `1109889625` was constructed by `SetOfRcdsValue.Enumerator` with names
+`[op, adr]` and `isNorm=true`. Its name array was also used by another enumerated
+record with a different values array. The first object was then visited through
+both `FcnRcdValue.permute` and `TupleValue.permute` during state fingerprinting,
+and subsequently formatted through both containers by `DotStateWriter`. Thus
+the `buf` and `memInt` occurrences in this witness share the record itself;
+the enumerated record already had the Java order before either operation.
+These numeric identities are only meaningful within that process.
+
+`SetOfRcdsValue` sorts its name/value arrays on construction using
+`UniqueString.compareTo` (intern token order), and its enumerator passes the
+same names array to each new, already-normalized record. A permutation that
+changes a field value creates another record sharing that names array. In the
+Go path, `RecordSet` constructs lexically sorted pairs, and Cartesian
+enumeration calls `Function`, losing record field-order provenance. This
+explains the observed order difference for records from this set; it does not
+prove that all record presentation differences have that cause. In a separate
+no-symmetry run without DOT, the instrumented enumerator likewise constructed
+an `[op, adr]` record marked normalized and state fingerprinting visited it
+through both containers.
+
+Two isolated instrumented symmetry runs with `-fp 0`, one worker and DOT had
+identical output bytes (SHA-256
+`e2f233cfde224fe6b07ff9b2d0fa23814cbbbafb3c33e3e498e6b7318f5b9137`),
+including ID `579606404721062638` and both record occurrences. Both completed
+with 779 generated and 168 distinct states. The same counts were observed in
+one symmetry run without DOT. No-symmetry runs with and without DOT each
+generated 5,492 and found 1,272 distinct states; the DOT trace also showed
+the same record object formatted through both containers. These runs used
+ordinary TLC liveness timing,
+not the JUnit final-only lifecycle; instrumentation and timing can affect when
+an error terminates exploration. The object trace is observational, not proof
+of output stability under other schedules.
+
+No formatting change follows from this witness alone: the original direct
+record/function probe still demonstrates that other construction paths can
+change order during fingerprinting. The next experiment should retain token
+order as immutable record-set provenance through enumeration, then compare
+Java and Go snapshots before and after fingerprinting, ordinary `Print`, DOT,
+VIEW and ALIAS, with literal records, functions and nested shared values as
+controls. Verify enumeration order and state counts as well as labels before
+considering such a change; do not normalize shared Go values in place.
 
 The graph-only symmetry fingerprint microbenchmark on Apple M3, three 1 s
 samples, measured 54.8–57.1 ns/op and 24 B/op before this correction versus
