@@ -119,6 +119,12 @@ number on an action is the number of new in-model states and the second is
 its generated-state count; expression costs follow TLC for the tested forms.
 Zero-count expressions are included.
 
+An implicit variable-free model with no INIT, NEXT, or SPECIFICATION and no
+invariants or constraints also supports coverage: like Java TLC 1.7.4's
+`EmptyTest`, it reports zero states and no coverage section. Assumptions are
+still evaluated normally. Explicit variable-free specifications can have
+coverage actions and remain unsupported by this empty-model case.
+
 Coverage is restricted to a named initial predicate and a disjunction of
 named, nullary actions with simple conjunctions, assignments, comparisons,
 `\in Nat` guards, range membership assignments, and `UNCHANGED`. Range

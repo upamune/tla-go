@@ -54,6 +54,12 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 	if !m.coverageConfigSupported() {
 		return nil, false
 	}
+	// The implicit empty model has neither an initial action nor a next
+	// action to instrument. An explicit specification can still contribute
+	// coverage actions even when it produces no states.
+	if m.emptyCoverageModel() {
+		return &coverageCollector{}, true
+	}
 	init, next, ok := m.coverageRoots()
 	if !ok {
 		return nil, false
@@ -68,6 +74,10 @@ func (m *model) buildCoverage() (*coverageCollector, bool) {
 		}
 	}
 	return c, m.addCoverageProperties(c)
+}
+
+func (m *model) emptyCoverageModel() bool {
+	return m.noStateSearch() && !m.fromSpecification && len(m.cfg.Invariants)+len(m.cfg.Constraints) == 0
 }
 
 func (m *model) addCoverageProperties(c *coverageCollector) bool {
