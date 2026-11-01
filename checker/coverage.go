@@ -499,7 +499,41 @@ func (m *model) coverageBodySupported(body *parser.Expression, initial bool) boo
 // assigns a complete variable and no state constraint affects the count.
 func (m *model) coverageInitialSetContext(body *parser.Expression) bool {
 	items := coverageConjuncts(body)
-	return !coverageHasSetOperand(items) || len(m.cfg.Constraints) == 0 && m.coverageDirectInitial(body)
+	if !coverageHasSetOperand(items) {
+		return true
+	}
+	if len(m.cfg.Constraints) != 0 || !m.coverageDirectInitial(body) {
+		return false
+	}
+	return !coverageHasSetEquality(items) || m.coverageSetEqualitySafe()
+}
+
+func coverageHasSetEquality(items []*parser.Expression) bool {
+	for _, e := range items {
+		if e.Kind == "Apply" && e.Text == "=" && len(e.Args) == 2 && e.Args[1].Kind == "SetEnumeration" {
+			return true
+		}
+	}
+	return false
+}
+
+// Literal set equality was added for total direct UNCHANGED checks. Other
+// checks can replay Init and Next while reporting a violation, changing costs.
+func (m *model) coverageSetEqualitySafe() bool {
+	if len(m.module.Assumptions) != 0 || m.graph != nil {
+		return false
+	}
+	for _, name := range m.cfg.Invariants {
+		if !m.coverageLiteralTrueInvariant(name) {
+			return false
+		}
+	}
+	return m.coverageSetEqualityNextSafe()
+}
+
+func (m *model) coverageSetEqualityNextSafe() bool {
+	next, ok := m.defs[m.cfg.Next]
+	return ok && coverageDirectDefinition(next) && next.Body != nil && !m.trueConfigured[next.Name] && m.coverageUnchangedSequence(next.Body)
 }
 
 func coverageConjuncts(body *parser.Expression) []*parser.Expression {

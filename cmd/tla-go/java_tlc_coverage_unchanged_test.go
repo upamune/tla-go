@@ -318,7 +318,6 @@ func TestCoverageRejectsUnmodeledInitialSetCosts(t *testing.T) {
 		{"constraint", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,2,3}\nA == x' = 1\nB == x' = 2\nNext == A \\/ B\nLimit == x < 3", "INIT Init\nNEXT Next\nCONSTRAINT Limit\n"},
 		{"mixed kinds", "VARIABLE x\nInit == x \\in {1,TRUE}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
 		{"nonliteral", "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {1,1+1}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
-		{"set assignment", "VARIABLE x\nInit == x = {1,2}\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n"},
 		{"set initial and false unchanged", `VARIABLE x
 Init == x \in {0,1,2}
 A == /\ x' = 0
@@ -570,10 +569,12 @@ func TestJavaTLCCoverageInitialLiteralSetAssignments(t *testing.T) {
 	for _, tc := range []struct{ name, variables, initial, next, config string }{
 		{"empty", "x", "x = {}", "UNCHANGED x", ""},
 		{"numeric", "x", "x = {1,2,2}", "UNCHANGED x", ""},
+		{"numeric-unique", "x", "x = {1,2}", "UNCHANGED x", ""},
 		{"boolean", "x", "x = {TRUE,FALSE,TRUE}", "UNCHANGED x", ""},
 		{"multiple", "x,y,z", "/\\ x = {}\n        /\\ y = {1,2}\n        /\\ z = 1", "UNCHANGED <<x,y,z>>", ""},
 		{"inline", "x,y", "x = {1} /\\ y = {}", "UNCHANGED <<x,y>>", ""},
 		{"invariant", "x", "x = {}", "UNCHANGED x\nInv == TRUE", "INIT Init\nNEXT Next\nINVARIANT Inv\n"},
+		{"repeated-unchanged", "x", "x = {}", "/\\ UNCHANGED x\n        /\\ UNCHANGED x", ""},
 		{"spec", "x", "x = {}", "UNCHANGED x\nSpec == Init /\\ [][Next]_x", "SPECIFICATION Spec\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -607,11 +608,14 @@ func TestCoverageRejectsUnmodeledInitialSetAssignments(t *testing.T) {
 	}
 }
 
-func TestJavaTLCCoverageInitialLiteralSetAndNamedActions(t *testing.T) {
+func TestCoverageRejectsInitialLiteralSetAndNamedActions(t *testing.T) {
 	dir := t.TempDir()
 	writeCoverageModule(t, dir, "M", "VARIABLES x,y\nInit == /\\ x = {}\n        /\\ y = 0\nA == /\\ x' = x\n     /\\ y' = y\nB == /\\ x' = x\n     /\\ y' = y\nNext == A \\/ B")
 	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\n")
-	compareParameterizedCoverage(t, dir)
+	out, code, stderr := runGoInDir(t, dir, coverageAArgs("M.tla", true))
+	if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
+		t.Fatalf("expected rejection: exit %d stderr %s output %s", code, stderr, out)
+	}
 }
 
 func TestJavaTLCCoverageInitialLiteralSetAssignmentMaxSize(t *testing.T) {

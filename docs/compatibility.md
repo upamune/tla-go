@@ -273,6 +273,10 @@ or a Boolean literal to every variable exactly once, or assign a range with
 such literal endpoints to the sole variable. It may also assign literal sets
 of nonnegative integers or Booleans to variables, including multiple variables
 in the same initial conjunction; each set must have a single element type.
+This set-equality form requires a direct UNCHANGED next action, only literal
+TRUE invariants, no assumptions and no graph output. Other actions or
+invariants can require trace recovery, whose coverage costs are not yet
+modeled for this form.
 It may instead assign the sole
 variable from an explicit set of nonnegative decimal integer literals or an
 explicit set of Boolean literals. Empty sets and duplicates are supported;

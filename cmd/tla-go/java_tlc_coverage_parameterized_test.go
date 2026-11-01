@@ -22,8 +22,6 @@ func TestJavaTLCCoverageParameterizedValues(t *testing.T) {
 		{"range-init", "x \\in 0..2", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
 		{"set-init", "x \\in {0,1,1,2}", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
 		{"empty-set-init", "x \\in {}", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
-		{"set-value-init", "x = {1,2}", "A(n) == x'=n\nNext == A(1) \\/ A(2)"},
-		{"set-value-range", "x = {}", "A(n) == x' \\in 0..n\nNext == A(1) \\/ A(2)"},
 		{"range-values", "x=0", "A(n) == x' \\in 0..n\nB(n,m) == x' \\in n..m\nNext == A(2) \\/ B(1,3)"},
 		{"range-unused-bool", "x=0", "A(n,b) == x' \\in n..2\nNext == A(0,TRUE) \\/ A(1,FALSE)"},
 		{"range-singleton", "x=0", "A(n) == x' \\in n..n\nNext == A(0) \\/ A(1)"},
