@@ -60,6 +60,103 @@ in the sweep is not a JUnit pass. Coverage and lifecycle remain unverified on
 Go. Matching line multisets here also does not prove equal trace order or all
 recorder observations.
 
+## Follow-up at 51c3a77
+
+The later `51c3a77` diagnostic snapshot again recorded `dump:content`, while
+`9f581626` recorded no selected difference. On 2026-11-01, we repeated the
+three-worker command above eight times each with pinned Java 1.7.4 and Go
+binaries built from clean detached worktrees at `9f5816269083eb7c9d44e5477695e95e6bf68059`
+and `51c3a77c6c4cbc02c6f388b0c90047cc895f9869`. The upstream checkout and
+model hashes were as listed above; the runs used Go 1.27.3 and Temurin Java
+21.0.11 on macOS arm64. Each process had a 30-second wall-clock limit and a
+separate directory. All 24 exited 0 and reported 32 generated, 29 distinct,
+and zero queued states.
+
+The 16 Go DOT files were byte-identical across both revisions, SHA-256
+`53e246d2dea76a98ad680174bb60e320ede54fc9f543dd28440208a834e1eed1`.
+The eight Java files had six distinct raw hashes; one matched the Go bytes.
+The [raw hash and exit summary](testdata/continue-51c3a77/raw-hashes.txt)
+and [canonical hash summary](testdata/continue-51c3a77/canonical-hashes.txt)
+record each run.
+The saved raw files [Java run 1](testdata/continue-51c3a77/java-01.dot),
+[Java run 2](testdata/continue-51c3a77/java-02.dot), and
+[Go 51 run 1](testdata/continue-51c3a77/go-51.dot) preserve two Java orderings
+and the Go ordering. In one Java/Go diff the duplicate edge from `(x=1,y=1)`
+to `(x=2,y=1)` appears at different positions.
+
+For this fixture, [the Go canonicalizer](continuecanon/main.go)
+resolves fingerprint IDs to their complete state labels, preserves which
+vertex is initial, and sorts vertex and directed-edge records. It preserves
+duplicate edges and rejects unsupported DOT syntax or duplicate state labels.
+It checks that rank declarations reference known vertices, then ignores their
+layout effect. All 24 canonical files matched
+[the captured graph](testdata/continue-51c3a77/graph.canonical) byte for byte:
+29 vertices and 29 edge records, including one duplicate edge. Its SHA-256 is
+`c06e8cc9942e06f822af25abb3d7ba6f7b127649c8aa83de472c66cd85a2bbb4`.
+This demonstrates equality of the captured labeled graphs and edge-record
+multisets, not full DOT layout or JUnit lifecycle compatibility. The original
+sweep did not retain its two DOT files, so its exact difference cannot be
+proven from these reruns. The sample supports output-order nondeterminism as
+an explanation; it does not establish a graph regression between revisions.
+All 24 raw DOTs, logs and summaries were also kept under the ephemeral
+`/tmp/tla-sweep51-investigation/runs` directory.
+
+To reproduce this bounded follow-up, run from the repository root. The script
+refuses to overwrite an existing run directory. The checkout and JAR paths
+default to the pinned ones used above; verify their revision and hash before
+running. The exported directory variable is also used by the timeout follow-up.
+
+```sh
+D=$(mktemp -d "${TMPDIR:-/tmp}/tla-sweep51.XXXXXXXX") || exit 1
+D=$(cd "$D" && pwd -P) || exit 1
+export TLA_SWEEP51_DIR="$D"
+printf 'Results: %s\n' "$D"
+TLA_GO_JUNIT_ROOT=${TLA_GO_JUNIT_ROOT:-/tmp/tlaplus-java-v1.7.4}
+TLA_GO_JUNIT_JAR=${TLA_GO_JUNIT_JAR:-/tmp/tla2tools-v1.7.4.jar}
+TLA_GO_JUNIT_ROOT=$(cd "$TLA_GO_JUNIT_ROOT" && pwd -P) || exit 1
+task_jar_dir=$(cd "$(dirname "$TLA_GO_JUNIT_JAR")" && pwd -P) || exit 1
+task_jar_name=$(basename "$TLA_GO_JUNIT_JAR") || exit 1
+TLA_GO_JUNIT_JAR="$task_jar_dir/$task_jar_name"
+export TLA_GO_JUNIT_ROOT TLA_GO_JUNIT_JAR
+git -C "$TLA_GO_JUNIT_ROOT" rev-parse HEAD > "$D/upstream-head.txt" || exit 1
+[ "$(cat "$D/upstream-head.txt")" = 5a47802b5c391f59ecdd44117981f4ff8c0656ba ] || exit 1
+git -C "$TLA_GO_JUNIT_ROOT" status --porcelain --untracked-files=no > "$D/upstream-status.txt" || exit 1
+[ ! -s "$D/upstream-status.txt" ] || exit 1
+shasum -a 256 "$TLA_GO_JUNIT_JAR" > "$D/jar-sha256.txt" || exit 1
+[ "$(awk '{print $1}' "$D/jar-sha256.txt")" = 936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88 ] || exit 1
+mkdir -p "$D/src-9f" "$D/src-51" "$D/runs" || exit 1
+git archive 9f5816269083eb7c9d44e5477695e95e6bf68059 > "$D/src-9f.tar" || exit 1
+git archive 51c3a77c6c4cbc02c6f388b0c90047cc895f9869 > "$D/src-51.tar" || exit 1
+tar -xf "$D/src-9f.tar" -C "$D/src-9f" || exit 1
+tar -xf "$D/src-51.tar" -C "$D/src-51" || exit 1
+MISE_AUTO_INSTALL=false mise exec -- go build -C "$D/src-9f" -buildvcs=false -o "$D/tla-9f" ./cmd/tla-go || exit 1
+MISE_AUTO_INSTALL=false mise exec -- go build -C "$D/src-51" -buildvcs=false -o "$D/tla-51" ./cmd/tla-go || exit 1
+cat > "$D/JUnitTLC.java" <<'JAVA'
+class JUnitTLC {
+  public static void main(String[] args) throws Exception {
+    tlc2.TLCGlobals.livenessThreshold = Double.MAX_VALUE;
+    tlc2.TLC.main(args);
+  }
+}
+JAVA
+MISE_AUTO_INSTALL=false mise exec -- go run docs/investigations/testdata/continue-51c3a77/reproduce.go > "$D/continue-summary.log" || exit 1
+[ "$(wc -l < "$D/continue-summary.log")" -eq 24 ] || exit 1
+set -- "$D"/runs/*/graph.dot
+[ "$#" -eq 24 ] || exit 1
+for task_file do
+  MISE_AUTO_INSTALL=false mise exec -- go run ./docs/investigations/continuecanon "$task_file" > "$task_file.canonical" || exit 1
+  cmp "$task_file.canonical" docs/investigations/testdata/continue-51c3a77/graph.canonical || exit 1
+done
+```
+
+The re-run script implements the same flags and 30-second limit as the
+experiment, but was prepared after the measured run. Binary hashes from that
+run were `37f87e62b64cbf354ebabecf375f6aaf3d76be2d52a76da358ced71fc9d89f18`
+for 9f and `12f7f5da76cfd2913c84dfb0e137bafed035af55184c6476f9ddc7c236c5e16e`
+for 51; a different toolchain or build environment can produce different
+binary hashes. Java uses coverage and Go does not, matching the diagnostic
+harness, so the comparison remains partial.
+
 ## Reproduce
 
 The original raw outputs from this experiment are separately retained under

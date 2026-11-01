@@ -632,6 +632,8 @@ investigations provide additional observations. The coverage case also has a sep
 targeted Java comparison, but the sweep still does not reproduce its complete
 JUnit lifecycle. Timeouts, scheduling and other nondeterminism make snapshot
 count changes insufficient to establish a general improvement or regression.
+The later [timeout follow-up](../../docs/investigations/sweep-51c3a77-timeouts.md)
+records bounded reruns of SimpleMultiProc and Java EWD840MC2.
 
 The extractor recognizes only the five documented source hashes and associates
 each with its recorded binary revision; the logs themselves do not establish
