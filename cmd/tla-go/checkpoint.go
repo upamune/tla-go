@@ -93,10 +93,14 @@ func debugStopDuration() (time.Duration, error) {
 // Recovery must reject unsupported writers before any of them create files.
 // In particular a dump or user file can be an alias of the checkpoint.
 func validateRecoveryOptions(opts options) error {
-	if opts.recoverDir != "" && checkpointCLIUnsupported(opts) {
+	if opts.recoverDir != "" && !nonCheckingMode(opts) && checkpointCLIUnsupported(opts) {
 		return fmt.Errorf("checkpoint recovery does not support these options")
 	}
 	return nil
+}
+
+func nonCheckingMode(opts options) bool {
+	return opts.help || opts.version || opts.sanyMetadata
 }
 
 func checkpointCLIUnsupported(opts options) bool {

@@ -73,6 +73,10 @@ func validateOutputPaths(opts options, out io.Writer) error {
 	if err := validateProfilePaths(opts); err != nil {
 		return err
 	}
+	// These modes do not use a dump; creating it could truncate the checkpoint.
+	if opts.recoverDir != "" && nonCheckingMode(opts) {
+		return nil
+	}
 	return checkDumpPath(opts.dumpPath, opts.dumpDOT, out)
 }
 

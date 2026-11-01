@@ -224,3 +224,43 @@ func TestRecoveryRejectsDumpBeforeProfileCollision(t *testing.T) {
 		})
 	}
 }
+
+func TestRecoveryDumpNonCheckingModes(t *testing.T) {
+	dir := t.TempDir()
+	spec, recovery, checkpoint := createPausedCheckpoint(t, dir)
+	checkpointPath := filepath.Join(recovery, "tla-go.chkpt")
+	for _, option := range []string{"-help", "-version", "-sany-metadata"} {
+		for _, location := range []string{"metadata", "absolute"} {
+			t.Run(option+"/"+location, func(t *testing.T) {
+				base := filepath.Join(dir, "early-"+strings.TrimPrefix(option, "-")+"-"+location)
+				if location == "metadata" {
+					base = filepath.Join(recovery, filepath.Base(base))
+				}
+				if err := os.Symlink(checkpointPath, base+".dot"); err != nil {
+					t.Skipf("symlink unavailable: %v", err)
+				}
+				dump := base
+				if location == "metadata" {
+					dump = filepath.Join("${metadir}", filepath.Base(base))
+				}
+				var out, errout bytes.Buffer
+				code := run(context.Background(), []string{option, "-recover", recovery, "-dump", "dot", dump, spec}, &out, &errout)
+				if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), nonCheckingOutputMarker(option)) {
+					t.Fatalf("%s exit %d stdout=%s stderr=%s", option, code, &out, &errout)
+				}
+				requireCheckpointUnchanged(t, checkpointPath, checkpoint)
+			})
+		}
+	}
+}
+
+func nonCheckingOutputMarker(option string) string {
+	switch option {
+	case "-help":
+		return "Usage: tla-go"
+	case "-version":
+		return "tla-go " + version
+	default:
+		return "<modules>"
+	}
+}
