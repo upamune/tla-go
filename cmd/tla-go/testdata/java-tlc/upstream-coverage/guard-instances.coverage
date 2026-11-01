@@ -1,0 +1,15 @@
+<Init line 3, col 1 to line 3, col 4 of module M>: 1:1
+  line 3, col 9 to line 3, col 11 of module M: 1
+<I!Act line 4, col 1 to line 4, col 1 of module M>: 1:1
+  line 4, col 39 to line 4, col 39 of module M: 3
+  line 5, col 8 to line 5, col 10 of module Inner: 1
+  |line 5, col 8 to line 5, col 8 of module Inner: 3
+  |line 5, col 10 to line 5, col 10 of module Inner: 3
+  line 5, col 15 to line 5, col 18 of module Inner: 1
+<J!Act line 5, col 1 to line 5, col 1 of module M>: 1:2
+  line 5, col 39 to line 5, col 39 of module M: 3
+  line 5, col 8 to line 5, col 10 of module Inner: 2
+  |line 5, col 8 to line 5, col 8 of module Inner: 3
+  |line 5, col 10 to line 5, col 10 of module Inner: 3
+  line 5, col 15 to line 5, col 18 of module Inner: 2
+End of statistics.

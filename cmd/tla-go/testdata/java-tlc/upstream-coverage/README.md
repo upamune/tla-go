@@ -13,6 +13,13 @@ DOT dump. Go supports the restricted direct-assignment and UNCHANGED variants;
 the original A, guard and range-assignment variants remain unsupported. See the
 [cost-model investigation](../../../../../docs/investigations/coverage-cost-model-a.md).
 
+`guard-*.coverage` contains Java 1.7.4 CLI reports for the models in
+`java_tlc_coverage_guard_oracle_test.go`. They cover false and mixed guards,
+shared roots, repeated formal occurrences, multiline heads, a type error,
+state constraints and substituted instances. Runs use `-deadlock -fp 0
+-workers 1 -checkpoint 0 -coverage 9999` and separate metadata directories.
+The Go checker rejects these coverage models; they are not JUnit executions.
+
 `origin-distinct-instances.coverage` and `origin-identical-instances.coverage`
 record Java 1.7.4 CLI output for the models constructed in
 `java_tlc_coverage_origin_oracle_test.go`: two named substituted instances of
