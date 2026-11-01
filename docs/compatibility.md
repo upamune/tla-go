@@ -176,6 +176,23 @@ concurrent count values. A future implementation must also serialize output
 against errors, final summaries and other callbacks; merely reading the Go
 collector concurrently would race, and waiting for a whole successor expansion
 can delay a report indefinitely.
+
+The current final-report path cannot be reused as a live snapshot: `finish`
+replaces each action's raw expression slice with a collapsed report, while
+subsequent evaluation still addresses that slice through the original indices.
+`TestCoverageFinishIsNotALiveSnapshot` demonstrates the stale index. A safe
+implementation needs a non-destructive snapshot of the counters and cost tree,
+consistent ownership or synchronization for every read and update, and
+serialization of complete messages with all existing output callbacks and
+termination paths. It must also start the progress schedule after initial-state
+generation, not at the CLI's current conservative cancellation deadline, and
+must account for long-running evaluations without silently skipping reports.
+Those requirements have not yet been established even for a smaller class of
+the currently accepted models; the deadline restriction above remains in place
+rather than emitting an unverified approximation. No progress goroutine is
+started for coverage today, and an absent `-coverage` flag enables no coverage
+output. Any future checker option or callback must also preserve checkpoint
+option validation and caller context cancellation.
 Coverage rejects temporal properties, action constraints, symmetry, VIEW, continuation, simulation, and depth-first search. Tool mode emits coverage messages with the
 Java TLC codes and ordering for the supported models. Complex expressions, other operator calls,
 other action quantification, parameterized or inline actions, initial or action disjunctions,
