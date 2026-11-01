@@ -2,6 +2,7 @@ package checker
 
 import (
 	"maps"
+	"math/bits"
 	"slices"
 
 	"github.com/upamune/tla-go/evaluator"
@@ -9,9 +10,41 @@ import (
 
 type ltlBranch struct {
 	todo      []*ltlFormula
-	seen      map[int]bool
-	next      map[int]*ltlFormula
-	fulfilled map[int]bool
+	seen      ltlIDSet
+	// A formula is expanded once per branch, so next contains no repeated IDs.
+	next      []*ltlFormula
+	fulfilled ltlIDSet
+}
+
+// Most temporal formulas have fewer than 64 nodes. Keep their branch-local
+// membership inline so a choice doesn't allocate two copied maps. IDs beyond
+// that range retain the same semantics through the overflow map.
+type ltlIDSet struct {
+	small uint64
+	large map[int]bool
+}
+
+func (s ltlIDSet) has(id int) bool {
+	if id >= 0 && id < 64 {
+		return s.small&(uint64(1)<<uint(id)) != 0
+	}
+	return s.large[id]
+}
+
+func (s *ltlIDSet) add(id int) {
+	if id >= 0 && id < 64 {
+		s.small |= uint64(1) << uint(id)
+		return
+	}
+	if s.large == nil {
+		s.large = make(map[int]bool)
+	}
+	s.large[id] = true
+}
+
+func (s ltlIDSet) clone() ltlIDSet {
+	s.large = maps.Clone(s.large)
+	return s
 }
 
 type ltlAlternative struct {
@@ -35,7 +68,7 @@ type ltlExpander struct {
 }
 
 func (e *ltlExpander) alternatives(formulas []*ltlFormula) ([]ltlAlternative, error) {
-	branch := ltlBranch{todo: append([]*ltlFormula(nil), formulas...), seen: map[int]bool{}, next: map[int]*ltlFormula{}, fulfilled: map[int]bool{}}
+	branch := ltlBranch{todo: append([]*ltlFormula(nil), formulas...)}
 	if e.tableau {
 		if e.tableauAtoms == nil {
 			e.tableauAtoms = map[int]*ltlFormula{}
@@ -55,10 +88,10 @@ func (e *ltlExpander) expand(branch ltlBranch, result *[]ltlAlternative) error {
 		last := len(branch.todo) - 1
 		formula := branch.todo[last]
 		branch.todo = branch.todo[:last]
-		if branch.seen[formula.id] {
+		if branch.seen.has(formula.id) {
 			continue
 		}
-		branch.seen[formula.id] = true
+		branch.seen.add(formula.id)
 		if handled, err := e.expandSimple(formula, &branch); handled || err != nil {
 			if err != nil {
 				return err
@@ -83,7 +116,7 @@ func (e *ltlExpander) expandSimple(formula *ltlFormula, branch *ltlBranch) (bool
 		branch.todo = append(branch.todo, formula.left, formula.right)
 	case ltlAlways:
 		branch.todo = append(branch.todo, formula.left)
-		branch.next[formula.id] = formula
+		branch.next = append(branch.next, formula)
 	default:
 		return false, nil
 	}
@@ -147,8 +180,8 @@ func (e *ltlExpander) expandChoice(formula *ltlFormula, branch ltlBranch, result
 	first := cloneLTLBranch(branch)
 	first.todo = append(first.todo, formula.left)
 	if formula.kind == ltlEventually {
-		first.fulfilled[formula.id] = true
-		branch.next[formula.id] = formula
+		first.fulfilled.add(formula.id)
+		branch.next = append(branch.next, formula)
 	} else {
 		branch.todo = append(branch.todo, formula.right)
 	}
@@ -159,31 +192,37 @@ func (e *ltlExpander) expandChoice(formula *ltlFormula, branch ltlBranch, result
 }
 
 func cloneLTLBranch(branch ltlBranch) ltlBranch {
-	return ltlBranch{todo: append([]*ltlFormula(nil), branch.todo...), seen: maps.Clone(branch.seen), next: maps.Clone(branch.next), fulfilled: maps.Clone(branch.fulfilled)}
+	return ltlBranch{todo: append([]*ltlFormula(nil), branch.todo...), seen: branch.seen.clone(), next: append([]*ltlFormula(nil), branch.next...), fulfilled: branch.fulfilled.clone()}
 }
 
 func (e *ltlExpander) makeAlternative(branch ltlBranch) ltlAlternative {
 	alternative := ltlAlternative{accepting: make([]bool, len(e.eventuality))}
-	for _, formula := range branch.next {
-		alternative.next = append(alternative.next, formula)
-	}
+	alternative.next = branch.next
 	if e.tableau {
 		e.tableauConditions = append(e.tableauConditions, e.conditionsFor(branch.seen))
 	}
 	slices.SortFunc(alternative.next, func(a, b *ltlFormula) int { return a.id - b.id })
 	for i, formula := range e.eventuality {
-		alternative.accepting[i] = !branch.seen[formula.id] || branch.fulfilled[formula.id]
+		alternative.accepting[i] = !branch.seen.has(formula.id) || branch.fulfilled.has(formula.id)
 	}
 	return alternative
 }
 
-func (e *ltlExpander) conditionsFor(seen map[int]bool) []*ltlFormula {
+func (e *ltlExpander) conditionsFor(seen ltlIDSet) []*ltlFormula {
 	var conditions []*ltlFormula
-	for id := range seen {
-		if formula := e.tableauAtoms[id]; formula != nil {
-			conditions = append(conditions, formula)
-		}
+	for remaining := seen.small; remaining != 0; remaining &= remaining - 1 {
+		conditions = e.appendCondition(conditions, bits.TrailingZeros64(remaining))
+	}
+	for id := range seen.large {
+		conditions = e.appendCondition(conditions, id)
 	}
 	slices.SortFunc(conditions, func(a, b *ltlFormula) int { return a.id - b.id })
+	return conditions
+}
+
+func (e *ltlExpander) appendCondition(conditions []*ltlFormula, id int) []*ltlFormula {
+	if formula := e.tableauAtoms[id]; formula != nil {
+		return append(conditions, formula)
+	}
 	return conditions
 }
