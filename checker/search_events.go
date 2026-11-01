@@ -16,6 +16,9 @@ const (
 	// SimulationLiveness reports the number of solutions of TLC's liveness
 	// normal form before simulation computes the initial states.
 	SimulationLiveness SearchEventKind = "simulation-liveness"
+	// ModelCheckingLiveness reports the number of liveness solutions before
+	// breadth-first model checking computes the initial states.
+	ModelCheckingLiveness SearchEventKind = "model-checking-liveness"
 )
 
 // SearchEvent describes initial-state generation and depth-first iterations
@@ -25,7 +28,7 @@ type SearchEvent struct {
 	GeneratedStates, DistinctStates int
 	// Level is the depth of a DepthFirstLevel iteration.
 	Level int
-	// Branches is the solution count of a SimulationLiveness event.
+	// Branches is the solution count of a liveness event.
 	Branches int
 }
 

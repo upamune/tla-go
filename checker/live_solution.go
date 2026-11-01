@@ -25,11 +25,38 @@ type livePEMFormulas struct{ eaAction, aeState, aeAction, temporal []*liveNode }
 // temporal properties, conjoins the fairness assumptions and groups the
 // disjunctive normal form by tableau formula.
 func (m *model) liveSolutions() ([]liveSolution, error) {
+	disjuncts, err := m.liveDisjuncts()
+	if err != nil || len(disjuncts) == 0 {
+		return nil, err
+	}
+	return groupLiveSolutions(disjuncts)
+}
+
+// liveSolutionCount avoids building the tableau when only its group count is
+// needed for the model-checking progress message.
+func (m *model) liveSolutionCount() (int, error) {
+	disjuncts, err := m.liveDisjunctsBounded(1024)
+	if err != nil {
+		return 0, err
+	}
+	temporal, _, err := groupLiveFormulas(disjuncts)
+	return len(temporal), err
+}
+
+func (m *model) liveDisjuncts() ([]*liveNode, error) {
+	return m.liveDisjunctsBounded(0)
+}
+
+func (m *model) liveDisjunctsBounded(limit int) ([]*liveNode, error) {
 	formula, err := newLiveConverter(m).liveness()
 	if formula == nil || err != nil {
 		return nil, err
 	}
-	formula = formula.simplify().toDNF()
+	formula = formula.simplify()
+	if limit > 0 && !liveDNFWithinLimit(formula, limit) {
+		return nil, nil
+	}
+	formula = formula.toDNF()
 	if formula.kind == liveBool && !formula.value {
 		return nil, nil
 	}
@@ -37,16 +64,28 @@ func (m *model) liveSolutions() ([]liveSolution, error) {
 	if formula.kind == liveDisj {
 		disjuncts = formula.items
 	}
-	return groupLiveSolutions(disjuncts)
+	return disjuncts, nil
 }
 
 func groupLiveSolutions(disjuncts []*liveNode) ([]liveSolution, error) {
+	temporal, groups, err := groupLiveFormulas(disjuncts)
+	if err != nil {
+		return nil, err
+	}
+	solutions := make([]liveSolution, len(temporal))
+	for i, formula := range temporal {
+		solutions[i] = newLiveSolution(formula, groups[i])
+	}
+	return solutions, nil
+}
+
+func groupLiveFormulas(disjuncts []*liveNode) ([]*liveNode, [][]livePEMFormulas, error) {
 	var temporal []*liveNode
 	var groups [][]livePEMFormulas
 	for _, disjunct := range disjuncts {
 		pem, err := classifyLiveDisjunct(disjunct.flattenSingleJunctions())
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		formula := pem.temporalFormula()
 		index := liveTemporalIndex(temporal, formula)
@@ -56,11 +95,7 @@ func groupLiveSolutions(disjuncts []*liveNode) ([]liveSolution, error) {
 		}
 		groups[index] = append(groups[index], pem)
 	}
-	solutions := make([]liveSolution, len(temporal))
-	for i, formula := range temporal {
-		solutions[i] = newLiveSolution(formula, groups[i])
-	}
-	return solutions, nil
+	return temporal, groups, nil
 }
 
 func liveTemporalIndex(formulas []*liveNode, formula *liveNode) int {
