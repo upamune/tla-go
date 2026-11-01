@@ -160,8 +160,9 @@ Like Java, it replaces the text between `\* BEGIN TRANSLATION` and `\* END TRANS
 
 The checkpoint format is versioned, checksummed and limited to 64 MiB. Files
 are written through a temporary file and renamed in the same directory. On
-non-Windows systems the directory is also synced; Go does not guarantee atomic
-rename on Windows, and durability depends on the filesystem.
+non-Windows systems the directory is also synced. On Windows, checkpoint writes
+require support for POSIX-style file replacement; filesystems or Windows versions
+without it return an error. Durability depends on the filesystem.
 
 Explicit `-checkpoint N` (positive minutes) supports a restricted pure serial
 breadth-first search: integer, Boolean, and string states, scalar string

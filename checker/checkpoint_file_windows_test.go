@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -98,7 +100,7 @@ func TestCheckpointWindowsRetriesBlockedReplacement(t *testing.T) {
 			return err
 		}, func(ctx context.Context, from, to string) error {
 			return checkpointRetry(ctx, func() error {
-				err := os.Rename(from, to)
+				err := checkpointReplaceWindows(from, to)
 				if err != nil {
 					select {
 					case conflict <- err:
@@ -155,7 +157,7 @@ func TestCheckpointWindowsCanceledRetryPreservesOld(t *testing.T) {
 			return nil
 		}, func(ctx context.Context, from, to string) error {
 			return checkpointRetry(ctx, func() error {
-				err := os.Rename(from, to)
+				err := checkpointReplaceWindows(from, to)
 				if err != nil {
 					select {
 					case conflict <- err:
@@ -195,6 +197,104 @@ func TestCheckpointWindowsCanceledRetryPreservesOld(t *testing.T) {
 	files, err := os.ReadDir(filepath.Dir(path))
 	if err != nil || len(files) != 1 {
 		t.Fatalf("temporary files: %v %v", files, err)
+	}
+}
+
+func TestCheckpointWindowsConcurrentFirstWrite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "チェックポイント")
+	const writers = 8
+	start := make(chan struct{})
+	errs := make(chan error, writers)
+	var wg sync.WaitGroup
+	for i := range writers {
+		wg.Go(func() {
+			<-start
+			s := checkpointFixture()
+			if i%2 != 0 {
+				s.Nodes[1].Action = "Other"
+			}
+			errs <- checkpointWrite(path, s)
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Errorf("write: %v", err)
+		}
+	}
+	s := checkpointFixture()
+	got, err := checkpointRead(path, s.Identity)
+	if err != nil || (got.Nodes[1].Action != "Next" && got.Nodes[1].Action != "Other") {
+		t.Fatalf("final checkpoint: %v", err)
+	}
+}
+
+func TestCheckpointWindowsPathLengthAlignment(t *testing.T) {
+	dir := t.TempDir()
+	for n := 1; n <= 8; n++ {
+		path := filepath.Join(dir, strings.Repeat("x", n))
+		first := checkpointFixture()
+		if err := checkpointWrite(path, first); err != nil {
+			t.Fatalf("path length %d: %v", n, err)
+		}
+		second := checkpointFixture()
+		second.Nodes[1].Action = "Other"
+		if err := checkpointWrite(path, second); err != nil {
+			t.Fatalf("replace path length %d: %v", n, err)
+		}
+		got, err := checkpointRead(path, second.Identity)
+		if err != nil || !reflect.DeepEqual(got, second) {
+			t.Fatalf("read path length %d: %v", n, err)
+		}
+	}
+}
+
+func TestCheckpointWindowsLongUnicodePath(t *testing.T) {
+	dir := t.TempDir()
+	for len(dir) < 270 {
+		dir = filepath.Join(dir, strings.Repeat("long", 20))
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "状態")
+	s := checkpointFixture()
+	if err := checkpointWrite(path, s); err != nil {
+		t.Fatal(err)
+	}
+	s.Nodes[1].Action = "Other"
+	if err := checkpointWrite(path, s); err != nil {
+		t.Fatal(err)
+	}
+	got, err := checkpointRead(path, s.Identity)
+	if err != nil || !reflect.DeepEqual(got, s) {
+		t.Fatalf("checkpoint: %v", err)
+	}
+}
+
+func TestCheckpointWindowsRelativePath(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := filepath.Rel(wd, filepath.Join(dir, "checkpoint"))
+	if err != nil {
+		t.Skipf("temporary directory is on another volume: %v", err)
+	}
+	s := checkpointFixture()
+	if err := checkpointWrite(path, s); err != nil {
+		t.Fatal(err)
+	}
+	s.Nodes[1].Action = "Other"
+	if err := checkpointWrite(path, s); err != nil {
+		t.Fatal(err)
+	}
+	got, err := checkpointRead(path, s.Identity)
+	if err != nil || !reflect.DeepEqual(got, s) {
+		t.Fatalf("checkpoint: %v", err)
 	}
 }
 
