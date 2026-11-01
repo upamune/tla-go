@@ -322,9 +322,9 @@ func profileCleanupRoots(opts options, paths []string) []string {
 	}
 	if opts.metaRoot != "" {
 		roots = append(roots, opts.metaRoot)
-	} else if opts.checkpointInterval > 0 {
+	} else if opts.checkpointInterval > 0 || strings.HasPrefix(opts.dumpPath, "${metadir}") {
 		for _, path := range paths {
-			roots = append(roots, filepath.Join(filepath.Dir(path), "states"))
+			roots = append(roots, defaultMetaRoot(path))
 		}
 	}
 	if opts.recoverDir != "" {

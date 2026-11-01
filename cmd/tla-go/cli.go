@@ -175,10 +175,10 @@ func configureTimedStop(opts *options) error {
 func runModelWithMeta(ctx context.Context, opts options, out, errout io.Writer) (code int) {
 	if opts.recoverDir != "" {
 		opts.metaDir = opts.recoverDir
-	} else if opts.metaRoot != "" || opts.checkpointInterval > 0 {
+	} else if needsMetaDir(opts) {
 		root := opts.metaRoot
 		if root == "" {
-			root = filepath.Join(filepath.Dir(opts.path), "states")
+			root = defaultMetaRoot(opts.path)
 		}
 		metaDir, err := makeMetaDir(root, time.Now())
 		if err != nil {
@@ -199,6 +199,17 @@ func runModelWithMeta(ctx context.Context, opts options, out, errout io.Writer) 
 		return 255
 	}
 	return runConfiguredModel(ctx, opts, out, errout)
+}
+
+func needsMetaDir(opts options) bool {
+	return opts.metaRoot != "" || opts.checkpointInterval > 0 || strings.HasPrefix(opts.dumpPath, "${metadir}")
+}
+
+func defaultMetaRoot(path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Join(filepath.Dir(path), "states")
+	}
+	return "states"
 }
 
 func checkpointMetaError(ctx context.Context, opts options, out, errout io.Writer, err error) int {

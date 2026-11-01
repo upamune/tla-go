@@ -185,3 +185,106 @@ func TestMetadataDirectoryCleanup(t *testing.T) {
 		}
 	}
 }
+
+func TestJavaTLCDefaultMetadataDirectoryDump(t *testing.T) {
+	for _, tc := range []struct {
+		name, inv, cfg string
+		code           int
+	}{
+		{"success", "", "", 0},
+		{"violation", "Inv == x = 1", "INVARIANT Inv\n", 12},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n"+tc.inv, "INIT Init\nNEXT Next\n"+tc.cfg)
+			args := []string{"-tool", "-workers", "1", "-checkpoint", "0", "-dump", "dot", "${metadir}/graph", filepath.Join(dir, "M.tla")}
+			var out, errout bytes.Buffer
+			code := run(context.Background(), args, &out, &errout)
+			if code != tc.code {
+				t.Fatalf("Go exit %d: %s %s", code, out.String(), errout.String())
+			}
+			root := filepath.Join(dir, "states")
+			entries, err := os.ReadDir(root)
+			if err != nil || len(entries) != boolInt(tc.code != 0) {
+				t.Fatalf("Go metadata entries: %v %v", entries, err)
+			}
+			if tc.code != 0 {
+				if _, err := os.Stat(filepath.Join(root, entries[0].Name(), "graph.dot")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if jar := os.Getenv("TLC_JAR"); jar != "" {
+				javaDir := t.TempDir()
+				writeDOTFixture(t, javaDir, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n"+tc.inv, "INIT Init\nNEXT Next\n"+tc.cfg)
+				javaArgs := append([]string(nil), args...)
+				javaArgs[len(javaArgs)-1] = filepath.Join(javaDir, "M.tla")
+				cmd := exec.Command("java", append([]string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", jar}, javaArgs...)...)
+				cmd.Dir = javaDir
+				output, err := javatmp.Apply(cmd).CombinedOutput()
+				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != tc.code {
+					t.Fatalf("Java exit %v: %s", err, output)
+				}
+			}
+		})
+	}
+}
+
+func boolInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+func TestDefaultMetadataRootRelativeAndAbsolute(t *testing.T) {
+	dir := t.TempDir()
+	for _, tc := range []struct{ path, want string }{
+		{"M.tla", "states"},
+		{filepath.Join("nested", "M.tla"), "states"},
+		{filepath.Join(dir, "M.tla"), filepath.Join(dir, "states")},
+	} {
+		if got := defaultMetaRoot(tc.path); got != tc.want {
+			t.Errorf("defaultMetaRoot(%q) = %q, want %q", tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestJavaTLCRelativeMetadataDirectoryDump(t *testing.T) {
+	root := t.TempDir()
+	binary := filepath.Join(root, "tla-go")
+	if output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v %s", err, output)
+	}
+	for _, tc := range []struct {
+		name   string
+		binary string
+		args   []string
+	}{
+		{"Go", binary, nil},
+		{"Java", "java", []string{"-Djava.io.tmpdir=" + t.TempDir(), "-Xmx256m", "-jar", os.Getenv("TLC_JAR")}},
+	} {
+		if tc.name == "Java" && os.Getenv("TLC_JAR") == "" {
+			continue
+		}
+		dir := filepath.Join(root, tc.name)
+		spec := filepath.Join(dir, "nested")
+		if err := os.MkdirAll(spec, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		writeDOTFixture(t, spec, "VARIABLE x\nInit == x = 0\nNext == UNCHANGED x\nInv == x = 1", "INIT Init\nNEXT Next\nINVARIANT Inv\n")
+		args := append(tc.args, "-tool", "-workers", "1", "-checkpoint", "0", "-dump", "dot", "${metadir}/graph", filepath.Join("nested", "M.tla"))
+		cmd := exec.Command(tc.binary, args...)
+		cmd.Dir = dir
+		output, err := javatmp.Apply(cmd).CombinedOutput()
+		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != 12 {
+			t.Fatalf("%s exit %v: %s", tc.name, err, output)
+		}
+		matches, err := filepath.Glob(filepath.Join(dir, "states", "*", "graph.dot"))
+		if err != nil || len(matches) != 1 {
+			t.Fatalf("%s metadata dump: %v %v", tc.name, matches, err)
+		}
+		if _, err := os.Stat(filepath.Join(spec, "states")); !os.IsNotExist(err) {
+			t.Fatalf("%s created metadata under relative spec directory: %v", tc.name, err)
+		}
+	}
+}

@@ -176,6 +176,7 @@ func TestProfileOutputSafety(t *testing.T) {
 		{"-debug-trace", "dump.dump", "-dump", "dump"},
 		{"-cleanup", "-debug-trace", "states/trace"},
 		{"-metadir", "states", "-debug-trace", "states/trace"},
+		{"-debug-trace", "states/trace", "-dump", "${metadir}/graph"},
 		{"-cleanup", "-metadir", "states", "-debug-trace", "outside", "-dump", "${metadir}/../../outside"},
 	} {
 		if err := run(args...); err == nil {
