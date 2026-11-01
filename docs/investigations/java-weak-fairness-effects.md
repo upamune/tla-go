@@ -29,6 +29,17 @@ to reproduce them. Other recovery
 errors and presentation callbacks also need further verification. The historical
 observations below describe earlier revisions.
 
+When an eligible simulation's counterexample recovery fails, Java's subsequent
+behavior printer first recovers each action and then compares the current and
+previous states' `TLCStateMut.fingerPrint()` values. The comparison applies
+symmetry and VIEW and can suppress distinct states with identical FP64 values.
+When printing a `-difftrace` state, Java compares it with the immediately
+previous sampled state, even if that predecessor was suppressed.
+`TestJavaTLCSimulationBehaviorReduction` compares ordered user output and tool
+messages with the pinned JAR for selected VIEW, SYMMETRY, combined, and unreduced
+model-value cases. This does not establish parity for effectful VIEW, unknown
+model-value ordering, or all fingerprint and recovery errors.
+
 Oracle: tla2tools v1.7.4, upstream commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`, JAR SHA-256 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`. `TestJavaTLCFairnessEffectsLifecycle` exercises the isolated models; set `TLC_JAR` to the pinned JAR to run the Java comparisons. Each Java invocation uses one worker, fingerprint polynomial 0, and its own temporary model and metadata directory. Plain and `-tool` were compared. The original was also run three times with a fresh metadir per run and one worker: Java printed 10 times and Go 7 times on all three runs, with 3 generated and 2 distinct states and a liveness violation. This is not a determinism claim for multiple workers, arbitrary fingerprint polynomials, periodic checks, or other models.
 
 In additional single-worker runs with fingerprint polynomial indices 0 through 5, the labeled model produced the same ten values in the same order. This sample does not establish a general ordering guarantee.

@@ -300,12 +300,20 @@ type SimulationOptions struct {
 	// A failed prefix is never reported; a failed cycle retains prior reports.
 	// It requires OmitLassoPropertyNames and the compatible ALIAS/VIEW conditions above.
 	OnCounterexampleStates func([]TraceStep, int)
-	// OnBehaviorStart and OnBehaviorState opt in together to streaming the
-	// sampled behavior after counterexample recovery fails. They run synchronously
+	// OnBehaviorStart and at least one behavior state callback opt in together
+	// to streaming after counterexample recovery fails. They run synchronously
 	// and require OmitLassoPropertyNames and the compatible ALIAS/VIEW conditions above.
-	// State numbers are one based.
+	// State numbers are one based. State maps and slices are read-only; copy them
+	// before modifying. When both callbacks are set, OnBehaviorState runs first.
 	OnBehaviorStart func(*Failure)
 	OnBehaviorState func(TraceStep, int)
+	// OnBehaviorStateWithPrevious also receives the previous sampled step,
+	// including when it was suppressed by fingerprint equality. Its StateOrder,
+	// ActionRange, and optional View are prepared like the current step. Previous
+	// is nil for the initial state. It may be used instead of or alongside
+	// OnBehaviorState; the same activation and read-only rules apply. Both steps
+	// may be retained after the callback returns.
+	OnBehaviorStateWithPrevious func(TraceStep, *TraceStep, int)
 	// UnlimitedTraces removes the trace-count limit and reports -1 to TLCGet.
 	UnlimitedTraces bool
 	// Aril advances the master random stream by this many double draws.

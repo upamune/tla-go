@@ -78,13 +78,17 @@ func (r *simulationRun) liveFailure(err error) (*Result, error) {
 	}
 	printing, _ := errors.AsType[*livePrintError](err)
 	result := r.liveException(failure, printing)
-	if printing != nil && r.uncachedLiveChecks() && r.options.OnBehaviorStart != nil && r.options.OnBehaviorState != nil {
+	if printing != nil && r.uncachedLiveChecks() && r.hasBehaviorCallbacks() {
 		if err := r.streamFailedBehavior(failure); err != nil {
 			return nil, behaviorRecoveryError(err)
 		}
 		result.SimulationBehaviorStreamed = true
 	}
 	return result, nil
+}
+
+func (r *simulationRun) hasBehaviorCallbacks() bool {
+	return r.options.OnBehaviorStart != nil && (r.options.OnBehaviorState != nil || r.options.OnBehaviorStateWithPrevious != nil)
 }
 
 func behaviorRecoveryError(err error) error {
@@ -107,8 +111,9 @@ func (r *simulationRun) streamFailedBehavior(failure *Failure) error {
 
 func (r *simulationRun) streamBehaviorPath(path []TraceStep) error {
 	count := 0
+	order := r.model.symmetryVariableOrder()
 	for i, sampled := range path {
-		step, show, err := r.behaviorPathStep(path, i, sampled)
+		step, show, err := r.behaviorPathStep(path, i, sampled, order)
 		if err != nil {
 			return err
 		}
@@ -119,12 +124,27 @@ func (r *simulationRun) streamBehaviorPath(path []TraceStep) error {
 		v := &Violation{Trace: []TraceStep{step}}
 		result := Result{Violation: v}
 		r.model.presentTraces(&result)
-		r.options.OnBehaviorState(result.Violation.Trace[0], count)
+		r.reportBehaviorState(path, i, result.Violation.Trace[0], count)
 	}
 	return nil
 }
 
-func (r *simulationRun) behaviorPathStep(path []TraceStep, index int, sampled TraceStep) (TraceStep, bool, error) {
+func (r *simulationRun) reportBehaviorState(path []TraceStep, index int, step TraceStep, number int) {
+	if r.options.OnBehaviorState != nil {
+		r.options.OnBehaviorState(step, number)
+	}
+	if r.options.OnBehaviorStateWithPrevious != nil {
+		var previous *TraceStep
+		if index > 0 {
+			result := Result{Violation: &Violation{Trace: []TraceStep{path[index-1]}}}
+			r.model.presentTraces(&result)
+			previous = &result.Violation.Trace[0]
+		}
+		r.options.OnBehaviorStateWithPrevious(step, previous, number)
+	}
+}
+
+func (r *simulationRun) behaviorPathStep(path []TraceStep, index int, sampled TraceStep, order []string) (TraceStep, bool, error) {
 	if err := r.model.ctx.Err(); err != nil {
 		return TraceStep{}, false, err
 	}
@@ -132,19 +152,22 @@ func (r *simulationRun) behaviorPathStep(path []TraceStep, index int, sampled Tr
 		return sampled, true, nil
 	}
 	r.model.tlcRuntime.level = r.search.nodes[index-1].depth
-	return r.recoverBehaviorStep(path[index-1].State, sampled.State)
+	return r.recoverBehaviorStep(path[index-1].State, sampled.State, order)
 }
 
-func (r *simulationRun) recoverBehaviorStep(previous, sampled evaluator.State) (TraceStep, bool, error) {
+func (r *simulationRun) recoverBehaviorStep(previous, sampled evaluator.State, order []string) (TraceStep, bool, error) {
 	step, found, err := r.findBehaviorAction(previous, sampled)
 	if err != nil {
 		return TraceStep{}, false, err
 	}
-	cur, err := r.model.fingerprintKey(sampled)
+	// Simulator.printBehavior compares TLCStateMut fingerprints, evaluating
+	// the current state first. These include SYMMETRY and VIEW, use the
+	// configured FP64 polynomial, and can collide for distinct states.
+	cur, err := r.model.javaFingerprint(sampled, order)
 	if err != nil {
 		return TraceStep{}, false, err
 	}
-	prev, err := r.model.fingerprintKey(previous)
+	prev, err := r.model.javaFingerprint(previous, order)
 	if err != nil {
 		return TraceStep{}, false, err
 	}
