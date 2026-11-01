@@ -1,6 +1,7 @@
 package value
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -90,5 +91,29 @@ func TestLazyFunctionCachesEvaluationModesSeparately(t *testing.T) {
 	}
 	if got := calls.Load(); got != 2 {
 		t.Fatalf("computed %d times, want 2", got)
+	}
+}
+
+func TestLazyFunctionEqualityMaterializesInOrderAndCaches(t *testing.T) {
+	var calls []string
+	makeFunction := func(name string) Value {
+		fn, err := LazyFunction(Interval(1, 2), func(k, _ Value) (Value, error) {
+			calls = append(calls, name+k.String())
+			return k, nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fn
+	}
+	a, b := makeFunction("a"), makeFunction("b")
+	for range 2 {
+		equal, err := Equal(a, b)
+		if err != nil || !equal {
+			t.Fatalf("equal = %v, error = %v", equal, err)
+		}
+	}
+	if got := strings.Join(calls, ","); got != "a1,a2,b1,b2" {
+		t.Fatalf("calls: %s", got)
 	}
 }

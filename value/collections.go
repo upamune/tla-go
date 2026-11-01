@@ -16,10 +16,12 @@ var ErrOutsideFunctionDomain = errors.New("argument is outside the function's do
 // mixed set enumeration in TLC, incompatible elements cannot yet be sorted.
 func Set(elements []Value) (Value, error) {
 	sorted := append([]Value(nil), elements...)
-	if err := sortValues(sorted); err != nil {
+	var err error
+	sorted, err = normalizeSetValues(sorted)
+	if err != nil {
 		return Value{}, err
 	}
-	return Value{kind: SetKind, data: &payload{elements: unique(sorted)}}, nil
+	return Value{kind: SetKind, data: &payload{elements: sorted}}, nil
 }
 
 // SetUnnormalized preserves TLC's comparison order for a newly evaluated set.
@@ -114,19 +116,105 @@ func sortValues(values []Value) error {
 	return failure
 }
 
-func unique(values []Value) []Value {
-	if len(values) == 0 {
-		return values
+// TLC ValueVec.sort(true) inserts each value using compareTo and discards
+// a comparison-equal value. Its binary-search order matters when comparison
+// is not transitive or has observable evaluation effects.
+func normalizeSetValues(values []Value) ([]Value, error) {
+	if len(values) > 1 && homogeneousScalars(values) {
+		return normalizeScalarSet(values), nil
+	}
+	n := min(len(values), 1)
+	for i := 1; i < len(values); i++ {
+		v := values[i]
+		lo, duplicate, err := setInsertionPoint(values[:n], v)
+		if err != nil {
+			return nil, err
+		}
+		if !duplicate {
+			copy(values[lo+1:n+1], values[lo:n])
+			values[lo] = v
+			n++
+		}
+	}
+	return values[:n], nil
+}
+
+func homogeneousScalars(values []Value) bool {
+	kind := values[0].kind
+	if kind != IntegerKind && kind != BooleanKind && kind != StringKind {
+		return false
+	}
+	for _, v := range values[1:] {
+		if v.kind != kind {
+			return false
+		}
+	}
+	return true
+}
+
+// Scalar comparisons are total and have no effects. Retain the first equal
+// string's payload, as ValueVec's insertion algorithm does.
+func normalizeScalarSet(values []Value) []Value {
+	if values[0].kind == StringKind {
+		type indexedValue struct {
+			value Value
+			index int
+		}
+		indexed := make([]indexedValue, len(values))
+		for i, v := range values {
+			indexed[i] = indexedValue{v, i}
+		}
+		slices.SortFunc(indexed, func(a, b indexedValue) int {
+			if c := compareString(a.value.data.text, b.value.data.text); c != 0 {
+				return c
+			}
+			return compareIntIndex(a.index, b.index)
+		})
+		for i, item := range indexed {
+			values[i] = item.value
+		}
+	} else {
+		slices.SortFunc(values, func(a, b Value) int { return compareInt(a.number, b.number) })
 	}
 	n := 1
 	for _, v := range values[1:] {
-		eq, _ := Equal(values[n-1], v)
-		if !eq {
+		c, _ := compareScalars(values[n-1], v)
+		if c != 0 {
 			values[n] = v
 			n++
 		}
 	}
 	return values[:n]
+}
+
+func compareIntIndex(a, b int) int {
+	if a < b {
+		return -1
+	}
+	if a > b {
+		return 1
+	}
+	return 0
+}
+
+func setInsertionPoint(values []Value, v Value) (int, bool, error) {
+	lo, hi := 0, len(values)
+	for lo < hi {
+		mid := (lo + hi) / 2
+		c, err := Compare(v, values[mid])
+		if err != nil {
+			return 0, false, err
+		}
+		if c == 0 {
+			return mid, true, nil
+		}
+		if c < 0 {
+			hi = mid
+		} else {
+			lo = mid + 1
+		}
+	}
+	return lo, false, nil
 }
 
 // Function constructs a finite function. For duplicate keys, the first pair
