@@ -45,6 +45,34 @@ func TestTableauProgressDoesNotReplayEffects(t *testing.T) {
 	}
 }
 
+func TestEffectfulFairnessTableauProgressRemainsUnsupported(t *testing.T) {
+	const source = "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0\nNext == /\\ x' \\in {0, 1} /\\ PrintT(\"effect\")\nSpec == Init /\\ [][Next]_x /\\ WF_x(Next)\nP == <>(x = 2)\n===="
+	var baseline, observed []string
+	var events []SearchEvent
+	for _, opts := range []Options{
+		{OnPrint: func(s string) { baseline = append(baseline, s) }},
+		{OnPrint: func(s string) { observed = append(observed, s) }, OnSearch: func(e SearchEvent) { events = append(events, e) }},
+	} {
+		result, err := CheckWithOptions(context.Background(), source, "SPECIFICATION Spec PROPERTY P", opts)
+		if err != nil || result.Status != LivenessViolation {
+			t.Fatalf("got %+v, %v", result, err)
+		}
+	}
+	if len(baseline) == 0 || !reflect.DeepEqual(baseline, observed) {
+		t.Fatalf("without listener %q, with listener %q", baseline, observed)
+	}
+	foundModelLiveness := false
+	for _, event := range events {
+		foundModelLiveness = foundModelLiveness || event.Kind == ModelCheckingLiveness
+		if event.Kind == TemporalCheckStart {
+			t.Fatalf("reported unsafe tableau count: %+v", event)
+		}
+	}
+	if !foundModelLiveness {
+		t.Fatal("missing model liveness solution count")
+	}
+}
+
 func TestTableauProgressRejectsEffectsReachableFromReplay(t *testing.T) {
 	for _, tc := range []struct{ name, next, extra, config string }{
 		{"initial used by next", "Init /\\ UNCHANGED x", "", ""},

@@ -90,3 +90,41 @@ func TestPinnedCCallReturn1TemporalProgress(t *testing.T) {
 		}
 	}
 }
+
+// Effectful PlusCal termination models still require Java's late tableau
+// expansion. A missing Go diagnostic is intentional until that is modeled.
+func TestPinnedEffectfulPlusCalTableauProgressGuard(t *testing.T) {
+	root, jar := os.Getenv("TLA_GO_JUNIT_ROOT"), os.Getenv("TLA_GO_JUNIT_JAR")
+	if root == "" || jar == "" {
+		t.Skip("set TLA_GO_JUNIT_ROOT and TLA_GO_JUNIT_JAR")
+	}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jar, err = filepath.Abs(jar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyInputs(root, jar); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(t.TempDir(), "tla-go")
+	if out, err := exec.Command("go", "build", "-o", binary, "../../cmd/tla-go").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	for _, model := range []string{"Factorial2", "EvenOdd", "InnerLabeledIf"} {
+		t.Run(model, func(t *testing.T) {
+			c := Case{Name: "pcal." + model + "Test", Model: model, Path: "pcal", Workers: "1", Coverage: true, Dump: true, Translate: true, TranslationArgs: []string{"-wf", "-termination"}, IDs: []string{"2192"}, PresenceIDs: []string{"2267"}}
+			j, g, _, err := RunCase(root, jar, binary, c, 30*time.Second)
+			if err != nil || j.ExitCode != 0 || g.ExitCode != 0 {
+				t.Fatalf("Java exit %d Go exit %d: %v", j.ExitCode, g.ExitCode, err)
+			}
+			jm, je := Messages(j.Output)
+			gm, ge := Messages(g.Output)
+			if je != nil || ge != nil || len(jm["2192"]) == 0 || len(jm["2267"]) == 0 || len(gm["2192"]) != 0 || len(gm["2267"]) != 0 {
+				t.Fatalf("Java 2192/2267 %v/%v Go %v/%v errors %v/%v", jm["2192"], jm["2267"], gm["2192"], gm["2267"], je, ge)
+			}
+		})
+	}
+}

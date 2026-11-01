@@ -39,9 +39,14 @@ classes are not compiled or loaded; C and other Java overrides therefore remain
 unresolved. No output from these diagnostic invocations is a JUnit match.
 
 For `pcal.Euclid3Test`, the pinned Java diagnostic reports 94 fingerprints in
-2192 while Go omits the message. `safeLivenessDiagnostic` rejects the fairness
-action `Next`, which reaches `lp` and its `PrintT`; even without that first
-guard, `safeTableauProgress` rejects the effectful definition. Java's late tableau
+2192 while Go omits the message. The fairness action `Next` reaches `lp` and
+its `PrintT`, so `safeTableauProgress` rejects the effectful definition. WF/SF
+diagnostic normalization itself only constructs leaves for the fairness action
+and subscript; it does not evaluate them. This allows the initial 2212 solution
+count for such WF/SF formulas. Final progress remains guarded even without a
+tableau: nondeterministic effectful fairness has different effect counts and
+ordering in Go and Java. Recurrence formulas still require the diagnostic
+safety check. Java's late tableau
 expansion regenerates successors and rechecks both constraints; effects and
 dynamic expressions can change the graph, so Go cannot derive this count from
 its completed exploration without reproducing that replay. This is a deliberate

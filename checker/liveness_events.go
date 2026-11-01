@@ -86,7 +86,7 @@ func (m *model) progressBranches() (int, bool) {
 // initial-state generation, as TLC's LiveCheck does. Do not evaluate an
 // effectful formula a second time solely to produce a diagnostic message.
 func (m *model) emitModelLiveness() {
-	if m.searchEvent == nil || !m.safeLivenessDiagnostic() {
+	if m.searchEvent == nil || !m.safeLivenessNormalization() {
 		return
 	}
 	count, err := m.liveSolutionCount()
@@ -96,6 +96,18 @@ func (m *model) emitModelLiveness() {
 }
 
 func (m *model) safeLivenessDiagnostic() bool {
+	if !m.safeLivenessNormalization() {
+		return false
+	}
+	for _, fair := range m.fairness {
+		if m.unsafeIncrementalExpression(fair.action) || m.unsafeIncrementalExpression(fair.subscript) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *model) safeLivenessNormalization() bool {
 	if len(m.livenessOrder) == 0 {
 		return false
 	}
@@ -105,7 +117,9 @@ func (m *model) safeLivenessDiagnostic() bool {
 		}
 	}
 	for _, fair := range m.fairness {
-		if m.unsafeIncrementalExpression(fair.action) || m.unsafeIncrementalExpression(fair.subscript) {
+		// WF/SF conversion creates enabled and action leaves without evaluating
+		// either expression. Recurrence conversion can evaluate a constant leaf.
+		if fair.recurrence && (m.unsafeIncrementalExpression(fair.action) || m.unsafeIncrementalExpression(fair.subscript)) {
 			return false
 		}
 	}
