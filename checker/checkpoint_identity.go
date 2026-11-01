@@ -146,15 +146,28 @@ func checkpointIdentityOptionsSupported(o Options) error {
 // prepareCheckpointModel binds the identity to the exact resolved model used by
 // the search. It is intentionally private until persisted recovery is supported.
 func prepareCheckpointModel(ctx context.Context, source, configSource string, effective config.Config, options Options) (*model, error) {
+	return prepareCheckpointModelObserved(ctx, source, configSource, effective, options, nil)
+}
+
+// prepareCheckpointModelObserved installs only checker-owned recording callbacks,
+// after rejecting every callback supplied in options. No caller-provided code is
+// invoked by the observer. The observer must remain private to the search.
+func prepareCheckpointModelObserved(ctx context.Context, source, configSource string, effective config.Config, options Options, observer *checkpointObserver) (*model, error) {
 	module, session, identity, err := resolveCheckpointIdentity(ctx, source, configSource, effective, options)
 	if err != nil {
 		return nil, err
+	}
+	if observer != nil {
+		options.OnSearch = observer.search
+		options.OnWarning = observer.warning
+		options.OnPrint = observer.print
 	}
 	m, err := prepareWithSources(module, effective, options, session.sourceUnits)
 	if err != nil {
 		return nil, err
 	}
 	m.ctx = ctx
+	m.checkpointObserver = observer
 	m.checkpointIdentity = &identity
 	return m, nil
 }

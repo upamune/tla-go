@@ -35,7 +35,11 @@ func (m *model) checkpointUnsupportedConfig() bool {
 
 func (m *model) checkpointUnsupportedOptions() bool {
 	o := m.tlcRuntime.options
-	return m.searchEvent != nil || m.warning != nil || m.livenessWarning != nil || o.OnPrint != nil || o.OnPause != nil || o.ReadFile != nil || o.WriteFile != nil || m.checkpointUnsupportedMode()
+	return m.checkpointUntrustedObservers() || o.OnPause != nil || o.ReadFile != nil || o.WriteFile != nil || m.checkpointUnsupportedMode()
+}
+
+func (m *model) checkpointUntrustedObservers() bool {
+	return m.checkpointObserver == nil && (m.searchEvent != nil || m.warning != nil || m.livenessWarning != nil || m.tlcRuntime.options.OnPrint != nil)
 }
 
 func (m *model) checkpointUnsupportedMode() bool {
