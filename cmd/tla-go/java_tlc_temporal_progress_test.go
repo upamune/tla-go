@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-// The existing fairness evaluation differs in its effect stream. Do not emit
-// final progress for these models until that behavior is reproduced.
+// Do not emit final progress for effectful fairness models until graph counts
+// and the full output sequence are reproduced.
 func TestPinnedJavaFairnessProgressEffects(t *testing.T) {
 	jar := os.Getenv("TLC_JAR")
 	if jar == "" {
@@ -29,9 +29,10 @@ func TestPinnedJavaFairnessProgressEffects(t *testing.T) {
 	for _, tc := range []struct {
 		name, next, property string
 		code                 int
+		effectsMatch         bool
 	}{
-		{"weak nondeterministic success", `x' \in {0, 1} /\ PrintT("effect")`, `[]<>(x = 0)`, 0},
-		{"strong nondeterministic violation", `x' \in {0, 1} /\ PrintT("effect")`, `[]<>(x = 2)`, 13},
+		{"weak nondeterministic success", `x' \in {0, 1} /\ PrintT("effect")`, `[]<>(x = 0)`, 0, true},
+		{"strong nondeterministic violation", `x' \in {0, 1} /\ PrintT("effect")`, `[]<>(x = 2)`, 13, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -51,7 +52,7 @@ func TestPinnedJavaFairnessProgressEffects(t *testing.T) {
 			}
 			got, want := fairnessProgressStream(out.String()), fairnessProgressStream(string(java))
 			goEffects, javaEffects := strings.Count(out.String(), `"effect"`), strings.Count(string(java), `"effect"`)
-			if goEffects == 0 || goEffects == javaEffects || hasToolMessage(readToolMessages(out.String()), 2192) || !hasToolMessage(readToolMessages(string(java)), 2192) || !hasToolMessage(readToolMessages(out.String()), 2212) || !hasToolMessage(readToolMessages(string(java)), 2212) {
+			if goEffects == 0 || (goEffects == javaEffects) != tc.effectsMatch || hasToolMessage(readToolMessages(out.String()), 2192) || !hasToolMessage(readToolMessages(string(java)), 2192) || !hasToolMessage(readToolMessages(out.String()), 2212) || !hasToolMessage(readToolMessages(string(java)), 2212) {
 				t.Fatalf("Go %q Java %q\nGo %s\nJava %s", got, want, &out, java)
 			}
 		})

@@ -3,9 +3,11 @@ package checker
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
+	"github.com/upamune/tla-go/value"
 )
 
 type ltlValueKey struct {
@@ -63,6 +65,94 @@ func (s *search) prepareIncrementalLiveness() {
 		s.ltlFingerprints = map[int]uint64{}
 		s.ltlVariableOrder = s.model.symmetryVariableOrder()
 	}
+	s.fairIncrementalOneSolution = s.canEvaluateFairIncrementally()
+}
+
+// Re-evaluation must retain separate results for each Java liveness solution.
+// Until the cache supports that, restrict this path to a single non-tableau
+// solution without reductions or mutable TLC state in the fairness expression.
+func (s *search) canEvaluateFairIncrementally() bool {
+	m := s.model
+	if !s.basicFairIncrementalEligibility() {
+		return false
+	}
+	fair := m.fairness[0]
+	if m.fairnessUsesTLCState(fair.action, map[string]bool{}) || m.fairnessUsesTLCState(fair.subscript, map[string]bool{}) {
+		return false
+	}
+	branches, tableau := m.progressBranches()
+	return branches == 1 && !tableau
+}
+
+func (s *search) basicFairIncrementalEligibility() bool {
+	m := s.model
+	return len(s.ltlGroups) == 1 && len(m.fairness) == 1 && s.hasCachedFairActions() && !m.hasReduction() && !hasOperatorConstants(m.module.Constants) && m.safeLivenessNormalization()
+}
+
+func hasOperatorConstants(constants []parser.Declaration) bool {
+	for _, constant := range constants {
+		if constant.Arity > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *model) fairnessUsesTLCState(expr *parser.Expression, seen map[string]bool) bool {
+	if expr == nil {
+		return false
+	}
+	if isUnstableFairOperator(expr) || hasHigherOrderDefinitions(expr.Definitions) || m.fairnessDefinitionUsesTLCState(expr, seen) {
+		return true
+	}
+	found := false
+	walkChildren(expr, func(child *parser.Expression) {
+		if !found {
+			found = m.fairnessUsesTLCState(child, seen)
+		}
+	})
+	return found
+}
+
+func isUnstableFairOperator(expr *parser.Expression) bool {
+	if expr.Kind != "Apply" && expr.Kind != "Identifier" {
+		return false
+	}
+	switch tlcOperatorName(expr) {
+	case "TLCSet", "TLCGet", "TLCGetOrDefault", "TLCGetAndSet", "JavaTime",
+		"RandomElement", "RandomSubset", "RandomSetOfSubsets", "TestRandomSetOfSubsets":
+		return true
+	}
+	return false
+}
+
+func (m *model) fairnessDefinitionUsesTLCState(expr *parser.Expression, seen map[string]bool) bool {
+	if expr.Kind != "Apply" && expr.Kind != "Identifier" {
+		return false
+	}
+	def, ok := m.defs[expr.Text]
+	if !ok || seen[expr.Text] {
+		return false
+	}
+	if hasHigherOrderParameters(def) {
+		return true
+	}
+	seen[expr.Text] = true
+	defer delete(seen, expr.Text)
+	return m.fairnessUsesTLCState(def.Body, seen)
+}
+
+func hasHigherOrderDefinitions(defs []parser.Definition) bool {
+	return slices.ContainsFunc(defs, hasHigherOrderParameters)
+}
+
+func hasHigherOrderParameters(def parser.Definition) bool {
+	for _, param := range def.Params {
+		if param.Arity > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *search) propertyIncrementalGroups(property temporalProperty) []ltlCheckGroup {
@@ -275,20 +365,71 @@ func (s *search) evaluateIncrementalJunction(formula *ltlFormula, index, choice 
 
 func (s *search) evaluateIncrementalAtom(formula *ltlFormula, index, choice int) (bool, error) {
 	key := ltlValueKey{formula: formula, base: index, choice: choice}
+	effectful := s.effectfulFairEnabled(formula)
 	if formula.kind == ltlAtom {
 		key.choice = -1
 	}
-	if value, ok := s.ltlValues[key]; ok {
-		return value, nil
+	if !effectful {
+		if value, ok := s.ltlValues[key]; ok {
+			return value, nil
+		}
 	}
 	next := s.edgeNext(s.edges[index][choice])
-	result, err := s.model.holdsLTLAtom(formula, s.nodes[index].state, next, formula.locals)
+	result, err := s.holdsIncrementalAtom(formula, s.nodes[index].state, next)
 	if err != nil {
 		return false, &incrementalLivenessError{cause: err, formula: formula}
 	}
 	result = result != formula.negative
 	s.ltlValues[key] = result
 	return result, nil
+}
+
+func (s *search) holdsIncrementalAtom(formula *ltlFormula, current, next evaluator.State) (bool, error) {
+	if !s.fairIncrementalOneSolution || !formula.fairness || formula.atom.Kind != "AngleAction" {
+		return s.model.holdsLTLAtom(formula, current, next, formula.locals)
+	}
+	m := s.model
+	context := evaluator.Context{Current: current, Next: next, Constants: m.constants, Locals: formula.locals, Enabled: m.enabledCallback}
+	return m.holdsFairIncrementalAngle(formula, context)
+}
+
+func (m *model) holdsFairIncrementalAngle(formula *ltlFormula, context evaluator.Context) (bool, error) {
+	currentContext := context
+	currentContext.Next = nil
+	a, err := m.program.Evaluate(formula.atom.Args[1], currentContext)
+	if err != nil {
+		return false, err
+	}
+	currentContext.Current = context.Next
+	b, err := m.program.Evaluate(formula.atom.Args[1], currentContext)
+	if err != nil {
+		return false, err
+	}
+	same, err := value.Equal(a, b)
+	if err != nil || same {
+		return false, err
+	}
+	v, err := m.program.Evaluate(formula.atom.Args[0], context)
+	if err != nil {
+		return false, err
+	}
+	result, ok := v.Bool()
+	if !ok {
+		return false, fmt.Errorf("temporal action predicate must be boolean, got %s", v)
+	}
+	return result, nil
+}
+
+func (s *search) effectfulFairEnabled(formula *ltlFormula) bool {
+	if !s.fairIncrementalOneSolution || !formula.fairEnabled {
+		return false
+	}
+	for _, check := range s.fairChecks {
+		if check.enabled == formula {
+			return true
+		}
+	}
+	return false
 }
 
 type incrementalLivenessError struct {
