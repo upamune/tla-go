@@ -36,6 +36,15 @@ func (m *model) levelCallBody(expr *parser.Expression, seen map[string]bool) (*p
 	if !ok || definition.Kind != "Operator" || len(definition.Params) != len(expr.Args) {
 		return nil, false
 	}
+	// Cache only substituted syntax, never the analysis result: the latter
+	// depends on the current recursion path in seen.
+	if expanded, ok := m.levelExpansions[expr]; ok {
+		return expanded, true
+	}
+	return m.expandLevelCall(definition, expr)
+}
+
+func (m *model) expandLevelCall(definition parser.Definition, expr *parser.Expression) (*parser.Expression, bool) {
 	expanded, err := substituteActionCall(definition, expr)
 	if err != nil {
 		renamer := alphaRenamer{prefix: fmt.Sprintf("level-%p", expr)}
@@ -43,6 +52,9 @@ func (m *model) levelCallBody(expr *parser.Expression, seen map[string]bool) (*p
 		if err != nil {
 			return nil, false
 		}
+	}
+	if m.levelExpansions != nil && len(m.levelExpansions) < 4096 {
+		m.levelExpansions[expr] = expanded
 	}
 	return expanded, true
 }
