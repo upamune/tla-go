@@ -207,12 +207,14 @@ scheduling option.
 stop with a positive `-checkpoint` interval. The duration uses Go syntax, such
 as `250ms` or `2s`. After model preparation, tla-go waits until the first
 completed state expansion after that duration; if states remain, it saves a
-checkpoint, reports the incomplete search on standard error, and exits 0.
+checkpoint, reports the incomplete search on standard error, and exits 255.
 Recover the saved directory with `-recover`. If the model finishes first, no
 time-bound checkpoint is made. Unsupported models fail instead of falling back
 to an unlimited search. This debug control is specific to tla-go: Java TLC's
 `tlc2.TLC.stopAfter` is a JVM system property, its timer starts at a different
 point, and its output includes a success message even for an incomplete search.
+Java exits 0 on its time-bound stop; tla-go exits nonzero so automation can
+distinguish an incomplete search from a completed check.
 
 ## Documentation
 

@@ -160,7 +160,7 @@ func toolLoadFailure(t toolOutput, diagnostic *bytes.Buffer, code int) int {
 
 func toolModelError(t toolOutput, err error) int {
 	if errors.Is(err, errDebugStopped) {
-		return 0
+		return 255
 	}
 	return toolModelErrorDetail(t, err)
 }

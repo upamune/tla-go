@@ -64,9 +64,6 @@ func checkpointUnsupportedOptions(opts options, errout io.Writer) (checker.Resul
 
 func checkpointCLIResult(run checker.CheckpointRun, opts options, out, errout io.Writer) (checker.Result, bool, error) {
 	if run.Stopped {
-		if opts.keepMeta != nil {
-			*opts.keepMeta = true
-		}
 		fmt.Fprintf(errout, "Debug time limit reached; search incomplete. Checkpoint saved in %s\n", opts.metaDir)
 		if opts.tool {
 			t := toolOutput{out: out}

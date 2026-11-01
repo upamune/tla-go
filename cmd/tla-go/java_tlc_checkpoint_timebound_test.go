@@ -47,7 +47,7 @@ func TestJavaTLCTimedCheckpoint(t *testing.T) {
 	t.Setenv("TLA_GO_DEBUG_STOP_AFTER", "1ns")
 	var out, errout bytes.Buffer
 	code := run(ctx, []string{"-tool", "-workers", "1", "-fp", "0", "-checkpoint", "35791", "-metadir", filepath.Join(dir, "go"), spec}, &out, &errout)
-	if code != 0 || !strings.Contains(errout.String(), "search incomplete") {
+	if code != 255 || !strings.Contains(errout.String(), "search incomplete") {
 		t.Fatalf("tla-go: %d\n%s\n%s", code, &out, &errout)
 	}
 	for _, marker := range []string{"STARTMSG 2195:", "STARTMSG 2196:", "STARTMSG 2186:"} {

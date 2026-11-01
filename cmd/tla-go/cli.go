@@ -24,7 +24,6 @@ type options struct {
 	metaDir, recoverDir          string
 	checkpointInterval           time.Duration
 	debugStopAfter               time.Duration
-	keepMeta                     *bool
 	deadlockOff, help, version   bool
 	debugLiveness                bool
 	tracePath, cpuPath, heapPath string
@@ -174,8 +173,6 @@ func configureTimedStop(opts *options) error {
 }
 
 func runModelWithMeta(ctx context.Context, opts options, out, errout io.Writer) (code int) {
-	keepMeta := false
-	opts.keepMeta = &keepMeta
 	if opts.recoverDir != "" {
 		opts.metaDir = opts.recoverDir
 	} else if opts.metaRoot != "" || opts.checkpointInterval > 0 {
@@ -189,7 +186,7 @@ func runModelWithMeta(ctx context.Context, opts options, out, errout io.Writer) 
 		}
 		opts.metaDir = metaDir
 		defer func() {
-			if code == 0 && !keepMeta {
+			if code == 0 {
 				_ = os.RemoveAll(metaDir)
 			}
 		}()
@@ -336,7 +333,7 @@ func graphShouldFinish(result checker.Result, err error) bool {
 
 func reportModelError(out, errout io.Writer, err error) int {
 	if errors.Is(err, errDebugStopped) {
-		return 0
+		return 255
 	}
 	if modelErr, ok := errors.AsType[*checker.ModelValidationError](err); ok {
 		fmt.Fprintf(out, "Error: %s\n", modelErr.Message)
