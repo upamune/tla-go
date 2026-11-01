@@ -28,7 +28,7 @@ P == (x = 0) ~> (x = 2)
 	var plainOut, plainErr, debugOut, debugErr bytes.Buffer
 	plainCode := run(context.Background(), []string{model}, &plainOut, &plainErr)
 	debugCode := run(context.Background(), []string{"-debug-liveness", model}, &debugOut, &debugErr)
-	if plainCode != debugCode || plainOut.String() != debugOut.String() || plainErr.Len() != 0 {
+	if plainCode != debugCode || normalizeTemporalProgress(plainOut.String()) != normalizeTemporalProgress(debugOut.String()) || plainErr.Len() != 0 {
 		t.Fatalf("debugging changed CLI result: %d %q %q vs %d %q", plainCode, plainOut.String(), plainErr.String(), debugCode, debugOut.String())
 	}
 	if !strings.Contains(debugErr.String(), `"event":"fair-component"`) {

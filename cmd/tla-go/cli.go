@@ -79,7 +79,7 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 		err = validateOutputPaths(opts, out)
 	}
 	if err != nil {
-		return reportOptionError(opts, err, out, errout)
+		return reportOptionErrorWithTranslateHint(opts, err, out, errout)
 	}
 	profiles, err := startProfiles(opts)
 	if err != nil {
@@ -115,6 +115,15 @@ func runWithInput(ctx context.Context, args []string, input io.Reader, out, erro
 	reader := bufio.NewReader(input)
 	opts.onPause = func() { _, _ = reader.ReadString('\n') }
 	return runModels(ctx, opts, runOut, errout)
+}
+
+func reportOptionErrorWithTranslateHint(opts options, err error, out, errout io.Writer) int {
+	code := reportOptionError(opts, err, out, errout)
+	// Only hint for the option that failed, not an unrelated later argument.
+	if err.Error() == "Error: unrecognized option: -translate" || err.Error() == "Error: unrecognized option: -unixEOL" {
+		usage(errout)
+	}
+	return code
 }
 
 // reportOptionError follows TLC.printErrorMsg, which reports Java TLC's
