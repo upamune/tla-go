@@ -95,11 +95,14 @@ func (v Value) strictLazySet(terse bool) (string, error) {
 	if !isLazySet(v) {
 		return "", fmt.Errorf("cannot render unsupported value")
 	}
+	if terse && v.symbolicSetKind() {
+		return v.strictSymbolicSet(terse)
+	}
 	expand, err := v.strictExpand()
 	if err != nil {
 		return "", err
 	}
-	if !expand || terse && v.symbolicSetKind() {
+	if !expand {
 		return v.strictSymbolicSet(terse)
 	}
 	set, err := v.finiteSet()

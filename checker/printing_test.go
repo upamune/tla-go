@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/upamune/tla-go/evaluator"
 )
 
 // Cases from printing.test.ts at the pinned tla-ts revision. The empty
@@ -184,5 +186,19 @@ func TestUpstreamInfiniteFunctionPrinting(t *testing.T) {
 				t.Fatalf("result: %+v, err: %v, got %#v, want %q", result, err, lines, tc.output)
 			}
 		})
+	}
+}
+
+func TestTerseToStringCheckerOptions(t *testing.T) {
+	source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nASSUME PrintT(ToString(SUBSET {1, 2}))\n===="
+	for _, tc := range []struct {
+		terse bool
+		want  string
+	}{{false, `"{{}, {1}, {2}, {1, 2}}"`}, {true, `"SUBSET {1, 2}"`}} {
+		var lines []string
+		result, err := CheckWithOptions(context.Background(), source, "", Options{PrintStyle: evaluator.PrintStyle{Terse: tc.terse}, OnPrint: func(s string) { lines = append(lines, s) }})
+		if err != nil || result.Status != Success || !reflect.DeepEqual(lines, []string{tc.want}) {
+			t.Fatalf("terse=%v: result %+v, error %v, output %q", tc.terse, result, err, lines)
+		}
 	}
 }

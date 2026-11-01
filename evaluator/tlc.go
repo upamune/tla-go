@@ -47,19 +47,26 @@ func (e *evaluator) tlcArgumentMismatch(expr *parser.Expression) (value.Value, e
 }
 
 func (e *evaluator) callTLCValue(name string, args []value.Value) (value.Value, error) {
-	if name == "RandomElement" {
+	switch name {
+	case "RandomElement":
 		return e.randomElement(args[0])
-	}
-	if name == "TLCGet" || name == "TLCSet" {
+	case "TLCGet", "TLCSet":
 		return e.tlcRuntimeOperator(name, args)
-	}
-	if name == "Print" || name == "PrintT" {
+	case "Print", "PrintT":
 		return e.printTLC(name, args)
-	}
-	if name == "@@" {
+	case "@@":
 		return e.program.combineFunctions(args[0], args[1])
+	case "ToString":
+		text, err := e.printedString(args[0])
+		if err != nil {
+			return value.Value{}, &RuntimeError{Message: err.Error(), Standard: true}
+		}
+		return value.String(text), nil
+	case "Assert":
+		return e.assert(args)
+	default:
+		return tlcValue(name, args)
 	}
-	return tlcValue(name, args)
 }
 
 func (e *evaluator) printTLC(name string, args []value.Value) (value.Value, error) {
@@ -111,18 +118,22 @@ func printFailure(name string, err error) error {
 	return &RuntimeError{Message: wrapped.Message, ToolCode: 2154, Unexpected: &wrapped}
 }
 
-func assert(args []value.Value) (value.Value, error) {
+func (e *evaluator) assert(args []value.Value) (value.Value, error) {
 	ok, valid := args[0].Bool()
 	if valid && ok {
 		return value.Bool(true), nil
 	}
-	message := args[1].String()
-	if formatted, err := args[1].StrictString(); err == nil {
-		message = formatted
+	message, err := e.printedString(args[1])
+	if err != nil {
+		message = args[1].String()
+	}
+	legacy := message
+	if !e.program.printStyle.Terse {
+		legacy = args[1].String()
 	}
 	return value.Value{}, &RuntimeError{
 		Message:     fmt.Sprintf("The first argument of Assert evaluated to FALSE; the second argument was:\n%s", value.PrettyPrint(message)),
-		Legacy:      fmt.Sprintf("assertion failed: %s", args[1]),
+		Legacy:      "assertion failed: " + legacy,
 		Standard:    true,
 		ExitCode:    14,
 		ToolCode:    2132,
@@ -134,16 +145,8 @@ func tlcValue(name string, args []value.Value) (value.Value, error) {
 	switch name {
 	case ":>":
 		return value.Function([]value.Pair{{Key: args[0], Value: args[1]}})
-	case "ToString":
-		text, err := args[0].StrictString()
-		if err != nil {
-			return value.Value{}, &RuntimeError{Message: err.Error(), Standard: true}
-		}
-		return value.String(text), nil
 	case "TLCEval":
 		return args[0], nil
-	case "Assert":
-		return assert(args)
 	case "Permutations":
 		return permutations(args[0])
 	default:

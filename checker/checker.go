@@ -229,7 +229,7 @@ type Options struct {
 	OnViolation func(Result)
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
-	// PrintStyle selects how Print and PrintT render values.
+	// PrintStyle selects how TLC operators render values.
 	PrintStyle evaluator.PrintStyle
 	// OnDebug receives JSON lines describing liveness exploration when set.
 	OnDebug func(string)
