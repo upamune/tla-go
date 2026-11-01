@@ -165,9 +165,25 @@ func (m *model) compareOrderedValues(a, b value.Value) (int, error) {
 			x, _ := a.Text()
 			y, _ := b.Text()
 			return m.compareRankedStrings(x, y), nil
+		case value.IntervalKind:
+			if rankedIntervalsFit(a, b) {
+				return value.Compare(a, b)
+			}
 		}
 	}
 	return m.compareRankedComplex(a, b)
+}
+
+// Java's IntervalValue.compareTo first computes a signed 32-bit size and can
+// fail for wider intervals. Keep those on the existing path until its error
+// and source stack are modeled.
+func rankedIntervalsFit(a, b value.Value) bool {
+	return rankedIntervalFits(a) && rankedIntervalFits(b)
+}
+
+func rankedIntervalFits(v value.Value) bool {
+	low, high, _ := v.Range()
+	return int64(high)-int64(low)+1 <= 1<<31-1
 }
 
 func (m *model) compareRankedModels(a, b value.Value) (int, error) {
