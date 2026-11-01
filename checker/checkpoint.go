@@ -6,6 +6,7 @@ package checker
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -376,46 +377,103 @@ func validateCheckpointDepth(nodes []checkpointNode, n checkpointNode) error {
 }
 
 func checkpointRead(path string, identity checkpointIdentity) (checkpointSnapshot, error) {
-	f, err := os.Open(path)
+	return checkpointReadContext(context.Background(), path, identity)
+}
+
+func checkpointReadContext(ctx context.Context, path string, identity checkpointIdentity) (checkpointSnapshot, error) {
+	f, err := checkpointOpenContext(ctx, path)
 	if err != nil {
 		return checkpointSnapshot{}, err
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, checkpointMaxSize+16+sha256.Size+1))
+	return checkpointReadFrom(ctx, f, identity)
+}
+
+func checkpointReadFrom(ctx context.Context, r io.Reader, identity checkpointIdentity) (checkpointSnapshot, error) {
+	data, err := io.ReadAll(io.LimitReader(r, checkpointMaxSize+16+sha256.Size+1))
 	if err != nil {
+		return checkpointSnapshot{}, checkpointContextError(ctx, err)
+	}
+	if err := ctx.Err(); err != nil {
 		return checkpointSnapshot{}, err
 	}
 	return checkpointDecode(data, identity)
 }
 
 func checkpointWrite(path string, s checkpointSnapshot) error {
+	return checkpointWriteContext(context.Background(), path, s)
+}
+
+func checkpointWriteContext(ctx context.Context, path string, s checkpointSnapshot) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	data, err := checkpointEncode(s)
 	if err != nil {
 		return err
 	}
-	return checkpointAtomicWrite(path, func(f *os.File) error { _, err := f.Write(data); return err })
+	return checkpointAtomicWriteContext(ctx, path, func(f *os.File) error { _, err := f.Write(data); return err })
 }
 
 func checkpointAtomicWrite(path string, write func(*os.File) error) error {
+	return checkpointAtomicWriteContext(context.Background(), path, write)
+}
+
+// Cancellation is checked between filesystem operations; an in-flight syscall
+// cannot be interrupted. Once replacement succeeds, cancellation does not turn
+// the committed write into a failure. Directory sync errors are still reported.
+func checkpointAtomicWriteContext(ctx context.Context, path string, write func(*os.File) error) error {
+	return checkpointAtomicWriteWithReplace(ctx, path, write, checkpointReplaceContext)
+}
+
+func checkpointAtomicWriteWithReplace(ctx context.Context, path string, write func(*os.File) error, replace func(context.Context, string, string) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	f, err := os.CreateTemp(dir, ".tla-checkpoint-*")
 	if err != nil {
-		return err
+		return checkpointContextError(ctx, err)
 	}
 	defer os.Remove(f.Name())
-	if err = write(f); err != nil {
-		f.Close()
+	defer f.Close()
+	if err := checkpointWriteTemp(ctx, f, write); err != nil {
 		return err
 	}
-	if err = f.Sync(); err != nil {
-		f.Close()
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	if err = os.Rename(f.Name(), path); err != nil {
-		return err
+	if err := replace(ctx, f.Name(), path); err != nil {
+		return checkpointContextError(ctx, err)
 	}
 	return checkpointSyncDir(dir)
+}
+
+func checkpointWriteTemp(ctx context.Context, f *os.File, write func(*os.File) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := write(f); err != nil {
+		return checkpointContextError(ctx, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		return checkpointContextError(ctx, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return checkpointContextError(ctx, err)
+	}
+	return nil
+}
+
+func checkpointContextError(ctx context.Context, err error) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return err
 }

@@ -2,9 +2,11 @@ package checker
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -292,5 +294,137 @@ func TestCheckpointRejectsIncompatiblePayload(t *testing.T) {
 		if _, err := checkpointDecode(altered, s.Identity); err == nil {
 			t.Fatalf("accepted %s", replacement.new)
 		}
+	}
+}
+
+func TestCheckpointCanceledWritePreservesOld(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "checkpoint")
+	old := checkpointFixture()
+	if err := checkpointWrite(path, old); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	err := checkpointAtomicWriteContext(ctx, path, func(f *os.File) error {
+		if _, err := f.Write([]byte("replacement")); err != nil {
+			return err
+		}
+		cancel()
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := checkpointRead(path, old.Identity)
+	if err != nil || !reflect.DeepEqual(got, old) {
+		t.Fatalf("old checkpoint: %v", err)
+	}
+	if _, err := checkpointReadContext(ctx, path, old.Identity); !errors.Is(err, context.Canceled) {
+		t.Fatalf("read: %v", err)
+	}
+	files, err := os.ReadDir(filepath.Dir(path))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("temporary files: %v %v", files, err)
+	}
+}
+
+type checkpointTestReader func([]byte) (int, error)
+
+func (r checkpointTestReader) Read(p []byte) (int, error) { return r(p) }
+
+func TestCheckpointReadCancellationResults(t *testing.T) {
+	readErr := errors.New("read failed")
+	for _, tc := range []struct {
+		name   string
+		cancel bool
+		want   error
+	}{
+		{"failed read", false, readErr},
+		{"canceled during failed read", true, context.Canceled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			r := checkpointTestReader(func([]byte) (int, error) {
+				if tc.cancel {
+					cancel()
+				}
+				return 0, readErr
+			})
+			got, err := checkpointReadFrom(ctx, r, checkpointFixture().Identity)
+			if !errors.Is(err, tc.want) || !reflect.DeepEqual(got, checkpointSnapshot{}) {
+				t.Fatalf("read: got %#v, %v; want empty snapshot and %v", got, err, tc.want)
+			}
+		})
+	}
+}
+
+func TestCheckpointCancellationAfterSuccessfulRead(t *testing.T) {
+	s := checkpointFixture()
+	data, err := checkpointEncode(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	source := bytes.NewReader(data)
+	r := checkpointTestReader(func(p []byte) (int, error) {
+		n, err := source.Read(p)
+		if err == io.EOF {
+			cancel()
+		}
+		return n, err
+	})
+	if _, err := checkpointReadFrom(ctx, r, s.Identity); !errors.Is(err, context.Canceled) {
+		t.Fatalf("read: %v", err)
+	}
+}
+
+func TestCheckpointWriteCancellationResults(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		writeError error
+	}{
+		{"canceled after write", nil},
+		{"canceled during failed write", errors.New("write failed")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "checkpoint")
+			old := checkpointFixture()
+			if err := checkpointWrite(path, old); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			err := checkpointAtomicWriteContext(ctx, path, func(f *os.File) error {
+				cancel()
+				return tc.writeError
+			})
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("write: %v", err)
+			}
+			got, err := checkpointRead(path, old.Identity)
+			if err != nil || !reflect.DeepEqual(got, old) {
+				t.Fatalf("old checkpoint: %v", err)
+			}
+		})
+	}
+}
+
+func TestCheckpointSuccessfulReplaceWinsCancellation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "checkpoint")
+	ctx, cancel := context.WithCancel(context.Background())
+	err := checkpointAtomicWriteWithReplace(ctx, path, func(f *os.File) error {
+		_, err := f.Write([]byte("new"))
+		return err
+	}, func(_ context.Context, from, to string) error {
+		err := os.Rename(from, to)
+		cancel()
+		return err
+	})
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || string(got) != "new" {
+		t.Fatalf("file: %q, %v", got, err)
 	}
 }
