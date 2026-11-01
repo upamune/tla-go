@@ -879,8 +879,9 @@ file hash, pinned upstream commit and jar hash before use. Generate the log as
 described in the full sweep instructions, then run:
 
 ```sh
-go build -o /tmp/tla-sweep-regression ./internal/upstreamjunit/cmd/sweep-regression
-/tmp/tla-sweep-regression /path/to/full-sweep.log
+sweep_dir=$(mktemp -d "${TMPDIR:-/tmp}/tla-sweep-check.XXXXXX")
+go build -o "$sweep_dir/sweep-regression" ./internal/upstreamjunit/cmd/sweep-regression
+"$sweep_dir/sweep-regression" /path/to/full-sweep.log
 ```
 
 Invoke the built binary when checking its exit status: `go run` wraps a
