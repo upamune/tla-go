@@ -83,7 +83,10 @@ func recordHumanResult(recorder *recorderConfig, result checker.Result) {
 	if toolHasStatistics(result) {
 		printToolCoverage(toolOutput{out: io.Discard, recorder: recorder}, result.Coverage)
 		recordStatistics(recorder, result)
-		if result.Failure == nil || !result.Failure.SuppressDepth {
+		// Java's final liveness check returns an error from modelCheck before
+		// printSummary, suppressing depth. Safety and deadlock violations can
+		// still leave the internal result successful and report depth.
+		if result.Status != checker.LivenessViolation && (result.Failure == nil || !result.Failure.SuppressDepth) {
 			recordStrings(recorder, 2194, strconv.Itoa(result.Depth))
 		}
 	}

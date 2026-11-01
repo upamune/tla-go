@@ -105,6 +105,23 @@ func TestJavaTLCRecorderRejectsDeferredLivenessError(t *testing.T) {
 	if !hasToolMessage(readToolMessages(observed.String()), 2192) {
 		t.Fatal("expected the currently unsupported tool-output difference")
 	}
+
+	// The same uncertain final-check start must fail closed in ordinary mode.
+	humanArgs := args[1:]
+	path = filepath.Join(dir, "human-go.jsonl")
+	t.Setenv("TLA_GO_DEBUG_RECORDER", path)
+	observed.Reset()
+	observedErr.Reset()
+	if code := run(context.Background(), humanArgs, &observed, &observedErr); code != 255 {
+		t.Fatalf("human exit=%d stderr=%s stdout=%s", code, &observedErr, &observed)
+	}
+	data, err = os.ReadFile(path)
+	if err != nil || !strings.Contains(string(data), recorderdebug.TemporalCheckUncertain) {
+		t.Fatalf("missing human uncertainty marker: %s, %v", data, err)
+	}
+	if events, err := recorderdebug.Decode(bytes.NewReader(data)); err == nil || events != nil {
+		t.Fatalf("uncertain human recorder stream was accepted: events=%v error=%v", events, err)
+	}
 }
 
 func selectLivenessRecorder(records []string) []string {

@@ -152,8 +152,10 @@ are present only when the checker emits the corresponding progress events. Perio
 coverage records and other recorder calls remain unobserved.
 Their `strings` arrays come from Go events and results rather than parsed tool
 text. Java TLC 1.7.4 recorder probes compare selected tool-mode calls across
-successful and failing models, and selected ordinary-mode calls for successful
-models; finish durations naturally differ.
+successful and failing models, and selected ordinary-mode calls for successful,
+safety-violation, deadlock, liveness and evaluation-failure models; finish
+durations naturally differ. Java's search-depth record is absent after a
+liveness violation but can still be present after a safety violation or deadlock.
 The human-mode finish observation uses Java's human-readable duration format.
 Both modes remain incomplete, including on a successful check.
 

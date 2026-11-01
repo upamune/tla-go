@@ -5,6 +5,7 @@ import (
 	"context"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -87,6 +88,67 @@ func TestHumanRecorderInitialFailure(t *testing.T) {
 		if event.Code == 2193 {
 			t.Fatalf("failure falsely recorded as success: %+v", events)
 		}
+	}
+}
+
+// Java emits statistics after many failures and suppresses depth on liveness
+// violations. Check the selected non-tool recorder calls against Java.
+func TestJavaTLCRecorderHumanOutcomes(t *testing.T) {
+	jar := pinnedFairnessEffectJar(t)
+	var classes string
+	if jar != "" {
+		var err error
+		jar, err = filepath.Abs(jar)
+		if err != nil {
+			t.Fatal(err)
+		}
+		classes = compileSearchRecorder(t, jar)
+	}
+	for _, tc := range []struct {
+		name, body, cfg string
+		exit            int
+		deadlockOff     bool
+		depth           bool
+	}{
+		{"success", "VARIABLE x\nInit == x=0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n", 0, true, true},
+		{"liveness success", "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == []<>(x >= 0)", "INIT Init\nNEXT Next\nPROPERTY P\n", 0, true, true},
+		{"liveness violation", "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == []<>(x = 4)", "INIT Init\nNEXT Next\nPROPERTY P\n", 13, true, false},
+		{"liveness branches", "VARIABLE x\nInit == x=0\nNext == x'=(x+1)%3\nP == <>(x = 1) /\\ <>(x = 2)", "INIT Init\nNEXT Next\nPROPERTY P\n", 13, true, false},
+		{"safety violation", "VARIABLE x\nInit == x=0\nNext == x < 3 /\\ x'=x+1\nInv == x < 2", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12, true, true},
+		{"initial violation", "VARIABLE x\nInit == x=0\nNext == UNCHANGED x\nInv == x = 1", "INIT Init\nNEXT Next\nINVARIANT Inv\n", 12, true, false},
+		{"deadlock", "VARIABLE x\nInit == x=0\nNext == x < 1 /\\ x'=x+1", "INIT Init\nNEXT Next\n", 11, false, true},
+		{"initial error", "VARIABLE x\nInit == x=1 \\div 0\nNext == UNCHANGED x", "INIT Init\nNEXT Next\n", 75, true, false},
+		{"next error", "VARIABLE x\nInit == x=0\nNext == x' = 1 \\div 0", "INIT Init\nNEXT Next\n", 255, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeDOTFixture(t, dir, tc.body, tc.cfg)
+			args := []string{"-workers", "1", "-fp", "0", "-checkpoint", "0", "-lncheck", "final"}
+			if tc.deadlockOff {
+				args = append(args, "-deadlock")
+			}
+			var plain, plainErr bytes.Buffer
+			t.Setenv("TLA_GO_DEBUG_RECORDER", "")
+			plainCode := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &plain, &plainErr)
+			path := filepath.Join(dir, "human.jsonl")
+			t.Setenv("TLA_GO_DEBUG_RECORDER", path)
+			var observed, observedErr bytes.Buffer
+			code := run(context.Background(), append(args, filepath.Join(dir, "M.tla")), &observed, &observedErr)
+			if code != tc.exit || code != plainCode || plainErr.String() != observedErr.String() || normalizeTemporalProgress(plain.String()) != normalizeTemporalProgress(observed.String()) {
+				t.Fatalf("plain exit=%d stderr=%s; recorder exit=%d stderr=%s\nplain=%s\nrecorder=%s", plainCode, &plainErr, code, &observedErr, &plain, &observed)
+			}
+			events := readSearchRecorder(t, path)
+			if got := slices.Contains(humanRecorderCodes(events), 2194); got != tc.depth {
+				t.Fatalf("depth present=%t, want %t: %+v", got, tc.depth, events)
+			}
+			if jar != "" {
+				goEvents := searchComparable(events, false)
+				java := runSearchRecorderJava(t, jar, classes, dir, tc.exit, 1, false, false, args...)
+				if !reflect.DeepEqual(java, goEvents) {
+					t.Fatalf("Java recorder=%q Go recorder=%q", java, goEvents)
+				}
+			}
+		})
 	}
 }
 
