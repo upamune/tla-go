@@ -344,31 +344,32 @@ TLA_GO_JUNIT_HAMCREST=/tmp/hamcrest-core-1.3.jar \
 go test -v ./internal/upstreamjunit -run 'Test(JUnitDiscoveryFixture|UpstreamJUnitDiscovery)$' -count=1
 ```
 
-On 2026-11-01, OpenJDK 21.0.11 discovered **322 executable leaf
-cases** within the 340 lexical non-abstract candidate classes: 319 classes
-had executable cases, and 21 had none. Twenty descriptions were ignored methods
-and `tlc2.tool.suite.Test61` was ignored at class level. No runner errors were
-reported. `tlc2.tool.Github432Test` accounts for four leaves in one class;
-the other candidate classes each had one leaf or one class-level ignore. The
-command prints the individual names, including all ignored cases. This is the
-denominator only for these explicitly selected candidate classes, not for all
-upstream tests or the upstream Ant suite: Ant selects source filenames and uses
-multiple batches and exclusions, and the lexical inheritance scan can miss
-classes. The 322 cases have not been mapped individually to Go runs or proven
-equivalent; all remain unresolved for full differential purposes. Existing
-class-based diagnostic runs and extracted observations are not JUnit executions,
-and their counts cannot be substituted for this case denominator.
+On 2026-11-01, OpenJDK 21.0.11 reported 322 case descriptions without an
+`@Ignore` annotation,
+20 uncertain descriptions and one class-level ignore among 340 lexical
+non-abstract candidate classes. No runner errors were reported. The uncertain
+descriptions carry ignore annotations under custom runners; annotations alone do
+not establish whether such a runner executes them. A case description also does
+not guarantee execution by a custom runner. `tlc2.tool.Github432Test` accounts
+for four case descriptions in one class. The command prints individual names
+and reasons. These counts cover only the explicitly selected candidate classes,
+not all upstream tests or the upstream Ant suite: Ant selects source filenames
+and uses multiple batches and exclusions, and the lexical inheritance scan can
+miss classes. The full set has not been mapped individually to Go runs or proven
+equivalent. Existing class-based diagnostic runs and extracted
+observations are not JUnit executions.
 
-## Executing one upstream JUnit case (opt-in experiment)
+## Executing upstream JUnit cases (opt-in experiment)
 
-`TestUpstreamJUnitExecution` discovers and runs exactly
-`tlc2.tool.suite.Test10#testSpec` with JUnit 4.12's `Request.method`, in a
-fresh JVM. The upstream isolated runner executes the inherited
+`TestUpstreamJUnitExecution` discovers and runs
+`tlc2.tool.suite.Test10#testSpec` and `tlc2.tool.EmptyTest#testSpec` separately
+with JUnit 4.12's `Request.method`, each in a fresh JVM. For Test10, the
+upstream isolated runner executes the inherited
 `SuiteTestCase.setUp`, `ModelCheckerTestCase.setUp` (including TLC and its
 recorder), the original `SuiteTestCase.testSpec` assertions including zero
 uncovered expressions, and `ModelCheckerTestCase.tearDown` exit assertion.
-JUnit's started/finished events and result must identify exactly this one case
-with no failure, ignored test, or failed assumption. A Java JUnit pass means
+JUnit's started/finished events and result must identify exactly the requested
+case in each run with no failure, ignored test, or failed assumption. A Java JUnit pass means
 those original Java assertions and lifecycle completed; it is not a Go pass.
 JUnit reports test events, not individual lifecycle callbacks; the lifecycle
 mapping above is specific to the verified pinned source and this class.
