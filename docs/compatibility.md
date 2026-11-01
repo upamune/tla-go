@@ -45,6 +45,15 @@ by several names, and enumerate the first variable fastest, matching Java TLC
 in the tested cases with `TLCSet` and `PrintT` effects.
 Some mixed tuple and grouped-name bounds still differ: Java TLC 1.7.4 can
 throw a `ClassCastException` where tla-go accepts the constructor.
+Java's `FcnParams.Enumerator` initializes a tuple bound using the source-bound
+index instead of the flattened parameter index. A preceding group such as
+`a, b \in S` can therefore advance an earlier iterator. Depending on its
+contents, TLC may instead encounter a `NullPointerException` or an
+`ArrayIndexOutOfBoundsException`, and an empty preceding bound can complete
+normally. Applying the function directly can also succeed because it does not
+materialize the function. `TestJavaTLCFunctionTupleBoundReference` and
+`TestJavaTLCFunctionTupleBoundDirectApplicationReference` record these Java-only
+observations; they do not establish tla-go compatibility.
 
 As in Java TLC, a configured `INIT` or `NEXT` that reads no variable is rejected as a constant (message 2233), also in a model without variables; such operators reached through `SPECIFICATION` are not yet reported as Java TLC reports them. In `-tool` mode, initial-state generation reports Java TLC's progress messages (2269) before the third, fifth, ninth, and later initial states; the plain output keeps the format of the tla-ts fixtures and omits Java TLC's initial-state messages.
 
