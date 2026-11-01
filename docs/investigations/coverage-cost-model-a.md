@@ -164,6 +164,16 @@ change or rule out a regression. The disabled path still checks whether
 coverage is configured; the coverage-only deferred cleanup is in a separate
 helper.
 
+For property coverage reporting, `BenchmarkCoveragePropertyReportDeep` measures
+an artificial chain with alternating counts, so each ancestor must print its
+children. On an Apple M3, three 200 ms samples for a depth-1024 chain changed
+from 3.64–3.85 ms to 0.067–0.077 ms after replacing repeated descendant scans
+with a postorder walk; both versions used 174,208 bytes and 11 allocations per
+report. These measurements cover report construction, not a complete model
+check. A fully collapsible depth-256 chain keeps the root-level fast path; both
+versions used 80 bytes and one allocation per report. Elapsed samples ran under
+different background loads and do not establish end-to-end speedups.
+
 ## Origin tracking obstacle and first implementation boundary
 
 No general production origin tracker has been added yet. There are two independent

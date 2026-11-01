@@ -321,9 +321,66 @@ func (n *coverageNode) report(out []CoverageExpression, depth int) []CoverageExp
 		depth++
 	}
 	for _, child := range n.children {
-		out = child.report(out, depth)
+		out, _ = child.reportBranch(out, depth)
 	}
 	return out
+}
+
+// A reportable tree may contain long runs of non-collapsible nodes. Computing
+// all descendant counts again for every one of those nodes is quadratic. Once
+// the root is known not to collapse, report each subtree in a single postorder
+// pass and discard its rows when its counts allow it to collapse.
+func (n *coverageNode) reportBranch(out []CoverageExpression, depth int) ([]CoverageExpression, coverageReportCounts) {
+	start := len(out)
+	if n.count > 0 {
+		out = append(out, CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: n.count, Cost: n.cost})
+	}
+	childDepth := depth
+	if n.count > 0 {
+		childDepth++
+	}
+	var counts coverageReportCounts
+	for _, child := range n.children {
+		var childCounts coverageReportCounts
+		out, childCounts = child.reportBranch(out, childDepth)
+		counts.merge(childCounts)
+	}
+	out = n.collapseBranch(out, start, depth, counts)
+	counts.add(n.count)
+	return out, counts
+}
+
+func (n *coverageNode) collapseBranch(out []CoverageExpression, start, depth int, counts coverageReportCounts) []CoverageExpression {
+	if counts.count > 0 && !counts.varies && (n.count == 0 || n.count == counts.count) {
+		cost := 0
+		if n.count == counts.count {
+			cost = n.cost
+		}
+		out = append(out[:start], CoverageExpression{Range: n.expr.Location.Range, Depth: depth, Count: counts.count, Cost: cost})
+	}
+	return out
+}
+
+// Only emptiness and equality of nonzero counts affect TLC's report.
+type coverageReportCounts struct {
+	count  int
+	varies bool
+}
+
+func (c *coverageReportCounts) add(count int) {
+	if count == 0 {
+		return
+	}
+	if c.count == 0 {
+		c.count = count
+	} else if c.count != count {
+		c.varies = true
+	}
+}
+
+func (c *coverageReportCounts) merge(other coverageReportCounts) {
+	c.add(other.count)
+	c.varies = c.varies || other.varies
 }
 
 func (n *coverageNode) collapsedCount(counts map[int]bool) (int, bool) {

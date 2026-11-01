@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,7 @@ func TestJavaTLCCoverageOperators(t *testing.T) {
 		{name: "nullary"},
 		{name: "contexts"},
 		{name: "short_circuit"},
+		{name: "nested_short_circuit"},
 		{name: "failure", failure: true},
 		{name: "repeated", reject: true},
 	} {
@@ -71,6 +73,13 @@ func TestJavaTLCCoverageOperators(t *testing.T) {
 					}
 				} else if got := coverageReport(t, java); got != string(golden) {
 					t.Errorf("Java coverage:\n%s\nwant:\n%s", got, golden)
+				}
+				if tc.name == "nested_short_circuit" {
+					goTool, _, _ := runGoInDir(t, dir, append([]string{"-tool"}, args...))
+					javaTool, _ := runJavaTLCArgs(t, jar, dir, append([]string{"-tool"}, args...))
+					if got, want := coverageMessages(readToolMessages(goTool)), coverageMessages(readToolMessages(javaTool)); fmt.Sprint(got) != fmt.Sprint(want) {
+						t.Errorf("tool messages differ:\n%#v\n%#v", got, want)
+					}
 				}
 			}
 		})
