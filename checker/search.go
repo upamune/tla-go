@@ -181,6 +181,9 @@ func (s *search) finishLiveness() (Result, error) {
 	}
 	started := s.startTemporalProgress()
 	result, err := s.checkLiveness()
+	if err == nil {
+		err = s.emitResultLivenessGraph(result)
+	}
 	if started != nil && err == nil && result.Failure == nil {
 		duration := time.Since(*started)
 		result.TemporalCheckDuration = &duration

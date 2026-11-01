@@ -306,6 +306,7 @@ func profileWriters(opts options, paths []string) []string {
 	writers := []string{opts.compat.userFile}
 	if !strings.HasPrefix(opts.dumpPath, "${metadir}") {
 		writers = append(writers, opts.dumpPath)
+		writers = append(writers, livenessDumpPath(opts))
 	}
 	if opts.compat.specTE != nil {
 		for _, path := range paths {

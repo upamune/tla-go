@@ -241,7 +241,7 @@ func checkModelWithOutput(ctx context.Context, opts options, module *parser.Modu
 }
 
 func checkModelNormally(ctx context.Context, opts options, module *parser.Module, parsed config.Config, specPath string, out, errout io.Writer) (checker.Result, error) {
-	graph, err := openStateDump(opts.dumpPath, opts.dumpDOT)
+	graph, liveGraph, err := prepareGraphDumps(opts)
 	if err != nil {
 		return checker.Result{}, err
 	}
@@ -262,6 +262,9 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 		checkOptions.DOTGraph = opts.dumpDOT != nil
 		checkOptions.TextGraph = opts.dumpDOT == nil
 	}
+	if liveGraph != nil {
+		checkOptions.OnLivenessGraph = styledGraphEvents(liveGraph.event, traceStyle{terse: opts.compat.terse})
+	}
 	checkOptions.OnSearch = configuredSearchOutput(opts, out)
 	checkOptions.OnWarning = configuredWarningOutput(opts, out)
 	checkOptions.OnTemporalViolation = temporalViolationOutput(opts, module, out)
@@ -276,11 +279,7 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 		checkOptions.OnDebug = func(line string) { fmt.Fprintln(errout, line) }
 	}
 	result, err := checkCoverageMode(ctx, opts, module, parsed, checkOptions, coordinator, periodicEligible)
-	if graph != nil {
-		if closeErr := graph.close(graphShouldFinish(result, err)); err == nil {
-			err = closeErr
-		}
-	}
+	err = finishGraphDumps(graph, liveGraph, result, err)
 	return result, err
 }
 

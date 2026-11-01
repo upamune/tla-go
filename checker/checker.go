@@ -185,6 +185,7 @@ type model struct {
 	possibleActions       []possiblePredicate
 	debug                 func(string)
 	graph                 func(GraphEvent) error
+	livenessGraph         func(GraphEvent) error
 	dotGraph              bool
 	textGraph             bool
 	searchEvent           func(SearchEvent)
@@ -255,6 +256,11 @@ type Options struct {
 	// OnGraph receives states and transitions synchronously during exploration.
 	// State and Order must be copied by callers that retain them after the call.
 	OnGraph func(GraphEvent) error
+	// OnLivenessGraph receives synchronous events for a completed, pure,
+	// single-solution non-tableau liveness graph without VIEW or symmetry.
+	// This experimental callback is not invoked for every model. Callers that
+	// retain State or Order must copy them, as with OnGraph.
+	OnLivenessGraph func(GraphEvent) error
 	// DOTGraph enables Java DOT writer fingerprint evaluation and rank events.
 	// DOTGraph and TextGraph are mutually exclusive, including when OnGraph is nil.
 	DOTGraph bool
@@ -658,6 +664,7 @@ func prepareWithFingerprint(module *parser.Module, cfg config.Config, options Op
 	runtime := newTLCRuntime(cfg, options)
 	m := &model{ctx: context.Background(), module: module, cfg: cfg, descriptionConfig: descriptionConfig, sourceConfig: sourceConfig, fairness: fairness, fromSpecification: fromSpecification, tlcRuntime: runtime, program: newEvaluatorProgram(module, options.OnPrint, runtime), defs: map[string]parser.Definition{}, variables: map[string]bool{}, constants: map[string]value.Value{}, actionCache: map[*parser.Expression]*parser.Expression{}, letCache: map[*parser.Expression]*parser.Expression{}, debug: options.OnDebug, graph: options.OnGraph, dotGraph: options.DOTGraph, textGraph: options.TextGraph, searchEvent: options.OnSearch, warning: options.OnWarning, livenessWarning: modelWarning(options), viewStates: options.ViewStates, onFailureHeader: options.OnFailureHeader}
 	m.configureContinuation(options)
+	m.livenessGraph = options.OnLivenessGraph
 	m.program.SetJSONFileSystem(options.ReadFile, options.WriteFile)
 	m.program.SetBound(options.MaxSetSize)
 	m.initialProductBound = options.MaxSetSize

@@ -67,6 +67,21 @@ Like Java TLC, model checking warns before checking assumptions, before rejectin
 
 `-dump` writes Java TLC 1.7.4's text and DOT formats, including colored edges and the action legend; the upstream `DumpAsDotTest` and `Github407Test` outputs are reproduced byte for byte. As in Java TLC, the text format repeats a state for each stuttering step recorded while checking liveness, an initial state is written before it is checked, states buffered before an initial invariant violation are not written, leaving only the DOT header, and DOT node identifiers are fingerprints of the `VIEW` value when one is configured. DOT snapshots are not supported.
 
+For completed pure breadth-first checks with a single non-tableau liveness
+solution, a `.dot` dump also writes Java's separate `_liveness.dot` graph.
+It is reconstructed after exploration, in Java's successor-set order. This
+experimental path excludes `VIEW`, symmetry, continuation, side effects,
+operator-valued constants, substitutions, instances, higher-order definitions,
+oversized liveness normalization, and empty or incomplete searches; those cases
+do not create a liveness graph.
+It also requires a dump path ending in a single `.dot` suffix and avoids paths
+that alias the main graph or input files. Unavailable or non-regular existing
+destinations are not written; Java may report an error earlier for these paths.
+Tableau graphs, multiple solutions, and liveness evaluation side effects are
+not yet reproduced. The completed graph is staged before opening the target,
+then written through existing symbolic and hard links as Java does; a write
+error during the final copy can leave a partial target.
+
 As in Java TLC, `AXIOM` declarations are not evaluated during the initial assumption check. Named axioms can still be referenced by the model.
 
 Fingerprint failures report Java TLC-style tool messages for the tested initial and successor states. Intersections with explicit sets or intervals use Java TLC's reduction order, including for nested power sets. Other lazy-set failures can still evaluate operands in a different order, producing a different underlying error or source location.

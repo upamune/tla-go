@@ -20,6 +20,7 @@ type stateDump interface {
 // dotFormat holds the options of Java TLC's DotStateWriter.
 type dotFormat struct {
 	colorize, actionLabels bool
+	liveness               bool
 }
 
 const dotColorScheme = "paired12"
@@ -58,8 +59,15 @@ func openDOTDump(path string, format dotFormat) (*dotDump, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create DOT dump: %w", err)
 	}
+	return newDOTDump(file, format)
+}
+
+func newDOTDump(file *os.File, format dotFormat) (*dotDump, error) {
 	graph := &dotDump{file: file, writer: bufio.NewWriter(file), levels: map[int]*javaLongSet{}, format: format, colors: map[string]int{}}
 	header := "strict digraph DiskGraph {\n"
+	if format.liveness {
+		header = "digraph DiskGraph {\n"
+	}
 	if format.colorize {
 		header += fmt.Sprintf("edge [colorscheme=\"%s\"]\n", dotColorScheme)
 	}
@@ -101,6 +109,9 @@ func (d *dotDump) event(event checker.GraphEvent) error {
 }
 
 func (d *dotDump) transitionLabel(action string) string {
+	if d.format.liveness {
+		return ""
+	}
 	color := "black"
 	if d.format.colorize {
 		color = strconv.Itoa(d.actionColor(action))

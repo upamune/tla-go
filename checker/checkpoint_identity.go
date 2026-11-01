@@ -196,7 +196,7 @@ func validateCheckpointUTF8Map(v reflect.Value, path string) error {
 
 func checkpointIdentityOptionsSupported(o Options) error {
 	// New option fields must be classified before identities can be constructed.
-	known := map[string]bool{"Coverage": true, "LiveProgress": true, "Loader": true, "OnPrint": true, "OnPause": true, "ReadFile": true, "WriteFile": true, "Seed": true, "Fingerprint": true, "Simulation": true, "DepthFirst": true, "Continue": true, "OnViolation": true, "OnFailureHeader": true, "ModernRandomSubsets": true, "PrintStyle": true, "OnDebug": true, "OnGraph": true, "DOTGraph": true, "TextGraph": true, "OnSearch": true, "OnTemporalCheck": true, "OnTemporalViolation": true, "MaxSetSize": true, "Workers": true, "SerialExploration": true, "ViewStates": true, "OnWarning": true}
+	known := map[string]bool{"Coverage": true, "LiveProgress": true, "Loader": true, "OnPrint": true, "OnPause": true, "ReadFile": true, "WriteFile": true, "Seed": true, "Fingerprint": true, "Simulation": true, "DepthFirst": true, "Continue": true, "OnViolation": true, "OnFailureHeader": true, "ModernRandomSubsets": true, "PrintStyle": true, "OnDebug": true, "OnGraph": true, "OnLivenessGraph": true, "DOTGraph": true, "TextGraph": true, "OnSearch": true, "OnTemporalCheck": true, "OnTemporalViolation": true, "MaxSetSize": true, "Workers": true, "SerialExploration": true, "ViewStates": true, "OnWarning": true}
 	value := reflect.ValueOf(o)
 	typ := value.Type()
 	for i := 0; i < typ.NumField(); i++ {

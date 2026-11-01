@@ -242,6 +242,16 @@ func TestCheckpointIdentityFailsClosed(t *testing.T) {
 	}
 }
 
+func TestCheckpointRejectsLivenessGraphCallback(t *testing.T) {
+	if err := checkpointIdentityOptionsSupported(Options{}); err != nil {
+		t.Fatalf("zero options: %v", err)
+	}
+	callback := func(GraphEvent) error { return nil }
+	if err := checkpointIdentityOptionsSupported(Options{OnLivenessGraph: callback}); err == nil {
+		t.Fatal("checkpoint accepted an unidentifiable liveness graph callback")
+	}
+}
+
 func TestCheckpointIdentityBoundToPreparedSearch(t *testing.T) {
 	source := "---- MODULE M ----\nVARIABLE x\nInit == x = 0\nNext == UNCHANGED x\n===="
 	cfgText := "INIT Init NEXT Next CHECK_DEADLOCK FALSE"
