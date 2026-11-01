@@ -39,14 +39,12 @@ P == []<>(x = 0)`
 				args = append(args, "-dump", "dot", "out.dot")
 			}
 			out, code := runJavaTLCArgs(t, jar, dir, append(args, "M.tla"))
-			var prints []string
-			for line := range strings.SplitSeq(out, "\n") {
-				if strings.HasPrefix(line, `<<"view",`) || strings.HasPrefix(line, `<<"constraint",`) || strings.HasPrefix(line, `<<"next",`) {
-					prints = append(prints, line)
+			lf := strings.ReplaceAll(out, "\r\n", "\n")
+			for _, output := range []string{out, lf, strings.ReplaceAll(lf, "\n", "\r\n")} {
+				prints := viewLivenessOraclePrints(output)
+				if code != tc.exit || !strings.Contains(output, tc.stats) || len(prints) < len(tc.prefix) || !reflect.DeepEqual(prints[:len(tc.prefix)], tc.prefix) {
+					t.Fatalf("Java exit %d, prints %q, output:\n%s", code, prints, output)
 				}
-			}
-			if code != tc.exit || !strings.Contains(out, tc.stats) || len(prints) < len(tc.prefix) || !reflect.DeepEqual(prints[:len(tc.prefix)], tc.prefix) {
-				t.Fatalf("Java exit %d, prints %q, output:\n%s", code, prints, out)
 			}
 			graph, err := os.ReadFile(filepath.Join(dir, "out_liveness.dot"))
 			if tc.dot && (err != nil || !strings.Contains(string(graph), "digraph DiskGraph")) {
@@ -57,4 +55,16 @@ P == []<>(x = 0)`
 			}
 		})
 	}
+}
+
+// Java uses the platform line separator for PrintT output.
+func viewLivenessOraclePrints(output string) []string {
+	var prints []string
+	for line := range strings.SplitSeq(output, "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if strings.HasPrefix(line, `<<"view",`) || strings.HasPrefix(line, `<<"constraint",`) || strings.HasPrefix(line, `<<"next",`) {
+			prints = append(prints, line)
+		}
+	}
+	return prints
 }
