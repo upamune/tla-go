@@ -26,6 +26,12 @@ var recorderFixtureJava string
 //go:embed CaptureRecorder.java
 var captureRecorderJava string
 
+//go:embed OriginalEmptyTLC.java
+var originalEmptyTLCJava string
+
+//go:embed OriginalEmptyArgsFixture.java
+var originalEmptyArgsFixtureJava string
+
 type bridgeRecord struct {
 	code   string
 	values []string

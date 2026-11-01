@@ -528,6 +528,38 @@ process globals, side effects, metadir and dump behavior are not reproduced.
 Absence of a coverage report for this empty model does not establish general
 coverage equivalence. The experiment does not claim lifecycle completeness.
 
+### Original EmptyTest setup with a TLC adapter
+
+The opt-in experiment also selects `tlc2.tool.EmptyTest#testSpec` itself,
+without a subclass or modified upstream source. Its original inherited
+`ModelCheckerTestCase.setUp` and `tearDown` run under JUnit. A test-only
+`tlc2.TLC` class is placed first on the isolated JVM's classpath: the original
+setup creates this adapter in place of Java TLC. It checks the exact upstream
+argument list, the installed `TestMPRecorder`, user directory, cleanup-veto
+property and liveness threshold. Its `process` starts a Go test helper, which
+runs the built tla-go binary on a separate copy of `Empty`, parses its tool
+output with `projectEmpty`, and writes the projected records and omissions.
+The adapter loads those records into the recorder installed by the original
+setup; the original upstream assertion and exit-status teardown then execute.
+
+Negative controls reject altered worker/dump arguments, missing arguments,
+wrong statistics, a missing FINISHED record, a GENERAL record, a nonzero
+adapter error code, malformed records, and an unavailable Go executable.
+For a setup failure, JUnit also runs teardown and reports both failures. The Go
+child is bounded by a 20-second timeout and 1 MiB combined output; its
+`GOMEMLIMIT` is a soft limit, not a hard process memory cap. The Java adapter
+waits up to 40 seconds for its helper. The helpers are not a general process
+sandbox and child processes may outlive a killed parent.
+
+This is still **not a Go JUnit pass**. The adapter replaces Java TLC's
+constructor, option processing and model checker, adds `-tool`, and uses a
+different DOT path. The text projection cannot establish recorder completeness,
+array types or hidden calls. Some Java globals, output, dump, cleanup, error
+and liveness semantics remain unverified. The experiment carries the omission
+list forward and `bridgeVerdict` rejects a pass even when the original
+assertions return successfully. This adapter accepts only the verified
+`EmptyTest` argument list; expanding it requires new case-specific evidence.
+
 ## Full diagnostic snapshot
 
 Targeted follow-up for `ETest7` and `Github179a/b/c` reproduces the original
