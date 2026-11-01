@@ -163,7 +163,7 @@ func (p *Program) SetJSONFileSystem(read func(string) (string, error), write fun
 	p.readFile, p.writeFile = read, write
 }
 
-// PrintStyle selects how Print and PrintT render values.
+// PrintStyle selects how TLC operators render values.
 type PrintStyle struct {
 	// Terse renders SUBSET, function-set, record-set, and Cartesian-product
 	// values as formulas, as Java TLC does with -terse.
@@ -173,7 +173,7 @@ type PrintStyle struct {
 	UnformattedPrintT bool
 }
 
-// SetPrintStyle configures Print and PrintT before evaluation begins.
+// SetPrintStyle configures value rendering before evaluation begins.
 func (p *Program) SetPrintStyle(style PrintStyle) { p.printStyle = style }
 
 // SetWarningHandler receives Java TLC warnings raised during evaluation,
