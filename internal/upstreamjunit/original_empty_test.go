@@ -18,7 +18,7 @@ import (
 func checkOriginalEmptySetup(t *testing.T, classes string, deps []string, basedir, binary, model string) {
 	t.Helper()
 	adapter := compileOriginalEmptyAdapter(t, classes, deps)
-	events, omissions := runOriginalEmpty(t, adapter, classes, deps, basedir, binary, model, "success", true, true)
+	events, omissions := runOriginalEmpty(t, adapter, classes, deps, basedir, binary, model, "success", true, true, "")
 	const display = "testSpec(tlc2.tool.EmptyTest)"
 	if err := validateExecution(events, display); err != nil {
 		t.Fatalf("original EmptyTest with Go projection: %v", err)
@@ -73,7 +73,7 @@ func checkOriginalEmptyArguments(t *testing.T, ctx context.Context, dir, adapter
 	}
 }
 
-func runOriginalEmpty(t *testing.T, adapter, classes string, deps []string, basedir, binary, model, mode string, expectAdapter, expectOmissions bool) ([]executionEvent, []string) {
+func runOriginalEmpty(t *testing.T, adapter, classes string, deps []string, basedir, binary, model, mode string, expectAdapter, expectOmissions bool, expectHelperLog string) ([]executionEvent, []string) {
 	t.Helper()
 	dir := t.TempDir()
 	helper, err := os.Executable()
@@ -92,6 +92,12 @@ func runOriginalEmpty(t *testing.T, adapter, classes string, deps []string, base
 		t.Fatal(err)
 	}
 	checkOriginalEmptyMarker(t, dir, expectAdapter)
+	if expectHelperLog != "" {
+		log, err := os.ReadFile(filepath.Join(dir, "bridge-helper.log"))
+		if err != nil || !strings.Contains(string(log), expectHelperLog) {
+			t.Fatalf("Go helper log missing %q: %q, %v", expectHelperLog, log, err)
+		}
+	}
 	omissions := readOriginalEmptyOmissions(t, dir, expectOmissions)
 	return events, omissions
 }
@@ -146,15 +152,20 @@ func checkOriginalEmptyControls(t *testing.T, adapter, classes string, deps []st
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			goBinary, goModel := binary, model
+			var expectHelperLog string
 			if tc.missingModel {
 				goModel = t.TempDir()
 				checkOriginalEmptyNonzeroExit(t, goBinary, goModel)
+				expectHelperLog = "Go invocation failed: exit status 255"
 			} else if !tc.omitted {
 				goBinary = filepath.Join(t.TempDir(), "missing-tla-go")
 			}
-			events, _ := runOriginalEmpty(t, adapter, classes, deps, basedir, goBinary, goModel, tc.mode, tc.marker, tc.omitted)
+			events, _ := runOriginalEmpty(t, adapter, classes, deps, basedir, goBinary, goModel, tc.mode, tc.marker, tc.omitted, expectHelperLog)
 			if !tc.marker {
 				checkOriginalEmptySetupFailure(t, events, display)
+				if tc.missingModel && !strings.Contains(events[1].value, "Go helper failed") {
+					t.Fatalf("expected Go helper setup failure; events %+v", events)
+				}
 				return
 			}
 			if !validBridgeFailure(events, display) || !strings.Contains(events[1].value, tc.stack) {
