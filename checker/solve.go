@@ -19,6 +19,7 @@ type work struct {
 }
 type generator struct {
 	coverageCompleted int
+	coverageRoot      *coverageParameterizedRoot
 	model             *model
 	current           evaluator.State
 	initial           bool

@@ -45,6 +45,7 @@ type coverageCollector struct {
 	assignmentMemberships map[string]map[parser.Range]int
 	properties            map[string]*coverageNode
 	existentialDomains    map[string]map[parser.Range]int
+	parameterCalls        map[*parser.Expression]*coverageParameterizedRoot
 	hasExistential        bool
 	evaluatedExistential  bool
 }
@@ -103,6 +104,11 @@ func (m *model) coverageRoots() (parser.Definition, parser.Definition, bool) {
 func (m *model) addCoverageNext(c *coverageCollector, next parser.Definition) bool {
 	if next.Body.Kind != "Or" {
 		return m.addCoverageUnchangedNext(c, next)
+	}
+	for _, branch := range next.Body.Args {
+		if branch.Kind == "Apply" {
+			return m.addCoverageParameterizedCalls(c, next.Body.Args)
+		}
 	}
 	for _, branch := range next.Body.Args {
 		if !m.addCoverageAction(c, branch) {
@@ -230,9 +236,17 @@ func (g *generator) cover(expr *parser.Expression, action string) {
 	c := g.model.coverage
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if !g.initial && g.coverageRoot != nil {
+		c.actions[g.coverageRoot.action].Expressions[0].Count++
+		return
+	}
 	if g.initial {
 		action = c.initial
 	}
+	c.coverExpression(expr, action)
+}
+
+func (c *coverageCollector) coverExpression(expr *parser.Expression, action string) {
 	index, ok := c.byName[action]
 	if !ok {
 		return

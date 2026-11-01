@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -44,7 +45,7 @@ func TestJavaTLCUpstreamACoverageBoundary(t *testing.T) {
 }
 
 // A's two calls have different parameters and use the same nested definition.
-// The smaller models isolate action aggregation, guard costs, and locations.
+// The smaller models isolate supported roots and still-unsupported child costs.
 func TestJavaTLCCoverageParameterizedActionsBoundary(t *testing.T) {
 	fixture := coverageAFixtures(t)
 	for _, tc := range []struct{ name, definitions string }{
@@ -66,11 +67,40 @@ func TestJavaTLCCoverageParameterizedActionsBoundary(t *testing.T) {
 			}
 			args := coverageAArgs("M.tla", true)
 			out, code, stderr := runGoInDir(t, dir, args)
-			if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
-				t.Fatalf("coverage should remain rejected: exit %d stderr %s output %s", code, stderr, out)
+			if tc.name == "range" || tc.name == "guard" {
+				if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") {
+					t.Fatalf("coverage should remain rejected: exit %d stderr %s output %s", code, stderr, out)
+				}
+			} else {
+				golden, err := os.ReadFile(filepath.Join(fixture, "A-"+tc.name+".coverage"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if code != 0 || stderr != "" || coverageReport(t, out) != string(golden) {
+					t.Fatalf("coverage: exit %d stderr %s output %s", code, stderr, out)
+				}
+				compareParameterizedToolCoverage(t, dir, args)
 			}
 			checkJavaACoverage(t, fixture, dir, args, "A-"+tc.name+".coverage", "")
 		})
+	}
+}
+
+func compareParameterizedToolCoverage(t *testing.T, dir string, args []string) {
+	t.Helper()
+	toolArgs := append([]string{"-tool"}, args...)
+	out, exit, stderr := runGoInDir(t, dir, toolArgs)
+	if exit != 0 || stderr != "" {
+		t.Fatalf("Go tool exit %d stderr %s output %s", exit, stderr, out)
+	}
+	if jar := pinnedFairnessEffectJar(t); jar != "" {
+		javaArgs := append([]string{}, toolArgs[:len(toolArgs)-1]...)
+		javaArgs = append(javaArgs, "-metadir", filepath.Join(t.TempDir(), "states"), toolArgs[len(toolArgs)-1])
+		java, javaExit := runJavaTLCArgs(t, jar, dir, javaArgs)
+		got, want := coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java))
+		if javaExit != 0 || !reflect.DeepEqual(got, want) {
+			t.Fatalf("Java tool exit %d\nGo coverage %+v\nJava coverage %+v", javaExit, got, want)
+		}
 	}
 }
 
