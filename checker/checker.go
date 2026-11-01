@@ -126,6 +126,7 @@ type Failure struct {
 }
 type model struct {
 	checkpointIdentity   *checkpointIdentity
+	checkpointDriver     *checkpointDriver
 	coverage             *coverageCollector
 	module               *parser.Module
 	cfg                  config.Config

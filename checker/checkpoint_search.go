@@ -44,7 +44,7 @@ func (m *model) checkpointUntrustedObservers() bool {
 
 func (m *model) checkpointUnsupportedMode() bool {
 	o := m.tlcRuntime.options
-	return o.Simulation != nil || o.DepthFirst != nil || (o.Workers > 1 && !o.SerialExploration)
+	return o.Coverage || o.Simulation != nil || o.DepthFirst != nil || (o.Workers > 1 && !o.SerialExploration)
 }
 
 func (m *model) checkpointExpression(e *parser.Expression) bool {

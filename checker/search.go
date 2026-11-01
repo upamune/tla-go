@@ -141,6 +141,9 @@ func (s *search) explore() (Result, error) {
 			return s.finishFailedExpansion(i, next)
 		}
 		s.head = i + 1
+		if stop, err := s.checkpointBoundary(); stop {
+			return Result{}, err
+		}
 	}
 	s.debugLivenessGraph()
 	return s.finishLiveness()
