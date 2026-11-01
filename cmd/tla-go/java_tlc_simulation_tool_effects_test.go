@@ -22,6 +22,7 @@ func TestJavaTLCSimulationToolEffects(t *testing.T) {
 		{"multiple", "P == []<>Q\nR == <>(x=0)", "PROPERTIES P R"},
 		{"tableau", "P == <>[]<>Q\nR == <>(x=0)", "PROPERTIES P R"},
 		{"view", "P == []<>Q\nV == x", "PROPERTY P VIEW V"},
+		{"view-property-error", "P == []<>(1 \\div x=0)\nV == x", "PROPERTY P VIEW V"},
 		{"view-effects", "P == []<>Q\nV == IF PrintT(<<\"set\", x>>) THEN x ELSE x", "PROPERTY P VIEW V"},
 		{"view-level", "V == <<x, TLCGet(\"level\")>>", ""},
 		{"view-higher-order", "F(op(_)) == IF op(<<\"set\", x>>) THEN x ELSE x\nV == F(PrintT)", ""},
@@ -44,7 +45,7 @@ func TestJavaTLCSimulationToolEffects(t *testing.T) {
 		{"safety", "P == [](x=0)", "PROPERTY P"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if strings.HasPrefix(tc.name, "view-") && os.Getenv("TLA_GO_KNOWN_VIEW_EFFECTS") != "1" {
+			if strings.HasPrefix(tc.name, "view-") && tc.name != "view-property-error" && os.Getenv("TLA_GO_KNOWN_VIEW_EFFECTS") != "1" {
 				t.Skip("known VIEW side-effect ordering mismatch; set TLA_GO_KNOWN_VIEW_EFFECTS=1 to reproduce")
 			}
 			dir := t.TempDir()

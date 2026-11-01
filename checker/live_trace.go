@@ -29,10 +29,27 @@ type liveTraceKey struct {
 type liveTrace struct {
 	states []evaluator.State
 	keys   []string
+	// When non-nil, LiveCheck1 fingerprints each state as its graph is built.
+	keyForState func(evaluator.State) (string, error)
 	// Disable the cache in tool-compatible mode.
 	uncached bool
 	// leaves holds, by leaf tag and slot, 1 for a true and -1 for a false leaf.
 	leaves [][]int8
+}
+
+func newJavaViewLiveTrace(states []evaluator.State, uncached bool, keyForState func(evaluator.State) (string, error)) *liveTrace {
+	return &liveTrace{states: states, keys: make([]string, len(states)), uncached: uncached, keyForState: keyForState}
+}
+
+func (t *liveTrace) fingerprintState(index int) error {
+	if t.keyForState == nil {
+		return nil
+	}
+	key, err := t.keyForState(t.states[index])
+	if err == nil {
+		t.keys[index] = key
+	}
+	return err
 }
 
 func newLiveTrace(m *model, states []evaluator.State, omitNames bool) (*liveTrace, error) {
@@ -115,6 +132,9 @@ type liveTraceGraph struct {
 
 func newLiveTraceGraph(trace *liveTrace, solution *liveSolution) (*liveTraceGraph, error) {
 	g := &liveTraceGraph{solution: solution, liveTrace: trace, index: map[liveTraceKey]int{}}
+	if err := trace.fingerprintState(0); err != nil {
+		return nil, err
+	}
 	if solution.tableau == nil {
 		return g, g.buildPlain()
 	}
@@ -177,6 +197,9 @@ func (g *liveTraceGraph) buildPlain() error {
 	g.initial = []int{source}
 	g.link(source, source, stutter)
 	for i := 1; i < len(g.states); i++ {
+		if err := g.fingerprintState(i); err != nil {
+			return err
+		}
 		if source, err = g.addPlainState(source, i); err != nil {
 			return err
 		}
@@ -225,6 +248,9 @@ func (g *liveTraceGraph) buildTableau() error {
 		return err
 	}
 	for i := 1; i < len(g.states); i++ {
+		if err := g.fingerprintState(i); err != nil {
+			return err
+		}
 		if frontier, err = g.advanceTableau(frontier, i); err != nil {
 			return err
 		}

@@ -40,6 +40,42 @@ messages with the pinned JAR for selected VIEW, SYMMETRY, combined, and unreduce
 model-value cases. This does not establish parity for effectful VIEW, unknown
 model-value ordering, or all fingerprint and recovery errors.
 
+For simulation liveness graphs, a narrower pure VIEW case now uses Java FP64
+keys in both the default Go API and CLI, including normal and `-tool` output.
+It applies when VIEW is one variable or a flat tuple of variables, every
+sampled state variable is an integer or boolean, and ALIAS is absent. This
+includes SYMMETRY: its model-value permutations leave these sampled states
+unchanged. Recovery candidates outside this scalar subset use the full Java
+fingerprint calculation, including symmetry. Other VIEW expressions, non-scalar
+sampled states, ALIAS, and specifications without VIEW retain the old graph
+path. In particular, this does not fix effectful or failing VIEW evaluation.
+Pinned-oracle recovery tests sample scalar states and then enumerate a
+model-valued or tuple-valued VIEW candidate before the matching scalar initial
+state, with and without SYMMETRY. They also compare an error while generating a
+recovery candidate. These tests do not cover every fingerprint error or model
+value ordering.
+Eligibility scans all variables in every sampled state, and each graph solution
+scans the variables again when fingerprinting those states. Thus a scalar VIEW
+of one variable can still add CPU work for a wide state. The benchmark
+`BenchmarkSimulationScalarViewWideGraph` covers 301 variables and depth 1000;
+timing should be measured without competing workloads before drawing a
+performance conclusion.
+
+This changes verdicts for actual FP64 collisions, as in Java. Under `-fp 0`,
+`<<0,0,0>>` and `<<-1130370423,1673453457,0>>` both have fingerprint
+`b89a76409771b44d`: a regression model succeeds in Java and in the new path,
+where the previous Go graph found a liveness violation. Under `-fp 1`, both
+implementations find the violation. The Java comparison covers normal and tool
+output, and selected symmetry cases; the default Go API is tested separately.
+There are still known Java FP64 collision verdict differences without VIEW.
+Tableau product-node keys have an additional collision gap even within the
+limited VIEW case: Java's `LiveCheck1` uses `FP64.Extend(stateFP, tableauIndex)`
+as a single key, while Go keeps the state fingerprint and tableau index as a
+pair. Two different pairs that collide after Java's extension can therefore be
+merged by Java but remain distinct in Go. The selected tests do not establish
+tableau collision parity; no concrete verdict divergence has been demonstrated
+for this case.
+
 Oracle: tla2tools v1.7.4, upstream commit `5a47802b5c391f59ecdd44117981f4ff8c0656ba`, JAR SHA-256 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`. `TestJavaTLCFairnessEffectsLifecycle` exercises the isolated models; set `TLC_JAR` to the pinned JAR to run the Java comparisons. Each Java invocation uses one worker, fingerprint polynomial 0, and its own temporary model and metadata directory. Plain and `-tool` were compared. The original was also run three times with a fresh metadir per run and one worker: Java printed 10 times and Go 7 times on all three runs, with 3 generated and 2 distinct states and a liveness violation. This is not a determinism claim for multiple workers, arbitrary fingerprint polynomials, periodic checks, or other models.
 
 In additional single-worker runs with fingerprint polynomial indices 0 through 5, the labeled model produced the same ten values in the same order. This sample does not establish a general ordering guarantee.
@@ -88,10 +124,11 @@ weak-violation, register, guard and assertion models above. The later limited
 change handles selected effectful fairness checks; other cases can still cache
 `ENABLED` across concrete successors or omit a closing transition. Late tableau insertion must
 regenerate successors and apply constraints at insertion time, not after the
-entire state search. Simulation also computes all trace VIEW keys before any
-solution check, whereas Java computes fingerprints as it constructs each
-solution; effectful or failing VIEWs can therefore have different order or
-results. TLCGet in simulation liveness predicates remains unsupported. Do not
+entire state search. Outside the limited pure VIEW case described above,
+simulation computes all trace VIEW keys before any solution check, whereas
+Java computes fingerprints as it constructs each solution; effectful or failing
+VIEWs can therefore have different order or results. TLCGet in simulation
+liveness predicates remains unsupported. Do not
 infer general fairness, error or counterexample fidelity from the new case.
 
 On an Apple M3, two short runs of `BenchmarkSimulationFairness` before this
