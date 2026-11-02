@@ -51,6 +51,11 @@ type viewKeyError struct{ cause error }
 func (e *viewKeyError) Error() string { return e.cause.Error() }
 func (e *viewKeyError) Unwrap() error { return e.cause }
 
+type viewEvaluationError struct{ cause error }
+
+func (e *viewEvaluationError) Error() string { return e.cause.Error() }
+func (e *viewEvaluationError) Unwrap() error { return e.cause }
+
 func (s *search) boundedProduct(state evaluator.State, parent int, inModel bool) bool {
 	m := s.model
 	return inModel && m.supportsBoundedProduct(parent) && len(m.names) == 1 && state[m.names[0]].Kind() == value.ProductSetKind
@@ -133,6 +138,9 @@ func (m *model) reduceStateIn(state, scratch evaluator.State) (reducedState, err
 		return reducedState{}, err
 	}
 	v, err := m.program.Evaluate(expr, evaluator.Context{Current: state, Constants: m.constants, Enabled: m.enabledCallback, WithoutValueSource: true})
+	if err != nil {
+		return reducedState{}, &viewEvaluationError{cause: err}
+	}
 	return reducedState{state: state, view: v, hasView: true}, err
 }
 

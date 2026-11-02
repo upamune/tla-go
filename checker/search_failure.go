@@ -101,6 +101,9 @@ func (s *search) specialNextFailure(err error, index int) (Result, bool, error) 
 		s.result.Failure.Message = unexpectedExceptionMessage(runtimeExceptionClass, evalExceptionClass+": "+failure.Message)
 		s.result.Failure.ExitCode = 255
 		s.result.Failure.EvaluationDetail = evaluationDetail(failure)
+		if _, isView := errors.AsType[*viewEvaluationError](candidate.cause); isView {
+			s.result.Failure.EvaluationDetail = emptyCallStackDetail
+		}
 		s.result.Failure.SuppressDepth = true
 		return s.result, true, nil
 	}

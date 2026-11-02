@@ -182,8 +182,8 @@ func TestCheckpointLegacyUTF8Identity(t *testing.T) {
 	configBytes, err := json.Marshal(struct {
 		Version, Source string
 		Effective       config.Config
-		Options         checkpointIdentityOptions
-	}{checkpointIdentityVersion, cfgText, cfg, checkpointIdentityOptions{MaxSetSize: evaluator.DefaultSetBound, Workers: 1}})
+		Options         checkpointIdentityOptionsV1
+	}{checkpointIdentityVersion, cfgText, cfg, checkpointIdentityOptionsV1{MaxSetSize: evaluator.DefaultSetBound, Workers: 1}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,6 +207,21 @@ func TestCheckpointLegacyUTF8Identity(t *testing.T) {
 	}
 	if _, err := CheckWithCheckpoint(context.Background(), source, cfgText, CheckpointOptions{Path: path, Resume: true}); err != nil {
 		t.Fatalf("legacy recovery: %v", err)
+	}
+}
+
+func TestCheckpointV1RejectsTLCModuleEffects(t *testing.T) {
+	for _, body := range []string{
+		"EXTENDS TLC\nVARIABLE x\nInit == x = 0\nNext == x' = TLCGet(\"generated\")",
+		"EXTENDS TLC\nVARIABLE x\nUnused == TLCGet(\"stats\")\nInit == x = 0\nNext == UNCHANGED x",
+		"VARIABLE x\nI == INSTANCE TLC\nInit == x = 0\nNext == x' = I!TLCGet(\"generated\")",
+	} {
+		source := "---- MODULE M ----\n" + body + "\n===="
+		opts := CheckpointOptions{Path: filepath.Join(t.TempDir(), "checkpoint"), Interval: time.Hour}
+		_, err := CheckWithCheckpoint(context.Background(), source, "INIT Init NEXT Next CHECK_DEADLOCK FALSE", opts)
+		if _, ok := errors.AsType[*CheckpointUnsupportedError](err); !ok {
+			t.Fatalf("effectful checkpoint admitted: %v\n%s", err, source)
+		}
 	}
 }
 

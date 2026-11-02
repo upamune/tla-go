@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -132,6 +133,96 @@ func TestJavaTLCStatisticsKeysInSuccessor(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestJavaTLCCandidateEvaluationErrorStack(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, tc := range []struct {
+		name, definition, config string
+		empty                    bool
+	}{
+		{"view", `V == IF x = 0 THEN x ELSE (1 \div 0)`, "VIEW V", true},
+		{"constraint", `C == IF x = 0 THEN TRUE ELSE (1 \div 0) = 0`, "CONSTRAINT C", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "VARIABLE x\nInit == x = 0\nN == x < 1 /\\ x' = x+1\n" + tc.definition
+			writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT N\nCHECK_DEADLOCK FALSE\n"+tc.config+"\n")
+			args := []string{"-tool", "-workers", "1", "-fp", "0", "M.tla"}
+			out, code, stderr := runGoInDir(t, dir, args)
+			goStack := candidateStack(t, out)
+			if code != 255 || stderr != "" || strings.Contains(goStack, "The error call stack is empty.") != tc.empty {
+				t.Fatalf("Go exit %d stderr %q output:\n%s", code, stderr, out)
+			}
+			if jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaStack := candidateStack(t, java); javaCode != code || javaStack != goStack {
+					t.Fatalf("Go exit %d stack %q; Java exit %d stack %q", code, goStack, javaCode, javaStack)
+				}
+			}
+		})
+	}
+}
+
+func candidateStack(t *testing.T, output string) string {
+	t.Helper()
+	for _, message := range readToolMessages(output) {
+		if message.code == 2103 {
+			return message.body
+		}
+	}
+	t.Fatalf("missing 2103 stack:\n%s", output)
+	return ""
+}
+
+func TestJavaTLCViewStatisticsFailureOutput(t *testing.T) {
+	jar := maxSetOracleJar(t)
+	for _, key := range []string{"generated", "stats"} {
+		t.Run(key, func(t *testing.T) {
+			dir := t.TempDir()
+			body := fmt.Sprintf("VARIABLE x\nInit == x = 0\nN == x < 1 /\\ x' = x+1\nV == IF x=0 THEN x ELSE IF PrintT(TLCGet(\"%s\")) THEN x ELSE x", key)
+			writeMaxSetSizeFixture(t, dir, body, "INIT Init\nNEXT N\nCHECK_DEADLOCK FALSE\nVIEW V\n")
+			for _, tool := range []bool{false, true} {
+				args := []string{"-workers", "1", "-fp", "0", "M.tla"}
+				if tool {
+					args = append([]string{"-tool"}, args...)
+				}
+				out, code, stderr := runGoInDir(t, dir, args)
+				if code != 255 || stderr != "" || !strings.Contains(out, "The error call stack is empty.") {
+					t.Fatalf("Go tool=%t exit %d stderr %q output:\n%s", tool, code, stderr, out)
+				}
+				if jar == "" {
+					continue
+				}
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != code {
+					t.Fatalf("Go exit %d, Java exit %d", code, javaCode)
+				}
+				if tool {
+					got, want := errorBehaviorMessages(readToolMessages(out)), errorBehaviorMessages(readToolMessages(java))
+					if !reflect.DeepEqual(got, want) {
+						t.Fatalf("Go messages %q; Java messages %q", got, want)
+					}
+				} else if got, want := candidateHumanError(t, out), candidateHumanError(t, java); got != want {
+					t.Fatalf("Go error %q; Java error %q", got, want)
+				}
+			}
+		})
+	}
+}
+
+func candidateHumanError(t *testing.T, output string) string {
+	t.Helper()
+	_, tail, ok := strings.Cut(output, "Error: TLC threw an unexpected exception.")
+	if !ok {
+		t.Fatalf("missing error: %s", output)
+	}
+	const end = " states left on queue."
+	index := strings.Index(tail, end)
+	if index < 0 {
+		t.Fatalf("missing statistics: %s", output)
+	}
+	return tail[:index+len(end)]
 }
 
 func assertUndefinedStatisticsKey(t *testing.T, engine, key, output, stderr string, got, want, kind int) {

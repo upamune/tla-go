@@ -14,12 +14,23 @@ import (
 	"github.com/upamune/tla-go/syntax/parser"
 )
 
-// checkpointIdentityVersion identifies both this encoding and the checker and
-// built-in module semantics. Bump it whenever those semantics can change.
-const checkpointIdentityVersion = "tla-go-checkpoint-identity-v2"
+// Identity versions cover both encoding and semantics. V1 remains valid only
+// because checkpoint preflight excludes all features affected by this change.
+const checkpointIdentityVersion = "tla-go-checkpoint-identity-v1"
+
+const checkpointModernIdentityVersion = "tla-go-checkpoint-identity-v2"
 
 type (
-	checkpointSource          struct{ Name, Source string }
+	checkpointSource            struct{ Name, Source string }
+	checkpointIdentityOptionsV1 struct {
+		Coverage                      bool
+		Seed                          int64
+		Fingerprint                   int
+		Continue, ModernRandomSubsets bool
+		PrintStyle                    evaluator.PrintStyle
+		MaxSetSize, Workers           int
+		SerialExploration, ViewStates bool
+	}
 	checkpointIdentityOptions struct {
 		Coverage                                           bool
 		Seed                                               int64
@@ -117,27 +128,37 @@ func hashCheckpointInputs(rootName string, sourceMap map[string]string, configSo
 	for _, name := range names {
 		sources = append(sources, checkpointSource{name, sourceMap[name]})
 	}
+	version, identityOptions := checkpointIdentityEncoding(options)
 	modelData, err := json.Marshal(struct {
 		Version, Root string
 		Sources       []checkpointSource
-	}{checkpointIdentityVersion, rootName, sources})
+	}{version, rootName, sources})
 	if err != nil {
 		return checkpointIdentity{}, err
 	}
-	bound := options.MaxSetSize
-	if bound <= 0 {
-		bound = evaluator.DefaultSetBound
-	}
-	identityOptions := checkpointIdentityOptions{options.Coverage, options.Seed, options.Fingerprint, options.Continue, options.ModernRandomSubsets, options.ModernTLCStatistics, options.PrintStyle, bound, max(options.Workers, 1), options.SerialExploration, options.ViewStates}
 	configData, err := json.Marshal(struct {
 		Version, Source string
 		Effective       config.Config
-		Options         checkpointIdentityOptions
-	}{checkpointIdentityVersion, configSource, effective, identityOptions})
+		Options         any
+	}{version, configSource, effective, identityOptions})
 	if err != nil {
 		return checkpointIdentity{}, err
 	}
 	return checkpointIdentity{Model: sha256.Sum256(modelData), Config: sha256.Sum256(configData)}, nil
+}
+
+// V1 checkpoint preflight admits no TLC module, effects, VIEW, or constraints.
+// Its closed pure expression subset cannot observe the statistics key change.
+// Preserve its exact encoding unless the new semantics flag is explicitly set.
+func checkpointIdentityEncoding(options Options) (string, any) {
+	bound := options.MaxSetSize
+	if bound <= 0 {
+		bound = evaluator.DefaultSetBound
+	}
+	if options.ModernTLCStatistics {
+		return checkpointModernIdentityVersion, checkpointIdentityOptions{options.Coverage, options.Seed, options.Fingerprint, options.Continue, options.ModernRandomSubsets, options.ModernTLCStatistics, options.PrintStyle, bound, max(options.Workers, 1), options.SerialExploration, options.ViewStates}
+	}
+	return checkpointIdentityVersion, checkpointIdentityOptionsV1{options.Coverage, options.Seed, options.Fingerprint, options.Continue, options.ModernRandomSubsets, options.PrintStyle, bound, max(options.Workers, 1), options.SerialExploration, options.ViewStates}
 }
 
 // JSON replaces invalid UTF-8 with U+FFFD. Reject it before hashing so that
