@@ -95,3 +95,21 @@ func TestJavaTLCCoverageStateInvariantWithUnchanged(t *testing.T) {
 	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nINVARIANT Inv\n")
 	compareParameterizedCoverage(t, dir)
 }
+
+func TestCoverageRejectsLiteralTrueInvariantMembershipReplay(t *testing.T) {
+	dir := t.TempDir()
+	model := "EXTENDS Naturals\nVARIABLE x\nInit == x \\in {0,1}\nA == /\\ x < 2\n     /\\ x' = x + 1\nB == /\\ x < 2\n     /\\ x' = x + 1\nNext == A \\/ B\nAlways == TRUE"
+	writeCoverageModule(t, dir, "M", model)
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nINVARIANT Always\n")
+	args := []string{"-tool", "-fp", "0", "-workers", "1", "-coverage", "9999", "-checkpoint", "0", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code == 0 || !strings.Contains(out+stderr, "-coverage does not yet support") || len(coverageMessages(readToolMessages(out))) != 0 {
+		t.Fatalf("expected rejection without coverage: exit %d stderr %s\n%s", code, stderr, out)
+	}
+	if jar := pinnedFairnessEffectJar(t); jar != "" {
+		java, exit := runJavaTLCArgs(t, jar, dir, args)
+		if exit != 11 || !hasToolMessage(readToolMessages(java), 2114) || !strings.Contains(java, "<Init line 4, col 1 to line 4, col 4 of module M>: 4:4") || !strings.Contains(java, "<A line 5, col 1 to line 5, col 1 of module M>: 1:3") {
+			t.Fatalf("Java exit %d\n%s", exit, java)
+		}
+	}
+}
