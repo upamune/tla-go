@@ -147,21 +147,22 @@ func (m *model) holdsWithoutOutput(expr *parser.Expression) (bool, error) {
 	return predicateBoolean(v, err)
 }
 
+type checkedConstantPredicate struct {
+	kind, name string
+	truth      bool
+}
+
 func (m *model) validateConstantPredicates() error {
 	// TLC evaluates the configured constants before reporting the first FALSE.
-	type checked struct {
-		kind, name string
-		truth      bool
-	}
-	var results []checked
+	var results []checkedConstantPredicate
 	for _, group := range []struct {
 		kind  string
 		names []string
 	}{{"invariant", m.cfg.Invariants}, {"property", m.cfg.Properties}, {"constraint", m.cfg.Constraints}, {"action constraint", m.cfg.ActionConstraints}} {
-		for _, name := range group.names {
-			if truth, valid := m.evaluateConstantPredicate(name); valid {
-				results = append(results, checked{group.kind, name, truth})
-			}
+		var err error
+		results, err = m.collectConstantPredicates(results, group.kind, group.names)
+		if err != nil {
+			return err
 		}
 	}
 	for _, result := range results {
@@ -171,6 +172,34 @@ func (m *model) validateConstantPredicates() error {
 		m.rememberTrueConfigured(result.name)
 	}
 	return nil
+}
+
+func (m *model) collectConstantPredicates(results []checkedConstantPredicate, kind string, names []string) ([]checkedConstantPredicate, error) {
+	for _, name := range names {
+		truth, valid, err := m.evaluateConstantPredicateForCoverage(kind, name)
+		if err != nil {
+			return nil, err
+		}
+		if valid {
+			results = append(results, checkedConstantPredicate{kind, name, truth})
+		}
+	}
+	return results, nil
+}
+
+func (m *model) evaluateConstantPredicateForCoverage(kind, name string) (bool, bool, error) {
+	if kind != "constraint" || !m.tlcRuntime.options.Coverage {
+		truth, valid := m.evaluateConstantPredicate(name)
+		return truth, valid, nil
+	}
+	runtime := m.tlcRuntime
+	runtime.coverageConstraint = true
+	truth, valid := m.evaluateConstantPredicate(name)
+	runtime.coverageConstraint = false
+	if runtime.coverageNamedRead {
+		return false, false, errCoverageNamedConstraintRead
+	}
+	return truth, valid, nil
 }
 
 func (m *model) rememberTrueConfigured(name string) {

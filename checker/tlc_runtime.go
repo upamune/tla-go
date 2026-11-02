@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -44,7 +45,12 @@ type tlcRuntime struct {
 	randomOrder        []string
 	randomStartup      bool
 	simulation         bool
+	coverageConstraint bool
+	coverageNamedRead  bool
+	coverageInitReplay bool
 }
+
+var errCoverageNamedConstraintRead = errors.New("-coverage does not yet support named TLCGet reads in state constraints")
 
 func newTLCRuntime(cfg config.Config, options Options) *tlcRuntime {
 	seed := options.Seed
@@ -70,7 +76,15 @@ func (r *tlcRuntime) Get(key value.Value, context evaluator.Context, source eval
 	if !ok || key.Kind() != value.StringKind {
 		return value.Value{}, tlcRuntimeError(fmt.Sprintf("The argument of TLCGet should be a nonnegative integer, but instead it is:\n%s", key))
 	}
+	if r.rejectCoverageNamedRead(name) {
+		r.coverageNamedRead = true
+		return value.Value{}, errCoverageNamedConstraintRead
+	}
 	return r.getNamed(name, context, source, primed)
+}
+
+func (r *tlcRuntime) rejectCoverageNamedRead(name string) bool {
+	return r.coverageConstraint && (name == "generated" || r.coverageInitReplay)
 }
 
 func (r *tlcRuntime) getNamed(name string, context evaluator.Context, source evaluator.State, primed bool) (value.Value, error) {

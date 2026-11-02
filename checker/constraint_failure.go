@@ -26,6 +26,20 @@ func (m *model) nonBooleanPredicateError(expr *parser.Expression, v value.Value)
 }
 
 func (m *model) constraintHolds(expr *parser.Expression, current, next evaluator.State) (bool, error) {
+	if m.coverage != nil {
+		return m.coveredConstraintHolds(expr, current, next)
+	}
+	return m.evaluateConstraint(expr, current, next)
+}
+
+func (m *model) coveredConstraintHolds(expr *parser.Expression, current, next evaluator.State) (bool, error) {
+	previous := m.tlcRuntime.coverageConstraint
+	m.tlcRuntime.coverageConstraint = true
+	defer func() { m.tlcRuntime.coverageConstraint = previous }()
+	return m.evaluateConstraint(expr, current, next)
+}
+
+func (m *model) evaluateConstraint(expr *parser.Expression, current, next evaluator.State) (bool, error) {
 	v, err := m.eval(expr, current, next)
 	if err != nil {
 		return false, err

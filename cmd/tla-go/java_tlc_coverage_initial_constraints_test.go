@@ -38,6 +38,67 @@ func TestJavaTLCCoverageInitialConstraintCounts(t *testing.T) {
 	}
 }
 
+func TestJavaTLCCoverageConstraintNumericRegisterWrappers(t *testing.T) {
+	for _, tc := range []struct{ name, defs, constraint string }{
+		{"direct", "", `TLCGet(0) = 0`},
+		{"arithmetic", "", `TLCGet(0 + 0) = 0`},
+		{"wrapper", `Read(k) == TLCGet(k)`, `Read(0) = 0`},
+		{"wrapper-arithmetic", `Read(k) == TLCGet(k)`, `Read(0 + 0) = 0`},
+		{"multi-wrapper", "Read(k) == TLCGet(k)\nForward(n) == Read(n)", `Forward(0) = 0`},
+		{"local-wrapper", "", `LET Read(k) == TLCGet(k) IN Read(0) = 0`},
+		{"dynamic-number", "", `TLCGet(x) = 0`},
+		{"unreached-named", "", `IF x = 0 THEN TLCGet(0) = 0 ELSE TLCGet("generated") = 0`},
+		{"level", "", `TLCGet("level") >= 0`},
+		{"effectful-number", "", `TLCGet(IF PrintT("key") THEN 0 ELSE 0) = 0`},
+		{"recursive", "RECURSIVE Read(_)\nRead(k) == IF k = 0 THEN TLCGet(k) ELSE Read(0)", `Read(0) = 0`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "EXTENDS Naturals, TLC\nASSUME TLCSet(0, 0)\nVARIABLE x\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\n" + tc.defs + "\nLimit == " + tc.constraint
+			writeCoverageModule(t, dir, "M", body)
+			writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nCONSTRAINT Limit\nCHECK_DEADLOCK FALSE\n")
+			compareCoverageInitialConstraint(t, dir, 0)
+		})
+	}
+}
+
+func TestJavaTLCCoverageUnsupportedNamedConstraintEffects(t *testing.T) {
+	dir := t.TempDir()
+	body := "EXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nLimit == IF PrintT(\"before\") THEN TLCGet(\"generated\") = 0 ELSE FALSE"
+	writeCoverageModule(t, dir, "M", body)
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nCONSTRAINT Limit\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-fp", "0", "-workers", "1", "-coverage", "9999", "-checkpoint", "0", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code == 0 || stderr != "" || !strings.Contains(out, "-coverage does not yet support named TLCGet reads in state constraints") || strings.Count(out, `"before"`) != 1 || hasToolMessage(readToolMessages(out), 2201) {
+		t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+	}
+	if jar := pinnedFairnessEffectJar(t); jar != "" {
+		java, exit := runJavaTLCArgs(t, jar, dir, args)
+		before, failure := strings.Index(java, `"before"`), strings.Index(java, "@!@!@STARTMSG 2145:")
+		if exit != 75 || before < 0 || failure <= before || !strings.Contains(java, "TLCGet(generated) was undefined") {
+			t.Fatalf("Java exit %d\n%s", exit, java)
+		}
+	}
+}
+
+func TestJavaTLCCoverageConstraintEffectfulNumericKey(t *testing.T) {
+	dir := t.TempDir()
+	body := "EXTENDS Naturals, TLC\nASSUME TLCSet(0, 0)\nVARIABLE x\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nLimit == TLCGet(IF PrintT(<<\"key\", x>>) THEN 0 ELSE 0) = 0"
+	writeCoverageModule(t, dir, "M", body)
+	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nCONSTRAINT Limit\nCHECK_DEADLOCK FALSE\n")
+	args := []string{"-tool", "-fp", "0", "-workers", "1", "-coverage", "9999", "-checkpoint", "0", "M.tla"}
+	out, code, stderr := runGoInDir(t, dir, args)
+	if code != 0 || stderr != "" {
+		t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
+	}
+	if jar := pinnedFairnessEffectJar(t); jar != "" {
+		java, exit := runJavaTLCArgs(t, jar, dir, args)
+		if exit != code || strings.Count(out, `"key"`) != strings.Count(java, `"key"`) || strings.Count(out, `"key"`) == 0 || !reflect.DeepEqual(coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java))) {
+			t.Fatalf("Java exit %d\nGo:\n%s\nJava:\n%s", exit, out, java)
+		}
+	}
+}
+
 func compareCoverageInitialConstraint(t *testing.T, dir string, want int) {
 	t.Helper()
 	args := []string{"-tool", "-fp", "0", "-workers", "1", "-coverage", "9999", "-checkpoint", "0", "M.tla"}

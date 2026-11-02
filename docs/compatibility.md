@@ -329,9 +329,14 @@ to the initial predicate and invariant costs. Coverage comparisons include
 errors on the first and a later candidate and a constraint that prints on
 each pass. If the diagnostic pass no longer fails, tla-go suppresses coverage
 because that changed outcome is not yet modeled completely.
-Constraints using named or dynamically selected `TLCGet` values are rejected
-in coverage mode: for example, TLC 1.7.4 leaves `"generated"` undefined,
-whereas Go currently exposes it. Numeric register reads remain supported.
+In coverage mode, reading `TLCGet("generated")` in a state constraint, or
+reading any named `TLCGet` value during diagnostic initial-state replay, stops
+with an unsupported error. Effects before that read have already occurred, and
+earlier periodic snapshots may already have been sent. TLC 1.7.4 leaves
+`"generated"` undefined, whereas Go currently exposes it; other named reads
+outside diagnostic replay retain their existing behavior, which may still
+differ from TLC. Numeric register reads remain supported, including computed
+keys and wrapper calls. No final coverage is returned after an unsupported read.
 
 On an Apple M3, `BenchmarkCoverageDirectUnchanged` with 1,000 initial states
 used about 1.18 MB and 9,151 allocations per run without coverage, both before

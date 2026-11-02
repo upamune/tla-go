@@ -78,8 +78,8 @@ func (m *model) check() (Result, error) {
 	}
 	if !more {
 		s.finishInitialEvaluationDetail()
-		s.replayInitialCoverage(init)
-		return s.result, nil
+		replayErr := s.replayInitialCoverage(init)
+		return s.result, replayErr
 	}
 	s.initialComplete = true
 	s.publishProgress()
@@ -110,7 +110,7 @@ func (s *search) initialGenerationError(err error) (Result, error) {
 	result, failureErr := s.runtimeFailure(err, nil, 75)
 	if failureErr == nil {
 		init, _ := s.model.definition(s.model.cfg.Init)
-		s.replayInitialCoverage(init)
+		failureErr = s.replayInitialCoverage(init)
 	}
 	return result, failureErr
 }

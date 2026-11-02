@@ -133,7 +133,7 @@ func (m *model) addCoverageNext(c *coverageCollector, next parser.Definition) bo
 }
 
 func (m *model) coverageConfigSupported() bool {
-	return !m.continueChecking && len(m.cfg.Properties)+len(m.cfg.ActionConstraints)+len(m.cfg.Postconditions)+len(m.cfg.Possible) == 0 && m.cfg.Symmetry == "" && m.cfg.View == "" && !m.coverageConstraintUsesRuntimeRead()
+	return !m.continueChecking && len(m.cfg.Properties)+len(m.cfg.ActionConstraints)+len(m.cfg.Postconditions)+len(m.cfg.Possible) == 0 && m.cfg.Symmetry == "" && m.cfg.View == ""
 }
 
 func (m *model) addCoverageAction(c *coverageCollector, branch *parser.Expression) bool {
