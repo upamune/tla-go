@@ -52,3 +52,36 @@ func initialErrorEventOrder(output string) []string {
 	}
 	return events
 }
+
+// The original failure and its diagnostic replay need not fail at the same
+// expression or even at the same initial candidate when TLC registers mutate.
+func TestJavaTLCCoverageInitialErrorMutableReplayBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name, constraint, wantStack, wantStats string
+	}{
+		{"different-expression", `IF x = 2 THEN IF TLCGet(0) = 0 THEN TLCSet(0,1) /\ x < TRUE ELSE x + TRUE = 0 ELSE TRUE`, "Line 10, column 75 to line 10, column 82", "3 states generated, 2 distinct states found"},
+		{"earlier-candidate", `IF TLCGet(0) = 0 THEN IF x = 2 THEN TLCSet(0,1) /\ x < TRUE ELSE TRUE ELSE IF x = 1 THEN x + TRUE = 0 ELSE TRUE`, "Line 10, column 99 to line 10, column 106", "2 states generated, 2 distinct states found"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nASSUME TLCSet(0,0)\nInit == x \\in 0..2\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nInv == TRUE\nLimit == " + tc.constraint + "\n====\n"
+			if err := os.WriteFile(filepath.Join(dir, "M.tla"), []byte(source), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\nCONSTRAINT Limit\nCHECK_DEADLOCK FALSE\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"-tool", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"}
+			out, code, _ := runGoInDir(t, dir, args)
+			if code == 0 || !strings.Contains(out, "-coverage cannot report initial error replay with mutable TLC or random operators") || hasToolMessage(readToolMessages(out), 2201) || hasToolMessage(readToolMessages(out), 2103) {
+				t.Fatalf("unsupported replay reported as supported: exit %d\n%s", code, out)
+			}
+			if jar := pinnedFairnessEffectJar(t); jar != "" {
+				java, javaCode := runJavaTLCArgs(t, jar, dir, args)
+				if javaCode != 75 || !strings.Contains(rawToolMessage(java, 2103), tc.wantStack) || !strings.Contains(rawToolMessage(java, 2199), tc.wantStats) {
+					t.Fatalf("unexpected Java replay: exit %d\n%s", javaCode, java)
+				}
+			}
+		})
+	}
+}

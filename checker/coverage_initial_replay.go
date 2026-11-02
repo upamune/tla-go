@@ -3,6 +3,7 @@ package checker
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/upamune/tla-go/evaluator"
 	"github.com/upamune/tla-go/syntax/parser"
@@ -14,6 +15,9 @@ func (s *search) replayInitialCoverage(init *parser.Expression) error {
 	m := s.model
 	if m.coverage == nil || m.coverage.hasExistential || s.result.Status != EvaluationFailure {
 		return nil
+	}
+	if m.initialCoverageReplayUsesRuntime(init) {
+		return fmt.Errorf("-coverage cannot report initial error replay with mutable TLC or random operators")
 	}
 	s.publishInitialCoverageFailureHeader()
 	runtime := m.tlcRuntime
@@ -41,6 +45,62 @@ func (s *search) replayInitialCoverage(init *parser.Expression) error {
 		m.coverage.unreliableReplay = true
 	}
 	return nil
+}
+
+// Runtime reads, writes, and random operators can change both the failed
+// candidate and the error during CallStackTool replay. Do not report the
+// original diagnostic or partial costs as though replay were equivalent.
+func (m *model) initialCoverageReplayUsesRuntime(init *parser.Expression) bool {
+	if m.initialReplayRuntimeExpression(init, map[string]bool{}) {
+		return true
+	}
+	for _, name := range append(append([]string(nil), m.cfg.Constraints...), m.cfg.Invariants...) {
+		expr, err := m.definition(name)
+		if err != nil || m.initialReplayRuntimeExpression(expr, map[string]bool{}) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *model) initialReplayRuntimeExpression(expr *parser.Expression, seen map[string]bool) bool {
+	if expr == nil {
+		return false
+	}
+	if m.initialReplayRuntimeDefinition(expr, seen) {
+		return true
+	}
+	found := false
+	walkChildren(expr, func(child *parser.Expression) {
+		if !found {
+			found = m.initialReplayRuntimeExpression(child, seen)
+		}
+	})
+	return found
+}
+
+func (m *model) initialReplayRuntimeDefinition(expr *parser.Expression, seen map[string]bool) bool {
+	if expr.Kind != "Apply" && expr.Kind != "Identifier" {
+		return false
+	}
+	if initialReplayRuntimeOperator(tlcOperatorName(expr)) {
+		return true
+	}
+	def, ok := m.defs[expr.Text]
+	if !ok || seen[expr.Text] {
+		return false
+	}
+	seen[expr.Text] = true
+	return m.initialReplayRuntimeExpression(def.Body, seen)
+}
+
+func initialReplayRuntimeOperator(name string) bool {
+	switch name {
+	case "TLCGet", "TLCSet", "TLCGetAndSet", "JavaTime":
+		return true
+	default:
+		return isRandomName(name)
+	}
 }
 
 func coverageReplayControlError(err error) bool {

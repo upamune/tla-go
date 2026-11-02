@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -56,8 +57,25 @@ func TestCoverageInitialReplayCancellation(t *testing.T) {
 func TestCoverageInitialReplayChangedOutcomeSuppressesReport(t *testing.T) {
 	source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nASSUME TLCSet(0, 0)\nVARIABLE x\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nLimit == IF TLCGet(0) = 0 THEN TLCSet(0, 1) /\\ x < TRUE ELSE TRUE\n===="
 	result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next CONSTRAINT Limit CHECK_DEADLOCK FALSE", Options{Coverage: true})
-	if err != nil || result.Status != EvaluationFailure || len(result.Coverage) != 0 {
+	if err == nil || !strings.Contains(err.Error(), "-coverage cannot report initial error replay") || len(result.Coverage) != 0 {
 		t.Fatalf("result %+v, error %v", result, err)
+	}
+}
+
+func TestCoverageInitialReplayMutableOperatorsThroughDefinitions(t *testing.T) {
+	for _, tc := range []struct{ name, defs, condition string }{
+		{"read-wrapper", `Read == TLCGet(0)`, `Read = 0 /\ x < TRUE`},
+		{"write-wrapper", `Write == TLCSet(0, 1)`, `Write /\ x < TRUE`},
+		{"operator-argument", `Write(F(_, _)) == F(0, 1)`, `Write(TLCSet) /\ x < TRUE`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nASSUME TLCSet(0, 0)\nVARIABLE x\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\n" + tc.defs + "\nLimit == " + tc.condition + "\n===="
+			var progress LiveProgress
+			result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next CONSTRAINT Limit CHECK_DEADLOCK FALSE", Options{Coverage: true, LiveProgress: &progress})
+			if err == nil || !strings.Contains(err.Error(), "-coverage cannot report initial error replay") || len(result.Coverage) != 0 || progress.CoverageSnapshot() != nil {
+				t.Fatalf("result %+v, error %v, progress %+v", result, err, progress.CoverageSnapshot())
+			}
+		})
 	}
 }
 

@@ -302,8 +302,11 @@ counterexample-replay handling. State constraints remain rejected for this
 direct-action subset. For supported named-action models, the Init coverage root
 counts every completed initial candidate before applying state constraints, as
 in Java TLC, even if none is admitted to the state space. Initial invariant
-and constraint errors use the diagnostic replay described below. Tests compare
-the direct action's normal and tool
+and constraint errors use the diagnostic replay described below.
+When an initial predicate, constraint, or invariant references mutable TLC
+registers or random operators, coverage instead rejects initial-error replay:
+the failing candidate and diagnostic stack can change during re-evaluation.
+Tests compare the direct action's normal and tool
 coverage with Java, including empty initial ranges, reordered definitions,
 `SPECIFICATION`, supported invariants, and separately defined modules. The
 direct UNCHANGED action is supported in the forms described below.
