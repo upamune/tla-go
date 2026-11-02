@@ -3,11 +3,49 @@ package value
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 	"testing"
+	"weak"
 
 	"github.com/upamune/tla-go/syntax/parser"
 )
+
+func TestUpdateExistingNoopReleasesExcessPairs(t *testing.T) {
+	updated, discarded := updateDuplicateKeyFunction(t)
+	if len(updated.data.pairs) != 1 || cap(updated.data.pairs) != 1 {
+		t.Fatalf("updated pair slice: len=%d cap=%d", len(updated.data.pairs), cap(updated.data.pairs))
+	}
+	runtime.GC()
+	if discarded.Value() != nil {
+		t.Fatal("the updated function retains a discarded duplicate's value")
+	}
+	runtime.KeepAlive(updated)
+}
+
+func updateDuplicateKeyFunction(t *testing.T) (Value, weak.Pointer[payload]) {
+	t.Helper()
+	key, _ := Integer(1)
+	pairs := make([]Pair, 100000)
+	for i := range pairs {
+		pairs[i] = Pair{Key: key, Value: Bool(false)}
+	}
+	discarded := String("discarded duplicate")
+	pairs[1].Value = discarded
+	ref := weak.Make(discarded.data)
+	original, err := Function(pairs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(original.data.pairs) != 1 || cap(original.data.pairs) < len(pairs) {
+		t.Fatalf("original pair slice: len=%d cap=%d", len(original.data.pairs), cap(original.data.pairs))
+	}
+	updated, found, err := original.UpdateExisting(key, func(v Value) (Value, error) { return v, nil })
+	if err != nil || !found || updated == original {
+		t.Fatalf("update: found=%v error=%v", found, err)
+	}
+	return updated, ref
+}
 
 func TestUpdateExistingNoopEvaluatesCallback(t *testing.T) {
 	one, _ := Integer(1)

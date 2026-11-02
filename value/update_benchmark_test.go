@@ -36,3 +36,21 @@ func BenchmarkFunctionNoopUpdate(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkFunctionNoopUpdateDuplicateKeys(b *testing.B) {
+	key := Value{kind: IntegerKind, number: 1}
+	pairs := make([]Pair, 100000)
+	for i := range pairs {
+		pairs[i] = Pair{Key: key, Value: Bool(false)}
+	}
+	function, err := Function(pairs)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for b.Loop() {
+		_, found, err := function.UpdateExisting(key, func(v Value) (Value, error) { return v, nil })
+		if err != nil || !found {
+			b.Fatalf("update: found=%v error=%v", found, err)
+		}
+	}
+}
