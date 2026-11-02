@@ -86,6 +86,7 @@ The module name must match the `.tla` filename. External modules referenced by `
 | `-debug-liveness` | Write liveness debugging events as JSON lines to standard error. |
 | `-lncheck STRATEGY` | Accept a liveness strategy argument for CLI compatibility; it does not change checking or reproduce Java's scheduling. |
 | `-modern-random-subsets` | Use the newer TLC random-subset algorithm. |
+| `-modern-tlc-statistics` | Enable partial support for the newer `TLCGet("generated")` and `TLCGet("stats")` keys; this does not select full TLC 1.8 compatibility. |
 | `-difftrace` | In error traces, print only the variables that changed from the previous state, following Java TLC's rules for which states are printed in full. |
 | `-terse` | Print `SUBSET`, function-set, record-set, and Cartesian-product values as formulas instead of enumerating them in `Print`/`PrintT` output, traces, and state dumps. |
 | `-userFile FILE` | Write `Print` and `PrintT` output to `FILE` instead of standard output. |

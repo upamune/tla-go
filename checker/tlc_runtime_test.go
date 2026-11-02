@@ -27,7 +27,7 @@ func TestUpstreamTLCStatistics(t *testing.T) {
 		t.Fatal(err)
 	}
 	var lines []string
-	result, err := CheckWithOptions(context.Background(), string(source), string(cfg), Options{OnPrint: func(s string) { lines = append(lines, s) }})
+	result, err := CheckWithOptions(context.Background(), string(source), string(cfg), Options{ModernTLCStatistics: true, OnPrint: func(s string) { lines = append(lines, s) }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestUpstreamTLCStatistics(t *testing.T) {
 func TestTLCGeneratedStopsAtViolation(t *testing.T) {
 	source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0\nNext == x' \\in {1, 2, 3} /\\ PrintT(<<x', TLCGet(\"generated\")>>)\nInv == x # 2\n===="
 	var lines []string
-	result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next INVARIANT Inv", Options{OnPrint: func(s string) { lines = append(lines, s) }})
+	result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next INVARIANT Inv", Options{ModernTLCStatistics: true, OnPrint: func(s string) { lines = append(lines, s) }})
 	if err != nil || result.Status != InvariantViolation || result.GeneratedStates != 3 || result.DistinctStates != 3 || !reflect.DeepEqual(lines, []string{"<<1, 1>>", "<<2, 2>>"}) {
 		t.Fatalf("got %+v, err %v, lines %q", result, err, lines)
 	}
@@ -78,7 +78,7 @@ func TestUpstreamRuntimeModels(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			result, err := Check(string(source), string(cfg))
+			result, err := CheckWithOptions(context.Background(), string(source), string(cfg), Options{ModernTLCStatistics: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -106,7 +106,7 @@ func TestUpstreamTLCSetModels(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			result, err := Check(string(source), string(cfg)+"\nCHECK_DEADLOCK FALSE")
+			result, err := CheckWithOptions(context.Background(), string(source), string(cfg)+"\nCHECK_DEADLOCK FALSE", Options{ModernTLCStatistics: true})
 			if err != nil || result.Status != Success || result.GeneratedStates != 4225 || result.DistinctStates != 4225 || result.QueuedStates != 1 || result.Depth != 4225 {
 				t.Fatalf("got %+v, %v", result, err)
 			}
@@ -163,7 +163,7 @@ func BenchmarkTLCSetModel(b *testing.B) {
 	config := string(cfg) + "\nCHECK_DEADLOCK FALSE"
 	b.ReportAllocs()
 	for b.Loop() {
-		result, err := Check(string(source), config)
+		result, err := CheckWithOptions(context.Background(), string(source), config, Options{ModernTLCStatistics: true})
 		if err != nil || result.Status != Success {
 			b.Fatalf("got %+v, %v", result, err)
 		}

@@ -113,12 +113,19 @@ func (r *tlcRuntime) getOther(name string) (value.Value, error) {
 		return r.specificationValue()
 	}
 	if isStatisticsKey(name) {
-		if !r.started {
-			return value.Value{}, tlcRuntimeError(fmt.Sprintf("TLCGet(%s) was undefined.", name))
+		if !r.statisticsAvailable(name) {
+			return value.Value{}, &evaluator.RuntimeError{Message: fmt.Sprintf("TLCGet(%s) was undefined.", name), Standard: true, ToolCode: 2145, TrackSource: true}
 		}
 		return r.statisticsValue(name)
 	}
 	return r.getRegister(name)
+}
+
+func (r *tlcRuntime) statisticsAvailable(name string) bool {
+	if !r.started || (name == "generated" && r.simulation) {
+		return false
+	}
+	return r.options.ModernTLCStatistics || (name != "generated" && name != "stats")
 }
 
 func (r *tlcRuntime) getRegister(name string) (value.Value, error) {

@@ -32,6 +32,7 @@ type options struct {
 	coverageInterval             time.Duration
 	checkpoint                   bool
 	modernRandomSubsets          bool
+	modernTLCStatistics          bool
 	tool                         bool
 	noWarning                    bool
 	view                         bool
@@ -57,7 +58,7 @@ type options struct {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-recover dir] [-coverage N] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-debug-trace FILE, -debug-cpu-profile FILE, and -debug-heap-profile FILE write Go diagnostics to new files.\n-modern-random-subsets selects the newer TLC random-subset algorithm.")
+	fmt.Fprintln(w, "Usage: tla-go [-DTLA-Library=paths] [-metadir dir] [-config file.cfg] [-deadlock] [-seed integer] [-aril integer] [-simulate [num=N,file=prefix]] [-dfid N] [-continue] [-depth N] [-workers N|auto] [-checkpoint minutes] [-recover dir] [-coverage N] [-maxSetSize N] [-fp N] [-tool] [-nowarning] [-view] [-dump [dot[,colorize][,actionlabels]] file] [-debug-liveness] [-modern-random-subsets] [-modern-tlc-statistics] <file.tla|file.cfg|glob>...\n       tla-go -translate [pcal.trans options] file.tla\n       tla-go -sany-metadata [-I dir] file.tla\n       tla-go -version\n\nExperimental: supports a subset of TLA+ model checking and simulation.\n-dfid N checks with depth-first iterative deepening up to depth N.\n-continue reports supported violations and continues exploration.\n-translate, which must come first, translates PlusCal like Java's pcal.trans; tla-go -translate -help lists its options.\n-sany-metadata emits a partial SANY XML projection.\n-debug-liveness writes JSON debugging events to stderr.\n-debug-trace FILE, -debug-cpu-profile FILE, and -debug-heap-profile FILE write Go diagnostics to new files.\n-modern-random-subsets selects the newer TLC random-subset algorithm.\n-modern-tlc-statistics enables partial support for the newer TLCGet generated and stats keys; it does not select full TLC 1.8 behavior.")
 	fmt.Fprintln(w, compatUsage)
 	fmt.Fprintln(w, "TLA_GO_DEBUG_RECORDER=FILE writes partial recorder diagnostics to a new file during model checking.")
 }
@@ -313,7 +314,7 @@ func checkModelNormally(ctx context.Context, opts options, module *parser.Module
 				return err
 			}
 			return writeJSONFile(path, text)
-		}, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, ViewStates: opts.view,
+		}, Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, ModernTLCStatistics: opts.modernTLCStatistics, MaxSetSize: opts.maxSetSize, Workers: opts.workers, ViewStates: opts.view,
 		Coverage:          opts.coverage,
 		SerialExploration: opts.checkpoint,
 	}

@@ -66,6 +66,7 @@ func TestCheckpointIdentitySourcesAndOptions(t *testing.T) {
 			return identity(root, cfgSource, c, Options{})
 		}},
 		{"worker", func() checkpointIdentity { return identity(root, cfgSource, cfg, Options{Workers: 2}) }},
+		{"modern TLC statistics", func() checkpointIdentity { return identity(root, cfgSource, cfg, Options{ModernTLCStatistics: true}) }},
 	}
 	for _, name := range []string{"A", "B", "C"} {
 		tests = append(tests, struct {

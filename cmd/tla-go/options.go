@@ -27,6 +27,7 @@ var flagOptions = map[string]func(*options){
 	"-deadlock":              func(opts *options) { opts.deadlockOff = true },
 	"-debug-liveness":        func(opts *options) { opts.debugLiveness = true },
 	"-modern-random-subsets": func(opts *options) { opts.modernRandomSubsets = true },
+	"-modern-tlc-statistics": func(opts *options) { opts.modernTLCStatistics = true },
 	"-tool":                  func(opts *options) { opts.tool = true },
 	"-continue":              func(opts *options) { opts.continuation = true },
 	"-nowarning":             func(opts *options) { opts.noWarning = true },

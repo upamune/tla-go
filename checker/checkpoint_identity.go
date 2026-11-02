@@ -16,18 +16,18 @@ import (
 
 // checkpointIdentityVersion identifies both this encoding and the checker and
 // built-in module semantics. Bump it whenever those semantics can change.
-const checkpointIdentityVersion = "tla-go-checkpoint-identity-v1"
+const checkpointIdentityVersion = "tla-go-checkpoint-identity-v2"
 
 type (
 	checkpointSource          struct{ Name, Source string }
 	checkpointIdentityOptions struct {
-		Coverage                      bool
-		Seed                          int64
-		Fingerprint                   int
-		Continue, ModernRandomSubsets bool
-		PrintStyle                    evaluator.PrintStyle
-		MaxSetSize, Workers           int
-		SerialExploration, ViewStates bool
+		Coverage                                           bool
+		Seed                                               int64
+		Fingerprint                                        int
+		Continue, ModernRandomSubsets, ModernTLCStatistics bool
+		PrintStyle                                         evaluator.PrintStyle
+		MaxSetSize, Workers                                int
+		SerialExploration, ViewStates                      bool
 	}
 )
 
@@ -128,7 +128,7 @@ func hashCheckpointInputs(rootName string, sourceMap map[string]string, configSo
 	if bound <= 0 {
 		bound = evaluator.DefaultSetBound
 	}
-	identityOptions := checkpointIdentityOptions{options.Coverage, options.Seed, options.Fingerprint, options.Continue, options.ModernRandomSubsets, options.PrintStyle, bound, max(options.Workers, 1), options.SerialExploration, options.ViewStates}
+	identityOptions := checkpointIdentityOptions{options.Coverage, options.Seed, options.Fingerprint, options.Continue, options.ModernRandomSubsets, options.ModernTLCStatistics, options.PrintStyle, bound, max(options.Workers, 1), options.SerialExploration, options.ViewStates}
 	configData, err := json.Marshal(struct {
 		Version, Source string
 		Effective       config.Config
@@ -196,7 +196,7 @@ func validateCheckpointUTF8Map(v reflect.Value, path string) error {
 
 func checkpointIdentityOptionsSupported(o Options) error {
 	// New option fields must be classified before identities can be constructed.
-	known := map[string]bool{"Coverage": true, "LiveProgress": true, "Loader": true, "OnPrint": true, "OnPause": true, "ReadFile": true, "WriteFile": true, "Seed": true, "Fingerprint": true, "Simulation": true, "DepthFirst": true, "Continue": true, "OnViolation": true, "OnFailureHeader": true, "ModernRandomSubsets": true, "PrintStyle": true, "OnDebug": true, "OnGraph": true, "OnLivenessGraph": true, "DOTGraph": true, "TextGraph": true, "OnSearch": true, "OnTemporalCheck": true, "OnTemporalViolation": true, "MaxSetSize": true, "Workers": true, "SerialExploration": true, "ViewStates": true, "OnWarning": true}
+	known := map[string]bool{"Coverage": true, "LiveProgress": true, "Loader": true, "OnPrint": true, "OnPause": true, "ReadFile": true, "WriteFile": true, "Seed": true, "Fingerprint": true, "Simulation": true, "DepthFirst": true, "Continue": true, "OnViolation": true, "OnFailureHeader": true, "ModernRandomSubsets": true, "ModernTLCStatistics": true, "PrintStyle": true, "OnDebug": true, "OnGraph": true, "OnLivenessGraph": true, "DOTGraph": true, "TextGraph": true, "OnSearch": true, "OnTemporalCheck": true, "OnTemporalViolation": true, "MaxSetSize": true, "Workers": true, "SerialExploration": true, "ViewStates": true, "OnWarning": true}
 	value := reflect.ValueOf(o)
 	typ := value.Type()
 	for i := 0; i < typ.NumField(); i++ {

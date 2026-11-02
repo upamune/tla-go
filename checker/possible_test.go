@@ -2,6 +2,7 @@ package checker
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"os"
 	"reflect"
@@ -171,7 +172,7 @@ func BenchmarkPossibleModel(b *testing.B) {
 	configuration := string(cfg) + "\nCHECK_DEADLOCK FALSE\n_POSSIBLE Seen"
 	b.ReportAllocs()
 	for b.Loop() {
-		result, err := Check(module, configuration)
+		result, err := CheckWithOptions(context.Background(), module, configuration, Options{ModernTLCStatistics: true})
 		if err != nil || result.Status != Success {
 			b.Fatalf("got %+v, %v", result, err)
 		}

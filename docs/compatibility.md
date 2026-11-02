@@ -177,7 +177,7 @@ Because the translations of the tested models are identical, tla-go checks them 
 
 The default seed is 0. `-seed` selects a different seed. The default random-subset behavior follows the tested Java TLC 1.7.4 cases; `-modern-random-subsets` selects the newer algorithm tested against Java TLC 1.8.0 and the 2026-10-28 development build. Other seeded behavior and constant-level caching can still differ across versions.
 
-Selected `TLCGet` and `TLCSet` registers and configuration, trace, and runtime values are supported. Complex forms and behavior involving effects are not fully compatible.
+Selected `TLCGet` and `TLCSet` registers and configuration, trace, and runtime values are supported. By default `TLCGet("generated")` and `TLCGet("stats")` are undefined, as in Java TLC 1.7.4; numeric registers are unaffected. `-modern-tlc-statistics` enables partial support for those newer 1.8.0 keys, not full Java 1.8.0 compatibility. In simulation, `generated` remains undefined, as in 1.8.0; the simulation `stats` record differs from 1.8.0. Complex forms and behavior involving effects are not fully compatible.
 
 ## Command-line options and warnings
 

@@ -64,7 +64,7 @@ func setFingerprintCause(result *Failure, failure *evaluator.RuntimeError) {
 }
 
 func setInitialNestedFailure(result *Failure, failure *evaluator.RuntimeError) {
-	if slices.Contains([]int{2132, 2154, 2215, 2247, 2266}, failure.ToolCode) {
+	if slices.Contains([]int{2132, 2145, 2154, 2215, 2247, 2266}, failure.ToolCode) {
 		result.NestedToolCode = failure.ToolCode
 		result.NestedMessage = failure.Message
 		result.evaluationSources = slices.Clone(failure.Sources)
@@ -94,6 +94,16 @@ func (s *search) nextRuntimeFailure(err error, index int) (Result, error) {
 }
 
 func (s *search) specialNextFailure(err error, index int) (Result, bool, error) {
+	if candidate, ok := errors.AsType[*candidateEvalError](err); ok {
+		failure, _ := asRuntimeError(candidate.cause)
+		s.result.Status = EvaluationFailure
+		s.result.Failure = generalFailure("", failure)
+		s.result.Failure.Message = unexpectedExceptionMessage(runtimeExceptionClass, evalExceptionClass+": "+failure.Message)
+		s.result.Failure.ExitCode = 255
+		s.result.Failure.EvaluationDetail = evaluationDetail(failure)
+		s.result.Failure.SuppressDepth = true
+		return s.result, true, nil
+	}
 	if result, handled, replayErr := s.tryReplayKeyFailure(err, index); handled {
 		return result, true, replayErr
 	}
@@ -187,6 +197,9 @@ type candidateFingerprintError struct {
 }
 
 func candidateFailure(err error, state evaluator.State, parent int) error {
+	if candidateEvalFailure(err, parent) {
+		return &candidateEvalError{cause: err}
+	}
 	if viewUnexpectedKeyError(err) {
 		return &candidateViewError{cause: err, state: state, parent: parent}
 	}
@@ -201,6 +214,21 @@ func candidateFailure(err error, state evaluator.State, parent int) error {
 	}
 	return err
 }
+
+func candidateEvalFailure(err error, parent int) bool {
+	if failure, ok := asRuntimeError(err); ok && parent >= 0 {
+		class, _ := javaException(failure)
+		return class == evalExceptionClass
+	}
+	return false
+}
+
+// candidateEvalError identifies an EvalException in a successor's constraint
+// or state key, which the Java worker wraps before reporting it.
+type candidateEvalError struct{ cause error }
+
+func (e *candidateEvalError) Error() string { return e.cause.Error() }
+func (e *candidateEvalError) Unwrap() error { return e.cause }
 
 func viewUnexpectedKeyError(err error) bool {
 	if _, ok := errors.AsType[*viewKeyError](err); !ok {

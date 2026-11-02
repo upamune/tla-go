@@ -72,7 +72,8 @@ func runDepthFirst(t *testing.T, spec, cfg string, depth int, continueChecking b
 	t.Helper()
 	var run dfidRun
 	options := Options{
-		DepthFirst: &DepthFirstOptions{MaxDepth: depth, OnError: func(r Result) { run.errors = append(run.errors, r) }},
+		ModernTLCStatistics: true,
+		DepthFirst:          &DepthFirstOptions{MaxDepth: depth, OnError: func(r Result) { run.errors = append(run.errors, r) }},
 		OnSearch: func(event SearchEvent) {
 			if event.Kind == DepthFirstLevel {
 				run.levels = append(run.levels, fmt.Sprintf("%d:%d/%d", event.Level, event.GeneratedStates, event.DistinctStates))

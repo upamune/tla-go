@@ -32,7 +32,7 @@ func checkCLIWithCheckpoint(ctx context.Context, opts options, cfg config.Config
 		err error
 	}
 	done := make(chan answer, 1)
-	checkpointOpts := checker.CheckpointOptions{Path: filepath.Join(opts.metaDir, "tla-go.chkpt"), Interval: interval, Resume: opts.recoverDir != "", Config: &cfg, DebugPauseAfterExpansions: debug, DebugStopAfter: opts.debugStopAfter, Stream: stream, Options: checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, MaxSetSize: opts.maxSetSize, Workers: opts.workers, SerialExploration: true}}
+	checkpointOpts := checker.CheckpointOptions{Path: filepath.Join(opts.metaDir, "tla-go.chkpt"), Interval: interval, Resume: opts.recoverDir != "", Config: &cfg, DebugPauseAfterExpansions: debug, DebugStopAfter: opts.debugStopAfter, Stream: stream, Options: checker.Options{Loader: directoryLoader(filepath.Dir(specPath), opts.libraryPaths), Seed: opts.seed, Fingerprint: opts.fingerprint, ModernRandomSubsets: opts.modernRandomSubsets, ModernTLCStatistics: opts.modernTLCStatistics, MaxSetSize: opts.maxSetSize, Workers: opts.workers, SerialExploration: true}}
 	go func() {
 		run, e := checker.CheckWithCheckpoint(ctx, string(source), string(configSource), checkpointOpts)
 		close(stream)

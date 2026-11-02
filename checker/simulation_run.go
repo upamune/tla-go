@@ -328,9 +328,9 @@ func simulationGenerationFailure(failure *evaluator.RuntimeError) (*Failure, boo
 	switch {
 	case failure.ToolCode == 2247 || failure.ToolCode == 2154:
 		return &Failure{Message: failure.Message, ToolCode: failure.ToolCode}, true
-	case failure.ToolCode == 2132:
+	case failure.ToolCode == 2132 || failure.ToolCode == 2145:
 		message := unexpectedExceptionMessage(evalExceptionClass, failure.Message)
-		return &Failure{Message: message, ToolCode: 1000, NestedToolCode: 2132, NestedMessage: failure.Message}, true
+		return &Failure{Message: message, ToolCode: 1000, NestedToolCode: failure.ToolCode, NestedMessage: failure.Message}, true
 	case failure.WrongInvocation:
 		return &Failure{Message: wrongInvocationMessage(failure.Message), ToolCode: 1000}, true
 	default:

@@ -253,6 +253,9 @@ type Options struct {
 	OnFailureHeader func(Failure)
 	// ModernRandomSubsets uses the newer TLC random-subset algorithm.
 	ModernRandomSubsets bool
+	// ModernTLCStatistics enables the newer generated and stats TLCGet keys.
+	// This is partial support and does not select full TLC 1.8 compatibility.
+	ModernTLCStatistics bool
 	// PrintStyle selects how TLC operators render values.
 	PrintStyle evaluator.PrintStyle
 	// OnDebug receives JSON lines describing liveness exploration when set.
