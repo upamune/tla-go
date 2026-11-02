@@ -424,4 +424,16 @@ the evaluated right-hand-side cost is reported separately when the counts
 differ. Java 1.7.4 comparisons cover successful and rejected continuations,
 variable and constant operands, aliases, arithmetic, and multiple variables.
 Coverage costs for general error replay and unsupported continuation forms
-remain unverified.
+remain unverified. For supported pure actions without an existential, safety
+violations and deadlocks recover the initial state and the actions needed for
+their trace, charging the action and expression coverage model as Java does.
+Differential fixtures cover initial and successor ranges, short and deep
+traces, and recovery that selects a later action. If state comparison itself
+fails during recovery, tla-go returns an error instead of reporting partial
+coverage; Java can keep the violation status and print an incomplete trace.
+Evaluation exceptions have a
+separate stack-replay path: their coverage can still differ. For example, when
+`x` becomes `TRUE` and evaluating `x < 2` fails, Java TLC 1.7.4 reports action
+roots A 1:3 and B 1:1, while tla-go reports A 1:1 and B 0:0; both report an
+evaluation failure. `TestJavaTLCCoverageSafetyEvaluationErrorBoundary` preserves
+this known difference rather than treating it as a passing compatibility test.

@@ -555,6 +555,9 @@ func prepareTraced(ctx context.Context, module *parser.Module, cfg config.Config
 }
 
 func (model *model) finishCoverageCheck(result Result, options Options) (Result, error) {
+	if err := model.replayCoverageSafetyTrace(result); err != nil {
+		return result, err
+	}
 	if model.coverage == nil || result.Status == Success || !model.coverage.hasExistential || !model.coverageReplayUnreliable(result) {
 		model.attachCoverage(&result)
 	}

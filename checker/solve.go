@@ -26,9 +26,12 @@ type generator struct {
 	initial           bool
 	enabled           bool
 	allowIncomplete   bool
-	lexical           *evaluator.LexicalScope
-	source            *parser.Expression
-	emit              func(evaluator.State, string, *parser.Expression) (bool, error)
+	// borrowComplete avoids cloning a complete state for an internal callback
+	// that compares it synchronously and never retains it.
+	borrowComplete bool
+	lexical        *evaluator.LexicalScope
+	source         *parser.Expression
+	emit           func(evaluator.State, string, *parser.Expression) (bool, error)
 	// emitted is the last error returned by emit. Java TLC checks a successor
 	// after generating it, so the error carries no frames of the action; it
 	// checks an initial state within the initial predicate's continuation.
@@ -139,7 +142,7 @@ func (g *generator) assignWithCoverage(name, operator string, items *workList, p
 	g.coverageAssignmentAttempt(expr, action)
 	completed := g.coverageCompleted
 	more, err := g.assign(name, operator, expr.Args[1], items, partial, action)
-	if err == nil && g.coverageCompleted > completed {
+	if err == nil && more && g.coverageCompleted > completed {
 		g.coverageAssignmentSuccess(expr, action)
 	}
 	return more, err
@@ -430,6 +433,9 @@ func (g *generator) complete(partial evaluator.State, action string) (bool, erro
 	if g.model.coverage != nil {
 		g.coverageCompleted++
 	}
+	if g.borrowComplete {
+		return g.emitState(partial, action)
+	}
 	return g.emitState(maps.Clone(partial), action)
 }
 
@@ -592,7 +598,7 @@ func (g *generator) assignMembers(name string, set value.Value, items *workList,
 			g.coverAssignmentMember(items.item.expr, partial, action, items.next == nil, 1)
 		}
 		more, e = g.solve(items.next, partial, action)
-		if !g.initial && g.coverageCompleted > completed {
+		if !g.initial && more && g.coverageCompleted > completed {
 			g.coverAssignmentMember(items.item.expr, partial, action, items.next == nil, 1)
 		}
 		delete(partial, name)
@@ -612,7 +618,7 @@ func (g *generator) guard(items *workList, partial evaluator.State, action strin
 	}
 	completed := g.coverageCompleted
 	more, err := g.solve(items.next, partial, action)
-	if g.coverageCompleted > completed {
+	if more && g.coverageCompleted > completed {
 		g.coverGuardSuccess(items.item.expr, action)
 	}
 	if err != nil {
