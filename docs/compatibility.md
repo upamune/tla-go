@@ -331,16 +331,17 @@ to the initial predicate and invariant costs. Coverage comparisons include
 errors on the first and a later candidate and a constraint that prints on
 each pass. If the diagnostic pass no longer fails, tla-go suppresses coverage
 because that changed outcome is not yet modeled completely.
-In coverage mode, reading `TLCGet("generated")` in a state constraint, or
-reading any named `TLCGet` value during diagnostic initial-state replay, stops
-with an unsupported error. Effects before that read have already occurred, and
-earlier periodic snapshots may already have been sent. TLC 1.7.4 leaves
-`"generated"` undefined, whereas Go currently exposes it; other named reads
-outside diagnostic replay retain their existing behavior, which may still
-differ from TLC. Numeric register reads remain supported during normal
-exploration, including computed keys and wrapper calls, but initial-error
-diagnostic replay rejects models that reference mutable registers or random
-operators. No final coverage is returned after an unsupported read.
+For the pinned TLC 1.7.4 behavior, literal reads of `TLCGet("generated")` and
+`TLCGet("stats")` always fail. Initial-error replay supports these two keys
+when the initial predicate, next action, constraints and invariants are free of
+observable effects and random operators. Mutable register reads, other named
+reads, dynamic keys, and the modern statistics option remain rejected during
+initial-error replay. Effectful state constraints that read either key also
+remain unsupported; Java may evaluate their effects during setup and replay.
+Effects before an unsupported read have already occurred, and earlier periodic
+snapshots may have been sent. Numeric register reads remain supported during
+normal exploration, including computed keys and wrapper calls. No final coverage
+is returned after an unsupported read.
 
 On an Apple M3, `BenchmarkCoverageDirectUnchanged` with 1,000 initial states
 used about 1.18 MB and 9,151 allocations per run without coverage, both before
@@ -462,8 +463,13 @@ invariants, and updates generated and newly discovered counts. Java 1.7.4
 differential fixtures cover immediate and deep failures, multi-state actions,
 and excluded successors, including the error and stack messages. Effectful
 constraint recovery is rejected because its output ordering is not yet
-reproduced. Failures while evaluating a successor expression are rejected
-before coverage is printed because their separate stack replay is not modeled.
+reproduced. For effect-free named actions and constraints without reductions,
+action constraints, or `_POSSIBLE`, a successor state constraint that fails
+on its first replayed candidate because of either literal undefined statistics
+key is replayed for coverage. Other TLC reads, observable effects, dynamic
+keys, and a replay whose first candidate does not reproduce the error are
+rejected without final coverage. Failures while evaluating a successor
+expression are likewise rejected because their stack replay is not modeled.
 Initial invariant and constraint failures use the diagnostic replay described
 above; `TestJavaTLCCoverageInitialInvariantEvaluationErrorReplay` compares the
 resulting coverage with Java. Other evaluation errors are not yet generally

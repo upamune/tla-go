@@ -75,7 +75,7 @@ func TestJavaTLCCoverageUnsupportedNamedConstraintEffects(t *testing.T) {
 	if jar := pinnedFairnessEffectJar(t); jar != "" {
 		java, exit := runJavaTLCArgs(t, jar, dir, args)
 		before, failure := strings.Index(java, `"before"`), strings.Index(java, "@!@!@STARTMSG 2145:")
-		if exit != 75 || before < 0 || failure <= before || !strings.Contains(java, "TLCGet(generated) was undefined") {
+		if exit != 75 || before < 0 || failure <= before || strings.Count(java, `"before"`) != 3 || !strings.Contains(java, "TLCGet(generated) was undefined") {
 			t.Fatalf("Java exit %d\n%s", exit, java)
 		}
 	}

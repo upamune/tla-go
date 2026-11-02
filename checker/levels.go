@@ -193,9 +193,13 @@ func (m *model) evaluateConstantPredicateForCoverage(kind, name string) (bool, b
 		return truth, valid, nil
 	}
 	runtime := m.tlcRuntime
+	previous, previousExpr := runtime.coverageConstraint, runtime.coverageConstraintExpr
 	runtime.coverageConstraint = true
+	expr, _ := m.definition(name)
+	runtime.coverageConstraintExpr = expr
 	truth, valid := m.evaluateConstantPredicate(name)
-	runtime.coverageConstraint = false
+	runtime.coverageConstraint = previous
+	runtime.coverageConstraintExpr = previousExpr
 	if runtime.coverageNamedRead {
 		return false, false, errCoverageNamedConstraintRead
 	}

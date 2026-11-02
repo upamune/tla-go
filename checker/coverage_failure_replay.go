@@ -12,10 +12,22 @@ import (
 // invariant evaluation errors. Do not publish its unmodeled coverage costs.
 func (s *search) coverageAwareNextFailure(cause error, index int) (Result, error) {
 	result, err := s.nextRuntimeFailure(cause, index)
+	if err == nil && s.coverageCandidateEvalFailure(cause) {
+		return result, s.replayCoverageCandidateFailure(cause, index)
+	}
 	if err == nil && s.coverageUnmodeledNextFailure(cause) {
 		return result, fmt.Errorf("-coverage cannot report successor expression error replay")
 	}
 	return result, err
+}
+
+func (s *search) coverageCandidateEvalFailure(cause error) bool {
+	if s.model.coverage == nil {
+		return false
+	}
+	_, candidate := errors.AsType[*candidateEvalError](cause)
+	_, constraint := errors.AsType[*constraintEvaluationError](cause)
+	return candidate && constraint
 }
 
 func (s *search) coverageUnmodeledNextFailure(cause error) bool {

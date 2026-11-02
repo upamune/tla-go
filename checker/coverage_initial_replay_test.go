@@ -7,7 +7,34 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/upamune/tla-go/syntax/parser"
 )
+
+func TestCoverageUndefinedStatisticsRejectsShadowedOperator(t *testing.T) {
+	m := &model{tlcRuntime: &tlcRuntime{}, defs: map[string]parser.Definition{"TLCGet": {Name: "TLCGet"}}}
+	expr := &parser.Expression{Kind: "Apply", Text: "TLCGet", Args: []*parser.Expression{{Kind: "String", Text: "stats"}}}
+	if m.initialReplayUndefinedStatistics(expr) {
+		t.Fatal("user-defined operator was treated as an immutable TLC builtin")
+	}
+}
+
+func TestCoverageConstraintReplayRejectsOtherRuntimeReads(t *testing.T) {
+	m := &model{tlcRuntime: &tlcRuntime{}, defs: map[string]parser.Definition{"Op": {Params: []parser.Declaration{{Arity: 1}}, Body: &parser.Expression{Kind: "Identifier", Text: "TRUE"}}}}
+	for _, tc := range []struct{ name, kind string }{
+		{"TLCGetOrDefault", "Apply"},
+		{"TLCGetAndSet", "Apply"},
+		{"JavaTime", "Apply"},
+		{"Print", "Identifier"},
+		{"PrintT", "Identifier"},
+		{"Op", "Apply"},
+	} {
+		expr := &parser.Expression{Kind: tc.kind, Text: tc.name}
+		if m.coverageConstraintStableReads(expr, map[string]bool{}) {
+			t.Fatalf("operator %s was accepted", tc.name)
+		}
+	}
+}
 
 func TestCoverageInitialConstraintFailureReplaysAfterHeader(t *testing.T) {
 	source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x \\in 0..1\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nLimit == IF PrintT(x) THEN IF x = 0 THEN TRUE ELSE x < TRUE ELSE FALSE\n===="
@@ -79,21 +106,28 @@ func TestCoverageInitialReplayMutableOperatorsThroughDefinitions(t *testing.T) {
 	}
 }
 
-func TestCoverageRejectsNamedRuntimeReadsInConstraints(t *testing.T) {
-	for _, constraint := range []string{
-		`TLCGet("generated") = 1`,
-		`Read = 1`,
-		`Get("generated") = 1`,
-		`Forward("generated") = 1`,
+func TestCoverageNamedRuntimeReadsInConstraints(t *testing.T) {
+	for _, tc := range []struct {
+		constraint string
+		supported  bool
+	}{
+		{`TLCGet("generated") = 1`, true},
+		{`Read = 1`, true},
+		{`Get("generated") = 1`, false},
+		{`Forward("generated") = 1`, false},
 	} {
-		source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nRead == TLCGet(\"generated\")\nGet(k) == TLCGet(k)\nForward(n) == Get(n)\nLimit == " + constraint + "\n===="
+		source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nRead == TLCGet(\"generated\")\nGet(k) == TLCGet(k)\nForward(n) == Get(n)\nLimit == " + tc.constraint + "\n===="
 		config := "INIT Init NEXT Next CONSTRAINT Limit CHECK_DEADLOCK FALSE"
-		_, err := CheckWithOptions(context.Background(), source, config, Options{Coverage: true})
-		if err == nil {
-			t.Fatalf("coverage accepted constraint %s", constraint)
+		result, err := CheckWithOptions(context.Background(), source, config, Options{Coverage: true})
+		if tc.supported {
+			if err != nil || result.Failure == nil || result.Failure.NestedToolCode != 2145 || len(result.Coverage) == 0 {
+				t.Fatalf("constraint %s: result %+v, error %v", tc.constraint, result, err)
+			}
+		} else if err == nil {
+			t.Fatalf("coverage accepted constraint %s", tc.constraint)
 		}
 		if _, err := CheckWithOptions(context.Background(), source, config, Options{}); err != nil {
-			t.Fatalf("ordinary exploration rejected constraint %s: %v", constraint, err)
+			t.Fatalf("ordinary exploration rejected constraint %s: %v", tc.constraint, err)
 		}
 	}
 }

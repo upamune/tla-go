@@ -8,46 +8,48 @@ import (
 
 	"github.com/upamune/tla-go/config"
 	"github.com/upamune/tla-go/evaluator"
+	"github.com/upamune/tla-go/syntax/parser"
 	"github.com/upamune/tla-go/value"
 )
 
 type tlcRuntime struct {
-	registers          map[int32]value.Value
-	named              map[string]value.Value
-	properties         map[string]string
-	possibleCounts     map[string]int
-	cfg                config.Config
-	options            Options
-	startedAt          time.Time
-	started, stopped   bool
-	search             *search
-	depthFirst         *dfidSearch
-	traceCurrent       int
-	traceCandidate     evaluator.State
-	traceIndices       map[uintptr]int
-	viewKeys           []string
-	viewLivenessSeen   []bool
-	viewLastCandidate  evaluator.State
-	viewCandidateLevel int
-	traceOverride      []evaluator.State
-	aliasEvaluating    bool
-	counterExample     *Violation
-	model              *model
-	initial, level     int
-	levelGraph         map[uintptr]tlcGraphLevel
-	needsLevelGraph    bool
-	useBaseLevel       bool
-	outputMuted        bool
-	viewTraceReplayed  bool
-	startupRandom      *evaluator.JavaRandom
-	workerRandom       *evaluator.JavaRandom
-	randomIndex        int
-	randomOrder        []string
-	randomStartup      bool
-	simulation         bool
-	coverageConstraint bool
-	coverageNamedRead  bool
-	coverageInitReplay bool
+	registers              map[int32]value.Value
+	named                  map[string]value.Value
+	properties             map[string]string
+	possibleCounts         map[string]int
+	cfg                    config.Config
+	options                Options
+	startedAt              time.Time
+	started, stopped       bool
+	search                 *search
+	depthFirst             *dfidSearch
+	traceCurrent           int
+	traceCandidate         evaluator.State
+	traceIndices           map[uintptr]int
+	viewKeys               []string
+	viewLivenessSeen       []bool
+	viewLastCandidate      evaluator.State
+	viewCandidateLevel     int
+	traceOverride          []evaluator.State
+	aliasEvaluating        bool
+	counterExample         *Violation
+	model                  *model
+	initial, level         int
+	levelGraph             map[uintptr]tlcGraphLevel
+	needsLevelGraph        bool
+	useBaseLevel           bool
+	outputMuted            bool
+	viewTraceReplayed      bool
+	startupRandom          *evaluator.JavaRandom
+	workerRandom           *evaluator.JavaRandom
+	randomIndex            int
+	randomOrder            []string
+	randomStartup          bool
+	simulation             bool
+	coverageConstraint     bool
+	coverageNamedRead      bool
+	coverageInitReplay     bool
+	coverageConstraintExpr *parser.Expression
 }
 
 var errCoverageNamedConstraintRead = errors.New("-coverage does not yet support named TLCGet reads in state constraints")
@@ -84,6 +86,11 @@ func (r *tlcRuntime) Get(key value.Value, context evaluator.Context, source eval
 }
 
 func (r *tlcRuntime) rejectCoverageNamedRead(name string) bool {
+	// These two keys are undefined in TLC 1.7.4, so their diagnostic replay
+	// does not observe mutable statistics. Modern statistics remain guarded.
+	if !r.options.ModernTLCStatistics && (name == "generated" || name == "stats") {
+		return r.coverageConstraint && (r.model == nil || r.model.coverageConstraintEffects(r.coverageConstraintExpr))
+	}
 	return r.coverageConstraint && (name == "generated" || r.coverageInitReplay)
 }
 

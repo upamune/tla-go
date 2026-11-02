@@ -15,7 +15,7 @@ import (
 func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (string, bool, error) {
 	inModel, err := s.satisfiesConstraints(state, parent)
 	if err != nil {
-		return "", false, err
+		return "", false, &constraintEvaluationError{cause: err}
 	}
 	if !inModel && s.model.hasReduction() {
 		return "", false, nil
@@ -30,6 +30,11 @@ func (s *search) candidateKeyAndConstraints(state evaluator.State, parent int) (
 	s.normalizeStateMembership(state, parent)
 	return key, inModel, nil
 }
+
+type constraintEvaluationError struct{ cause error }
+
+func (e *constraintEvaluationError) Error() string { return e.cause.Error() }
+func (e *constraintEvaluationError) Unwrap() error { return e.cause }
 
 // A higher-order UNION may have no source expression, but a failure raised
 // from state-key construction still belongs to the candidate, not the action.

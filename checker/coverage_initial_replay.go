@@ -83,6 +83,9 @@ func (m *model) initialReplayRuntimeDefinition(expr *parser.Expression, seen map
 	if expr.Kind != "Apply" && expr.Kind != "Identifier" {
 		return false
 	}
+	if m.initialReplayUndefinedStatistics(expr) {
+		return !m.initialReplayEffectFree()
+	}
 	if initialReplayRuntimeOperator(tlcOperatorName(expr)) {
 		return true
 	}
@@ -92,6 +95,38 @@ func (m *model) initialReplayRuntimeDefinition(expr *parser.Expression, seen map
 	}
 	seen[expr.Text] = true
 	return m.initialReplayRuntimeExpression(def.Body, seen)
+}
+
+// These literal reads always fail in the pinned Java version. They are stable
+// only when the initial replay cannot perform any other observable effects.
+func (m *model) initialReplayUndefinedStatistics(expr *parser.Expression) bool {
+	if m.tlcRuntime.options.ModernTLCStatistics || !isLiteralUndefinedStatistics(expr) {
+		return false
+	}
+	if definition, ok := m.defs[expr.Text]; ok && !definition.BuiltinInstance {
+		return false
+	}
+	return true
+}
+
+func isLiteralUndefinedStatistics(expr *parser.Expression) bool {
+	if expr.Kind != "Apply" || tlcOperatorName(expr) != "TLCGet" || len(expr.Args) != 1 {
+		return false
+	}
+	arg := expr.Args[0]
+	return arg.Kind == "String" && (arg.Text == "generated" || arg.Text == "stats")
+}
+
+func (m *model) initialReplayEffectFree() bool {
+	names := append([]string{m.cfg.Init, m.cfg.Next}, m.cfg.Constraints...)
+	names = append(names, m.cfg.Invariants...)
+	for _, name := range names {
+		expr, err := m.definition(name)
+		if err != nil || m.expressionHasEffects(expr, map[string]bool{}) || m.readsRandom(expr, map[string]bool{}) || !m.coverageConstraintStableReads(expr, map[string]bool{}) {
+			return false
+		}
+	}
+	return true
 }
 
 func initialReplayRuntimeOperator(name string) bool {

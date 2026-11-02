@@ -34,9 +34,18 @@ func (m *model) constraintHolds(expr *parser.Expression, current, next evaluator
 
 func (m *model) coveredConstraintHolds(expr *parser.Expression, current, next evaluator.State) (bool, error) {
 	previous := m.tlcRuntime.coverageConstraint
+	previousExpr := m.tlcRuntime.coverageConstraintExpr
 	m.tlcRuntime.coverageConstraint = true
-	defer func() { m.tlcRuntime.coverageConstraint = previous }()
+	m.tlcRuntime.coverageConstraintExpr = expr
+	defer func() {
+		m.tlcRuntime.coverageConstraint = previous
+		m.tlcRuntime.coverageConstraintExpr = previousExpr
+	}()
 	return m.evaluateConstraint(expr, current, next)
+}
+
+func (m *model) coverageConstraintEffects(expr *parser.Expression) bool {
+	return expr == nil || m.expressionHasEffects(expr, map[string]bool{}) || m.readsRandom(expr, map[string]bool{})
 }
 
 func (m *model) evaluateConstraint(expr *parser.Expression, current, next evaluator.State) (bool, error) {
