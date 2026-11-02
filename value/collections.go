@@ -568,15 +568,29 @@ func (v Value) updateAt(i int, update func(Value) (Value, error)) (Value, bool, 
 	}
 	pairs := v.data.pairs
 	// The callback has already run and may have effects. When it returns the
-	// identical value, an immutable pair slice without excess capacity can be
-	// shared. Otherwise copy it so the new value cannot retain unused entries
-	// or a disproportionately large backing array after the original is freed.
+	// identical value, share only if its unused capacity holds no values and
+	// is bounded. Otherwise copy it so the new value cannot retain unused
+	// entries or a disproportionately large backing array.
 	// A fresh payload preserves the identity and metadata of an ordinary update.
-	if replacement != pairs[i].Value || len(pairs) != cap(pairs) {
+	if replacement != pairs[i].Value || !shareablePairs(pairs) {
 		pairs = append([]Pair(nil), pairs...)
 		pairs[i].Value = replacement
 	}
 	return Value{kind: FunctionKind, number: v.number, data: &payload{pairs: pairs, domain: v.data.domain, displayOrder: v.data.displayOrder}}, true, nil
+}
+
+// A backing array may retain values past len after duplicate keys are removed.
+// Limit retained storage to twice the live slice and check the unused slots.
+func shareablePairs(pairs []Pair) bool {
+	if cap(pairs)-len(pairs) > len(pairs) {
+		return false
+	}
+	for _, pair := range pairs[len(pairs):cap(pairs)] {
+		if pair != (Pair{}) {
+			return false
+		}
+	}
+	return true
 }
 
 // intervalIndex locates an integer argument of a function whose retained

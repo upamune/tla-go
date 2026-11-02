@@ -47,6 +47,37 @@ func updateDuplicateKeyFunction(t *testing.T) (Value, weak.Pointer[payload]) {
 	return updated, ref
 }
 
+func TestUpdateExistingNoopSharesOnlySafeSpareCapacity(t *testing.T) {
+	key, _ := Integer(1)
+	for _, tc := range []struct {
+		name  string
+		size  int
+		stale bool
+		share bool
+	}{
+		{"no spare", 1, false, true},
+		{"bounded and empty", 2, false, true},
+		{"bounded but occupied", 2, true, false},
+		{"unbounded and empty", 3, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			storage := make([]Pair, tc.size)
+			storage[0] = Pair{Key: key, Value: Bool(false)}
+			if tc.stale {
+				storage[1] = Pair{Value: String("discarded")}
+			}
+			original := Value{kind: FunctionKind, data: &payload{pairs: storage[:1]}}
+			updated, found, err := original.UpdateExisting(key, func(v Value) (Value, error) { return v, nil })
+			if err != nil || !found || updated == original {
+				t.Fatalf("update: found=%v error=%v", found, err)
+			}
+			if shared := &updated.data.pairs[0] == &original.data.pairs[0]; shared != tc.share {
+				t.Fatalf("shared pair storage = %v; want %v", shared, tc.share)
+			}
+		})
+	}
+}
+
 func TestUpdateExistingNoopEvaluatesCallback(t *testing.T) {
 	one, _ := Integer(1)
 	original, err := FunctionWithDomain([]Pair{{Key: one, Value: Bool(false)}}, Interval(1, 1))
