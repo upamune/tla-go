@@ -85,3 +85,27 @@ func TestJavaTLCCoverageInitialErrorMutableReplayBoundary(t *testing.T) {
 		})
 	}
 }
+
+func TestCoverageInitialErrorTLCExtRuntimeRead(t *testing.T) {
+	for _, tc := range []struct{ name, definitions, read string }{
+		{"direct", "", `TLCGetOrDefault(0, 2)`},
+		{"alias", `Read(k) == TLCGetOrDefault(k, 2)`, `Read(0)`},
+		{"local-alias", "", `LET Read(k) == TLCGetOrDefault(k, 2) IN Read(0)`},
+		{"operator-argument", `Read(F(_, _)) == F(0, 2)`, `Read(TLCGetOrDefault)`},
+		{"instance", `I == INSTANCE Aux`, `I!Read`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "EXTENDS Naturals, TLC, TLCExt\nVARIABLE x\nASSUME TLCSet(0, 0)\n" + tc.definitions + "\nInit == x = 0\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nLimit == (" + tc.read + ") = 0 /\\ x < TRUE"
+			writeCoverageModule(t, dir, "M", body)
+			writeCoverageModule(t, dir, "Aux", "EXTENDS TLCExt\nRead == TLCGetOrDefault(0, 2)")
+			if err := os.WriteFile(filepath.Join(dir, "M.cfg"), []byte("INIT Init\nNEXT Next\nCONSTRAINT Limit\nCHECK_DEADLOCK FALSE\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			out, code, _ := runGoInDir(t, dir, []string{"-tool", "-fp", "0", "-workers", "1", "-checkpoint", "0", "-coverage", "9999", "M.tla"})
+			if code == 0 || !strings.Contains(out, "-coverage cannot report initial error replay") || hasToolMessage(readToolMessages(out), 2201) || hasToolMessage(readToolMessages(out), 2103) {
+				t.Fatalf("unsupported replay reported as supported: exit %d\n%s", code, out)
+			}
+		})
+	}
+}

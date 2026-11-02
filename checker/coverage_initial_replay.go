@@ -96,7 +96,7 @@ func (m *model) initialReplayRuntimeDefinition(expr *parser.Expression, seen map
 
 func initialReplayRuntimeOperator(name string) bool {
 	switch name {
-	case "TLCGet", "TLCSet", "TLCGetAndSet", "JavaTime":
+	case "TLCGet", "TLCSet", "TLCGetOrDefault", "TLCGetAndSet", "JavaTime":
 		return true
 	default:
 		return isRandomName(name)
