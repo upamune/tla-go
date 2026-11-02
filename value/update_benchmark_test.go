@@ -54,3 +54,22 @@ func BenchmarkFunctionNoopUpdateDuplicateKeys(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkFunctionNoopUpdateSpareCapacity(b *testing.B) {
+	for _, spare := range []int{0, 64, 65} {
+		b.Run(fmt.Sprintf("spare-%d", spare), func(b *testing.B) {
+			pairs := make([]Pair, 65, 65+spare)
+			key := Value{kind: IntegerKind, number: 1}
+			for i := range pairs {
+				pairs[i] = Pair{Key: Value{kind: IntegerKind, number: int32(i + 1)}, Value: Bool(false)}
+			}
+			function := Value{kind: FunctionKind, data: &payload{pairs: pairs}}
+			for b.Loop() {
+				_, found, err := function.UpdateExisting(key, func(v Value) (Value, error) { return v, nil })
+				if err != nil || !found {
+					b.Fatalf("update: found=%v error=%v", found, err)
+				}
+			}
+		})
+	}
+}

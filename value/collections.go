@@ -580,9 +580,11 @@ func (v Value) updateAt(i int, update func(Value) (Value, error)) (Value, bool, 
 }
 
 // A backing array may retain values past len after duplicate keys are removed.
-// Limit retained storage to twice the live slice and check the unused slots.
+// Limit retained storage to twice the live slice and at most 64 unused pairs,
+// then check those slots. The absolute limit also bounds the scan cost.
 func shareablePairs(pairs []Pair) bool {
-	if cap(pairs)-len(pairs) > len(pairs) {
+	unused := cap(pairs) - len(pairs)
+	if unused > 64 || unused > len(pairs) {
 		return false
 	}
 	for _, pair := range pairs[len(pairs):cap(pairs)] {

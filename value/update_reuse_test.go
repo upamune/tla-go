@@ -78,6 +78,15 @@ func TestUpdateExistingNoopSharesOnlySafeSpareCapacity(t *testing.T) {
 	}
 }
 
+func TestShareablePairsSpareCapacityLimit(t *testing.T) {
+	if !shareablePairs(make([]Pair, 64, 128)) {
+		t.Fatal("64 empty spare slots should be shareable")
+	}
+	if shareablePairs(make([]Pair, 65, 130)) {
+		t.Fatal("65 spare slots must not be shared")
+	}
+}
+
 func TestUpdateExistingNoopEvaluatesCallback(t *testing.T) {
 	one, _ := Integer(1)
 	original, err := FunctionWithDomain([]Pair{{Key: one, Value: Bool(false)}}, Interval(1, 1))
