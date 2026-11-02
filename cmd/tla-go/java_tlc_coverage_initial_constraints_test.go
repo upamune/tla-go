@@ -111,22 +111,22 @@ func coverageConstraintEffectLines(output string) []string {
 	return lines
 }
 
-// Init constraint errors still lack TLC's separate initial-state stack replay.
-func TestCoverageInitialConstraintEvaluationErrorBoundary(t *testing.T) {
+// An initial constraint error includes the diagnostic replay in coverage.
+func TestCoverageInitialConstraintEvaluationErrorReplay(t *testing.T) {
 	dir := t.TempDir()
 	body := "EXTENDS Naturals\nVARIABLE x\nInit == x \\in 0..1\nA == x' = 0\nB == x' = 1\nNext == A \\/ B\nLimit == IF x = 0 THEN TRUE ELSE x < TRUE"
 	writeCoverageModule(t, dir, "M", body)
 	writeParameterizedConfig(t, dir, "INIT Init\nNEXT Next\nCONSTRAINT Limit\n")
 	args := []string{"-tool", "-fp", "0", "-workers", "1", "-coverage", "9999", "-checkpoint", "0", "M.tla"}
 	out, code, stderr := runGoInDir(t, dir, args)
-	if code != 75 || stderr != "" || !hasToolMessage(readToolMessages(out), 2103) || !strings.Contains(out, "<Init line 4, col 1 to line 4, col 4 of module M>: 2:2") {
+	if code != 75 || stderr != "" || !hasToolMessage(readToolMessages(out), 2103) || !strings.Contains(out, "<Init line 4, col 1 to line 4, col 4 of module M>: 4:4") {
 		t.Fatalf("Go exit %d stderr %s\n%s", code, stderr, out)
 	}
 	if jar := pinnedFairnessEffectJar(t); jar != "" {
 		javaArgs := append([]string{}, args[:len(args)-1]...)
 		javaArgs = append(javaArgs, "-metadir", filepath.Join(t.TempDir(), "states"), "M.tla")
 		java, exit := runJavaTLCArgs(t, jar, dir, javaArgs)
-		if exit != code || rawToolMessage(out, 2103) != rawToolMessage(java, 2103) || rawToolMessage(out, 2199) != rawToolMessage(java, 2199) || !strings.Contains(java, "<Init line 4, col 1 to line 4, col 4 of module M>: 4:4") {
+		if exit != code || rawToolMessage(out, 2103) != rawToolMessage(java, 2103) || rawToolMessage(out, 2199) != rawToolMessage(java, 2199) || !reflect.DeepEqual(coverageMessages(readToolMessages(out)), coverageMessages(readToolMessages(java))) {
 			t.Fatalf("Java exit %d\nGo:\n%s\nJava:\n%s", exit, out, java)
 		}
 	}

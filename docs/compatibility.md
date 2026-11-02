@@ -323,6 +323,16 @@ An incomplete initial state is also rejected for this coverage subset. Without
 coverage, Java reports such a state with message 2102; Go currently adds an
 extra 1000 message and formats 2102 differently.
 
+When an initial invariant or state constraint fails to evaluate, TLC runs
+initialization again to construct its error stack; that run also contributes
+to the initial predicate and invariant costs. Coverage comparisons include
+errors on the first and a later candidate and a constraint that prints on
+each pass. If the diagnostic pass no longer fails, tla-go suppresses coverage
+because that changed outcome is not yet modeled completely.
+Constraints using named or dynamically selected `TLCGet` values are rejected
+in coverage mode: for example, TLC 1.7.4 leaves `"generated"` undefined,
+whereas Go currently exposes it. Numeric register reads remain supported.
+
 On an Apple M3, `BenchmarkCoverageDirectUnchanged` with 1,000 initial states
 used about 1.18 MB and 9,151 allocations per run without coverage, both before
 and after this change; with coverage it used about 1.19 MB and 9,190

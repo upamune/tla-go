@@ -558,7 +558,7 @@ func (model *model) finishCoverageCheck(result Result, options Options) (Result,
 	if err := model.replayCoverageSafetyTrace(result); err != nil {
 		return result, err
 	}
-	if model.coverage == nil || result.Status == Success || !model.coverage.hasExistential || !model.coverageReplayUnreliable(result) {
+	if model.coverage == nil || !model.coverage.unreliableReplay && (result.Status == Success || !model.coverage.hasExistential || !model.coverageReplayUnreliable(result)) {
 		model.attachCoverage(&result)
 	}
 	model.adjustContinuedEvaluationFailure(&result)

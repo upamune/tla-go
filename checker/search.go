@@ -78,6 +78,7 @@ func (m *model) check() (Result, error) {
 	}
 	if !more {
 		s.finishInitialEvaluationDetail()
+		s.replayInitialCoverage(init)
 		return s.result, nil
 	}
 	s.initialComplete = true
@@ -106,7 +107,12 @@ func (s *search) initialGenerationError(err error) (Result, error) {
 	if incomplete, ok := errors.AsType[*incompleteState](err); ok {
 		return s.incompleteInitialFailure(incomplete), nil
 	}
-	return s.runtimeFailure(err, nil, 75)
+	result, failureErr := s.runtimeFailure(err, nil, 75)
+	if failureErr == nil {
+		init, _ := s.model.definition(s.model.cfg.Init)
+		s.replayInitialCoverage(init)
+	}
+	return result, failureErr
 }
 
 func (m *model) checkAssumptions() (Result, bool, error) {

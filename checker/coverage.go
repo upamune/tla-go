@@ -52,6 +52,7 @@ type coverageCollector struct {
 	parameterCalls        map[*parser.Expression]*coverageParameterizedRoot
 	hasExistential        bool
 	evaluatedExistential  bool
+	unreliableReplay      bool
 }
 
 func (m *model) newCoverage() (*coverageCollector, error) {
@@ -132,7 +133,7 @@ func (m *model) addCoverageNext(c *coverageCollector, next parser.Definition) bo
 }
 
 func (m *model) coverageConfigSupported() bool {
-	return !m.continueChecking && len(m.cfg.Properties)+len(m.cfg.ActionConstraints)+len(m.cfg.Postconditions)+len(m.cfg.Possible) == 0 && m.cfg.Symmetry == "" && m.cfg.View == ""
+	return !m.continueChecking && len(m.cfg.Properties)+len(m.cfg.ActionConstraints)+len(m.cfg.Postconditions)+len(m.cfg.Possible) == 0 && m.cfg.Symmetry == "" && m.cfg.View == "" && !m.coverageConstraintUsesRuntimeRead()
 }
 
 func (m *model) addCoverageAction(c *coverageCollector, branch *parser.Expression) bool {
