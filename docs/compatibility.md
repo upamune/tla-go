@@ -468,7 +468,10 @@ action constraints, or `_POSSIBLE`, a successor state constraint that fails
 on its first replayed candidate because of either literal undefined statistics
 key is replayed for coverage. Other TLC reads, observable effects, dynamic
 keys, and a replay whose first candidate does not reproduce the error are
-rejected without final coverage. Failures while evaluating a successor
+rejected without final coverage. Qualified reads through a named TLC instance,
+such as `T!TLCGet("stats")` with `T == INSTANCE TLC`, are also rejected in
+this successor-constraint replay; Java TLC 1.7.4 reports error 2145 and
+coverage for the tested example. Failures while evaluating a successor
 expression are likewise rejected because their stack replay is not modeled.
 Initial invariant and constraint failures use the diagnostic replay described
 above; `TestJavaTLCCoverageInitialInvariantEvaluationErrorReplay` compares the
