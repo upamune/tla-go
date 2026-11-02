@@ -117,11 +117,13 @@ func TestCoverageNamedConstraintReadFinalProgressAndEffects(t *testing.T) {
 }
 
 func TestCoverageNamedConstraintReadDuringInitialReplay(t *testing.T) {
-	source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x \\in 0..1\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nLimit == IF TLCGet(\"level\") >= 0 THEN IF x = 0 THEN TRUE ELSE x < TRUE ELSE FALSE\n===="
+	source := "---- MODULE M ----\nEXTENDS Naturals, TLC\nVARIABLE x\nInit == x \\in 0..1\nA == UNCHANGED x\nB == UNCHANGED x\nNext == A \\/ B\nLimit == PrintT(x) /\\ IF TLCGet(\"level\") >= 0 THEN IF x = 0 THEN TRUE ELSE x < TRUE ELSE FALSE\n===="
 	var progress LiveProgress
-	result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next CONSTRAINT Limit CHECK_DEADLOCK FALSE", Options{Coverage: true, LiveProgress: &progress})
-	if !errors.Is(err, errCoverageNamedConstraintRead) || len(result.Coverage) != 0 || progress.CoverageSnapshot() != nil {
-		t.Fatalf("error %v, coverage %+v, progress %+v", err, result.Coverage, progress.CoverageSnapshot())
+	var prints []string
+	var headers int
+	result, err := CheckWithOptions(context.Background(), source, "INIT Init NEXT Next CONSTRAINT Limit CHECK_DEADLOCK FALSE", Options{Coverage: true, LiveProgress: &progress, OnPrint: func(text string) { prints = append(prints, text) }, OnFailureHeader: func(Failure) { headers++ }})
+	if err == nil || !strings.Contains(err.Error(), "-coverage cannot report initial error replay") || len(result.Coverage) != 0 || progress.CoverageSnapshot() != nil || headers != 0 || !reflect.DeepEqual(prints, []string{"0", "1"}) {
+		t.Fatalf("error %v, coverage %+v, progress %+v, headers %d, prints %q", err, result.Coverage, progress.CoverageSnapshot(), headers, prints)
 	}
 }
 
