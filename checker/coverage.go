@@ -11,8 +11,10 @@ import (
 )
 
 // CoverageAction contains counts for one initial predicate or next-state action.
-// Distinct counts newly discovered in-model states; Generated includes repeats
-// and states excluded by a state constraint.
+// For a next action, Distinct counts newly discovered in-model states. For
+// Init, it counts states satisfying the initial predicate before constraints,
+// including repeated candidates. Generated includes repeats and rejected
+// initial candidates.
 type CoverageAction struct {
 	Name                string
 	Range               parser.Range
@@ -701,12 +703,15 @@ func (s *search) countGenerated(action string, initial bool) {
 	s.publishProgress()
 	if s.model.coverage != nil {
 		s.model.coverage.generated(action, initial)
+		if initial {
+			s.model.coverage.distinct(action, true)
+		}
 	}
 }
 
 func (s *search) countCoverageState(action string, parent int) {
-	if s.model.coverage != nil {
-		s.model.coverage.distinct(action, parent < 0)
+	if s.model.coverage != nil && parent >= 0 {
+		s.model.coverage.distinct(action, false)
 	}
 	s.countState(parent)
 }

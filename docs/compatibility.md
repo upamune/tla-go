@@ -296,10 +296,13 @@ nonrecursive, unmodified definitions. Definitions inherited through `EXTENDS`
 are supported, but substituted `INSTANCE` definitions are rejected. The
 upstream `ETest3` remains unsupported because its effectful initial predicate
 and its direct action containing `SUBSET` require additional cost and
-counterexample-replay handling. State constraints are rejected for this
-direct-action subset: in one initial-range example Java reports three initial
-states in the coverage action even though a constraint admits two, whereas Go's
-collector reports two. Tests compare the direct action's normal and tool
+counterexample-replay handling. State constraints remain rejected for this
+direct-action subset. For supported named-action models, the Init coverage root
+counts every completed initial candidate before applying state constraints, as
+in Java TLC, even if none is admitted to the state space. Initial constraint
+evaluation errors still lack Java's separate stack replay: for `x \in 0..1`
+with a constraint failing on the second candidate, Java can report Init 4:4
+while tla-go reports 2:2. Tests compare the direct action's normal and tool
 coverage with Java, including empty initial ranges, reordered definitions,
 `SPECIFICATION`, supported invariants, and separately defined modules. The
 direct UNCHANGED action is supported in the forms described below.
