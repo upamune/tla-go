@@ -301,10 +301,9 @@ and its direct action containing `SUBSET` require additional cost and
 counterexample-replay handling. State constraints remain rejected for this
 direct-action subset. For supported named-action models, the Init coverage root
 counts every completed initial candidate before applying state constraints, as
-in Java TLC, even if none is admitted to the state space. Initial constraint
-evaluation errors still lack Java's separate stack replay: for `x \in 0..1`
-with a constraint failing on the second candidate, Java can report Init 4:4
-while tla-go reports 2:2. Tests compare the direct action's normal and tool
+in Java TLC, even if none is admitted to the state space. Initial invariant
+and constraint errors use the diagnostic replay described below. Tests compare
+the direct action's normal and tool
 coverage with Java, including empty initial ranges, reordered definitions,
 `SPECIFICATION`, supported invariants, and separately defined modules. The
 direct UNCHANGED action is supported in the forms described below.
@@ -459,12 +458,8 @@ differential fixtures cover immediate and deep failures, multi-state actions,
 and excluded successors, including the error and stack messages. Effectful
 constraint recovery is rejected because its output ordering is not yet
 reproduced. Failures while evaluating a successor expression are rejected
-before coverage is printed because their separate stack replay is not modeled;
-initial evaluation failures retain their existing behavior. For example,
-`Init == x = TRUE` with `Inv == x < 2` returns exit 75 in both implementations,
-but Java repeats initial generation and reports Init 2:2 and the invariant
-count 2, whereas tla-go reports 1:1 and 1. Java evaluates the initial
-predicate and invariant again to collect the error stack; tla-go currently
-constructs the stack without repeating them. This distinction is recorded by
-`TestCoverageInitialInvariantEvaluationErrorBoundary`. Other evaluation errors
-are not yet generally covered.
+before coverage is printed because their separate stack replay is not modeled.
+Initial invariant and constraint failures use the diagnostic replay described
+above; `TestJavaTLCCoverageInitialInvariantEvaluationErrorReplay` compares the
+resulting coverage with Java. Other evaluation errors are not yet generally
+covered.
