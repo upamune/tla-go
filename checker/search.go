@@ -164,7 +164,7 @@ func (s *search) explore() (Result, error) {
 		s.publishProgress()
 		more, err := parallel.expand(s, i, next)
 		if err != nil {
-			return s.nextRuntimeFailure(err, i)
+			return s.coverageAwareNextFailure(err, i)
 		}
 		if !more {
 			return s.finishFailedExpansion(i, next)

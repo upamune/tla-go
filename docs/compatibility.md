@@ -434,9 +434,20 @@ Differential fixtures cover initial and successor ranges, short and deep
 traces, and recovery that selects a later action. If state comparison itself
 fails during recovery, tla-go returns an error instead of reporting partial
 coverage; Java can keep the violation status and print an incomplete trace.
-Evaluation exceptions have a
-separate stack-replay path: their coverage can still differ. For example, when
-`x` becomes `TRUE` and evaluating `x < 2` fails, Java TLC 1.7.4 reports action
-roots A 1:3 and B 1:1, while tla-go reports A 1:1 and B 0:0; both report an
-evaluation failure. `TestJavaTLCCoverageSafetyEvaluationErrorBoundary` preserves
-this known difference rather than treating it as a passing compatibility test.
+Successor invariant evaluation exceptions use a separate stack-replay path.
+For supported pure actions without an existential, that path reconstructs
+the trace, generates each action's complete candidate batch before checking
+invariants, and updates generated and newly discovered counts. Java 1.7.4
+differential fixtures cover immediate and deep failures, multi-state actions,
+and excluded successors, including the error and stack messages. Effectful
+constraint recovery is rejected because its output ordering is not yet
+reproduced. Failures while evaluating a successor expression are rejected
+before coverage is printed because their separate stack replay is not modeled;
+initial evaluation failures retain their existing behavior. For example,
+`Init == x = TRUE` with `Inv == x < 2` returns exit 75 in both implementations,
+but Java repeats initial generation and reports Init 2:2 and the invariant
+count 2, whereas tla-go reports 1:1 and 1. Java evaluates the initial
+predicate and invariant again to collect the error stack; tla-go currently
+constructs the stack without repeating them. This distinction is recorded by
+`TestCoverageInitialInvariantEvaluationErrorBoundary`. Other evaluation errors
+are not yet generally covered.

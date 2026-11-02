@@ -6,6 +6,9 @@ import (
 )
 
 func (s *search) finishFailedExpansion(index int, next *parser.Expression) (Result, error) {
+	if err := s.replayCoverageFailureTrace(); err != nil {
+		return Result{}, err
+	}
 	if err := s.replaySafetyFailure(index, next); err != nil {
 		return Result{}, err
 	}
@@ -30,6 +33,9 @@ func (s *search) replaySafetyFailure(index int, next *parser.Expression) error {
 	if s.candidateInModel {
 		seen[s.failureCandidateKey] = true
 	}
+	if s.coverageSafetyFailureReplay() {
+		return s.replayCoveredSafetyFailure(index, next, seen)
+	}
 	gen := generator{model: s.model, current: s.nodes[index].state, emit: func(state evaluator.State, action string, source *parser.Expression) (bool, error) {
 		return s.replaySafetyCandidate(index, state, action, source, seen)
 	}}
@@ -46,12 +52,17 @@ func (s *search) replaySafetyFailure(index int, next *parser.Expression) error {
 	return err
 }
 
+func (s *search) coverageSafetyFailureReplay() bool {
+	return s.model.coverage != nil && !s.model.coverage.hasExistential && s.result.Failure != nil && s.result.Failure.ToolCode == 2111
+}
+
 func (s *search) replaySafetyCandidate(parent int, state evaluator.State, action string, source *parser.Expression, seen map[string]bool) (bool, error) {
 	key, inModel, err := s.candidateKeyAndConstraints(state, parent)
 	if err != nil {
 		return false, err
 	}
 	unseen := s.markReplayCandidate(key, inModel, seen)
+	s.countCoverageReplayDistinct(action, inModel, unseen)
 	if err := s.replayGraphCandidate(parent, state, action, source, key, inModel, unseen); err != nil {
 		return false, err
 	}
@@ -63,6 +74,15 @@ func (s *search) replaySafetyCandidate(parent int, state evaluator.State, action
 	}
 	s.queueReplayCandidate(inModel, unseen)
 	return true, nil
+}
+
+func (s *search) countCoverageReplayDistinct(action string, inModel, unseen bool) {
+	if s.coverageSafetyFailureReplay() && inModel && unseen {
+		if action == "" {
+			action = s.model.cfg.Next
+		}
+		s.model.coverage.distinct(action, false)
+	}
 }
 
 func (s *search) queueReplayCandidate(inModel, unseen bool) {
